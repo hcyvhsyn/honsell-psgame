@@ -99,9 +99,9 @@ function resolvePlatform(productId: string, platforms: unknown): string | null {
   if (Array.isArray(platforms) && platforms.length > 0) {
     const valid = platforms
       .map((p) => String(p))
-      .filter((p) => p === "PS4" || p === "PS5");
+      .filter((p): p is "PS4" | "PS5" => p === "PS4" || p === "PS5");
     if (valid.length > 0) {
-      const ordered = ["PS5", "PS4"].filter((p) => valid.includes(p));
+      const ordered = (["PS5", "PS4"] as const).filter((p) => valid.includes(p));
       return ordered.join(",");
     }
   }

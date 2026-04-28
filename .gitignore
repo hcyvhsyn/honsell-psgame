@@ -38,3 +38,6 @@ next-env.d.ts
 /lib/generated/prisma
 /dev.db
 /dev.db-journal
+
+.env
+.env.local
