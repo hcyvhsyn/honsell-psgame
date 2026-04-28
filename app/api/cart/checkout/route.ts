@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const rawItems = Array.isArray(body.items) ? body.items : [];
   const items: { id: string; qty: number }[] = rawItems
-    .map((i: any) => ({
+    .map((i: { id?: unknown; qty?: unknown }) => ({
       id: typeof i?.id === "string" ? i.id : "",
       qty: Math.max(1, Math.min(20, Math.floor(Number(i?.qty) || 1))),
     }))

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,7 +55,7 @@ export async function GET(req: Request) {
   const limit = Math.max(1, Math.min(200, Number(url.searchParams.get("limit")) || 100));
   const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
 
-  const where: any = { isActive: true, productType };
+  const where: Prisma.GameWhereInput = { isActive: true, productType };
   if (q) where.title = { contains: q };
   if (platform === "PS4" || platform === "PS5") {
     // The platform column stores either a single value ("PS5"), a
@@ -124,7 +125,7 @@ export async function GET(req: Request) {
 }
 
 async function fetchSorted(
-  where: any,
+  where: Prisma.GameWhereInput,
   sort: Sort,
   take: number,
   skip: number

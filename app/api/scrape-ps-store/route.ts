@@ -110,20 +110,30 @@ function resolvePlatform(productId: string, platforms: unknown): string | null {
   return null;
 }
 
-function* walkProducts(node: unknown): Generator<Record<string, any>> {
+type RawProduct = {
+  id: string;
+  name: string;
+  price?: { basePrice?: unknown; discountedPrice?: unknown };
+  media?: Array<{ role?: string; url?: string }>;
+  platforms?: unknown;
+  storeDisplayClassification?: unknown;
+  [key: string]: unknown;
+};
+
+function* walkProducts(node: unknown): Generator<RawProduct> {
   if (!node || typeof node !== "object") return;
   if (Array.isArray(node)) {
     for (const item of node) yield* walkProducts(item);
     return;
   }
-  const obj = node as Record<string, any>;
+  const obj = node as Record<string, unknown>;
   if (
     typeof obj.id === "string" &&
     typeof obj.name === "string" &&
     obj.price &&
     typeof obj.price === "object"
   ) {
-    yield obj;
+    yield obj as RawProduct;
   }
   for (const key of Object.keys(obj)) yield* walkProducts(obj[key]);
 }
@@ -154,7 +164,7 @@ function extractFromHtml(html: string): ScrapedGame[] {
       discountPrice != null && discountPrice < basePrice ? discountPrice : null;
 
     const imageUrl =
-      product.media?.find?.((m: any) => m?.role === "MASTER")?.url ??
+      product.media?.find?.((m) => m?.role === "MASTER")?.url ??
       product.media?.[0]?.url ??
       null;
 

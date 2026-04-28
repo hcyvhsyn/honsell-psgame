@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Search, Star } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { fmtAzn } from "@/lib/format";
 import StarToggle from "./StarToggle";
 
 export const dynamic = "force-dynamic";

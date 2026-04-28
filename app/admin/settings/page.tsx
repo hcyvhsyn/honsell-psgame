@@ -44,6 +44,25 @@ type ScrapeState = {
   log: string[];
 };
 
+type ScrapeEvent = {
+  type: string;
+  totalSources?: number;
+  categoryUrls?: unknown[];
+  seeds?: unknown[];
+  maxPages?: number;
+  sourceIndex?: number;
+  page?: number;
+  totalSoFar?: number;
+  added?: number;
+  pagesFetched?: number;
+  seed?: string;
+  total?: number;
+  done?: number;
+  scraped?: number;
+  upserts?: number;
+  error?: string;
+};
+
 const initialScrape: ScrapeState = {
   running: false,
   totalSources: 0,
@@ -180,7 +199,7 @@ export default function AdminSettingsPage() {
           if (!line) continue;
           const json = line.slice(5).trim();
           if (!json) continue;
-          let payload: any;
+          let payload: ScrapeEvent;
           try {
             payload = JSON.parse(json);
           } catch {
@@ -199,7 +218,7 @@ export default function AdminSettingsPage() {
     }
   }
 
-  function applyEvent(p: any) {
+  function applyEvent(p: ScrapeEvent) {
     setScrape((s) => {
       const log = [...s.log];
       const next: ScrapeState = { ...s };
@@ -213,7 +232,7 @@ export default function AdminSettingsPage() {
           );
           break;
         case "category":
-          next.currentLabel = `Category ${p.sourceIndex + 1}/${
+          next.currentLabel = `Category ${(p.sourceIndex ?? 0) + 1}/${
             (s.totalSources - (p.totalSources ?? 0)) || s.totalSources
           } · page ${p.page}`;
           next.totalSoFar = p.totalSoFar ?? s.totalSoFar;
@@ -222,14 +241,14 @@ export default function AdminSettingsPage() {
           next.sourcesDone = (s.sourcesDone ?? 0) + 1;
           next.totalSoFar = p.totalSoFar ?? s.totalSoFar;
           log.push(
-            `✓ Category ${p.sourceIndex + 1}: ${p.added} new (${p.pagesFetched} pages)`
+            `✓ Category ${(p.sourceIndex ?? 0) + 1}: ${p.added} new (${p.pagesFetched} pages)`
           );
           break;
         case "seed":
           next.sourcesDone = (s.sourcesDone ?? 0) + 1;
           next.totalSoFar = p.totalSoFar ?? s.totalSoFar;
           next.currentLabel = `Search "${p.seed}"`;
-          if (p.added > 0) {
+          if ((p.added ?? 0) > 0) {
             log.push(`+ "${p.seed}": ${p.added} new`);
           }
           break;

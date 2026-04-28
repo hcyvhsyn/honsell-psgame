@@ -16,19 +16,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let amountAzn: number;
-  let file: File;
-
   const form = await req.formData().catch(() => null);
   if (!form) {
     return NextResponse.json({ error: "Form məlumatı oxunmadı" }, { status: 400 });
   }
-  amountAzn = Number(form.get("amountAzn"));
+  const amountAzn = Number(form.get("amountAzn"));
   const f = form.get("receipt");
   if (!(f instanceof File)) {
     return NextResponse.json({ error: "Qəbz şəkli tələb olunur" }, { status: 400 });
   }
-  file = f;
+  const file = f;
 
   if (!Number.isFinite(amountAzn) || amountAzn <= 0) {
     return NextResponse.json({ error: "Səhv məbləğ" }, { status: 400 });
