@@ -1,0 +1,179 @@
+// Honsell PS Store — Prisma schema
+// Provider: PostgreSQL (Supabase).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Auth / Users ─────────────────────────────────────────────────────────────
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String?
+  phone          String?
+  passwordHash   String
+  role           String   @default("USER") // USER | ADMIN
+
+  emailVerified  Boolean   @default(false)
+  otpCode        String?
+  otpExpiresAt   DateTime?
+
+  // Wallet (stored in AZN, scaled by 100 to keep integer math clean)
+  walletBalance  Int      @default(0) // amount in qəpik (1 AZN = 100)
+
+  // Affiliate / referral
+  referralCode   String   @unique
+  referredById   String?
+  referredBy     User?    @relation("Referrals", fields: [referredById], references: [id])
+  referrals      User[]   @relation("Referrals")
+
+  // PSN delivery accounts (one user can have many; one is marked default).
+  psnAccounts    PsnAccount[]
+
+  transactions   Transaction[]      @relation("UserTransactions")
+  commissions    Transaction[]      @relation("CommissionBeneficiary")
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ─── PSN delivery accounts (one user → many PSN logins) ───────────────────────
+
+model PsnAccount {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Friendly nickname shown in dropdowns ("Main", "Brother", "Eu Region")
+  label       String
+  psnEmail    String
+  psnPassword String   // encrypt at rest in production
+
+  isDefault   Boolean  @default(false)
+
+  transactions Transaction[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ─── Catalog ──────────────────────────────────────────────────────────────────
+
+model Game {
+  id              String   @id @default(cuid())
+  // Stable PS Store product id (used to upsert during scraping)
+  productId       String   @unique
+  title           String
+  imageUrl        String?
+  productUrl      String?
+
+  // PS4 | PS5 — derived from the productId code (CUSA/PPSA)
+  platform        String?
+
+  // GAME | ADDON | CURRENCY | OTHER — derived from storeDisplayClassification
+  // GAME      → FULL_GAME, GAME_BUNDLE, PREMIUM_EDITION, null (concept page)
+  // ADDON     → ADD_ON_PACK (DLC, costumes, season passes)
+  // CURRENCY  → VIRTUAL_CURRENCY (cash cards)
+  // OTHER     → themes, avatars, demos, anything else
+  productType     String   @default("GAME")
+
+  // Source prices in TRY, scaled by 100 (kuruş). Never shown to users.
+  priceTryCents       Int
+  discountTryCents    Int?     // null when no discount is active
+
+  isActive        Boolean  @default(true)
+  isFeatured      Boolean  @default(false)
+  lastScrapedAt   DateTime @default(now())
+
+  transactions    Transaction[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([platform])
+  @@index([productType])
+  @@index([title])
+  @@index([isFeatured])
+}
+
+// ─── Transactions (deposits, purchases, commissions) ──────────────────────────
+
+model Transaction {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation("UserTransactions", fields: [userId], references: [id])
+
+  // DEPOSIT | PURCHASE | COMMISSION
+  type           String
+  // PENDING | SUCCESS | FAILED
+  status         String   @default("SUCCESS")
+
+  // Amount in qəpik (AZN * 100). Positive = credit, negative = debit.
+  amountAznCents Int
+
+  // Optional purchase details
+  gameId         String?
+  game           Game?    @relation(fields: [gameId], references: [id])
+
+  // Which PSN account this purchase was delivered to. NULL for non-PURCHASE
+  // rows (DEPOSIT, COMMISSION) and for legacy data created before multi-PSN.
+  psnAccountId   String?
+  psnAccount     PsnAccount? @relation(fields: [psnAccountId], references: [id])
+
+  // For COMMISSION rows: the user who earned the commission
+  beneficiaryId  String?
+  beneficiary    User?    @relation("CommissionBeneficiary", fields: [beneficiaryId], references: [id])
+
+  // Free-form metadata (e.g. masked card, gateway ref)
+  metadata       String?
+
+  // Manual-deposit receipt URL (uploaded by the customer, reviewed by admin)
+  receiptUrl     String?
+
+  createdAt      DateTime @default(now())
+
+  @@index([status, type])
+}
+
+// ─── PS Store scrape history ──────────────────────────────────────────────────
+
+model ScrapeRun {
+  id             String    @id @default(cuid())
+  startedAt      DateTime  @default(now())
+  finishedAt     DateTime?
+  // RUNNING | SUCCESS | FAILED
+  status         String    @default("RUNNING")
+  // Total unique products extracted from PS Store before persisting.
+  scrapedCount   Int       @default(0)
+  // Rows actually upserted into Game (== scrapedCount on success).
+  upsertedCount  Int       @default(0)
+  error          String?
+
+  @@index([startedAt])
+}
+
+// ─── Global settings (single row, id = "global") ──────────────────────────────
+
+model Settings {
+  id                 String   @id @default("global")
+  // Multiplier applied to TRY prices. Stored as float for simplicity.
+  tryToAznRate       Float    @default(0.053)
+  // Profit margin in percent, e.g. 20 means +20%.
+  profitMarginPct    Float    @default(20)
+  // Affiliate commission in percent of purchase price.
+  affiliateRatePct   Float    @default(5)
+
+  // Bank card the customer transfers funds to during manual deposit.
+  depositCardNumber  String?
+  depositCardHolder  String?
+
+  updatedAt          DateTime @updatedAt
+}
