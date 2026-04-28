@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import { existsSync } from "fs";
-import path from "path";
+import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -46,11 +44,6 @@ export async function POST(req: Request) {
     );
   }
 
-  const uploadsDir = path.join(process.cwd(), "public", "uploads", "receipts");
-  if (!existsSync(uploadsDir)) {
-    await mkdir(uploadsDir, { recursive: true });
-  }
-
   const ext =
     file.type === "application/pdf"
       ? "pdf"
@@ -59,11 +52,14 @@ export async function POST(req: Request) {
       : file.type === "image/webp"
       ? "webp"
       : "jpg";
-  const filename = `${user.id}-${Date.now()}.${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(uploadsDir, filename), buffer);
+  const filename = `receipts/${user.id}-${Date.now()}.${ext}`;
 
-  const receiptUrl = `/uploads/receipts/${filename}`;
+  const blob = await put(filename, file, {
+    access: "public",
+    contentType: file.type,
+  });
+
+  const receiptUrl = blob.url;
   const amountCents = Math.round(amountAzn * 100);
 
   const tx = await prisma.transaction.create({
