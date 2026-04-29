@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Gamepad2,
   AlertTriangle,
+  Crown,
 } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 
@@ -20,6 +21,7 @@ export type PsnOption = {
   id: string;
   label: string;
   psnEmail: string;
+  psModel?: string;
   isDefault: boolean;
 };
 
@@ -27,12 +29,25 @@ export default function CartView({
   isAuthed,
   walletBalanceAzn,
   psnAccounts,
+  loyaltyCashbackPct = 0,
+  loyaltyLabel,
+  onRequestLogin,
+  onNavigate,
 }: {
   isAuthed: boolean;
   walletBalanceAzn: number;
   psnAccounts: PsnOption[];
+  /** Cashback % the buyer will earn after this purchase. 0 = none. */
+  loyaltyCashbackPct?: number;
+  /** Display name of the user's loyalty tier (e.g. "Gold"). */
+  loyaltyLabel?: string;
+  /** When provided, replaces the “login” link with a callback (used in modal flow). */
+  onRequestLogin?: () => void;
+  /** Fired when the user clicks any internal Link inside the cart (used to close the modal). */
+  onNavigate?: () => void;
 }) {
   const { items, totalAzn, setQty, remove, clear, hydrated } = useCart();
+  const cashbackAzn = (totalAzn * loyaltyCashbackPct) / 100;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{
     kind: "ok" | "error";
@@ -60,12 +75,22 @@ export default function CartView({
       <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-12 text-center">
         <ShoppingCart className="mx-auto h-10 w-10 text-zinc-600" />
         <p className="mt-3 text-sm text-zinc-400">Səbətin boşdur.</p>
-        <Link
-          href="/"
-          className="mt-5 inline-flex items-center gap-2 rounded-md bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400"
-        >
-          Oyunlara bax
-        </Link>
+        {onNavigate ? (
+          <button
+            type="button"
+            onClick={onNavigate}
+            className="mt-5 inline-flex items-center gap-2 rounded-md bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+          >
+            Oyunlara bax
+          </button>
+        ) : (
+          <Link
+            href="/"
+            className="mt-5 inline-flex items-center gap-2 rounded-md bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+          >
+            Oyunlara bax
+          </Link>
+        )}
       </div>
     );
   }
@@ -123,12 +148,31 @@ export default function CartView({
           <span className="text-zinc-400">Məhsul</span>
           <span className="font-medium">{items.length}</span>
         </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-zinc-400">Cəmi</span>
-          <span className="text-lg font-semibold text-white">
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-3 text-sm">
+          <span className="text-zinc-300">Ödəniləcək</span>
+          <span className="text-xl font-bold tabular-nums text-white">
             {totalAzn.toFixed(2)} AZN
           </span>
         </div>
+
+        {loyaltyCashbackPct > 0 && (
+          <div className="flex items-start justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm">
+            <span className="flex items-start gap-1.5 text-amber-200">
+              <Crown className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span className="leading-tight">
+                <span className="font-medium">
+                  Cashback {loyaltyLabel ? `· ${loyaltyLabel}` : ""}
+                </span>
+                <span className="block text-[11px] text-amber-300/80">
+                  Alışdan sonra cüzdana qaytarılacaq ({loyaltyCashbackPct}%)
+                </span>
+              </span>
+            </span>
+            <span className="whitespace-nowrap font-semibold text-amber-200">
+              +{cashbackAzn.toFixed(2)} AZN
+            </span>
+          </div>
+        )}
 
         {isAuthed && psnAccounts.length > 0 && (
           <div className="border-t border-zinc-800 pt-4">
@@ -137,7 +181,20 @@ export default function CartView({
             </label>
             {psnAccounts.length === 1 ? (
               <div className="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm">
-                <p className="font-medium">{psnAccounts[0].label}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium">{psnAccounts[0].label}</p>
+                  {psnAccounts[0].psModel && (
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ${
+                        psnAccounts[0].psModel === "PS5"
+                          ? "bg-sky-500/15 text-sky-300 ring-sky-500/30"
+                          : "bg-zinc-700/40 text-zinc-300 ring-zinc-600/30"
+                      }`}
+                    >
+                      {psnAccounts[0].psModel}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-zinc-500">{psnAccounts[0].psnEmail}</p>
               </div>
             ) : (
@@ -148,7 +205,8 @@ export default function CartView({
               >
                 {psnAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.label} — {a.psnEmail}
+                    {a.label}
+                    {a.psModel ? ` · ${a.psModel}` : ""} — {a.psnEmail}
                     {a.isDefault ? " (əsas)" : ""}
                   </option>
                 ))}
@@ -156,6 +214,7 @@ export default function CartView({
             )}
             <Link
               href="/profile/accounts"
+              onClick={onNavigate}
               className="mt-1.5 inline-block text-xs text-indigo-400 hover:text-indigo-300"
             >
               Hesabları idarə et →
@@ -165,12 +224,22 @@ export default function CartView({
 
         <div className="border-t border-zinc-800 pt-4">
           {!isAuthed ? (
-            <Link
-              href="/login?next=/cart"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-400"
-            >
-              Sifariş üçün daxil ol <ArrowRight className="h-4 w-4" />
-            </Link>
+            onRequestLogin ? (
+              <button
+                type="button"
+                onClick={onRequestLogin}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-400"
+              >
+                Sifariş üçün daxil ol <ArrowRight className="h-4 w-4" />
+              </button>
+            ) : (
+              <Link
+                href="/login?next=/cart"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-400"
+              >
+                Sifariş üçün daxil ol <ArrowRight className="h-4 w-4" />
+              </Link>
+            )
           ) : noAccounts ? (
             <div className="space-y-3">
               <p className="flex items-start gap-2 rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
@@ -179,6 +248,7 @@ export default function CartView({
               </p>
               <Link
                 href="/profile/accounts"
+                onClick={onNavigate}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-400"
               >
                 PSN hesabı əlavə et
@@ -201,7 +271,8 @@ export default function CartView({
 
               {insufficient ? (
                 <Link
-                  href="/wallet"
+                  href="/profile/wallet"
+                  onClick={onNavigate}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm font-medium text-amber-200 hover:bg-amber-500/20"
                 >
                   Cüzdanı doldur ({(totalAzn - walletBalanceAzn).toFixed(2)} AZN

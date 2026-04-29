@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Gamepad2,
   User,
   Mail,
   KeyRound,
@@ -13,6 +12,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import Logo from "@/components/Logo";
 
 type Step = "details" | "otp";
 
@@ -104,12 +104,9 @@ export default function RegisterPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 py-10 text-zinc-100">
       <div className="w-full max-w-md">
-        <Link href="/" className="mb-8 flex items-center justify-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-md bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/40">
-            <Gamepad2 className="h-4 w-4" />
-          </span>
-          <span className="text-lg font-semibold">Honsell PS Store</span>
-        </Link>
+        <div className="mb-8 flex justify-center">
+          <Logo href="/" height={36} />
+        </div>
 
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-7 shadow-xl shadow-black/30">
           {step === "details" ? (

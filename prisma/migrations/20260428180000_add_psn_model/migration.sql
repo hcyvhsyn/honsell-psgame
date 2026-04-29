@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "PsnAccount" ADD COLUMN "psModel" TEXT NOT NULL DEFAULT 'PS5';

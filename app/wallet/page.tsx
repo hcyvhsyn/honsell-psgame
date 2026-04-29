@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import WalletDepositForm from "@/components/WalletDepositForm";
 import { getCurrentUser } from "@/lib/auth";
@@ -8,6 +9,10 @@ export const dynamic = "force-dynamic";
 export default async function WalletPage() {
   const user = await getCurrentUser();
 
+  // Authenticated users get the wallet inside the profile shell so the sidebar
+  // stays visible while they top up.
+  if (user) redirect("/profile/wallet");
+
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeader />
@@ -16,19 +21,7 @@ export default async function WalletPage() {
           <Wallet className="h-6 w-6 text-indigo-400" />
           <h1 className="text-2xl font-semibold tracking-tight">Cüzdan</h1>
         </div>
-
-        {user && (
-          <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-            <p className="text-xs uppercase tracking-wide text-zinc-500">
-              Cari balans
-            </p>
-            <p className="mt-1 text-3xl font-semibold">
-              {(user.walletBalance / 100).toFixed(2)} AZN
-            </p>
-          </div>
-        )}
-
-        <WalletDepositForm authed={!!user} />
+        <WalletDepositForm authed={false} />
       </section>
     </main>
   );

@@ -56,7 +56,7 @@ export async function GET(req: Request) {
   const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
 
   const where: Prisma.GameWhereInput = { isActive: true, productType };
-  if (q) where.title = { contains: q };
+  if (q) where.title = { contains: q, mode: "insensitive" };
   if (platform === "PS4" || platform === "PS5") {
     // The platform column stores either a single value ("PS5"), a
     // comma-separated list for cross-gen titles ("PS5,PS4"), or NULL for

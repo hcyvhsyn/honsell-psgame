@@ -22,6 +22,7 @@ export async function PATCH(
     label?: string;
     psnEmail?: string;
     psnPassword?: string;
+    psModel?: string;
     isDefault?: boolean;
   } = {};
   if (typeof body.label === "string") {
@@ -32,6 +33,16 @@ export async function PATCH(
   }
   if (typeof body.psnPassword === "string" && body.psnPassword.length > 0) {
     updates.psnPassword = body.psnPassword;
+  }
+  if (typeof body.psModel === "string") {
+    const m = body.psModel.trim().toUpperCase();
+    if (m !== "PS4" && m !== "PS5") {
+      return NextResponse.json(
+        { error: "PlayStation modeli yalnız PS4 və ya PS5 ola bilər" },
+        { status: 400 }
+      );
+    }
+    updates.psModel = m;
   }
   if (body.isDefault === true) updates.isDefault = true;
 

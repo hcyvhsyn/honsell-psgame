@@ -240,66 +240,205 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
         )}
       </form>
 
-      {info && info.requests.length > 0 && (
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-          <header className="flex items-center gap-2 border-b border-zinc-800 px-5 py-3">
-            <ReceiptIcon className="h-4 w-4 text-zinc-400" />
-            <h2 className="text-sm font-semibold">Sorğularım</h2>
-          </header>
-          <ul className="divide-y divide-zinc-800">
-            {info.requests.map((r) => (
-              <li
-                key={r.id}
-                className="flex items-center justify-between gap-3 px-5 py-3 text-sm"
-              >
-                <div className="min-w-0">
-                  <div className="font-medium">
-                    {(r.amountAznCents / 100).toFixed(2)} AZN
-                  </div>
-                  <div className="text-xs text-zinc-500">
-                    {new Date(r.createdAt).toLocaleString("az-AZ")}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {r.receiptUrl && (
-                    <a
-                      href={r.receiptUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-indigo-400 hover:text-indigo-300"
-                    >
-                      Qəbzə bax →
-                    </a>
-                  )}
-                  <StatusBadge status={r.status} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {info && (
+        <DepositHistory requests={info.requests} />
       )}
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: DepositRequest["status"] }) {
-  if (status === "SUCCESS") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300 ring-1 ring-emerald-500/30">
-        <CheckCircle2 className="h-3 w-3" /> Təsdiqləndi
-      </span>
-    );
-  }
-  if (status === "FAILED") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-medium text-rose-300 ring-1 ring-rose-500/30">
-        <XCircle className="h-3 w-3" /> Rədd edildi
-      </span>
-    );
-  }
+function DepositHistory({ requests }: { requests: DepositRequest[] }) {
+  const counts = {
+    pending: requests.filter((r) => r.status === "PENDING").length,
+    success: requests.filter((r) => r.status === "SUCCESS").length,
+    failed: requests.filter((r) => r.status === "FAILED").length,
+  };
+
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300 ring-1 ring-amber-500/30">
-      <Clock className="h-3 w-3" /> Gözləyir
+    <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 via-zinc-900/30 to-zinc-950">
+      <header className="flex items-center justify-between gap-3 border-b border-zinc-800 px-5 py-4">
+        <div className="flex items-center gap-2">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/30">
+            <ReceiptIcon className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 className="text-sm font-semibold">Köçürmə tarixçəsi</h2>
+            <p className="text-[11px] text-zinc-500">
+              Bütün balans yükləmə sorğuların və admin cavabları
+            </p>
+          </div>
+        </div>
+        <div className="hidden items-center gap-1.5 sm:flex">
+          {counts.pending > 0 && (
+            <CountChip
+              tone="amber"
+              icon={<Clock className="h-3 w-3" />}
+              count={counts.pending}
+              label="gözləyir"
+            />
+          )}
+          {counts.success > 0 && (
+            <CountChip
+              tone="emerald"
+              icon={<CheckCircle2 className="h-3 w-3" />}
+              count={counts.success}
+              label="təsdiqləndi"
+            />
+          )}
+          {counts.failed > 0 && (
+            <CountChip
+              tone="rose"
+              icon={<XCircle className="h-3 w-3" />}
+              count={counts.failed}
+              label="rədd"
+            />
+          )}
+        </div>
+      </header>
+
+      {requests.length === 0 ? (
+        <div className="px-5 py-10 text-center">
+          <ReceiptIcon className="mx-auto h-8 w-8 text-zinc-700" />
+          <p className="mt-3 text-sm text-zinc-400">Hələ sorğu göndərməmisən.</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            Yuxarıdan ilk sorğunu göndər — admin cavabı burada görünəcək.
+          </p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-zinc-800">
+          {requests.map((r) => (
+            <DepositRow key={r.id} req={r} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function DepositRow({ req }: { req: DepositRequest }) {
+  const tone =
+    req.status === "SUCCESS"
+      ? "emerald"
+      : req.status === "FAILED"
+        ? "rose"
+        : "amber";
+
+  const Icon =
+    req.status === "SUCCESS"
+      ? CheckCircle2
+      : req.status === "FAILED"
+        ? XCircle
+        : Clock;
+
+  const heading =
+    req.status === "SUCCESS"
+      ? "Təsdiqləndi — balansın artırıldı"
+      : req.status === "FAILED"
+        ? "Rədd edildi"
+        : "Admin yoxlayır";
+
+  const detail =
+    req.status === "SUCCESS"
+      ? "Köçürmə təsdiqləndi və balansın yeniləndi."
+      : req.status === "FAILED"
+        ? "Qəbz təsdiqlənmədi. Düzgün məbləğdə yenidən köçürmə et və qəbzi yenidən yüklə."
+        : "Admin qəbzini yoxlayır. Adətən bir neçə dəqiqədən bir saatadək çəkir.";
+
+  const toneClasses = {
+    amber: {
+      iconBg: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
+      bar: "from-amber-500 to-orange-400",
+      pill: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
+    },
+    emerald: {
+      iconBg: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+      bar: "from-emerald-500 to-teal-400",
+      pill: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+    },
+    rose: {
+      iconBg: "bg-rose-500/15 text-rose-300 ring-rose-500/30",
+      bar: "from-rose-500 to-pink-500",
+      pill: "bg-rose-500/15 text-rose-300 ring-rose-500/30",
+    },
+  }[tone];
+
+  return (
+    <li className="relative flex gap-4 px-5 py-4">
+      <div className={`absolute inset-y-0 left-0 w-0.5 bg-gradient-to-b ${toneClasses.bar}`} />
+
+      <div
+        className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ring-1 ${toneClasses.iconBg}`}
+      >
+        <Icon className="h-4 w-4" />
+      </div>
+
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="text-sm font-semibold tabular-nums text-white">
+            {(req.amountAznCents / 100).toFixed(2)} AZN
+          </span>
+          <span className="text-[11px] text-zinc-500">
+            {new Date(req.createdAt).toLocaleString("az-AZ", {
+              day: "numeric",
+              month: "long",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+        </div>
+        <p className="text-sm text-zinc-200">{heading}</p>
+        <p className="text-xs text-zinc-500">{detail}</p>
+
+        {req.receiptUrl && (
+          <a
+            href={req.receiptUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-400 hover:text-indigo-300"
+          >
+            Yüklədiyim qəbzə bax →
+          </a>
+        )}
+      </div>
+
+      <span
+        className={`hidden h-fit shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 sm:inline-flex ${toneClasses.pill}`}
+      >
+        <Icon className="h-3 w-3" />
+        {req.status === "SUCCESS"
+          ? "Təsdiqləndi"
+          : req.status === "FAILED"
+            ? "Rədd edildi"
+            : "Gözləyir"}
+      </span>
+    </li>
+  );
+}
+
+function CountChip({
+  tone,
+  icon,
+  count,
+  label,
+}: {
+  tone: "amber" | "emerald" | "rose";
+  icon: React.ReactNode;
+  count: number;
+  label: string;
+}) {
+  const cls =
+    tone === "amber"
+      ? "bg-amber-500/15 text-amber-300 ring-amber-500/30"
+      : tone === "emerald"
+        ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30"
+        : "bg-rose-500/15 text-rose-300 ring-rose-500/30";
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${cls}`}
+    >
+      {icon}
+      <span className="font-bold tabular-nums">{count}</span>
+      <span className="opacity-80">{label}</span>
     </span>
   );
 }

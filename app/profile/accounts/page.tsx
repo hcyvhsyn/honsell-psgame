@@ -19,6 +19,7 @@ export default async function PsnAccountsPage() {
         label: true,
         psnEmail: true,
         psnPassword: true,
+        psModel: true,
         isDefault: true,
       },
     })

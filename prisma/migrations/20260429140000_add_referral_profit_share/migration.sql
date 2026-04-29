@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Settings" ADD COLUMN "referralProfitSharePct" DOUBLE PRECISION NOT NULL DEFAULT 20;

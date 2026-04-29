@@ -16,12 +16,15 @@ export async function GET() {
       label: true,
       psnEmail: true,
       psnPassword: true,
+      psModel: true,
       isDefault: true,
       createdAt: true,
     },
   });
   return NextResponse.json({ accounts });
 }
+
+const PS_MODELS = new Set(["PS4", "PS5"]);
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
@@ -31,10 +34,17 @@ export async function POST(req: Request) {
   const label = String(body.label ?? "").trim().slice(0, 40);
   const psnEmail = String(body.psnEmail ?? "").trim();
   const psnPassword = String(body.psnPassword ?? "");
+  const psModel = String(body.psModel ?? "").trim().toUpperCase();
 
   if (!label || !psnEmail || !psnPassword) {
     return NextResponse.json(
       { error: "Ad, PSN e-poçtu və şifrə tələb olunur" },
+      { status: 400 }
+    );
+  }
+  if (!PS_MODELS.has(psModel)) {
+    return NextResponse.json(
+      { error: "PlayStation modeli seçilməlidir (PS4 və ya PS5)" },
       { status: 400 }
     );
   }
@@ -47,9 +57,10 @@ export async function POST(req: Request) {
       label,
       psnEmail,
       psnPassword,
+      psModel,
       isDefault: existing === 0,
     },
-    select: { id: true, label: true, psnEmail: true, isDefault: true },
+    select: { id: true, label: true, psnEmail: true, psModel: true, isDefault: true },
   });
   return NextResponse.json({ account });
 }

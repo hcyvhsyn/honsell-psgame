@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { computeDisplayPrice, getSettings } from "@/lib/pricing";
+import {
+  computeDisplayPrice,
+  getSettings,
+  tryCentsToCostAzn,
+} from "@/lib/pricing";
+import { getLoyaltyTier } from "@/lib/loyalty";
 
 export const runtime = "nodejs";
 
@@ -80,14 +85,35 @@ export async function POST(req: Request) {
     );
   }
 
-  // Build (game, qty, unitPrice) tuples and the grand total in qəpik.
+  // Build (game, qty, unitListPrice, unitCost) tuples and the total.
   const lines = items.map((i) => {
     const game = games.find((g) => g.id === i.id)!;
     const price = computeDisplayPrice(game, settings);
-    const unitCents = Math.round(price.finalAzn * 100);
-    return { game, qty: i.qty, unitCents, lineCents: unitCents * i.qty };
+    const unitListCents = Math.round(price.finalAzn * 100);
+    const tryForCost =
+      game.discountTryCents != null && game.discountTryCents < game.priceTryCents
+        ? game.discountTryCents
+        : game.priceTryCents;
+    const unitCostCents = Math.round(
+      tryCentsToCostAzn(tryForCost, settings) * 100
+    );
+    return {
+      game,
+      qty: i.qty,
+      unitListCents,
+      unitCostCents,
+      lineCents: unitListCents * i.qty,
+    };
   });
   const totalCents = lines.reduce((sum, l) => sum + l.lineCents, 0);
+
+  // Loyalty tier (cashback %) — based on lifetime spend BEFORE this purchase.
+  const spentAgg = await prisma.transaction.aggregate({
+    where: { userId: user.id, type: "PURCHASE" },
+    _sum: { amountAznCents: true },
+  });
+  const spentAzn = Math.abs(spentAgg._sum.amountAznCents ?? 0) / 100;
+  const loyalty = getLoyaltyTier(spentAzn);
 
   if (user.walletBalance < totalCents) {
     return NextResponse.json(
@@ -108,6 +134,7 @@ export async function POST(req: Request) {
 
     const purchaseIds: string[] = [];
     let totalCommissionCents = 0;
+    let cashbackCents = 0;
 
     for (const line of lines) {
       // One PURCHASE row per qty so transaction history is granular.
@@ -117,16 +144,22 @@ export async function POST(req: Request) {
             userId: user.id,
             type: "PURCHASE",
             status: "SUCCESS",
-            amountAznCents: -line.unitCents,
+            amountAznCents: -line.unitListCents,
             gameId: line.game.id,
             psnAccountId: psnAccount!.id,
           },
         });
         purchaseIds.push(purchase.id);
 
-        if (user.referredById && settings.affiliateRatePct > 0) {
+        // Commission = referralProfitSharePct of actual profit (revenue
+        // received from the buyer minus the FX-converted cost).
+        if (user.referredById && settings.referralProfitSharePct > 0) {
+          const profitCents = Math.max(
+            0,
+            line.unitListCents - line.unitCostCents
+          );
           const commissionCents = Math.round(
-            (line.unitCents * settings.affiliateRatePct) / 100
+            (profitCents * settings.referralProfitSharePct) / 100
           );
           if (commissionCents > 0) {
             totalCommissionCents += commissionCents;
@@ -142,7 +175,11 @@ export async function POST(req: Request) {
                 status: "SUCCESS",
                 amountAznCents: commissionCents,
                 gameId: line.game.id,
-                metadata: JSON.stringify({ sourcePurchaseId: purchase.id }),
+                metadata: JSON.stringify({
+                  sourcePurchaseId: purchase.id,
+                  profitCents,
+                  shareRate: settings.referralProfitSharePct,
+                }),
               },
             });
           }
@@ -150,15 +187,47 @@ export async function POST(req: Request) {
       }
     }
 
-    return { purchaseIds, totalCommissionCents };
+    // Tier cashback — credit % of paid amount back to the buyer's wallet.
+    if (loyalty.cashbackPct > 0) {
+      cashbackCents = Math.round((totalCents * loyalty.cashbackPct) / 100);
+      if (cashbackCents > 0) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { walletBalance: { increment: cashbackCents } },
+        });
+        await tx.transaction.create({
+          data: {
+            userId: user.id,
+            type: "CASHBACK",
+            status: "SUCCESS",
+            amountAznCents: cashbackCents,
+            metadata: JSON.stringify({
+              tier: loyalty.label,
+              cashbackPct: loyalty.cashbackPct,
+              sourcePurchaseIds: purchaseIds,
+            }),
+          },
+        });
+      }
+    }
+
+    return { purchaseIds, totalCommissionCents, cashbackCents };
   });
+
+  const netDecrement = totalCents - result.cashbackCents;
 
   return NextResponse.json({
     ok: true,
     purchaseCount: result.purchaseIds.length,
     paidAzn: totalCents / 100,
+    cashbackAzn: result.cashbackCents / 100,
+    cashbackPct: loyalty.cashbackPct,
     commissionPaidAzn: result.totalCommissionCents / 100,
-    newBalanceAzn: (user.walletBalance - totalCents) / 100,
-    deliveredTo: { id: psnAccount.id, label: psnAccount.label, psnEmail: psnAccount.psnEmail },
+    newBalanceAzn: (user.walletBalance - netDecrement) / 100,
+    deliveredTo: {
+      id: psnAccount.id,
+      label: psnAccount.label,
+      psnEmail: psnAccount.psnEmail,
+    },
   });
 }

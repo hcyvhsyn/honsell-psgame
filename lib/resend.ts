@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import WelcomeEmail from "@/emails/WelcomeEmail";
 import OtpEmail from "@/emails/OtpEmail";
+import ResetPasswordEmail from "@/emails/ResetPasswordEmail";
 
 if (!process.env.RESEND_API_KEY) {
   throw new Error("RESEND_API_KEY is not set in environment variables.");
@@ -49,6 +50,31 @@ export async function sendOtpEmail(
 
   if (error) {
     throw new Error(`Resend failed to send OTP email: ${error.message}`);
+  }
+
+  return data;
+}
+
+export async function sendResetPasswordEmail(
+  email: string,
+  userName: string,
+  code: string
+) {
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: email,
+    subject: `Şifrə yeniləmə kodun: ${code}`,
+    react: ResetPasswordEmail({
+      userName,
+      code,
+      expiresInMinutes: OTP_TTL_MINUTES,
+    }),
+  });
+
+  if (error) {
+    throw new Error(
+      `Resend failed to send reset-password email: ${error.message}`
+    );
   }
 
   return data;

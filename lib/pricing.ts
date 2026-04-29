@@ -4,6 +4,8 @@ export type PricingSettings = {
   tryToAznRate: number;
   profitMarginPct: number;
   affiliateRatePct: number;
+  /** % of profit margin shared with the referrer per purchase. */
+  referralProfitSharePct: number;
 };
 
 export type DisplayPrice = {
@@ -26,7 +28,20 @@ export async function getSettings(): Promise<PricingSettings> {
     tryToAznRate: s.tryToAznRate,
     profitMarginPct: s.profitMarginPct,
     affiliateRatePct: s.affiliateRatePct,
+    referralProfitSharePct: s.referralProfitSharePct,
   };
+}
+
+/**
+ * Convert TRY price (in kuruş) to the *cost* in AZN — i.e. FX-converted but
+ * BEFORE the profit margin is applied. Used to compute store profit per sale.
+ */
+export function tryCentsToCostAzn(
+  tryCents: number,
+  settings: PricingSettings
+): number {
+  const azn = (tryCents / 100) * settings.tryToAznRate;
+  return Math.round(azn * 100) / 100;
 }
 
 /**

@@ -12,6 +12,9 @@ import {
   Package,
   Coins,
   MoreHorizontal,
+  Library,
+  Sparkles,
+  Check,
 } from "lucide-react";
 import GameCard, { GameCardData } from "./GameCard";
 
@@ -41,16 +44,65 @@ const SORT_OPTIONS: { value: Sort; label: string }[] = [
   { value: "alpha", label: "Əlifba sırası" },
 ];
 
+type Accent = "indigo" | "fuchsia" | "emerald" | "sky";
+
 const TYPE_TABS: {
   value: ProductType;
   label: string;
+  singular: string;
   icon: React.ReactNode;
+  accent: Accent;
 }[] = [
-  { value: "GAME", label: "Oyunlar", icon: <Gamepad2 className="h-4 w-4" /> },
-  { value: "ADDON", label: "Əlavələr / DLC", icon: <Package className="h-4 w-4" /> },
-  { value: "CURRENCY", label: "Pul kartları", icon: <Coins className="h-4 w-4" /> },
-  { value: "OTHER", label: "Digər", icon: <MoreHorizontal className="h-4 w-4" /> },
+  { value: "GAME", label: "Oyunlar", singular: "Oyun", icon: <Gamepad2 className="h-4 w-4" />, accent: "indigo" },
+  { value: "ADDON", label: "Əlavələr", singular: "Əlavə", icon: <Package className="h-4 w-4" />, accent: "fuchsia" },
+  { value: "CURRENCY", label: "Pul kartları", singular: "Pul kartı", icon: <Coins className="h-4 w-4" />, accent: "emerald" },
+  { value: "OTHER", label: "Digər", singular: "Məhsul", icon: <MoreHorizontal className="h-4 w-4" />, accent: "sky" },
 ];
+
+const ACCENT_STYLES: Record<
+  Accent,
+  {
+    activeWrap: string;
+    activeIcon: string;
+    activeBadge: string;
+    activeText: string;
+    glow: string;
+    hoverIcon: string;
+  }
+> = {
+  indigo: {
+    activeWrap: "border-indigo-500/60 bg-gradient-to-br from-indigo-500/20 via-indigo-500/10 to-transparent",
+    activeIcon: "bg-indigo-500/25 text-indigo-200 ring-indigo-400/40",
+    activeBadge: "bg-indigo-500/25 text-indigo-100",
+    activeText: "text-indigo-100",
+    glow: "shadow-[0_8px_28px_-12px_rgba(99,102,241,0.6)]",
+    hoverIcon: "group-hover:text-indigo-300",
+  },
+  fuchsia: {
+    activeWrap: "border-fuchsia-500/60 bg-gradient-to-br from-fuchsia-500/20 via-fuchsia-500/10 to-transparent",
+    activeIcon: "bg-fuchsia-500/25 text-fuchsia-200 ring-fuchsia-400/40",
+    activeBadge: "bg-fuchsia-500/25 text-fuchsia-100",
+    activeText: "text-fuchsia-100",
+    glow: "shadow-[0_8px_28px_-12px_rgba(217,70,239,0.6)]",
+    hoverIcon: "group-hover:text-fuchsia-300",
+  },
+  emerald: {
+    activeWrap: "border-emerald-500/60 bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent",
+    activeIcon: "bg-emerald-500/25 text-emerald-200 ring-emerald-400/40",
+    activeBadge: "bg-emerald-500/25 text-emerald-100",
+    activeText: "text-emerald-100",
+    glow: "shadow-[0_8px_28px_-12px_rgba(16,185,129,0.6)]",
+    hoverIcon: "group-hover:text-emerald-300",
+  },
+  sky: {
+    activeWrap: "border-sky-500/60 bg-gradient-to-br from-sky-500/20 via-sky-500/10 to-transparent",
+    activeIcon: "bg-sky-500/25 text-sky-200 ring-sky-400/40",
+    activeBadge: "bg-sky-500/25 text-sky-100",
+    activeText: "text-sky-100",
+    glow: "shadow-[0_8px_28px_-12px_rgba(14,165,233,0.6)]",
+    hoverIcon: "group-hover:text-sky-300",
+  },
+};
 
 export default function GameBrowser({ initial }: { initial: ListingResponse }) {
   const [data, setData] = useState<ListingResponse>(initial);
@@ -62,9 +114,6 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
   const [loading, setLoading] = useState(false);
 
   const reqId = useRef(0);
-  // Skip the very first effect run — server already rendered `initial` for
-  // the default state. After that, every change refetches so a cleared
-  // search or a tab roundtrip reloads the correct data.
   const hasMounted = useRef(false);
 
   useEffect(() => {
@@ -123,157 +172,417 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
 
   const activeTab = TYPE_TABS.find((t) => t.value === productType)!;
 
+  const activeFilterChips: { key: string; label: string; onRemove: () => void }[] = [];
+  if (query.trim().length >= 2) {
+    activeFilterChips.push({
+      key: "q",
+      label: `“${query.trim()}”`,
+      onRemove: () => setQuery(""),
+    });
+  }
+  if (platform !== DEFAULT_PLATFORM) {
+    activeFilterChips.push({
+      key: "platform",
+      label: platform,
+      onRemove: () => setPlatform(DEFAULT_PLATFORM),
+    });
+  }
+  if (onSale) {
+    activeFilterChips.push({
+      key: "onSale",
+      label: "Endirimdə",
+      onRemove: () => setOnSale(false),
+    });
+  }
+  if (sort !== DEFAULT_SORT) {
+    activeFilterChips.push({
+      key: "sort",
+      label: SORT_OPTIONS.find((s) => s.value === sort)?.label ?? sort,
+      onRemove: () => setSort(DEFAULT_SORT),
+    });
+  }
+
   return (
     <>
-      <div className="mb-5 flex flex-wrap gap-2">
+      <div className="mb-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         {TYPE_TABS.map((tab) => {
           const count = data.totals?.[tab.value] ?? 0;
           const active = tab.value === productType;
+          const a = ACCENT_STYLES[tab.accent];
           return (
             <button
               key={tab.value}
               type="button"
               onClick={() => setProductType(tab.value)}
-              className={`inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition ${
+              className={`group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl border px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
                 active
-                  ? "border-indigo-500/60 bg-indigo-500/15 text-indigo-200"
-                  : "border-zinc-800 bg-zinc-900/40 text-zinc-300 hover:border-zinc-700"
+                  ? `${a.activeWrap} ${a.activeText} ${a.glow}`
+                  : "border-zinc-800 bg-zinc-900/40 text-zinc-300 hover:-translate-y-0.5 hover:border-zinc-700 hover:bg-zinc-900/70"
               }`}
             >
-              {tab.icon}
-              {tab.label}
               <span
-                className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${
-                  active ? "bg-indigo-500/20 text-indigo-100" : "bg-zinc-800 text-zinc-400"
+                className={`grid h-7 w-7 place-items-center rounded-md ring-1 transition ${
+                  active
+                    ? a.activeIcon
+                    : `bg-zinc-800/70 text-zinc-400 ring-zinc-700/60 ${a.hoverIcon}`
+                }`}
+              >
+                {tab.icon}
+              </span>
+              <span className="font-semibold tracking-tight">{tab.label}</span>
+              <span
+                className={`rounded-md px-1.5 py-0.5 text-xs font-bold tabular-nums ${
+                  active ? a.activeBadge : "bg-zinc-800 text-zinc-400"
                 }`}
               >
                 {count.toLocaleString("en-US")}
               </span>
+              {active && (
+                <span
+                  aria-hidden
+                  className={`absolute inset-x-3 -bottom-px h-px bg-gradient-to-r from-transparent via-current to-transparent ${a.activeText} opacity-60`}
+                />
+              )}
             </button>
           );
         })}
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-sm">
-        <p className="text-zinc-300">
-          <span className="font-semibold text-white">
-            {data.totalAll.toLocaleString("en-US")}
-          </span>{" "}
-          <span className="text-zinc-500">{activeTab.label.toLowerCase()} kataloqda</span>
-          <span className="text-zinc-600"> · </span>
-          <span className="font-semibold text-emerald-400">
-            {data.totalOnSale.toLocaleString("en-US")}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs">
+            <Library className="h-3.5 w-3.5 text-zinc-500" />
+            <span className="font-bold tabular-nums text-white">
+              {data.totalAll.toLocaleString("en-US")}
+            </span>
+            <span className="text-zinc-500">kataloqda</span>
           </span>
-          <span className="text-zinc-500"> endirimdə</span>
-        </p>
-        {hasActiveFilter && (
-          <p className="text-zinc-400">
-            <span className="font-semibold text-white">
-              {showingCount.toLocaleString("en-US")}
-            </span>{" "}
-            nəticə göstərilir
-          </p>
-        )}
-      </div>
-
-      <div className="mb-3 grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_auto_auto]">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={`${activeTab.label} axtar…`}
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900/60 py-2.5 pl-10 pr-10 text-sm placeholder:text-zinc-500 focus:border-indigo-500 focus:outline-none"
-          />
-          {loading && (
-            <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-zinc-500" />
-          )}
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs">
+            <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="font-bold tabular-nums text-emerald-200">
+              {data.totalOnSale.toLocaleString("en-US")}
+            </span>
+            <span className="text-emerald-300/70">endirimdə</span>
+          </span>
         </div>
-
-        <SelectField
-          icon={<Filter className="h-4 w-4" />}
-          value={sort}
-          onChange={(v) => setSort(v as Sort)}
-          options={SORT_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
-        />
-
-        <SelectField
-          icon={<Gamepad2 className="h-4 w-4" />}
-          value={platform}
-          onChange={(v) => setPlatform(v as Platform)}
-          options={[
-            { value: "ALL", label: "Bütün platformalar" },
-            { value: "PS5", label: "PS5" },
-            { value: "PS4", label: "PS4" },
-          ]}
-        />
-
-        <button
-          type="button"
-          onClick={() => setOnSale((v) => !v)}
-          className={`inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
-            onSale
-              ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
-              : "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:border-zinc-700"
-          }`}
-        >
-          <Tag className="h-4 w-4" /> Endirimdə
-        </button>
+        {loading ? (
+          <span className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs text-indigo-200">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Yüklənir…
+          </span>
+        ) : hasActiveFilter ? (
+          <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs text-zinc-300">
+            <span className="font-bold tabular-nums text-white">
+              {showingCount.toLocaleString("en-US")}
+            </span>
+            nəticə
+          </span>
+        ) : null}
       </div>
 
-      {hasActiveFilter && (
-        <div className="mb-4">
+      <div className="relative z-40 mb-3 rounded-2xl border border-zinc-800/80 bg-gradient-to-br from-zinc-900/70 via-zinc-900/30 to-zinc-900/70 p-2 shadow-inner shadow-black/40 backdrop-blur">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto_auto_auto]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`${activeTab.singular} axtar…`}
+              className="w-full rounded-lg border border-transparent bg-zinc-950/60 py-2.5 pl-10 pr-10 text-sm placeholder:text-zinc-500 focus:border-indigo-500/60 focus:bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+            {loading ? (
+              <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-indigo-400" />
+            ) : query.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Axtarışı təmizlə"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+
+          <Dropdown
+            icon={<Filter className="h-4 w-4" />}
+            value={sort}
+            onChange={(v) => setSort(v as Sort)}
+            options={SORT_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
+            ariaLabel="Sıralama"
+          />
+
+          <Dropdown
+            icon={<Gamepad2 className="h-4 w-4" />}
+            value={platform}
+            onChange={(v) => setPlatform(v as Platform)}
+            options={[
+              { value: "ALL", label: "Bütün platformalar" },
+              { value: "PS5", label: "PS5" },
+              { value: "PS4", label: "PS4" },
+            ]}
+            ariaLabel="Platforma"
+            align="end"
+          />
+
+          <button
+            type="button"
+            onClick={() => setOnSale((v) => !v)}
+            className={`inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
+              onSale
+                ? "border-emerald-500/60 bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 text-emerald-200 shadow-[0_6px_24px_-10px_rgba(16,185,129,0.6)]"
+                : "border-transparent bg-zinc-950/60 text-zinc-300 hover:bg-zinc-900"
+            }`}
+          >
+            <Tag className={`h-4 w-4 ${onSale ? "text-emerald-300" : ""}`} />
+            Endirimdə
+            {onSale && (
+              <span className="ml-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {activeFilterChips.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {activeFilterChips.map((chip) => (
+            <span
+              key={chip.key}
+              className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-xs text-indigo-200"
+            >
+              {chip.label}
+              <button
+                type="button"
+                onClick={chip.onRemove}
+                aria-label={`${chip.label} filtrini sil`}
+                className="rounded-full p-0.5 hover:bg-indigo-500/20"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
           <button
             type="button"
             onClick={clearFilters}
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 px-2.5 py-1 text-xs text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200"
           >
-            <X className="h-3 w-3" /> Filtrləri sıfırla
+            Hamısını təmizlə
           </button>
         </div>
       )}
 
-      {data.results.length === 0 ? (
-        <EmptyState query={query} hasActiveFilter={hasActiveFilter} />
-      ) : (
-        <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {data.results.map((g) => (
-            <GameCard key={g.id} game={g} />
-          ))}
-        </ul>
-      )}
+      <div className="relative">
+        {loading && <ProgressBar />}
+
+        {loading && data.results.length === 0 ? (
+          <SkeletonGrid />
+        ) : data.results.length === 0 ? (
+          <EmptyState query={query} hasActiveFilter={hasActiveFilter} onClear={clearFilters} />
+        ) : (
+          <ul
+            className={`grid grid-cols-1 gap-5 transition duration-200 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+              loading ? "pointer-events-none opacity-50" : "opacity-100"
+            }`}
+            aria-busy={loading}
+          >
+            {data.results.map((g) => (
+              <GameCard key={g.id} game={g} />
+            ))}
+          </ul>
+        )}
+      </div>
     </>
   );
 }
 
-function SelectField({
+function ProgressBar() {
+  return (
+    <div className="absolute -top-1 left-0 right-0 z-10 h-0.5 overflow-hidden rounded-full bg-zinc-800/60">
+      <div className="ps-progress h-full w-1/3 rounded-full bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-indigo-500" />
+      <style jsx>{`
+        .ps-progress {
+          animation: ps-progress 1.1s ease-in-out infinite;
+        }
+        @keyframes ps-progress {
+          0% {
+            transform: translateX(-100%);
+          }
+          50% {
+            transform: translateX(150%);
+          }
+          100% {
+            transform: translateX(350%);
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function SkeletonGrid() {
+  return (
+    <ul
+      aria-hidden
+      className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+    >
+      {Array.from({ length: 8 }).map((_, i) => (
+        <li
+          key={i}
+          className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40"
+        >
+          <div className="aspect-square w-full animate-pulse bg-zinc-800/60" />
+          <div className="space-y-3 p-4">
+            <div className="h-4 w-4/5 animate-pulse rounded bg-zinc-800/70" />
+            <div className="h-4 w-2/3 animate-pulse rounded bg-zinc-800/70" />
+            <div className="h-7 w-1/2 animate-pulse rounded bg-zinc-800/80" />
+            <div className="h-9 w-full animate-pulse rounded bg-zinc-800/60" />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Dropdown({
   icon,
   value,
   onChange,
   options,
+  ariaLabel,
+  align = "start",
 }: {
   icon: React.ReactNode;
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
+  ariaLabel: string;
+  align?: "start" | "end";
 }) {
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const selected = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveIndex((i) => (i + 1) % options.length);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveIndex((i) => (i - 1 + options.length) % options.length);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const opt = options[activeIndex];
+        if (opt) {
+          onChange(opt.value);
+          setOpen(false);
+        }
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, options, activeIndex, onChange]);
+
+  useEffect(() => {
+    if (open) {
+      const i = options.findIndex((o) => o.value === value);
+      setActiveIndex(i >= 0 ? i : 0);
+    }
+  }, [open, options, value]);
+
   return (
-    <div className="relative">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
-        {icon}
-      </span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="appearance-none rounded-lg border border-zinc-800 bg-zinc-900/60 py-2.5 pl-10 pr-9 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onClick={() => setOpen((o) => !o)}
+        className={`group inline-flex w-full min-w-[10rem] items-center gap-2 rounded-lg border bg-zinc-950/60 py-2.5 pl-3 pr-2 text-sm text-zinc-100 transition hover:bg-zinc-900 ${
+          open
+            ? "border-indigo-500/60 bg-zinc-950 ring-2 ring-indigo-500/20"
+            : "border-transparent"
+        }`}
       >
-        {options.map((o) => (
-          <option key={o.value} value={o.value} className="bg-zinc-900">
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+        <span className="text-zinc-500">{icon}</span>
+        <span className="flex-1 truncate text-left">{selected?.label}</span>
+        <ChevronDown
+          className={`h-4 w-4 text-zinc-500 transition-transform duration-200 ${
+            open ? "rotate-180 text-indigo-400" : ""
+          }`}
+        />
+      </button>
+
+      {open && (
+        <div
+          ref={listRef}
+          role="listbox"
+          aria-label={ariaLabel}
+          className={`absolute z-[60] mt-2 min-w-full origin-top overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/95 p-1 shadow-2xl shadow-black/60 ring-1 ring-black/40 backdrop-blur ${
+            align === "end" ? "right-0" : "left-0"
+          }`}
+          style={{ animation: "dropdown-in 140ms ease-out" }}
+        >
+          {options.map((o, i) => {
+            const isSelected = o.value === value;
+            const isActive = i === activeIndex;
+            return (
+              <button
+                key={o.value}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                onMouseEnter={() => setActiveIndex(i)}
+                onClick={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center justify-between gap-3 whitespace-nowrap rounded-md px-3 py-2 text-left text-sm transition ${
+                  isSelected
+                    ? "bg-indigo-500/15 text-indigo-100"
+                    : isActive
+                      ? "bg-zinc-800/70 text-zinc-100"
+                      : "text-zinc-300"
+                }`}
+              >
+                <span>{o.label}</span>
+                {isSelected ? (
+                  <Check className="h-4 w-4 text-indigo-300" />
+                ) : (
+                  <span className="h-4 w-4" />
+                )}
+              </button>
+            );
+          })}
+          <style jsx>{`
+            @keyframes dropdown-in {
+              from {
+                opacity: 0;
+                transform: translateY(-4px) scale(0.98);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+              }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 }
@@ -281,18 +590,31 @@ function SelectField({
 function EmptyState({
   query,
   hasActiveFilter,
+  onClear,
 }: {
   query: string;
   hasActiveFilter: boolean;
+  onClear: () => void;
 }) {
   if (hasActiveFilter) {
     return (
       <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-10 text-center">
-        <p className="text-sm text-zinc-400">
+        <Search className="mx-auto h-10 w-10 text-zinc-600" />
+        <p className="mt-3 text-sm text-zinc-300">
           {query.trim().length >= 2
-            ? `"${query.trim()}" üzrə cari filtrlərlə nəticə tapılmadı.`
-            : "Cari filtrlərlə heç bir nəticə tapılmadı."}
+            ? `“${query.trim()}” üzrə nəticə tapılmadı.`
+            : "Seçilmiş filtrlərə uyğun nəticə tapılmadı."}
         </p>
+        <p className="mt-1 text-xs text-zinc-500">
+          Filtrləri sıfırlayıb yenidən cəhd edin.
+        </p>
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
+        >
+          <X className="h-4 w-4" /> Filtrləri sıfırla
+        </button>
       </div>
     );
   }
@@ -300,14 +622,8 @@ function EmptyState({
     <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-10 text-center">
       <Gamepad2 className="mx-auto h-10 w-10 text-zinc-600" />
       <p className="mt-3 text-sm text-zinc-400">
-        Bu kateqoriyada hələ heç nə yoxdur. Admin panelindən scraping işə sal.
+        Bu kateqoriyada hələ məhsul yoxdur.
       </p>
-      <a
-        href="/admin/settings"
-        className="mt-4 inline-flex items-center justify-center rounded-md border border-zinc-700 px-3 py-2 text-sm hover:bg-zinc-800"
-      >
-        Admin panelə keç
-      </a>
     </div>
   );
 }

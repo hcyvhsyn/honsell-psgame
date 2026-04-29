@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { CartProvider } from "@/lib/cart";
+import { ModalProvider } from "@/lib/modals";
+import AppModals from "@/components/AppModals";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -16,7 +18,7 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "Honsell PS Store",
-  description: "PlayStation Store oyunlarını manatla al — birbaşa PSN hesabına çatdırılır.",
+  description: "PlayStation Store oyunlarını ",
 };
 
 export default function RootLayout({
@@ -29,7 +31,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} bg-zinc-950 text-zinc-100 antialiased`}
       >
-        <CartProvider>{children}</CartProvider>
+        <ModalProvider>
+          <CartProvider>
+            {children}
+            <AppModals />
+          </CartProvider>
+        </ModalProvider>
       </body>
     </html>
   );

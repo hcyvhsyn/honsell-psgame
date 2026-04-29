@@ -24,4 +24,27 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+
+  .ps-float {
+    animation: ps-float var(--ps-dur, 7s) ease-in-out var(--ps-delay, 0s) infinite;
+    transform: rotate(var(--ps-rot, 0deg));
+    will-change: transform, opacity;
+  }
+}
+
+@keyframes ps-float {
+  0%, 100% {
+    transform: translateY(0) rotate(var(--ps-rot, 0deg));
+    opacity: 0.09;
+  }
+  50% {
+    transform: translateY(-14px) rotate(calc(var(--ps-rot, 0deg) + 6deg));
+    opacity: 0.16;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ps-float {
+    animation: none;
+  }
 }

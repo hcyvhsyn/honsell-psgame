@@ -20,6 +20,10 @@ model User {
   passwordHash   String
   role           String   @default("USER") // USER | ADMIN
 
+  // Optional profile fields edited from /profile/settings.
+  birthDate      DateTime?
+  gender         String?    // "MALE" | "FEMALE" | "OTHER"
+
   emailVerified  Boolean   @default(false)
   otpCode        String?
   otpExpiresAt   DateTime?
@@ -54,6 +58,9 @@ model PsnAccount {
   label       String
   psnEmail    String
   psnPassword String   // encrypt at rest in production
+
+  /// Console model the account is bound to. "PS4" | "PS5".
+  psModel     String   @default("PS5")
 
   isDefault   Boolean  @default(false)
 
@@ -168,8 +175,12 @@ model Settings {
   tryToAznRate       Float    @default(0.053)
   // Profit margin in percent, e.g. 20 means +20%.
   profitMarginPct    Float    @default(20)
-  // Affiliate commission in percent of purchase price.
+  // Legacy: % of purchase price paid to referrer. Kept for back-compat;
+  // the active formula is `referralProfitSharePct` below.
   affiliateRatePct   Float    @default(5)
+  // % of the store's profit margin shared with the referrer per purchase.
+  // Default 20 → at a 20% margin, the referrer effectively gets 4% of revenue.
+  referralProfitSharePct Float @default(20)
 
   // Bank card the customer transfers funds to during manual deposit.
   depositCardNumber  String?

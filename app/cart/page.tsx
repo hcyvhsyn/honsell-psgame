@@ -2,6 +2,7 @@ import SiteHeader from "@/components/SiteHeader";
 import CartView, { type PsnOption } from "@/components/CartView";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getLoyaltyTier } from "@/lib/loyalty";
 
 export const dynamic = "force-dynamic";
 
@@ -9,14 +10,32 @@ export default async function CartPage() {
   const user = await getCurrentUser();
 
   let psnAccounts: PsnOption[] = [];
+  let loyaltyCashbackPct = 0;
+  let loyaltyLabel: string | undefined;
+
   if (user) {
-    psnAccounts = (
-      await prisma.psnAccount.findMany({
+    const [accounts, spentAgg] = await Promise.all([
+      prisma.psnAccount.findMany({
         where: { userId: user.id },
         orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-        select: { id: true, label: true, psnEmail: true, isDefault: true },
-      })
-    ).map((a) => ({ ...a }));
+        select: {
+          id: true,
+          label: true,
+          psnEmail: true,
+          psModel: true,
+          isDefault: true,
+        },
+      }),
+      prisma.transaction.aggregate({
+        where: { userId: user.id, type: "PURCHASE" },
+        _sum: { amountAznCents: true },
+      }),
+    ]);
+    psnAccounts = accounts.map((a) => ({ ...a }));
+    const spentAzn = Math.abs(spentAgg._sum.amountAznCents ?? 0) / 100;
+    const tier = getLoyaltyTier(spentAzn);
+    loyaltyCashbackPct = tier.cashbackPct;
+    loyaltyLabel = tier.label;
   }
 
   return (
@@ -28,6 +47,8 @@ export default async function CartPage() {
           isAuthed={!!user}
           walletBalanceAzn={user ? user.walletBalance / 100 : 0}
           psnAccounts={psnAccounts}
+          loyaltyCashbackPct={loyaltyCashbackPct}
+          loyaltyLabel={loyaltyLabel}
         />
       </section>
     </main>

@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { Gamepad2, User, LogIn } from "lucide-react";
+import { User } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import CartIndicator from "./CartIndicator";
+import HeaderGuestButtons from "./HeaderGuestButtons";
+import Logo from "./Logo";
 
 /**
  * Public site header. The admin panel is intentionally NOT linked here —
@@ -13,14 +15,7 @@ export default async function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-md bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/40">
-            <Gamepad2 className="h-4 w-4" />
-          </span>
-          <span className="text-base font-semibold tracking-tight">
-            Honsell <span className="text-zinc-400 font-normal">PS Store</span>
-          </span>
-        </Link>
+        <Logo href="/" height={24} priority />
 
         <nav className="flex items-center gap-2 sm:gap-3">
           <CartIndicator />
@@ -38,21 +33,7 @@ export default async function SiteHeader() {
               </span>
             </Link>
           ) : (
-            <>
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-300 hover:text-white"
-              >
-                <LogIn className="h-4 w-4" />
-                Daxil ol
-              </Link>
-              <Link
-                href="/register"
-                className="inline-flex items-center justify-center rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400"
-              >
-                Qeydiyyat
-              </Link>
-            </>
+            <HeaderGuestButtons />
           )}
         </nav>
       </div>
