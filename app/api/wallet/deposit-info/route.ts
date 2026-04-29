@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { headers } from "next/headers";
 
 export const runtime = "nodejs";
 
@@ -9,6 +10,10 @@ export const runtime = "nodejs";
  * customer's pending deposit requests.
  */
 export async function GET() {
+  const h = headers();
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+  const origin = host ? `${proto}://${host}` : "";
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -37,6 +42,9 @@ export async function GET() {
   return NextResponse.json({
     depositCardNumber: settings.depositCardNumber ?? null,
     depositCardHolder: settings.depositCardHolder ?? null,
-    requests,
+    requests: requests.map((r) => ({
+      ...r,
+      receiptUrl: r.receiptUrl ? `${origin}/api/wallet/receipt?id=${r.id}` : null,
+    })),
   });
 }

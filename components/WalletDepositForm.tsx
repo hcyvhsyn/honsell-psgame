@@ -13,6 +13,7 @@ import {
   XCircle,
   CreditCard,
 } from "lucide-react";
+import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 type DepositRequest = {
   id: string;
@@ -78,16 +79,52 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
       setMessage({ ok: false, text: "Qəbz şəklini seç." });
       return;
     }
+    if (file.size === 0) {
+      setMessage({ ok: false, text: "Boş fayl seçilib." });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ ok: false, text: "Fayl çox böyükdür (max 5 MB)." });
+      return;
+    }
     setBusy(true);
     setMessage(null);
 
-    const fd = new FormData();
-    fd.append("amountAzn", String(amount));
-    fd.append("receipt", file);
+    // 1) Create a signed upload URL on our server (small JSON → no 413)
+    const init = await fetch("/api/wallet/receipt-upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contentType: file.type }),
+    });
+    const initData = await init.json().catch(() => ({}));
+    if (!init.ok) {
+      setBusy(false);
+      setMessage({ ok: false, text: initData.error ?? "Upload hazırlanmadı." });
+      return;
+    }
 
+    // 2) Upload directly to Supabase (bypasses Vercel body limit)
+    try {
+      const supabase = getSupabaseBrowser();
+      const { error: upErr } = await supabase.storage
+        .from(initData.bucket)
+        .uploadToSignedUrl(initData.path, initData.token, file);
+      if (upErr) {
+        setBusy(false);
+        setMessage({ ok: false, text: `Upload alınmadı: ${upErr.message}` });
+        return;
+      }
+    } catch {
+      setBusy(false);
+      setMessage({ ok: false, text: "Upload alınmadı." });
+      return;
+    }
+
+    // 3) Create deposit request (small JSON)
     const res = await fetch("/api/wallet/request-deposit", {
       method: "POST",
-      body: fd,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amountAzn: amount, receiptPath: initData.path }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);

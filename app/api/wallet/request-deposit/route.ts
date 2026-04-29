@@ -16,57 +16,69 @@ export async function POST(req: Request) {
   }
 
   try {
-    const form = await req.formData().catch(() => null);
-    if (!form) {
-      return NextResponse.json({ error: "Form məlumatı oxunmadı" }, { status: 400 });
-    }
-    const amountAzn = Number(form.get("amountAzn"));
-    const f = form.get("receipt");
-    if (!(f instanceof File)) {
-      return NextResponse.json({ error: "Qəbz şəkli tələb olunur" }, { status: 400 });
-    }
-    const file = f;
+    const ct = req.headers.get("content-type") ?? "";
 
-    if (!Number.isFinite(amountAzn) || amountAzn <= 0) {
+    let amountAzn: number | null = null;
+    let receiptPath: string | null = null;
+    let receiptUrl: string | null = null;
+
+    if (ct.includes("application/json")) {
+      const body = await req.json().catch(() => ({}));
+      amountAzn = Number(body.amountAzn);
+      receiptPath = typeof body.receiptPath === "string" ? body.receiptPath : null;
+    } else {
+      // Back-compat: accept multipart/form-data, but this path may hit Vercel 413.
+      const form = await req.formData().catch(() => null);
+      if (!form) {
+        return NextResponse.json({ error: "Form məlumatı oxunmadı" }, { status: 400 });
+      }
+      amountAzn = Number(form.get("amountAzn"));
+      const f = form.get("receipt");
+      if (!(f instanceof File)) {
+        return NextResponse.json({ error: "Qəbz şəkli tələb olunur" }, { status: 400 });
+      }
+      const file = f;
+
+      if (file.size === 0) return NextResponse.json({ error: "Boş fayl" }, { status: 400 });
+      if (file.size > MAX_BYTES) {
+        return NextResponse.json({ error: "Fayl çox böyükdür (max 5 MB)" }, { status: 400 });
+      }
+      if (!ALLOWED.has(file.type)) {
+        return NextResponse.json(
+          { error: "Yalnız PNG, JPEG, WEBP və PDF qəbul olunur" },
+          { status: 400 }
+        );
+      }
+
+      const ext =
+        file.type === "application/pdf"
+          ? "pdf"
+          : file.type === "image/png"
+            ? "png"
+            : file.type === "image/webp"
+              ? "webp"
+              : "jpg";
+      receiptPath = `${user.id}/${Date.now()}.${ext}`;
+
+      const supabase = getSupabaseAdmin();
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const { error: uploadErr } = await supabase.storage.from(BUCKET).upload(receiptPath, bytes, {
+        upsert: false,
+        contentType: file.type,
+        cacheControl: "3600",
+      });
+      if (uploadErr) throw new Error(`Supabase upload failed: ${uploadErr.message}`);
+    }
+
+    if (!Number.isFinite(amountAzn) || (amountAzn ?? 0) <= 0) {
       return NextResponse.json({ error: "Səhv məbləğ" }, { status: 400 });
     }
-    if (file.size === 0) {
-      return NextResponse.json({ error: "Boş fayl" }, { status: 400 });
-    }
-    if (file.size > MAX_BYTES) {
-      return NextResponse.json({ error: "Fayl çox böyükdür (max 5 MB)" }, { status: 400 });
-    }
-    if (!ALLOWED.has(file.type)) {
-      return NextResponse.json(
-        { error: "Yalnız PNG, JPEG, WEBP və PDF qəbul olunur" },
-        { status: 400 }
-      );
+    if (!receiptPath || !receiptPath.startsWith(`${user.id}/`)) {
+      return NextResponse.json({ error: "Qəbz tapılmadı" }, { status: 400 });
     }
 
-    const ext =
-      file.type === "application/pdf"
-        ? "pdf"
-        : file.type === "image/png"
-          ? "png"
-          : file.type === "image/webp"
-            ? "webp"
-            : "jpg";
-    const filename = `${user.id}/${Date.now()}.${ext}`;
-
-    const supabase = getSupabaseAdmin();
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const { error: uploadErr } = await supabase.storage.from(BUCKET).upload(filename, bytes, {
-      upsert: false,
-      contentType: file.type,
-      cacheControl: "3600",
-    });
-    if (uploadErr) {
-      throw new Error(`Supabase upload failed: ${uploadErr.message}`);
-    }
-
-    // Store a stable public URL. Bucket should be public; otherwise switch to signed URLs.
-    const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(filename);
-    const receiptUrl = pub.publicUrl;
+    // Store storage path in DB; serve it via signed download URL later.
+    receiptUrl = receiptPath;
     const amountCents = Math.round(amountAzn * 100);
 
     const tx = await prisma.transaction.create({
@@ -75,7 +87,7 @@ export async function POST(req: Request) {
         type: "DEPOSIT",
         status: "PENDING",
         amountAznCents: amountCents,
-        receiptUrl,
+        receiptUrl: receiptUrl ?? undefined,
         metadata: "manual-bank-transfer",
       },
       select: { id: true, status: true, amountAznCents: true, createdAt: true },
