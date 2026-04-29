@@ -65,7 +65,6 @@ function CartModalBody({
     walletBalanceAzn: number;
     psnAccounts: PsnOption[];
     loyaltyCashbackPct: number;
-    loyaltyLabel?: string;
   } | null>(null);
 
   useEffect(() => {
@@ -84,7 +83,6 @@ function CartModalBody({
             walletBalanceAzn: d.user ? d.user.walletBalance / 100 : 0,
             psnAccounts: d.psnAccounts ?? [],
             loyaltyCashbackPct: d.loyalty?.cashbackPct ?? 0,
-            loyaltyLabel: d.loyalty?.label,
           });
         }
       )
@@ -118,7 +116,6 @@ function CartModalBody({
           walletBalanceAzn={data.walletBalanceAzn}
           psnAccounts={data.psnAccounts}
           loyaltyCashbackPct={data.loyaltyCashbackPct}
-          loyaltyLabel={data.loyaltyLabel}
           onRequestLogin={onRequestLogin}
           onNavigate={onClose}
         />

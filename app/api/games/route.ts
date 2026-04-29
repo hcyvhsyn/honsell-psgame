@@ -290,7 +290,7 @@ function buildGameWhereSql({
     PrismaSql.sql`(g."title" ILIKE ${`%${q}%`} OR similarity(g."title", ${q}) >= 0.15)`
   );
 
-  const whereSql = PrismaSql.join(parts, PrismaSql.sql` AND `);
+  const whereSql = PrismaSql.join(parts, " AND ");
   return whereSql;
 }
 

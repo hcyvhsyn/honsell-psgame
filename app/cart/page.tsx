@@ -11,7 +11,6 @@ export default async function CartPage() {
 
   let psnAccounts: PsnOption[] = [];
   let loyaltyCashbackPct = 0;
-  let loyaltyLabel: string | undefined;
 
   if (user) {
     const [accounts, spentAgg] = await Promise.all([
@@ -35,7 +34,6 @@ export default async function CartPage() {
     const spentAzn = Math.abs(spentAgg._sum.amountAznCents ?? 0) / 100;
     const tier = getLoyaltyTier(spentAzn);
     loyaltyCashbackPct = tier.cashbackPct;
-    loyaltyLabel = tier.label;
   }
 
   return (
@@ -48,7 +46,6 @@ export default async function CartPage() {
           walletBalanceAzn={user ? user.walletBalance / 100 : 0}
           psnAccounts={psnAccounts}
           loyaltyCashbackPct={loyaltyCashbackPct}
-          loyaltyLabel={loyaltyLabel}
         />
       </section>
     </main>
