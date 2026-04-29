@@ -15,7 +15,7 @@ export default function Modal({
   onClose,
   children,
   size = "md",
-  closeOnBackdrop = true,
+  closeOnBackdrop = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -25,17 +25,12 @@ export default function Modal({
 }) {
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
-import type { Prisma } from "@/lib/generated/prisma/client";
+import type { Game, Prisma } from "@/lib/generated/prisma/client";
+import { Prisma as PrismaSql } from "@/lib/generated/prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,15 +71,9 @@ export async function GET(req: Request) {
   if (onSale) where.discountTryCents = { not: null };
   if (sort === "popular") where.isFeatured = true;
 
-  const [
-    filteredCount,
-    typeAllCount,
-    typeOnSaleCount,
-    totalsArr,
-    settings,
-    rows,
-  ] = await Promise.all([
-    prisma.game.count({ where }),
+  const useFuzzy = q.length >= 2;
+
+  const [typeAllCount, typeOnSaleCount, totalsArr, settings] = await Promise.all([
     prisma.game.count({ where: { isActive: true, productType } }),
     prisma.game.count({
       where: { isActive: true, productType, discountTryCents: { not: null } },
@@ -89,8 +84,14 @@ export async function GET(req: Request) {
       _count: { _all: true },
     }),
     getSettings(),
-    fetchSorted(where, sort, limit, offset),
   ]);
+
+  const { filteredCount, rows } = useFuzzy
+    ? await fetchFuzzy({ q, sort, productType, platform, onSale, limit, offset })
+    : {
+        filteredCount: await prisma.game.count({ where }),
+        rows: await fetchSorted(where, sort, limit, offset),
+      };
 
   const totals: Record<string, number> = {
     GAME: 0,
@@ -183,5 +184,142 @@ async function fetchSorted(
       });
       return all.slice(skip, skip + take);
     }
+  }
+}
+
+async function fetchFuzzy({
+  q,
+  sort,
+  productType,
+  platform,
+  onSale,
+  limit,
+  offset,
+}: {
+  q: string;
+  sort: Sort;
+  productType: string;
+  platform: string | null;
+  onSale: boolean;
+  limit: number;
+  offset: number;
+}): Promise<{ filteredCount: number; rows: Game[] }> {
+  // Prefer typo-tolerant fuzzy search on Postgres when available (pg_trgm).
+  // If the extension is not enabled (or the DB blocks it), fall back to
+  // the original `contains` behavior so search still works.
+  try {
+    let whereSql = buildGameWhereSql({ q, productType, platform, onSale });
+    if (sort === "popular") whereSql = PrismaSql.sql`${whereSql} AND g."isFeatured" = true`;
+
+    if (sort === "discount") {
+      // This sort is computed (requires discount), so we fetch all matching and
+      // sort in JS (same approach as the non-fuzzy codepath).
+      const discountWhere = PrismaSql.sql`${whereSql} AND g."discountTryCents" IS NOT NULL`;
+      const all = (await prisma.$queryRaw(
+        PrismaSql.sql`SELECT g.* FROM "Game" g WHERE ${discountWhere}`
+      )) as Game[];
+
+      const filteredCount =
+        all.length; /* best-effort; avoids an extra count query in this branch */
+
+      all.sort((a, b) => {
+        const pa = (a.priceTryCents - (a.discountTryCents ?? a.priceTryCents)) / a.priceTryCents;
+        const pb = (b.priceTryCents - (b.discountTryCents ?? b.priceTryCents)) / b.priceTryCents;
+        return pb - pa;
+      });
+      return { filteredCount, rows: all.slice(offset, offset + limit) };
+    }
+
+    const countRow = (await prisma.$queryRaw(
+      PrismaSql.sql`SELECT COUNT(*)::int AS count FROM "Game" g WHERE ${whereSql}`
+    )) as Array<{ count: number }>;
+
+    const orderSql = buildFuzzyOrderSql(sort, q);
+    const rows = (await prisma.$queryRaw(
+      PrismaSql.sql`SELECT g.* FROM "Game" g WHERE ${whereSql} ORDER BY ${orderSql} LIMIT ${limit} OFFSET ${offset}`
+    )) as Game[];
+
+    return { filteredCount: countRow?.[0]?.count ?? 0, rows };
+  } catch {
+    // Fallback: simple substring match (existing behavior).
+    const where: Prisma.GameWhereInput = { isActive: true, productType };
+    where.title = { contains: q, mode: "insensitive" };
+    if (platform === "PS4" || platform === "PS5") {
+      where.OR = [{ platform: { contains: platform } }, { platform: null }];
+    }
+    if (onSale) where.discountTryCents = { not: null };
+    if (sort === "popular") where.isFeatured = true;
+
+    const [filteredCount, rows] = await Promise.all([
+      prisma.game.count({ where }),
+      fetchSorted(where, sort, limit, offset),
+    ]);
+    return { filteredCount, rows };
+  }
+}
+
+function buildGameWhereSql({
+  q,
+  productType,
+  platform,
+  onSale,
+}: {
+  q: string;
+  productType: string;
+  platform: string | null;
+  onSale: boolean;
+}) {
+  // Base filters.
+  const parts: PrismaSql.Sql[] = [
+    PrismaSql.sql`g."isActive" = true`,
+    PrismaSql.sql`g."productType" = ${productType}`,
+  ];
+
+  if (onSale) parts.push(PrismaSql.sql`g."discountTryCents" IS NOT NULL`);
+
+  if (platform === "PS4" || platform === "PS5") {
+    parts.push(
+      PrismaSql.sql`(g."platform" ILIKE ${`%${platform}%`} OR g."platform" IS NULL)`
+    );
+  }
+
+  // Fuzzy match:
+  // - keep a permissive similarity threshold so short queries like "gta" still work
+  // - always allow substring hits (ILIKE) as a strong signal
+  parts.push(
+    PrismaSql.sql`(g."title" ILIKE ${`%${q}%`} OR similarity(g."title", ${q}) >= 0.15)`
+  );
+
+  const whereSql = PrismaSql.join(parts, PrismaSql.sql` AND `);
+  return whereSql;
+}
+
+function buildFuzzyOrderSql(sort: Sort, q: string) {
+  // Rank relevance first, then apply the chosen sort as a tie-breaker.
+  // Note: "popular" is handled as a filter in the Prisma path; here we keep it
+  // as a deterministic secondary order.
+  const relevance = PrismaSql.sql`
+    (CASE WHEN g."title" ILIKE ${`%${q}%`} THEN 1 ELSE 0 END) DESC,
+    similarity(g."title", ${q}) DESC
+  `;
+
+  switch (sort) {
+    case "alpha":
+      return PrismaSql.sql`${relevance}, g."title" ASC`;
+    case "priceAsc":
+      return PrismaSql.sql`${relevance},
+        g."discountTryCents" ASC NULLS LAST,
+        g."priceTryCents" ASC`;
+    case "priceDesc":
+      return PrismaSql.sql`${relevance},
+        g."discountTryCents" DESC NULLS LAST,
+        g."priceTryCents" DESC`;
+    case "newest":
+      return PrismaSql.sql`${relevance}, g."lastScrapedAt" DESC, g."id" ASC`;
+    case "popular":
+      return PrismaSql.sql`${relevance}, g."lastScrapedAt" DESC, g."title" ASC`;
+    case "discount":
+      // handled above
+      return PrismaSql.sql`${relevance}`;
   }
 }
