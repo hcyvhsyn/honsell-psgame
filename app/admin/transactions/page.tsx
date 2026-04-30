@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { fmtAzn, fmtDate } from "@/lib/format";
+import ActionButtons from "./ActionButtons";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 30;
-const TYPES = ["ALL", "DEPOSIT", "PURCHASE", "COMMISSION"] as const;
+const TYPES = ["ALL", "DEPOSIT", "PURCHASE", "COMMISSION", "SERVICE_PURCHASE"] as const;
 const STATUSES = ["ALL", "SUCCESS", "PENDING", "FAILED"] as const;
 
 export default async function AdminTransactionsPage({
@@ -33,6 +34,8 @@ export default async function AdminTransactionsPage({
         user: { select: { id: true, email: true, name: true } },
         game: { select: { title: true, platform: true } },
         beneficiary: { select: { email: true } },
+        serviceProduct: { select: { title: true, type: true } },
+        psnAccount: { select: { psnEmail: true } },
       },
     }),
     prisma.transaction.aggregate({
@@ -129,13 +132,25 @@ export default async function AdminTransactionsPage({
                 </Td>
                 <Td className="text-zinc-300">
                   {t.type === "PURCHASE" && t.game?.title}
-                  {t.type === "COMMISSION" &&
-                    t.beneficiary &&
-                    `→ ${t.beneficiary.email}`}
+                  {t.type === "COMMISSION" && t.beneficiary && `→ ${t.beneficiary.email}`}
                   {t.type === "DEPOSIT" && (t.metadata ?? "Wallet top-up")}
+                  {t.type === "SERVICE_PURCHASE" && (
+                    <div>
+                      <div className="font-medium">{t.serviceProduct?.title}</div>
+                      <div className="text-xs text-zinc-500 max-w-xs break-all mt-1">
+                        {t.psnAccount && <div>PSN: {t.psnAccount.psnEmail}</div>}
+                        {t.metadata ? JSON.stringify(JSON.parse(t.metadata)) : null}
+                      </div>
+                    </div>
+                  )}
                 </Td>
                 <Td>
-                  <StatusBadge status={t.status} />
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={t.status} />
+                    {t.type === "SERVICE_PURCHASE" && t.status === "PENDING" && (
+                      <ActionButtons id={t.id} />
+                    )}
+                  </div>
                 </Td>
                 <Td
                   className={`text-right font-medium ${

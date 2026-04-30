@@ -1,102 +1,67 @@
---- components/CartView.tsx
-+++ components/CartView.tsx
-@@ -14,6 +14,8 @@
-   Gamepad2,
-   AlertTriangle,
-   Crown,
-+  ChevronDown,
-+  Check,
- } from "lucide-react";
- import { useCart, type CartItem } from "@/lib/cart";
- 
-@@ -196,16 +198,11 @@
-                 )}
-               </div>
-             ) : (
--              <select
-+              <AccountDropdown
-+                accounts={psnAccounts}
-                 value={psnAccountId}
--                onChange={(e) => setPsnAccountId(e.target.value)}
--                className="w-full appearance-none rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-3 py-2.5 text-sm text-zinc-200 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
--              >
--                {psnAccounts.map((a) => (
--                  <option key={a.id} value={a.id}>
--                    {a.label} {a.psModel ? `(${a.psModel})` : ""} — {a.psnEmail}
--                  </option>
--                ))}
--              </select>
-+                onChange={setPsnAccountId}
-+              />
-             )}
-           </div>
-         )}
-@@ -405,3 +402,67 @@
-       return "Digər";
-   }
+--- prisma/schema.prisma
++++ prisma/schema.prisma
+@@ -113,6 +113,38 @@
+   @@index([isFeatured])
  }
+ 
++// ─── Service Products (TRY Balans, PS Plus, Account Creation) ────────────────
 +
-+function AccountDropdown({
-+  accounts,
-+  value,
-+  onChange,
-+}: {
-+  accounts: PsnOption[];
-+  value: string;
-+  onChange: (id: string) => void;
-+}) {
-+  const [open, setOpen] = useState(false);
-+  const selected = accounts.find((a) => a.id === value) || accounts[0];
++model ServiceProduct {
++  id              String   @id @default(cuid())
++  // ACCOUNT_CREATION | TRY_BALANCE | PS_PLUS
++  type            String
++  title           String
++  description     String?
++  // Qiymət (AZN qəpiklə)
++  priceAznCents   Int
 +
-+  return (
-+    <div className="relative">
-+      <button
-+        type="button"
-+        onClick={() => setOpen((o) => !o)}
-+        className={`group flex w-full items-center justify-between rounded-lg border bg-zinc-950/50 px-3 py-2.5 text-sm text-zinc-200 transition ${
-+          open ? "border-indigo-500/50 ring-1 ring-indigo-500/50" : "border-zinc-800/80 hover:border-zinc-700"
-+        }`}
-+      >
-+        <div className="flex flex-col text-left">
-+          <span className="font-medium text-zinc-100 flex items-center gap-2">
-+            {selected?.label}
-+            {selected?.psModel && (
-+              <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-bold text-zinc-300">
-+                {selected.psModel}
-+              </span>
-+            )}
-+          </span>
-+          <span className="text-xs text-zinc-500">{selected?.psnEmail}</span>
-+        </div>
-+        <ChevronDown className={`h-4 w-4 text-zinc-500 transition-transform ${open ? "rotate-180" : ""}`} />
-+      </button>
++  // Əlavə məlumatlar:
++  // TRY_BALANCE üçün: neçə TRY-dir (məs: 250, 500)
++  // PS_PLUS üçün: tier (ESSENTIAL/EXTRA/DELUXE) və durationMonths (1, 3, 12)
++  metadata        Json?    // məs: { "tryAmount": 250 } və ya { "tier": "EXTRA", "durationMonths": 3 }
 +
-+      {open && (
-+        <>
-+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-+          <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/95 p-1 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95">
-+            {accounts.map((a) => {
-+              const isSelected = a.id === value;
-+              return (
-+                <button
-+                  key={a.id}
-+                  type="button"
-+                  onClick={() => { onChange(a.id); setOpen(false); }}
-+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition ${
-+                    isSelected ? "bg-indigo-500/10 text-indigo-300" : "text-zinc-300 hover:bg-zinc-800"
-+                  }`}
-+                >
-+                  <div className="flex flex-col">
-+                    <span className="font-medium">{a.label} {a.psModel && <span className="text-xs opacity-70 ml-1">({a.psModel})</span>}</span>
-+                    <span className="text-[11px] opacity-70">{a.psnEmail}</span>
-+                  </div>
-+                  {isSelected && <Check className="h-4 w-4 shrink-0" />}
-+                </button>
-+              );
-+            })}
-+          </div>
-+        </>
-+      )}
-+    </div>
-+  );
++  isActive        Boolean  @default(true)
++  sortOrder       Int      @default(0)
++  
++  codes           ServiceCode[]
++  transactions    Transaction[]
++
++  createdAt       DateTime @default(now())
++  updatedAt       DateTime @updatedAt
++
++  @@index([type])
 +}
++
++model ServiceCode {
++  id                String   @id @default(cuid())
++  serviceProductId  String
++  serviceProduct    ServiceProduct @relation(fields: [serviceProductId], references: [id])
++  
++  code              String   // 12 rəqəmli e-pin və s.
++  isUsed            Boolean  @default(false)
++  
++  transactions      Transaction[]
++  
++  createdAt         DateTime @default(now())
++  
++  @@index([serviceProductId, isUsed])
++}
++
+ // ─── Transactions (deposits, purchases, commissions) ──────────────────────────
+ 
+ model Transaction {
+@@ -130,6 +162,14 @@
+   gameId         String?
+   game           Game?    @relation(fields: [gameId], references: [id])
+ 
++  // Xidmət alışı (TRY Balans, PS Plus, Account Creation)
++  serviceProductId String?
++  serviceProduct   ServiceProduct? @relation(fields: [serviceProductId], references: [id])
++  
++  // TRY Balans üçün verilən kod
++  serviceCodeId  String?
++  serviceCode    ServiceCode? @relation(fields: [serviceCodeId], references: [id])
++
+   // Which PSN account this purchase was delivered to. NULL for non-PURCHASE
+   // rows (DEPOSIT, COMMISSION) and for legacy data created before multi-PSN.
+   psnAccountId   String?

@@ -26,40 +26,98 @@ export default async function ProfileOverviewPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [
-    accountCount,
-    orderCount,
-    refereeCount,
-    commissionCents,
-    totalSpentCents,
-    recentOrders,
-  ] = await Promise.all([
-    prisma.psnAccount.count({ where: { userId: user.id } }),
-    prisma.transaction.count({
-      where: { userId: user.id, type: "PURCHASE" },
-    }),
-    prisma.user.count({ where: { referredById: user.id } }),
-    prisma.transaction
-      .aggregate({
-        where: { beneficiaryId: user.id, type: "COMMISSION" },
-        _sum: { amountAznCents: true },
-      })
-      .then((a) => a._sum.amountAznCents ?? 0),
-    prisma.transaction
-      .aggregate({
-        where: { userId: user.id, type: "PURCHASE" },
-        _sum: { amountAznCents: true },
-      })
-      .then((a) => Math.abs(a._sum.amountAznCents ?? 0)),
-    prisma.transaction.findMany({
-      where: { userId: user.id, type: "PURCHASE" },
-      orderBy: { createdAt: "desc" },
-      take: 3,
-      include: {
-        game: { select: { title: true, imageUrl: true } },
-      },
-    }),
-  ]);
+  let accountCount = 0;
+  let orderCount = 0;
+  let refereeCount = 0;
+  let commissionCents = 0;
+  let totalSpentCents = 0;
+  let recentOrders: Array<{
+    id: string;
+    type: string;
+    createdAt: Date;
+    amountAznCents: number;
+    game: { title: string; imageUrl: string | null } | null;
+    serviceProduct?: { title: string } | null;
+  }> = [];
+
+  try {
+    [
+      accountCount,
+      orderCount,
+      refereeCount,
+      commissionCents,
+      totalSpentCents,
+      recentOrders,
+    ] = await Promise.all([
+      prisma.psnAccount.count({ where: { userId: user.id } }),
+      prisma.transaction.count({
+        where: { userId: user.id, type: { in: ["PURCHASE", "SERVICE_PURCHASE"] } },
+      }),
+      prisma.user.count({ where: { referredById: user.id } }),
+      prisma.transaction
+        .aggregate({
+          where: { beneficiaryId: user.id, type: "COMMISSION" },
+          _sum: { amountAznCents: true },
+        })
+        .then((a) => a._sum.amountAznCents ?? 0),
+      prisma.transaction
+        .aggregate({
+          where: { userId: user.id, type: { in: ["PURCHASE", "SERVICE_PURCHASE"] } },
+          _sum: { amountAznCents: true },
+        })
+        .then((a) => Math.abs(a._sum.amountAznCents ?? 0)),
+      prisma.transaction.findMany({
+        where: { userId: user.id, type: { in: ["PURCHASE", "SERVICE_PURCHASE"] } },
+        orderBy: { createdAt: "desc" },
+        take: 3,
+        include: {
+          game: { select: { title: true, imageUrl: true } },
+          serviceProduct: { select: { title: true } },
+        },
+      }),
+    ]);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Back-compat fallback when prod DB hasn't been migrated yet.
+    if (msg.includes("Transaction.serviceProductId") || msg.includes("serviceProductId")) {
+      [
+        accountCount,
+        orderCount,
+        refereeCount,
+        commissionCents,
+        totalSpentCents,
+        recentOrders,
+      ] = await Promise.all([
+        prisma.psnAccount.count({ where: { userId: user.id } }),
+        prisma.transaction.count({
+          where: { userId: user.id, type: "PURCHASE" },
+        }),
+        prisma.user.count({ where: { referredById: user.id } }),
+        prisma.transaction
+          .aggregate({
+            where: { beneficiaryId: user.id, type: "COMMISSION" },
+            _sum: { amountAznCents: true },
+          })
+          .then((a) => a._sum.amountAznCents ?? 0),
+        prisma.transaction
+          .aggregate({
+            where: { userId: user.id, type: "PURCHASE" },
+            _sum: { amountAznCents: true },
+          })
+          .then((a) => Math.abs(a._sum.amountAznCents ?? 0)),
+        prisma.transaction.findMany({
+          where: { userId: user.id, type: "PURCHASE" },
+          orderBy: { createdAt: "desc" },
+          take: 3,
+          include: {
+            game: { select: { title: true, imageUrl: true } },
+          },
+        }),
+      ]);
+    } else {
+      throw err;
+    }
+  }
 
   const walletAzn = user.walletBalance / 100;
   const commissionAzn = commissionCents / 100;
@@ -335,7 +393,7 @@ export default async function ProfileOverviewPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">
-                    {o.game?.title ?? "Silinmiş məhsul"}
+                    {o.type === "SERVICE_PURCHASE" ? o.serviceProduct?.title : (o.game?.title ?? "Silinmiş məhsul")}
                   </p>
                   <p className="text-xs text-zinc-500">
                     {new Date(o.createdAt).toLocaleDateString("az-AZ")}

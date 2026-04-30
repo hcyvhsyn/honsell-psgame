@@ -22,6 +22,7 @@ const NAV = [
   { href: "/admin/deposits", label: "Deposits", icon: Wallet, badgeKey: "pendingDeposits" as const },
   { href: "/admin/transactions", label: "Transactions", icon: Receipt },
   { href: "/admin/games", label: "Games", icon: Gamepad2 },
+  { href: "/admin/services", label: "Services", icon: SettingsIcon },
   { href: "/admin/settings", label: "Settings", icon: SettingsIcon },
 ];
 
