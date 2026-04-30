@@ -13,6 +13,7 @@ type ServiceProduct = {
   type: ProductType;
   title: string;
   description: string | null;
+  imageUrl?: string | null;
   priceAznCents: number;
   metadata: Record<string, unknown> | null;
   _count?: { codes: number };
@@ -106,9 +107,18 @@ function TryBalanceBlock({ items, isAuthed, balance }: { items: ServiceProduct[]
                   : "cursor-not-allowed border-zinc-800/40 bg-zinc-950/40 opacity-50"
               }`}
             >
+              {item.imageUrl ? (
+                <img
+                  src={item.imageUrl}
+                  alt={item.title}
+                  className="mb-1 h-10 w-10 rounded-lg object-cover ring-1 ring-white/10"
+                />
+              ) : null}
               <span className={`text-2xl font-bold tracking-tighter ${inStock ? (isActive ? "text-indigo-300" : "text-white") : "text-zinc-500"}`}>
                 {String((item.metadata as Record<string, unknown>)?.tryAmount || "")} TRY
               </span>
+              {item.title ? <span className="text-xs text-zinc-500 line-clamp-1">{item.title}</span> : null}
+              {item.description ? <span className="text-[11px] text-zinc-600 line-clamp-2">{item.description}</span> : null}
               <span className="text-sm font-medium text-zinc-400">{(item.priceAznCents / 100).toFixed(2)} AZN</span>
               {!inStock && <span className="absolute -top-3 rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium uppercase text-rose-400">Stokda yoxdur</span>}
             </button>

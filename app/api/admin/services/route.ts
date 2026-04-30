@@ -4,11 +4,24 @@ import { requireAdmin } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: Request) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const url = new URL(req.url);
+  const codesFor = url.searchParams.get("codesFor");
+
+  if (codesFor) {
+    const codes = await prisma.serviceCode.findMany({
+      where: { serviceProductId: codesFor },
+      orderBy: [{ isUsed: "asc" }, { createdAt: "desc" }],
+      select: { id: true, code: true, isUsed: true, createdAt: true },
+    });
+    return NextResponse.json(codes);
+  }
+
   const products = await prisma.serviceProduct.findMany({
+    where: { type: "TRY_BALANCE" },
     orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { priceAznCents: "asc" }],
     include: {
       _count: {
@@ -50,11 +63,20 @@ export async function POST(req: Request) {
     }
 
     if (action === "UPSERT_PRODUCT") {
-      const { id, type, title, priceAznCents, isActive, metadata, sortOrder } = body;
+      const { id, type, title, description, imageUrl, priceAznCents, isActive, metadata, sortOrder } = body;
+
+      if (String(type) !== "TRY_BALANCE") {
+        return NextResponse.json(
+          { error: "Bu endpoint yalnız TRY_BALANCE üçün istifadə olunur." },
+          { status: 400 }
+        );
+      }
       
       const payload = {
         type,
         title,
+        description: typeof description === "string" ? description : null,
+        imageUrl: typeof imageUrl === "string" ? imageUrl : null,
         priceAznCents: Number(priceAznCents),
         isActive: Boolean(isActive),
         metadata: metadata || {},
@@ -68,6 +90,33 @@ export async function POST(req: Request) {
         const p = await prisma.serviceProduct.create({ data: payload });
         return NextResponse.json(p);
       }
+    }
+
+    if (action === "DELETE_CODE") {
+      const { codeId } = body;
+      if (!codeId) return NextResponse.json({ error: "codeId tələb olunur" }, { status: 400 });
+      const code = await prisma.serviceCode.findUnique({ where: { id: codeId } });
+      if (!code) return NextResponse.json({ error: "Kod tapılmadı" }, { status: 404 });
+      if (code.isUsed) {
+        return NextResponse.json(
+          { error: "İstifadə olunmuş kodu silmək olmaz" },
+          { status: 400 }
+        );
+      }
+      await prisma.serviceCode.delete({ where: { id: codeId } });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === "DELETE_PRODUCT") {
+      const { id } = body;
+      if (!id) return NextResponse.json({ error: "id tələb olunur" }, { status: 400 });
+      // ServiceCode has ON DELETE RESTRICT to ServiceProduct; remove unused codes first.
+      // Used codes are referenced by transactions (ON DELETE SET NULL), so deletable too.
+      await prisma.$transaction([
+        prisma.serviceCode.deleteMany({ where: { serviceProductId: id } }),
+        prisma.serviceProduct.delete({ where: { id } }),
+      ]);
+      return NextResponse.json({ ok: true });
     }
 
     return NextResponse.json({ error: "Bilinməyən action" }, { status: 400 });

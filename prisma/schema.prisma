@@ -119,6 +119,7 @@ model ServiceProduct {
   type            String
   title           String
   description     String?
+  imageUrl        String?
   // Qiymət (AZN qəpiklə)
   priceAznCents   Int
 
