@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Testimonial"
+ADD COLUMN IF NOT EXISTS "platform" TEXT NOT NULL DEFAULT 'GAME';
+

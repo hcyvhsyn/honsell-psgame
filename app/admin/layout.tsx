@@ -23,6 +23,7 @@ const NAV = [
     badgeKey: "pendingGameOrders" as const,
   },
   { href: "/admin/banners", label: "Bannerlər", iconName: "ImageIcon" as const },
+  { href: "/admin/faq", label: "FAQ", iconName: "HelpCircle" as const },
   { href: "/admin/services", label: "Gift Cardlar", iconName: "Gift" as const },
   { href: "/admin/ps-plus", label: "PS Plus", iconName: "Crown" as const },
   { href: "/admin/account-creation", label: "Hesab Açılışı", iconName: "UserPlus" as const },

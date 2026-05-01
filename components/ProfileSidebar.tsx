@@ -31,24 +31,24 @@ export default function ProfileSidebar() {
 
   return (
     <aside className="lg:sticky lg:top-24 lg:self-start">
-      {/* Mobile: horizontal nav pills */}
+      {/* Mobile: responsive grid nav */}
       <nav className="lg:hidden mb-6">
-        <ul className="flex flex-row gap-2 overflow-x-auto rounded-2xl border border-white/5 bg-[#0F0F13] p-2">
+        <ul className="grid grid-cols-2 gap-2 rounded-2xl border border-white/5 bg-[#0F0F13] p-2 sm:grid-cols-3">
           {ITEMS.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
             return (
-              <li key={item.href} className="shrink-0">
+              <li key={item.href} className="min-w-0">
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm transition ${
+                  className={`flex w-full min-w-0 items-center gap-2 rounded-xl px-3 py-2.5 text-xs sm:text-sm transition ${
                     active
                       ? "bg-[#5B21B6] text-white shadow-lg shadow-[#5B21B6]/20"
                       : "text-zinc-400 hover:text-white"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
-                  {item.label}
+                  <span className="truncate">{item.label}</span>
                 </Link>
               </li>
             );

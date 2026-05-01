@@ -33,16 +33,13 @@ export default function HediyyeKartlariClient({ cards }: { cards: Plan[] }) {
   return (
     <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {cards.map((c) => {
-        const inStock = c._count.codes > 0;
         const inCart = hydrated && has(c.id);
         const isAdded = addedId === c.id;
 
         return (
           <li
             key={c.id}
-            className={`group flex flex-col overflow-hidden rounded-[24px] border border-zinc-800 bg-[#0A0A0A] transition hover:-translate-y-1 hover:border-emerald-500/50 hover:shadow-[0_8px_30px_-10px_rgba(16,185,129,0.15)] ${
-              !inStock ? "opacity-50 grayscale pointer-events-none" : ""
-            }`}
+            className="group flex flex-col overflow-hidden rounded-[24px] border border-zinc-800 bg-[#0A0A0A] transition hover:-translate-y-1 hover:border-emerald-500/50 hover:shadow-[0_8px_30px_-10px_rgba(16,185,129,0.15)]"
           >
             <div className="relative aspect-[4/3] w-full bg-zinc-900 overflow-hidden">
               {c.imageUrl ? (
@@ -83,19 +80,15 @@ export default function HediyyeKartlariClient({ cards }: { cards: Plan[] }) {
               <div className="mt-6 flex-1 flex flex-col justify-end">
                 <button
                   type="button"
-                  disabled={!inStock || inCart}
+                  disabled={inCart}
                   onClick={() => addToCart(c)}
                   className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200 ${
-                    !inStock
-                      ? "bg-zinc-800 text-zinc-500"
-                      : inCart || isAdded
+                    inCart || isAdded
                         ? "bg-[#0B2A1C] text-emerald-400 border border-emerald-500/20"
                         : "bg-white/10 text-white hover:bg-white/20"
                   }`}
                 >
-                  {!inStock ? (
-                    "Stokda yoxdur"
-                  ) : inCart || isAdded ? (
+                  {inCart || isAdded ? (
                     <>
                       <Check className="h-4 w-4" /> Səbətdə
                     </>

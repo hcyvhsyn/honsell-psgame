@@ -19,7 +19,7 @@ export default async function ProfileLayout({
     <div className="min-h-screen bg-transparent text-zinc-100">
       <SiteHeader />
 
-      <div className="mx-auto max-w-[1200px] px-6 py-12">
+      <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6 sm:py-12">
         <div className="grid gap-10 lg:grid-cols-[280px_1fr]">
           <Suspense fallback={<div className="hidden w-[280px] lg:block min-h-[200px]" />}>
             <ProfileSidebar />

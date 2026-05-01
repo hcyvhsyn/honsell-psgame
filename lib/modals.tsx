@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useState } from "react";
 
-type ModalKind = "login" | "register" | "forgot" | "cart";
+type ModalKind = "login" | "register" | "forgot" | "cart" | "review";
 
 type ModalCtx = {
   active: ModalKind | null;

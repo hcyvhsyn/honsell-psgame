@@ -149,16 +149,16 @@ export default async function ProfileOverviewPage() {
   return (
     <div className="space-y-8">
       {/* ───── Hero: wallet + welcome ───── */}
-      <section className="relative overflow-hidden rounded-[24px] border border-white/5 bg-[#111116] p-8 shadow-2xl">
+      <section className="relative overflow-hidden rounded-[24px] border border-white/5 bg-[#111116] p-5 sm:p-8 shadow-2xl">
         <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[#5a189a]/20 blur-[80px]" />
         <div className="absolute -bottom-12 -left-10 h-48 w-48 rounded-full bg-emerald-500/10 blur-[80px]" />
 
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-5">
+          <div className="flex min-w-0 items-center gap-5">
             <div className="grid h-16 w-16 place-items-center rounded-full bg-[#5a189a]/20 text-3xl font-bold text-white ring-1 ring-[#5a189a]/50">
               {(user.name ?? user.email)[0]?.toUpperCase()}
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs uppercase tracking-wider text-[#9f5af0]">
                 Salam
               </p>
@@ -210,7 +210,7 @@ export default async function ProfileOverviewPage() {
       </section>
 
       {/* ───── Referral hero ───── */}
-      <section className="relative overflow-hidden rounded-[24px] border border-white/5 bg-[#111116] p-8 shadow-2xl">
+      <section className="relative overflow-hidden rounded-[24px] border border-white/5 bg-[#111116] p-5 sm:p-8 shadow-2xl">
         <div className="absolute -right-10 top-0 h-56 w-56 rounded-full bg-fuchsia-500/20 blur-[80px]" />
 
         <div className="relative grid gap-8 sm:grid-cols-[1fr_auto] sm:items-center">
@@ -219,7 +219,7 @@ export default async function ProfileOverviewPage() {
               <Share2 className="h-4 w-4" /> Referal kodun
             </p>
             <div className="flex flex-wrap items-center gap-4">
-              <span className="rounded-xl border border-white/10 bg-white/5 px-6 py-3 font-mono text-3xl font-bold tracking-[0.3em] text-white backdrop-blur">
+              <span className="max-w-full break-all rounded-xl border border-white/10 bg-white/5 px-4 py-3 font-mono text-2xl sm:px-6 sm:text-3xl font-bold tracking-[0.18em] sm:tracking-[0.3em] text-white backdrop-blur">
                 {user.referralCode}
               </span>
               <ReferralCodeCopy code={user.referralCode} />
@@ -260,7 +260,7 @@ export default async function ProfileOverviewPage() {
       </section>
 
       {/* ───── Loyalty tier ───── */}
-      <section className="relative overflow-hidden rounded-[24px] border border-white/5 bg-[#111116] p-8 shadow-2xl">
+      <section className="relative overflow-hidden rounded-[24px] border border-white/5 bg-[#111116] p-5 sm:p-8 shadow-2xl">
         <div className="absolute -left-16 -bottom-12 h-64 w-64 rounded-full bg-amber-500/10 blur-[80px]" />
 
         <div className="relative grid gap-8 sm:grid-cols-[auto_1fr] sm:items-center">

@@ -2,29 +2,43 @@
 
 import { useState } from "react";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { useEffect } from "react";
 
-const FAQS = [
-  { q: "Ödəniş necə aparılır?", a: "Cüzdan balansınızı bank köçürməsi ilə artırırsınız (admin kart nömrəsini göstərir), sonra alışlarınızı birbaşa cüzdandan ödəyirsiniz." },
-  { q: "TRY gift kartın kodu nə vaxt gəlir?", a: "Ödəniş uğurla başa çatdıqdan dərhal sonra — kodu anında profilinizin 'Sifarişlərim' bölməsindən görə bilərsiniz." },
-  { q: "PS Plus sifarişim nə vaxt icra olunur?", a: "PS Plus sifarişləri admin tərəfindən manual icra edilir. Adətən 1 iş saatı ərzində tamamlanır." },
-  { q: "Türkiyə PSN hesabı niyə lazımdır?", a: "Türkiyə PS Store-da oyunlar, DLC-lər və abunəliklər AZN-ə görə daha əlverişli qiymətlərlə mövcuddur." },
-  { q: "Referal proqramı necə işləyir?", a: "Unikal referal kodunuzu dostlarınızla paylaşın. Hər alışlarında sizə xüsusi bonus hesablanır." },
-  { q: "Sifariş səhv getsə nə baş verir?", a: "Admin sifarişi tamamlaya bilməsə, ödənilmiş məbləğ cüzdanınıza avtomatik geri qaytarılır." },
-];
+type Faq = { id: string; question: string; answer: string };
 
 export default function FaqAccordion() {
   const [open, setOpen] = useState<number | null>(null);
+  const [faqs, setFaqs] = useState<Faq[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/faq", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: { faqs?: Faq[] }) => {
+        if (cancelled) return;
+        setFaqs(Array.isArray(d.faqs) ? d.faqs : []);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFaqs([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (faqs && faqs.length === 0) return null;
   
   return (
     <div className="flex flex-col">
-      {FAQS.map((f, i) => (
+      {(faqs ?? []).map((f, i) => (
         <div key={i} className="border-b border-white/10 last:border-0">
           <button
             onClick={() => setOpen(open === i ? null : i)}
             className="group flex w-full items-center justify-between py-6 text-left transition-colors"
           >
             <span className={`text-xl font-medium sm:text-2xl ${open === i ? "text-white" : "text-zinc-100 group-hover:text-white"}`}>
-              {f.q}
+              {f.question}
             </span>
             {open === i ? (
               <ArrowDownRight className="h-5 w-5 shrink-0 text-white transition-transform" />
@@ -39,7 +53,7 @@ export default function FaqAccordion() {
           >
             <div className="overflow-hidden">
               <p className="text-sm leading-relaxed text-zinc-400 sm:text-base">
-                {f.a}
+                {f.answer}
               </p>
             </div>
           </div>

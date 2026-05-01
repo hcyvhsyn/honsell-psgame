@@ -16,12 +16,12 @@ import {
   Star,
   Sparkles,
   ArrowRight,
-  Pen,
 } from "lucide-react";
 import FaqAccordion from "@/components/FaqAccordion";
 import PsPlusClient from "./ps-plus/PsPlusClient";
 import HediyyeKartlariClient from "./hediyye-kartlari/HediyyeKartlariClient";
 import HesabAcmaHomeCategoryCard from "@/components/HesabAcmaHomeCategoryCard";
+import ReviewWriteButton from "@/components/ReviewWriteButton";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -200,14 +200,14 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
           <div className="grid gap-x-6 gap-y-16 md:grid-cols-2 xl:grid-cols-3">
             {(testimonials.length > 0
-              ? testimonials.map((t) => ({ id: t.id, name: t.name, text: t.text, rating: t.rating, avatarUrl: t.avatarUrl }))
+              ? testimonials.map((t) => ({ id: t.id, name: t.name, text: t.text, rating: t.rating, avatarUrl: t.avatarUrl, platform: t.platform }))
               : [
-                  { id: "d1", name: "Əli H.", text: "Çox sürətli xidmət! Sifarişim 30 dəqiqə ərzində tamamlandı.", rating: 5, avatarUrl: null },
-                  { id: "d2", name: "Nigar M.", text: "TRY gift kartı aldım, kod anında gəldi. Qiymətlər çox sərfəlidir.", rating: 5, avatarUrl: null },
-                  { id: "d3", name: "Rauf S.", text: "PS Plus sifarişində dəstək çox peşəkar oldu. Tam məmnunam.", rating: 5, avatarUrl: null },
-                  { id: "d4", name: "Leyla K.", text: "Hesab açılışı sifarişim gözlədiyimdən daha tez hazırlandı.", rating: 5, avatarUrl: null },
-                  { id: "d5", name: "Orxan T.", text: "Bir neçə dəfə alış etmişəm, hər dəfə problemsiz və sürətli.", rating: 5, avatarUrl: null },
-                  { id: "d6", name: "Gülnar A.", text: "Wallet top-up və alış prosesi çox rahat qurulub.", rating: 5, avatarUrl: null },
+                  { id: "d1", name: "Əli H.", text: "Çox sürətli xidmət! Sifarişim 30 dəqiqə ərzində tamamlandı.", rating: 5, avatarUrl: null, platform: "GAME" },
+                  { id: "d2", name: "Nigar M.", text: "TRY gift kartı aldım, kod anında gəldi. Qiymətlər çox sərfəlidir.", rating: 5, avatarUrl: null, platform: "GIFT_CARD" },
+                  { id: "d3", name: "Rauf S.", text: "PS Plus sifarişində dəstək çox peşəkar oldu. Tam məmnunam.", rating: 5, avatarUrl: null, platform: "PS_PLUS" },
+                  { id: "d4", name: "Leyla K.", text: "Hesab açılışı sifarişim gözlədiyimdən daha tez hazırlandı.", rating: 5, avatarUrl: null, platform: "ACCOUNT_CREATION" },
+                  { id: "d5", name: "Orxan T.", text: "Bir neçə dəfə alış etmişəm, hər dəfə problemsiz və sürətli.", rating: 5, avatarUrl: null, platform: "GAME" },
+                  { id: "d6", name: "Gülnar A.", text: "Wallet top-up və alış prosesi çox rahat qurulub.", rating: 5, avatarUrl: null, platform: "GIFT_CARD" },
                 ]).map((t) => (
               <article
                 key={t.id}
@@ -225,7 +225,13 @@ export default async function HomePage() {
 
                 <div className="mb-5 flex items-center justify-between">
                   <span className="rounded-full bg-[#6D28D9] px-4 py-1 text-xs font-semibold text-white">
-                    Platforma
+                    {t.platform === "PS_PLUS"
+                      ? "PS Plus"
+                      : t.platform === "GIFT_CARD"
+                        ? "Hədiyyə kartı"
+                        : t.platform === "ACCOUNT_CREATION"
+                          ? "Hesab açma"
+                          : "Oyun"}
                   </span>
                   <div className="flex gap-1">
                     {Array.from({ length: 5 }).map((_, si) => (
@@ -250,9 +256,7 @@ export default async function HomePage() {
           </div>
 
           <div className="mt-16 flex justify-center">
-            <button className="flex items-center gap-2 rounded-full bg-[#6D28D9] px-8 py-3.5 text-sm font-semibold text-white transition hover:bg-[#5B21B6] shadow-lg shadow-purple-500/20">
-              <Pen className="h-4 w-4" /> Rəy yaz
-            </button>
+            <ReviewWriteButton />
           </div>
         </div>
       </section>

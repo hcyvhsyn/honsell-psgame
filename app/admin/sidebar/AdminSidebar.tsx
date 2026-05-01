@@ -14,6 +14,7 @@ import {
   UserPlus,
   Image as ImageIcon,
   ClipboardList,
+  HelpCircle,
 } from "lucide-react";
 
 type BadgeKey = "pendingDeposits" | "pendingGameOrders" | "pendingAllOrders";
@@ -29,7 +30,8 @@ type IconName =
   | "Crown"
   | "UserPlus"
   | "ImageIcon"
-  | "ClipboardList";
+  | "ClipboardList"
+  | "HelpCircle";
 
 type NavItem = {
   href: string;
@@ -50,6 +52,7 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   UserPlus,
   ImageIcon,
   ClipboardList,
+  HelpCircle,
 };
 
 export default function AdminSidebar({

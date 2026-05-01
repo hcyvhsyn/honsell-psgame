@@ -25,10 +25,21 @@ export default function Modal({
 }) {
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
+    // Lock background scroll (body + html). This is important on mobile Safari.
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverscroll = document.body.style.overscrollBehavior;
+    const prevHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "contain";
+    document.documentElement.style.overscrollBehavior = "contain";
     return () => {
-      document.body.style.overflow = prev;
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overscrollBehavior = prevBodyOverscroll;
+      document.documentElement.style.overscrollBehavior = prevHtmlOverscroll;
     };
   }, [open]);
 
@@ -38,7 +49,7 @@ export default function Modal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
     >
       <div
         aria-hidden
@@ -46,7 +57,7 @@ export default function Modal({
         className="modal-backdrop absolute inset-0 bg-black/70 backdrop-blur-sm"
       />
       <div
-        className={`modal-panel relative max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/60 sm:rounded-2xl ${SIZE_CLASSES[size]}`}
+        className={`modal-panel relative max-h-[92vh] w-full overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/60 ${SIZE_CLASSES[size]}`}
       >
         <button
           type="button"

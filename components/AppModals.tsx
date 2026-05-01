@@ -8,6 +8,7 @@ import LoginForm from "./auth/LoginForm";
 import RegisterForm from "./auth/RegisterForm";
 import ForgotPasswordForm from "./auth/ForgotPasswordForm";
 import CartView, { type PsnOption } from "./CartView";
+import ReviewModalBody from "./ReviewModalBody";
 
 export default function AppModals() {
   const { active, open, close } = useModals();
@@ -48,6 +49,10 @@ export default function AppModals() {
           onClose={close}
           onRequestLogin={() => open("login")}
         />
+      </Modal>
+
+      <Modal open={active === "review"} onClose={close} size="md" closeOnBackdrop={true}>
+        <ReviewModalBody onDone={close} />
       </Modal>
     </>
   );
