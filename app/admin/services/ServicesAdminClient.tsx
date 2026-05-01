@@ -20,6 +20,10 @@ type ServiceProduct = {
 export default function ServicesAdminClient() {
   const [products, setProducts] = useState<ServiceProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pricing, setPricing] = useState<{
+    tryToAznRate: number;
+    profitMarginGiftCardsPct: number;
+  } | null>(null);
 
   const [editingId, setEditingId] = useState<string | "NEW" | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string | number | boolean>>({});
@@ -36,7 +40,28 @@ export default function ServicesAdminClient() {
 
   useEffect(() => {
     load();
+    fetch("/api/admin/settings")
+      .then((r) => r.json())
+      .then((s) => {
+        setPricing({
+          tryToAznRate: Number(s.tryToAznRate) || 0.053,
+          profitMarginGiftCardsPct:
+            Number(s.profitMarginGiftCardsPct ?? s.profitMarginPct) || 20,
+        });
+      })
+      .catch(() => {});
   }, []);
+
+  function computedAzn(nextTryAmount?: string | number): string {
+    const raw = nextTryAmount ?? editForm.tryAmount;
+    const tryAmount = Number(raw);
+    if (!pricing || !Number.isFinite(tryAmount) || tryAmount <= 0) return "—";
+    const azn =
+      tryAmount *
+      pricing.tryToAznRate *
+      (1 + pricing.profitMarginGiftCardsPct / 100);
+    return (Math.round(azn * 100) / 100).toFixed(2);
+  }
 
   async function load() {
     setLoading(true);
@@ -52,7 +77,6 @@ export default function ServicesAdminClient() {
       title: p.title,
       description: p.description ?? "",
       imageUrl: p.imageUrl ?? "",
-      priceAzn: (p.priceAznCents / 100).toFixed(2),
       isActive: p.isActive,
       sortOrder: p.sortOrder,
       tryAmount: String((p.metadata as Record<string, unknown> | null)?.tryAmount ?? ""),
@@ -66,7 +90,6 @@ export default function ServicesAdminClient() {
       title: "Yeni TRY Gift Card",
       description: "",
       imageUrl: "",
-      priceAzn: "10.00",
       isActive: true,
       sortOrder: 0,
       tryAmount: "250",
@@ -117,12 +140,6 @@ export default function ServicesAdminClient() {
         setSaveError("TRY məbləği düzgün deyil!");
         return;
       }
-      const priceAzn = Number(editForm.priceAzn);
-      if (!Number.isFinite(priceAzn) || priceAzn <= 0) {
-        setSaveError("Qiymət düzgün deyil!");
-        return;
-      }
-      const priceAznCents = Math.round(priceAzn * 100);
 
       const res = await fetch("/api/admin/services", {
         method: "POST",
@@ -134,7 +151,6 @@ export default function ServicesAdminClient() {
           title: editForm.title,
           description: String(editForm.description ?? ""),
           imageUrl: String(editForm.imageUrl ?? ""),
-          priceAznCents,
           isActive: editForm.isActive,
           sortOrder: Number(editForm.sortOrder || 0),
           metadata: { tryAmount },
@@ -356,20 +372,19 @@ export default function ServicesAdminClient() {
                     type="number"
                     className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
                     value={String(editForm.tryAmount || "")}
-                    onChange={(e) => setEditForm({ ...editForm, tryAmount: e.target.value })}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, tryAmount: e.target.value })
+                    }
                     placeholder="250"
                   />
                 </label>
                 <label className="block text-sm">
                   Qiymət (AZN)
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    readOnly
                     className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
-                    value={String(editForm.priceAzn || "")}
-                    onChange={(e) => setEditForm({ ...editForm, priceAzn: e.target.value })}
-                    placeholder="49.50"
+                    value={computedAzn()}
                   />
                 </label>
               </div>

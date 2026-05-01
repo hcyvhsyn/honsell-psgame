@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { getSettings, tryCentsToAznWithMargin } from "@/lib/pricing";
 
 export const runtime = "nodejs";
 
@@ -46,19 +47,14 @@ export async function POST(req: Request) {
         id,
         tier,
         durationMonths,
-        priceAznCents,
-        discountedPriceAznCents,
-        originalPriceAznCents,
-        imageUrl,
+        tryPrice,
         isActive,
         sortOrder,
       } = body;
 
       const tierStr = String(tier ?? "");
       const dur = Number(durationMonths);
-      const basePrice = Number(priceAznCents);
-      const discounted = Number(discountedPriceAznCents);
-      const originalLegacy = Number(originalPriceAznCents);
+      const tryPriceNum = Number(tryPrice);
 
       if (!["ESSENTIAL", "EXTRA", "DELUXE"].includes(tierStr)) {
         return NextResponse.json({ error: "Tier düzgün deyil" }, { status: 400 });
@@ -66,29 +62,18 @@ export async function POST(req: Request) {
       if (![1, 3, 12].includes(dur)) {
         return NextResponse.json({ error: "Müddət 1, 3 və ya 12 ay olmalıdır" }, { status: 400 });
       }
-      if (!Number.isFinite(basePrice) || basePrice <= 0) {
-        return NextResponse.json({ error: "Qiymət düzgün deyil" }, { status: 400 });
+      if (!Number.isFinite(tryPriceNum) || tryPriceNum <= 0) {
+        return NextResponse.json({ error: "TRY qiyməti düzgün deyil" }, { status: 400 });
       }
 
-      // New mode: basePrice + optional discounted price.
-      if (Number.isFinite(discounted) && discounted > 0 && discounted >= basePrice) {
-        return NextResponse.json(
-          { error: "Endirimli qiymət satış qiymətindən kiçik olmalıdır" },
-          { status: 400 }
-        );
-      }
-
-      // Back-compat: old payload uses `originalPriceAznCents` where `priceAznCents`
-      // already points to the discounted amount.
-      const finalPrice = Number.isFinite(discounted) && discounted > 0
-        ? Math.round(discounted)
-        : Math.round(basePrice);
-      const originalPriceForUi =
-        Number.isFinite(discounted) && discounted > 0
-          ? Math.round(basePrice)
-          : Number.isFinite(originalLegacy) && originalLegacy > finalPrice
-            ? Math.round(originalLegacy)
-            : null;
+      const settings = await getSettings();
+      const tryCents = Math.round(tryPriceNum * 100);
+      const azn = tryCentsToAznWithMargin(
+        tryCents,
+        settings.tryToAznRate,
+        settings.profitMarginPsPlusPct ?? settings.profitMarginPct
+      );
+      const priceAznCents = Math.round(azn * 100);
 
       const tierLabel: Record<string, string> = { ESSENTIAL: "Essential", EXTRA: "Extra", DELUXE: "Deluxe" };
       const title = `PS Plus ${tierLabel[tierStr]} — ${dur} ay`;
@@ -96,14 +81,13 @@ export async function POST(req: Request) {
       const payload = {
         type: "PS_PLUS" as const,
         title,
-        imageUrl: typeof imageUrl === "string" && imageUrl.trim() ? imageUrl.trim() : null,
-        priceAznCents: finalPrice,
+        priceAznCents,
         isActive: Boolean(isActive ?? true),
         sortOrder: Number(sortOrder || 0),
         metadata: {
           tier: tierStr,
           durationMonths: dur,
-          originalPriceAznCents: originalPriceForUi,
+          tryPriceCents: tryCents,
         },
       };
 
@@ -114,6 +98,28 @@ export async function POST(req: Request) {
         const p = await prisma.serviceProduct.create({ data: payload });
         return NextResponse.json(p);
       }
+    }
+
+    if (action === "SET_TIER_ASSETS") {
+      const tierStr = String(body.tier ?? "");
+      const imageUrl =
+        typeof body.imageUrl === "string" ? body.imageUrl.trim() : "";
+      const description =
+        typeof body.description === "string" ? body.description.trim() : "";
+
+      if (!["ESSENTIAL", "EXTRA", "DELUXE"].includes(tierStr)) {
+        return NextResponse.json({ error: "Tier düzgün deyil" }, { status: 400 });
+      }
+      if (!imageUrl) {
+        return NextResponse.json({ error: "Şəkil URL tələb olunur" }, { status: 400 });
+      }
+
+      await prisma.serviceProduct.updateMany({
+        where: { type: "PS_PLUS", metadata: { path: ["tier"], equals: tierStr } },
+        data: { imageUrl, description: description || null },
+      });
+
+      return NextResponse.json({ ok: true });
     }
 
     if (action === "DELETE_PRODUCT") {

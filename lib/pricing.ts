@@ -2,7 +2,11 @@ import { prisma } from "./prisma";
 
 export type PricingSettings = {
   tryToAznRate: number;
+  /** Legacy global margin (kept for back-compat) */
   profitMarginPct: number;
+  profitMarginGamesPct: number;
+  profitMarginGiftCardsPct: number;
+  profitMarginPsPlusPct: number;
   affiliateRatePct: number;
   /** % of profit margin shared with the referrer per purchase. */
   referralProfitSharePct: number;
@@ -19,17 +23,59 @@ export type DisplayPrice = {
 
 /** Fetch the singleton settings row, creating it on first access. */
 export async function getSettings(): Promise<PricingSettings> {
-  const s = await prisma.settings.upsert({
-    where: { id: "global" },
-    update: {},
-    create: { id: "global" },
-  });
-  return {
-    tryToAznRate: s.tryToAznRate,
-    profitMarginPct: s.profitMarginPct,
-    affiliateRatePct: s.affiliateRatePct,
-    referralProfitSharePct: s.referralProfitSharePct,
-  };
+  try {
+    const s = await prisma.settings.upsert({
+      where: { id: "global" },
+      update: {},
+      create: { id: "global" },
+    });
+    return {
+      tryToAznRate: s.tryToAznRate,
+      profitMarginPct: s.profitMarginPct,
+      profitMarginGamesPct: s.profitMarginGamesPct ?? s.profitMarginPct,
+      profitMarginGiftCardsPct: s.profitMarginGiftCardsPct ?? s.profitMarginPct,
+      profitMarginPsPlusPct: s.profitMarginPsPlusPct ?? s.profitMarginPct,
+      affiliateRatePct: s.affiliateRatePct,
+      referralProfitSharePct: s.referralProfitSharePct,
+    };
+  } catch (err) {
+    // Prod DB might not be migrated yet (missing new Settings columns).
+    const msg = err instanceof Error ? err.message : String(err);
+    const missingNewColumns =
+      msg.includes("profitMarginGamesPct") ||
+      msg.includes("profitMarginGiftCardsPct") ||
+      msg.includes("profitMarginPsPlusPct");
+    if (!missingNewColumns) throw err;
+
+    const rows = await prisma.$queryRaw<
+      Array<{
+        tryToAznRate: number;
+        profitMarginPct: number;
+        affiliateRatePct: number;
+        referralProfitSharePct: number;
+      }>
+    >`
+      INSERT INTO "Settings" ("id", "updatedAt")
+      VALUES ('global', NOW())
+      ON CONFLICT ("id") DO UPDATE SET "id" = EXCLUDED."id"
+      RETURNING "tryToAznRate", "profitMarginPct", "affiliateRatePct", "referralProfitSharePct";
+    `;
+    const s = rows[0] ?? {
+      tryToAznRate: 0.053,
+      profitMarginPct: 20,
+      affiliateRatePct: 5,
+      referralProfitSharePct: 20,
+    };
+    return {
+      tryToAznRate: s.tryToAznRate,
+      profitMarginPct: s.profitMarginPct,
+      profitMarginGamesPct: s.profitMarginPct,
+      profitMarginGiftCardsPct: s.profitMarginPct,
+      profitMarginPsPlusPct: s.profitMarginPct,
+      affiliateRatePct: s.affiliateRatePct,
+      referralProfitSharePct: s.referralProfitSharePct,
+    };
+  }
 }
 
 /**
@@ -52,9 +98,17 @@ export function tryCentsToAzn(
   tryCents: number,
   settings: PricingSettings
 ): number {
+  return tryCentsToAznWithMargin(tryCents, settings.tryToAznRate, settings.profitMarginPct);
+}
+
+export function tryCentsToAznWithMargin(
+  tryCents: number,
+  tryToAznRate: number,
+  profitMarginPct: number
+): number {
   const tryAmount = tryCents / 100;
-  const azn = tryAmount * settings.tryToAznRate;
-  const withMargin = azn * (1 + settings.profitMarginPct / 100);
+  const azn = tryAmount * tryToAznRate;
+  const withMargin = azn * (1 + profitMarginPct / 100);
   return Math.round(withMargin * 100) / 100;
 }
 
@@ -67,10 +121,18 @@ export function computeDisplayPrice(
   game: { priceTryCents: number; discountTryCents: number | null },
   settings: PricingSettings
 ): DisplayPrice {
-  const originalAzn = tryCentsToAzn(game.priceTryCents, settings);
+  const originalAzn = tryCentsToAznWithMargin(
+    game.priceTryCents,
+    settings.tryToAznRate,
+    settings.profitMarginGamesPct ?? settings.profitMarginPct
+  );
 
   if (game.discountTryCents != null && game.discountTryCents < game.priceTryCents) {
-    const finalAzn = tryCentsToAzn(game.discountTryCents, settings);
+    const finalAzn = tryCentsToAznWithMargin(
+      game.discountTryCents,
+      settings.tryToAznRate,
+      settings.profitMarginGamesPct ?? settings.profitMarginPct
+    );
     const discountPct = Math.round(
       ((game.priceTryCents - game.discountTryCents) / game.priceTryCents) * 100
     );

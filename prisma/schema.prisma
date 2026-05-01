@@ -258,8 +258,12 @@ model Settings {
   id                 String   @id @default("global")
   // Multiplier applied to TRY prices. Stored as float for simplicity.
   tryToAznRate       Float    @default(0.053)
-  // Profit margin in percent, e.g. 20 means +20%.
+  // Legacy: global profit margin in percent, e.g. 20 means +20%.
   profitMarginPct    Float    @default(20)
+  // Per-category profit margins (%)
+  profitMarginGamesPct     Float @default(20)
+  profitMarginGiftCardsPct Float @default(20)
+  profitMarginPsPlusPct    Float @default(20)
   // Legacy: % of purchase price paid to referrer. Kept for back-compat;
   // the active formula is `referralProfitSharePct` below.
   affiliateRatePct   Float    @default(5)

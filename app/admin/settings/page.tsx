@@ -14,6 +14,9 @@ import {
 type Settings = {
   tryToAznRate: number;
   profitMarginPct: number;
+  profitMarginGamesPct: number;
+  profitMarginGiftCardsPct: number;
+  profitMarginPsPlusPct: number;
   affiliateRatePct: number;
   depositCardNumber: string;
   depositCardHolder: string;
@@ -82,6 +85,9 @@ export default function AdminSettingsPage() {
   const [form, setForm] = useState<Settings>({
     tryToAznRate: 0.053,
     profitMarginPct: 20,
+    profitMarginGamesPct: 20,
+    profitMarginGiftCardsPct: 20,
+    profitMarginPsPlusPct: 20,
     affiliateRatePct: 5,
     depositCardNumber: "",
     depositCardHolder: "",
@@ -106,6 +112,9 @@ export default function AdminSettingsPage() {
         setForm({
           tryToAznRate: data.tryToAznRate,
           profitMarginPct: data.profitMarginPct,
+          profitMarginGamesPct: data.profitMarginGamesPct ?? data.profitMarginPct,
+          profitMarginGiftCardsPct: data.profitMarginGiftCardsPct ?? data.profitMarginPct,
+          profitMarginPsPlusPct: data.profitMarginPsPlusPct ?? data.profitMarginPct,
           affiliateRatePct: data.affiliateRatePct,
           depositCardNumber: data.depositCardNumber ?? "",
           depositCardHolder: data.depositCardHolder ?? "",
@@ -313,12 +322,35 @@ export default function AdminSettingsPage() {
           onChange={(v) => setForm({ ...form, tryToAznRate: v })}
         />
         <Field
-          label="Profit Margin (%)"
-          hint="Added on top of the converted AZN price."
+          label="Profit Margin (Legacy, %)"
+          hint="Back-compat only. Use per-category margins below."
           value={form.profitMarginPct}
           step={0.5}
           onChange={(v) => setForm({ ...form, profitMarginPct: v })}
         />
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field
+            label="Games profit (%)"
+            hint="Applied to TRY→AZN for games."
+            value={form.profitMarginGamesPct}
+            step={0.5}
+            onChange={(v) => setForm({ ...form, profitMarginGamesPct: v })}
+          />
+          <Field
+            label="Gift cards profit (%)"
+            hint="Applied to TRY Gift Cards."
+            value={form.profitMarginGiftCardsPct}
+            step={0.5}
+            onChange={(v) => setForm({ ...form, profitMarginGiftCardsPct: v })}
+          />
+          <Field
+            label="PS Plus profit (%)"
+            hint="Applied where PS Plus uses TRY-based pricing."
+            value={form.profitMarginPsPlusPct}
+            step={0.5}
+            onChange={(v) => setForm({ ...form, profitMarginPsPlusPct: v })}
+          />
+        </div>
         <Field
           label="Affiliate Commission (%)"
           hint="Referrer earns this % of every referred user's purchase."
