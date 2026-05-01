@@ -6,6 +6,7 @@ export const runtime = "nodejs";
 
 const ALLOWED = new Set(["image/png", "image/jpeg", "image/webp", "application/pdf"]);
 const BUCKET = "receipts";
+const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
@@ -34,13 +35,30 @@ export async function POST(req: Request) {
 
   try {
     const supabase = getSupabaseAdmin();
+
+    // Ensure bucket exists in production (prevents opaque 500 on first upload).
+    const { data: existing } = await supabase.storage.getBucket(BUCKET);
+    if (!existing) {
+      const { error: createErr } = await supabase.storage.createBucket(BUCKET, {
+        public: false,
+        allowedMimeTypes: ["image/png", "image/jpeg", "image/webp", "application/pdf"],
+        fileSizeLimit: MAX_BYTES,
+      });
+      if (createErr && !/already exists/i.test(createErr.message)) {
+        return NextResponse.json(
+          { error: `Bucket yaradıla bilmədi: ${createErr.message}` },
+          { status: 500 }
+        );
+      }
+    }
+
     const { data, error } = await supabase.storage
       .from(BUCKET)
       .createSignedUploadUrl(path);
 
     if (error || !data) {
       return NextResponse.json(
-        { error: "Upload linki yaradıla bilmədi" },
+        { error: "Upload linki yaradıla bilmədi", hint: error?.message },
         { status: 500 }
       );
     }
@@ -55,7 +73,13 @@ export async function POST(req: Request) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("wallet/receipt-upload failed", { userId: user.id, message: msg, err });
     return NextResponse.json(
-      { error: "Upload linki yaradıla bilmədi" },
+      {
+        error: "Upload linki yaradıla bilmədi",
+        hint:
+          msg.includes("SUPABASE_SERVICE_ROLE_KEY") || msg.includes("NEXT_PUBLIC_SUPABASE_URL")
+            ? "Supabase server açarları yoxdur (env: SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_URL)."
+            : msg,
+      },
       { status: 500 }
     );
   }
