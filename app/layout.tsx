@@ -4,6 +4,7 @@ import "./globals.css";
 import { CartProvider } from "@/lib/cart";
 import { ModalProvider } from "@/lib/modals";
 import AppModals from "@/components/AppModals";
+import WhatsAppFloat from "@/components/WhatsAppFloat";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -41,6 +42,7 @@ export default function RootLayout({
           <CartProvider>
             {children}
             <AppModals />
+            <WhatsAppFloat />
           </CartProvider>
         </ModalProvider>
       </body>

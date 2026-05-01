@@ -114,26 +114,30 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Şəkil URL tələb olunur" }, { status: 400 });
       }
 
-      // NOTE: Prisma JSON path filters can be unreliable depending on the DB/provider.
-      // For Postgres we use a precise JSON operator filter to ensure we only touch
-      // rows belonging to this tier.
-      try {
-        await prisma.$executeRaw`
-          UPDATE "ServiceProduct"
-          SET "imageUrl" = ${imageUrl},
-              "description" = ${description || null}
-          WHERE "type" = 'PS_PLUS'
-            AND ("metadata"->>'tier') = ${tierStr}
-        `;
-      } catch {
-        // Fallback: Prisma updateMany (best-effort)
-        await prisma.serviceProduct.updateMany({
-          where: { type: "PS_PLUS", metadata: { path: ["tier"], equals: tierStr } },
-          data: { imageUrl, description: description || null },
-        });
+      const all = await prisma.serviceProduct.findMany({
+        where: { type: "PS_PLUS" },
+        select: { id: true, metadata: true },
+      });
+      const ids = all
+        .filter((p) => {
+          const m = p.metadata as { tier?: unknown } | null;
+          return typeof m?.tier === "string" && m.tier === tierStr;
+        })
+        .map((p) => p.id);
+
+      if (ids.length === 0) {
+        return NextResponse.json(
+          { error: "Bu tier üçün hələ məhsul yoxdur. Əvvəlcə qiymət əlavə edin." },
+          { status: 400 }
+        );
       }
 
-      return NextResponse.json({ ok: true });
+      await prisma.serviceProduct.updateMany({
+        where: { id: { in: ids } },
+        data: { imageUrl, description: description || null },
+      });
+
+      return NextResponse.json({ ok: true, updated: ids.length });
     }
 
     if (action === "DELETE_PRODUCT") {

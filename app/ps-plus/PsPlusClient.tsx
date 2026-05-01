@@ -17,7 +17,7 @@ type TierKey = "ESSENTIAL" | "EXTRA" | "DELUXE";
 
 const TIERS: TierKey[] = ["ESSENTIAL", "EXTRA", "DELUXE"];
 
-export default function PsPlusClient({ plans, hideTierSelector = false }: { plans: Plan[]; hideTierSelector?: boolean }) {
+export default function PsPlusClient({ plans, hideTierSelector = false, flatMode = false }: { plans: Plan[]; hideTierSelector?: boolean; flatMode?: boolean }) {
   const [tier, setTier] = useState<TierKey>("EXTRA");
   const [addedId, setAddedId] = useState<string | null>(null);
   const { add, has } = useCart();
@@ -44,8 +44,9 @@ export default function PsPlusClient({ plans, hideTierSelector = false }: { plan
   }, [tierCounts.EXTRA, tierCounts.ESSENTIAL, tierCounts.DELUXE]);
 
   const tierPlans = useMemo(() => {
+    if (flatMode) return plans;
     return plans.filter((p) => String((p.metadata ?? {}).tier ?? "") === tier);
-  }, [plans, tier]);
+  }, [plans, tier, flatMode]);
 
   function addToCart(selected: Plan) {
     add({
@@ -114,11 +115,19 @@ export default function PsPlusClient({ plans, hideTierSelector = false }: { plan
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {tierPlans
             .slice()
-            .sort(
-              (a, b) =>
+            .sort((a, b) => {
+              if (flatMode) {
+                const order: Record<string, number> = { ESSENTIAL: 0, EXTRA: 1, DELUXE: 2 };
+                return (
+                  (order[String((a.metadata ?? {}).tier ?? "")] ?? 99) -
+                  (order[String((b.metadata ?? {}).tier ?? "")] ?? 99)
+                );
+              }
+              return (
                 Number((a.metadata ?? {}).durationMonths ?? 0) -
                 Number((b.metadata ?? {}).durationMonths ?? 0)
-            )
+              );
+            })
             .map((selected) => {
               const inCart = has(selected.id);
               const originalPriceCents = Number(
@@ -138,8 +147,11 @@ export default function PsPlusClient({ plans, hideTierSelector = false }: { plan
                 );
               }
 
-              const isEssential = tier === "ESSENTIAL";
-              const isExtra = tier === "EXTRA";
+              const cardTier = flatMode
+                ? (String((selected.metadata ?? {}).tier ?? "") as TierKey)
+                : tier;
+              const isEssential = cardTier === "ESSENTIAL";
+              const isExtra = cardTier === "EXTRA";
 
               const cardHover = isEssential
                 ? "hover:border-sky-500/50 hover:shadow-[0_8px_30px_-10px_rgba(14,165,233,0.15)]"

@@ -152,13 +152,29 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
           <PsPlusClient
             hideTierSelector={true}
-            plans={psPlusProducts.map((p) => ({
-              id: p.id,
-              title: p.title,
-              imageUrl: p.imageUrl,
-              priceAznCents: p.priceAznCents,
-              metadata: (p.metadata as Record<string, unknown> | null) ?? null,
-            }))}
+            flatMode={true}
+            plans={(() => {
+              const tierOrder = ["ESSENTIAL", "EXTRA", "DELUXE"] as const;
+              const oneMonthByTier = new Map<string, (typeof psPlusProducts)[number]>();
+              for (const p of psPlusProducts) {
+                const m = (p.metadata as Record<string, unknown> | null) ?? {};
+                const t = String(m.tier ?? "");
+                const dur = Number(m.durationMonths ?? 0);
+                if (dur === 1 && (t === "ESSENTIAL" || t === "EXTRA" || t === "DELUXE")) {
+                  if (!oneMonthByTier.has(t)) oneMonthByTier.set(t, p);
+                }
+              }
+              return tierOrder
+                .map((t) => oneMonthByTier.get(t))
+                .filter((p): p is (typeof psPlusProducts)[number] => Boolean(p))
+                .map((p) => ({
+                  id: p.id,
+                  title: p.title,
+                  imageUrl: p.imageUrl,
+                  priceAznCents: p.priceAznCents,
+                  metadata: (p.metadata as Record<string, unknown> | null) ?? null,
+                }));
+            })()}
           />
           <div className="flex justify-center mt-8">
             <Link
@@ -316,10 +332,7 @@ export default async function HomePage() {
                 <p className="mb-1 text-zinc-500">Mail:</p>
                 <p className="font-semibold text-white">info@honsell.store</p>
               </div>
-              <div>
-                <p className="mb-1 text-zinc-500">Voen:</p>
-                <p className="font-semibold text-white">1234567890</p>
-              </div>
+          
             </div>
 
             <div className="flex items-center gap-4">
