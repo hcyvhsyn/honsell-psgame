@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { User, Menu, X, LogIn, ChevronDown, Wallet } from "lucide-react";
+import { User, Menu, X, LogIn, ChevronDown, Wallet, UserPlus } from "lucide-react";
 import CartIndicator from "./CartIndicator";
 import Logo from "./Logo";
 import { useModals } from "@/lib/modals";
+
+const BRAND_PURPLE = "#6301F3";
+const BRAND_PURPLE_DARK = "#2D006F";
 
 export default function SiteHeader({
   user,
@@ -30,19 +33,8 @@ export default function SiteHeader({
     <>
       <header className="sticky top-0 z-40 border-b border-white/5 bg-zinc-950/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          {/* Left Side: Profile & Logo & Links */}
+          {/* Left Side: Logo & Links */}
           <div className="flex items-center gap-10">
-            {user && (
-              <Link
-                href="/profile"
-                className="hidden sm:flex items-center gap-2 rounded-full bg-[#6D28D9] px-5 py-2 text-sm font-medium text-white transition hover:bg-[#5B21B6]"
-                title="Hesab"
-              >
-                <User className="h-4 w-4" />
-                <span>{user.name?.split(" ")[0] ?? "Hesab"}</span>
-              </Link>
-            )}
-            
             <Logo href="/" height={22} priority />
             
             {/* Desktop Center Links */}
@@ -56,7 +48,10 @@ export default function SiteHeader({
 
           {/* Right side */}
           <div className="flex items-center gap-3">
-            <button className="hidden sm:flex items-center gap-1.5 rounded-full border border-white/10 bg-transparent px-4 py-2 text-sm text-zinc-300 hover:bg-white/5 transition">
+            <button
+              className="hidden h-10 items-center gap-1.5 rounded-full border bg-transparent px-5 text-sm text-zinc-200 transition hover:bg-white/5 sm:flex"
+              style={{ borderColor: `${BRAND_PURPLE}80` }}
+            >
               Aze <ChevronDown className="h-3.5 w-3.5 opacity-70" />
             </button>
 
@@ -67,38 +62,47 @@ export default function SiteHeader({
                 {user.walletBalance !== undefined && (
                   <Link
                     href="/profile/wallet"
-                    className="flex items-center gap-2 rounded-full border border-white/10 bg-transparent px-4 py-2 text-sm font-medium text-white transition hover:bg-white/5"
+                    className="inline-flex h-10 items-center gap-2 rounded-full border bg-white/5 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
                     title="Balans"
+                    style={{ borderColor: `${BRAND_PURPLE}80` }}
                   >
-                    <div className="flex h-5 w-5 items-center justify-center rounded bg-white/10 border border-white/5">
-                      <Wallet className="h-3 w-3 text-zinc-300" />
-                    </div>
-                    <span className="flex flex-col items-start leading-tight">
-                      <span>{(user.walletBalance / 100).toFixed(2)} ₼</span>
-                      {typeof user.cashbackBalanceCents === "number" && user.cashbackBalanceCents > 0 ? (
-                        <span className="text-[10px] font-medium text-amber-300/90">
-                          CB {(user.cashbackBalanceCents / 100).toFixed(2)} ₼
-                        </span>
-                      ) : null}
+                    <span
+                      className="grid h-7 w-7 place-items-center rounded-full bg-white/5"
+                    >
+                      <Wallet className="h-4 w-4 text-zinc-200" />
                     </span>
+                    <span className="tabular-nums">{(user.walletBalance / 100).toFixed(2)}₼</span>
                   </Link>
                 )}
+
+                <Link
+                  href="/profile"
+                  className="inline-flex h-10 items-center gap-2 rounded-full bg-gradient-to-r px-6 text-sm font-semibold text-white shadow-[0_10px_30px_-16px_rgba(99,1,243,0.95)] transition"
+                  title="Hesab"
+                  style={{ backgroundImage: `linear-gradient(90deg, ${BRAND_PURPLE}, ${BRAND_PURPLE_DARK})` }}
+                >
+                  <User className="h-4 w-4" />
+                  <span>{user.name?.split(" ")[0] ?? "Hesab"}</span>
+                </Link>
               </div>
             ) : (
               <div className="hidden items-center gap-2 sm:flex">
                 <button
                   type="button"
                   onClick={() => open("login")}
-                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:text-white"
+                  className="inline-flex items-center gap-2 rounded-full border bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:bg-white/10"
+                  style={{ borderColor: `${BRAND_PURPLE}80` }}
                 >
                   <LogIn className="h-4 w-4" /> Daxil ol
                 </button>
                 <button
                   type="button"
                   onClick={() => open("register")}
-                  className="rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400"
+                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_-16px_rgba(99,1,243,0.95)] transition"
+                  style={{ backgroundImage: `linear-gradient(90deg, ${BRAND_PURPLE}, ${BRAND_PURPLE_DARK})` }}
                 >
-                  Qeydiyyat
+                  <UserPlus className="h-4 w-4" />
+                  Qeydiyyatdan keç
                 </button>
               </div>
             )}
@@ -158,7 +162,7 @@ export default function SiteHeader({
                     onClick={() => { setMenuOpen(false); open("register"); }}
                     className="rounded-lg bg-indigo-500 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-400"
                   >
-                    Qeydiyyat
+                    Qeydiyyatdan keç
                   </button>
                 </>
               )}

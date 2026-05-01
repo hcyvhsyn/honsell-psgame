@@ -114,10 +114,24 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Şəkil URL tələb olunur" }, { status: 400 });
       }
 
-      await prisma.serviceProduct.updateMany({
-        where: { type: "PS_PLUS", metadata: { path: ["tier"], equals: tierStr } },
-        data: { imageUrl, description: description || null },
-      });
+      // NOTE: Prisma JSON path filters can be unreliable depending on the DB/provider.
+      // For Postgres we use a precise JSON operator filter to ensure we only touch
+      // rows belonging to this tier.
+      try {
+        await prisma.$executeRaw`
+          UPDATE "ServiceProduct"
+          SET "imageUrl" = ${imageUrl},
+              "description" = ${description || null}
+          WHERE "type" = 'PS_PLUS'
+            AND ("metadata"->>'tier') = ${tierStr}
+        `;
+      } catch {
+        // Fallback: Prisma updateMany (best-effort)
+        await prisma.serviceProduct.updateMany({
+          where: { type: "PS_PLUS", metadata: { path: ["tier"], equals: tierStr } },
+          data: { imageUrl, description: description || null },
+        });
+      }
 
       return NextResponse.json({ ok: true });
     }

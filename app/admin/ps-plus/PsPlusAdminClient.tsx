@@ -50,7 +50,7 @@ export default function PsPlusAdminClient() {
   const [loading, setLoading] = useState(true);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingTier, setUploadingTier] = useState<Tier | null>(null);
   const [pricing, setPricing] = useState<{ tryToAznRate: number; profitMarginPsPlusPct: number } | null>(null);
 
   const [tierAssets, setTierAssets] = useState<Record<Tier, { imageUrl: string; description: string }>>({
@@ -99,7 +99,7 @@ export default function PsPlusAdminClient() {
     );
   }
 
-  async function handleImageUpload(file: File) {
+  async function handleImageUpload(tier: Tier, file: File) {
     if (!file.type.startsWith("image/")) {
       alert("Yalnız şəkil faylı yükləyə bilərsiniz");
       return;
@@ -108,12 +108,12 @@ export default function PsPlusAdminClient() {
       alert("Fayl çox böyükdür (max 5 MB)");
       return;
     }
-    setUploadingImage(true);
+    setUploadingTier(tier);
     try {
       const init = await fetch("/api/admin/ps-plus/image-upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentType: file.type }),
+        body: JSON.stringify({ contentType: file.type, tier }),
       });
       const initData = await init.json();
       if (!init.ok) {
@@ -128,10 +128,9 @@ export default function PsPlusAdminClient() {
         alert(`Upload alınmadı: ${upErr.message}`);
         return;
       }
-      // The caller sets which tier this upload belongs to.
       return initData.publicUrl as string;
     } finally {
-      setUploadingImage(false);
+      setUploadingTier(null);
     }
   }
 
@@ -279,7 +278,7 @@ export default function PsPlusAdminClient() {
                     onChange={async (e) => {
                       const f = e.target.files?.[0];
                       if (!f) return;
-                      const url = await handleImageUpload(f);
+                      const url = await handleImageUpload(tier, f);
                       if (url) {
                         setTierAssets((prev) => ({
                           ...prev,
@@ -305,7 +304,7 @@ export default function PsPlusAdminClient() {
                   ) : (
                     <button
                       type="button"
-                      disabled={uploadingImage}
+                      disabled={uploadingTier !== null}
                       onClick={() => {
                         const el = document.getElementById(
                           `psplus-tier-upload-${tier}`
@@ -314,8 +313,10 @@ export default function PsPlusAdminClient() {
                       }}
                       className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded border border-dashed border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 disabled:opacity-50"
                     >
-                      {uploadingImage ? (
-                        <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Yüklənir...</>
+                      {uploadingTier === tier ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Yüklənir...
+                        </>
                       ) : (
                         <><Upload className="h-3.5 w-3.5" /> Şəkil yüklə</>
                       )}

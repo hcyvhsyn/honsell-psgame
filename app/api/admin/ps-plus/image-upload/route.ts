@@ -6,6 +6,7 @@ export const runtime = "nodejs";
 
 const ALLOWED = new Set(["image/png", "image/jpeg", "image/webp"]);
 const BUCKET = "service-images";
+const TIERS = new Set(["ESSENTIAL", "EXTRA", "DELUXE"]);
 
 export async function POST(req: Request) {
   const admin = await requireAdmin();
@@ -13,6 +14,7 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const contentType = String(body.contentType ?? "");
+  const tier = String(body.tier ?? "").toUpperCase();
 
   if (!ALLOWED.has(contentType)) {
     return NextResponse.json(
@@ -20,10 +22,13 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+  if (!TIERS.has(tier)) {
+    return NextResponse.json({ error: "Tier düzgün deyil" }, { status: 400 });
+  }
 
   const ext =
     contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
-  const path = `ps-plus/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const path = `ps-plus/${tier}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
   try {
     const supabase = getSupabaseAdmin();
