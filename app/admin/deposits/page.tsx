@@ -2,11 +2,14 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { fmtAzn, fmtDate } from "@/lib/format";
 import DepositActions from "./DepositActions";
+import { getSupabaseAdmin } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 30;
 const STATUSES = ["PENDING", "ALL", "SUCCESS", "FAILED"] as const;
+const RECEIPT_BUCKET = "receipts";
+const SIGNED_EXPIRES_SECONDS = 60;
 
 export default async function AdminDepositsPage({
   searchParams,
@@ -36,6 +39,36 @@ export default async function AdminDepositsPage({
       },
     }),
   ]);
+
+  const receiptSignedById = new Map<string, string>();
+  const needsSigning = deposits.filter(
+    (d) =>
+      typeof d.receiptUrl === "string" &&
+      d.receiptUrl.length > 0 &&
+      !d.receiptUrl.startsWith("http://") &&
+      !d.receiptUrl.startsWith("https://")
+  );
+
+  if (needsSigning.length > 0) {
+    try {
+      const supabase = getSupabaseAdmin();
+      const signed = await Promise.all(
+        needsSigning.map(async (d) => {
+          const path = d.receiptUrl as string;
+          const { data, error } = await supabase.storage
+            .from(RECEIPT_BUCKET)
+            .createSignedUrl(path, SIGNED_EXPIRES_SECONDS);
+          if (error || !data?.signedUrl) return null;
+          return { id: d.id, url: data.signedUrl };
+        })
+      );
+      for (const s of signed) {
+        if (s) receiptSignedById.set(s.id, s.url);
+      }
+    } catch {
+      // If signing fails, the UI will show a non-clickable placeholder.
+    }
+  }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -100,21 +133,34 @@ export default async function AdminDepositsPage({
               className="flex flex-col gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 sm:flex-row sm:items-center"
             >
               <div className="flex items-start gap-4 sm:flex-1">
-                {d.receiptUrl ? (
+                {(() => {
+                  const raw = d.receiptUrl;
+                  if (!raw) return null;
+                  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+                  return receiptSignedById.get(d.id) ?? null;
+                })() ? (
                   <a
-                    href={d.receiptUrl}
+                    href={
+                      (d.receiptUrl?.startsWith("http://") || d.receiptUrl?.startsWith("https://")
+                        ? d.receiptUrl
+                        : receiptSignedById.get(d.id)) ?? undefined
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block h-24 w-24 shrink-0 overflow-hidden rounded-md ring-1 ring-zinc-800"
                   >
-                    {/^.+\.pdf$/i.test(d.receiptUrl) ? (
+                    {/^.+\.pdf$/i.test(d.receiptUrl ?? "") ? (
                       <span className="grid h-full w-full place-items-center bg-zinc-950 text-xs text-zinc-400">
                         PDF
                       </span>
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={d.receiptUrl}
+                        src={
+                          (d.receiptUrl?.startsWith("http://") || d.receiptUrl?.startsWith("https://")
+                            ? d.receiptUrl
+                            : receiptSignedById.get(d.id)) ?? ""
+                        }
                         alt="receipt"
                         className="h-full w-full object-cover"
                       />
