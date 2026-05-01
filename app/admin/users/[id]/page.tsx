@@ -116,6 +116,8 @@ export default async function AdminUserDetailPage({
             walletBalance={user.walletBalance}
             cashbackBalanceCents={user.cashbackBalanceCents}
             referralBalanceCents={user.referralBalanceCents}
+            referralCode={user.referralCode}
+            referredByCode={user.referredBy?.referralCode ?? null}
           />
         </div>
       </header>

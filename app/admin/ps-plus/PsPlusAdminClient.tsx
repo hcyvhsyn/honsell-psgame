@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Loader2, Trash2, Check, X as XIcon, RefreshCw, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
@@ -51,7 +51,6 @@ export default function PsPlusAdminClient() {
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [pricing, setPricing] = useState<{ tryToAznRate: number; profitMarginPsPlusPct: number } | null>(null);
 
   const [tierAssets, setTierAssets] = useState<Record<Tier, { imageUrl: string; description: string }>>({
@@ -273,7 +272,7 @@ export default function PsPlusAdminClient() {
                 <div className="block text-sm text-zinc-300">
                   <span>Şəkil</span>
                   <input
-                    ref={fileInputRef}
+                    id={`psplus-tier-upload-${tier}`}
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
                     className="hidden"
@@ -307,7 +306,12 @@ export default function PsPlusAdminClient() {
                     <button
                       type="button"
                       disabled={uploadingImage}
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => {
+                        const el = document.getElementById(
+                          `psplus-tier-upload-${tier}`
+                        ) as HTMLInputElement | null;
+                        el?.click();
+                      }}
                       className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded border border-dashed border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 disabled:opacity-50"
                     >
                       {uploadingImage ? (

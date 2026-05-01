@@ -20,12 +20,16 @@ export default function UserAdminActions({
   walletBalance,
   cashbackBalanceCents,
   referralBalanceCents,
+  referralCode,
+  referredByCode,
 }: {
   userId: string;
   email: string;
   walletBalance: number;
   cashbackBalanceCents: number;
   referralBalanceCents: number;
+  referralCode: string;
+  referredByCode: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -36,18 +40,24 @@ export default function UserAdminActions({
       wallet: centsToInput(walletBalance),
       cashback: centsToInput(cashbackBalanceCents),
       referral: centsToInput(referralBalanceCents),
+      referralCode: String(referralCode ?? ""),
+      referredByCode: String(referredByCode ?? ""),
     }),
-    [walletBalance, cashbackBalanceCents, referralBalanceCents]
+    [walletBalance, cashbackBalanceCents, referralBalanceCents, referralCode, referredByCode]
   );
 
   const [wallet, setWallet] = useState(initial.wallet);
   const [cashback, setCashback] = useState(initial.cashback);
   const [referral, setReferral] = useState(initial.referral);
+  const [refCode, setRefCode] = useState(initial.referralCode);
+  const [referredBy, setReferredBy] = useState(initial.referredByCode);
 
   const dirty =
     wallet !== initial.wallet ||
     cashback !== initial.cashback ||
-    referral !== initial.referral;
+    referral !== initial.referral ||
+    refCode !== initial.referralCode ||
+    referredBy !== initial.referredByCode;
 
   function save() {
     setError(null);
@@ -62,6 +72,16 @@ export default function UserAdminActions({
       setError("Balans mənfi ola bilməz.");
       return;
     }
+    const nextReferralCode = refCode.trim().toUpperCase();
+    const nextReferredByCode = referredBy.trim().toUpperCase();
+    if (!nextReferralCode || !/^[A-Z0-9]{4,20}$/.test(nextReferralCode)) {
+      setError("Referral kod formatı səhvdir (A-Z/0-9, 4–20 simvol).");
+      return;
+    }
+    if (nextReferredByCode && !/^[A-Z0-9]{4,20}$/.test(nextReferredByCode)) {
+      setError("Referrer kod formatı səhvdir (A-Z/0-9, 4–20 simvol) və ya boş buraxın.");
+      return;
+    }
 
     startTransition(async () => {
       const res = await fetch(`/api/admin/users/${userId}`, {
@@ -71,6 +91,8 @@ export default function UserAdminActions({
           walletBalance: walletCents,
           cashbackBalanceCents: cashbackCents,
           referralBalanceCents: referralCents,
+          referralCode: nextReferralCode,
+          referredByCode: nextReferredByCode || null,
         }),
       });
       if (!res.ok) {
@@ -125,6 +147,8 @@ export default function UserAdminActions({
         <Field label="Cüzdan (AZN)" value={wallet} onChange={setWallet} />
         <Field label="Cashback (AZN)" value={cashback} onChange={setCashback} />
         <Field label="Referral (AZN)" value={referral} onChange={setReferral} />
+        <Field label="Referral kodu" value={refCode} onChange={setRefCode} />
+        <Field label="Referrer kodu (ixtiyari)" value={referredBy} onChange={setReferredBy} />
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3">
