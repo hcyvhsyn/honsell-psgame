@@ -25,6 +25,9 @@ type ListingResponse = {
   totals: Record<string, number>;
   count: number;
   results: GameCardData[];
+  page?: number;
+  pageSize?: number;
+  totalPages?: number;
 };
 
 type Sort = "newest" | "popular" | "priceAsc" | "priceDesc" | "discount" | "alpha";
@@ -34,6 +37,7 @@ type ProductType = "GAME" | "ADDON" | "CURRENCY" | "OTHER";
 const DEFAULT_SORT: Sort = "newest";
 const DEFAULT_PLATFORM: Platform = "ALL";
 const DEFAULT_TYPE: ProductType = "GAME";
+const DEFAULT_PAGE_SIZE = 24;
 
 const SORT_OPTIONS: { value: Sort; label: string }[] = [
   { value: "newest", label: "Ən yeni" },
@@ -112,6 +116,8 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
   const [platform, setPlatform] = useState<Platform>(DEFAULT_PLATFORM);
   const [onSale, setOnSale] = useState(false);
   const [loading, setLoading] = useState(false);
+  const pageSize = initial.pageSize ?? DEFAULT_PAGE_SIZE;
+  const [page, setPage] = useState<number>(initial.page ?? 1);
 
   const reqId = useRef(0);
   const hasMounted = useRef(false);
@@ -133,7 +139,8 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
       params.set("type", productType);
       if (platform !== "ALL") params.set("platform", platform);
       if (onSale) params.set("onSale", "1");
-      params.set("limit", "100");
+      params.set("limit", String(pageSize));
+      params.set("offset", String((page - 1) * pageSize));
 
       try {
         const res = await fetch(`/api/games?${params.toString()}`);
@@ -150,6 +157,11 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
     }, 250);
 
     return () => clearTimeout(handle);
+  }, [query, sort, platform, onSale, productType, page, pageSize]);
+
+  // Filtrlər dəyişəndə ilk səhifəyə qayıt.
+  useEffect(() => {
+    setPage(1);
   }, [query, sort, platform, onSale, productType]);
 
   const hasActiveFilter =
@@ -391,6 +403,13 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
           </ul>
         )}
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={data.totalPages ?? Math.max(1, Math.ceil((data.total || 0) / pageSize))}
+        loading={loading}
+        onPageChange={setPage}
+      />
     </>
   );
 }
@@ -624,6 +643,100 @@ function EmptyState({
       <p className="mt-3 text-sm text-zinc-400">
         Bu kateqoriyada hələ məhsul yoxdur.
       </p>
+    </div>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  loading,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  loading: boolean;
+  onPageChange: (p: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+
+  const clampedPage = Math.min(Math.max(1, page), totalPages);
+  const canPrev = clampedPage > 1 && !loading;
+  const canNext = clampedPage < totalPages && !loading;
+
+  // Keep the UI stable if page got out-of-range after filtering.
+  if (clampedPage !== page) {
+    queueMicrotask(() => onPageChange(clampedPage));
+  }
+
+  const pages: number[] = [];
+  const push = (p: number) => {
+    if (p >= 1 && p <= totalPages && !pages.includes(p)) pages.push(p);
+  };
+  push(1);
+  push(clampedPage - 1);
+  push(clampedPage);
+  push(clampedPage + 1);
+  push(totalPages);
+  pages.sort((a, b) => a - b);
+
+  return (
+    <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+      <button
+        type="button"
+        disabled={!canPrev}
+        onClick={() => onPageChange(clampedPage - 1)}
+        className={`rounded-lg border px-3 py-2 text-sm transition ${
+          canPrev
+            ? "border-zinc-800 bg-zinc-950/60 text-zinc-200 hover:bg-zinc-900"
+            : "border-zinc-900 bg-zinc-950/40 text-zinc-600"
+        }`}
+      >
+        Əvvəlki
+      </button>
+
+      <div className="flex items-center gap-1">
+        {pages.map((p, idx) => {
+          const prev = pages[idx - 1];
+          const showDots = idx > 0 && prev !== undefined && p - prev > 1;
+          return (
+            <span key={p} className="flex items-center gap-1">
+              {showDots && <span className="px-1 text-zinc-600">…</span>}
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => onPageChange(p)}
+                className={`min-w-[2.5rem] rounded-lg border px-3 py-2 text-sm font-semibold tabular-nums transition ${
+                  p === clampedPage
+                    ? "border-indigo-500/60 bg-indigo-500/10 text-indigo-100 shadow-[0_6px_24px_-14px_rgba(99,102,241,0.7)]"
+                    : "border-zinc-800 bg-zinc-950/60 text-zinc-200 hover:bg-zinc-900"
+                } ${loading ? "opacity-60" : ""}`}
+                aria-current={p === clampedPage ? "page" : undefined}
+              >
+                {p}
+              </button>
+            </span>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        disabled={!canNext}
+        onClick={() => onPageChange(clampedPage + 1)}
+        className={`rounded-lg border px-3 py-2 text-sm transition ${
+          canNext
+            ? "border-zinc-800 bg-zinc-950/60 text-zinc-200 hover:bg-zinc-900"
+            : "border-zinc-900 bg-zinc-950/40 text-zinc-600"
+        }`}
+      >
+        Növbəti
+      </button>
+
+      <span className="ml-1 text-xs text-zinc-500">
+        Səhifə <span className="font-bold text-zinc-200">{clampedPage}</span> /{" "}
+        <span className="font-bold text-zinc-200">{totalPages}</span>
+      </span>
     </div>
   );
 }

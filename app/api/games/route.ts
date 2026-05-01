@@ -32,7 +32,7 @@ const PRODUCT_TYPES = new Set(["GAME", "ADDON", "CURRENCY", "OTHER"]);
  *
  * Returns:
  *   { total, totalAll, totalOnSale, totals: {GAME, ADDON, CURRENCY, OTHER},
- *     count, results }
+ *     count, results, page, pageSize, totalPages }
  *
  *   - `total`         filtered count (matches the result set)
  *   - `totalAll`      total in the active type, without other filters
@@ -55,6 +55,7 @@ export async function GET(req: Request) {
 
   const limit = Math.max(1, Math.min(200, Number(url.searchParams.get("limit")) || 100));
   const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
+  const page = Math.max(1, Math.floor(offset / limit) + 1);
 
   const where: Prisma.GameWhereInput = { isActive: true, productType };
   if (q) where.title = { contains: q, mode: "insensitive" };
@@ -122,6 +123,9 @@ export async function GET(req: Request) {
     totals,
     count: results.length,
     results,
+    page,
+    pageSize: limit,
+    totalPages: Math.max(1, Math.ceil(filteredCount / limit)),
   });
 }
 

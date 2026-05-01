@@ -7,16 +7,26 @@ import { Gamepad2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-const LIMIT = 100;
+const PAGE_SIZE = 24;
 const TYPE = "GAME";
 
-export default async function OyunlarPage() {
+export default async function OyunlarPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = (await searchParams) ?? {};
+  const pageRaw = Array.isArray(sp.page) ? sp.page[0] : sp.page;
+  const page = Math.max(1, Number(pageRaw) || 1);
+  const offset = (page - 1) * PAGE_SIZE;
+
   const [settings, games, typeAllCount, typeOnSaleCount, totalsArr] = await Promise.all([
     getSettings(),
     prisma.game.findMany({
       where: { isActive: true, productType: TYPE },
       orderBy: { lastScrapedAt: "desc" },
-      take: LIMIT,
+      take: PAGE_SIZE,
+      skip: offset,
     }),
     prisma.game.count({ where: { isActive: true, productType: TYPE } }),
     prisma.game.count({
@@ -53,6 +63,9 @@ export default async function OyunlarPage() {
     totals,
     count: results.length,
     results,
+    page,
+    pageSize: PAGE_SIZE,
+    totalPages: Math.max(1, Math.ceil(typeAllCount / PAGE_SIZE)),
   };
 
   return (
