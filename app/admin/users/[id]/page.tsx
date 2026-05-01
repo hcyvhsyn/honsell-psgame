@@ -4,6 +4,7 @@ import { ArrowLeft, Mail, Hash, Wallet, Calendar } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { fmtAzn, fmtDate } from "@/lib/format";
 import RoleToggle from "./RoleToggle";
+import UserAdminActions from "./UserAdminActions";
 
 export const dynamic = "force-dynamic";
 
@@ -53,10 +54,6 @@ export default async function AdminUserDetailPage({
     0
   );
   const depositedTotal = deposits.reduce(
-    (sum, t) => sum + t.amountAznCents,
-    0
-  );
-  const commissionEarned = user.commissions.reduce(
     (sum, t) => sum + t.amountAznCents,
     0
   );
@@ -111,7 +108,16 @@ export default async function AdminUserDetailPage({
           </div>
         </div>
 
-        <RoleToggle userId={user.id} role={user.role} />
+        <div className="flex flex-col items-end gap-2">
+          <RoleToggle userId={user.id} role={user.role} />
+          <UserAdminActions
+            userId={user.id}
+            email={user.email}
+            walletBalance={user.walletBalance}
+            cashbackBalanceCents={user.cashbackBalanceCents}
+            referralBalanceCents={user.referralBalanceCents}
+          />
+        </div>
       </header>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -122,6 +128,16 @@ export default async function AdminUserDetailPage({
           tint="text-cyan-300 bg-cyan-500/10 ring-cyan-500/30"
         />
         <Stat
+          label="Cashback"
+          value={fmtAzn(user.cashbackBalanceCents)}
+          tint="text-emerald-300 bg-emerald-500/10 ring-emerald-500/30"
+        />
+        <Stat
+          label="Referral balance"
+          value={fmtAzn(user.referralBalanceCents)}
+          tint="text-amber-300 bg-amber-500/10 ring-amber-500/30"
+        />
+        <Stat
           label="Total deposited"
           value={fmtAzn(depositedTotal)}
           tint="text-fuchsia-300 bg-fuchsia-500/10 ring-fuchsia-500/30"
@@ -130,11 +146,6 @@ export default async function AdminUserDetailPage({
           label="Total spent"
           value={fmtAzn(purchasedTotal)}
           tint="text-indigo-300 bg-indigo-500/10 ring-indigo-500/30"
-        />
-        <Stat
-          label="Commission earned"
-          value={fmtAzn(commissionEarned)}
-          tint="text-emerald-300 bg-emerald-500/10 ring-emerald-500/30"
         />
       </section>
 

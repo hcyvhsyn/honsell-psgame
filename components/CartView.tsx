@@ -2,13 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Trash2,
   Minus,
   Plus,
   ShoppingCart,
-  Wallet,
   ArrowRight,
   CheckCircle2,
   Gamepad2,
@@ -16,8 +15,13 @@ import {
   Crown,
   ChevronDown,
   Check,
+  Pencil,
 } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
+import AccountCreationCartEditModal from "@/components/AccountCreationCartEditModal";
+
+/** Dəstək xətti — WhatsApp (ulduzlu format, + prefiksi olmadan). */
+const SUPPORT_WHATSAPP_MSISDN = "994702560509";
 
 export type PsnOption = {
   id: string;
@@ -30,6 +34,8 @@ export type PsnOption = {
 export default function CartView({
   isAuthed,
   walletBalanceAzn,
+  cashbackBalanceAzn = 0,
+  referralBalanceAzn = 0,
   psnAccounts,
   loyaltyCashbackPct = 0,
   onRequestLogin,
@@ -37,6 +43,9 @@ export default function CartView({
 }: {
   isAuthed: boolean;
   walletBalanceAzn: number;
+  /** Loyalty tərəfindən toplanmış cashback balansı (deposit cüzdandan ayrı). */
+  cashbackBalanceAzn?: number;
+  referralBalanceAzn?: number;
   psnAccounts: PsnOption[];
   /** Cashback % the buyer will earn after this purchase. 0 = none. */
   loyaltyCashbackPct?: number;
@@ -51,7 +60,14 @@ export default function CartView({
   const [message, setMessage] = useState<{
     kind: "ok" | "error";
     text: string;
+    orderCode?: string;
+    cashbackEarnedAzn?: number;
+    cashbackPctEarned?: number;
+    newCashbackBalanceAzn?: number;
   } | null>(null);
+
+  const [accountEdit, setAccountEdit] = useState<{ itemId: string; key: number } | null>(null);
+  const [paymentSource, setPaymentSource] = useState<"wallet" | "referral">("wallet");
 
   // Default to the user's flagged-default PSN account; fall back to the first.
   const defaultId = psnAccounts.find((a) => a.isDefault)?.id ?? psnAccounts[0]?.id ?? "";
@@ -61,6 +77,26 @@ export default function CartView({
     setPsnAccountId(defaultId);
   }, [defaultId]);
 
+  useEffect(() => {
+    if (referralBalanceAzn <= 0 && paymentSource === "referral") {
+      setPaymentSource("wallet");
+    }
+  }, [referralBalanceAzn, paymentSource]);
+
+  useEffect(() => {
+    if (accountEdit && !items.some((i) => i.id === accountEdit.itemId)) {
+      setAccountEdit(null);
+    }
+  }, [items, accountEdit]);
+
+  const openAccountCartEdit = useCallback((item: CartItem) => {
+    if (item.productType !== "ACCOUNT_CREATION") return;
+    setAccountEdit((prev) => ({
+      itemId: item.id,
+      key: (prev?.key ?? 0) + 1,
+    }));
+  }, []);
+
   if (!hydrated) {
     return (
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-10 text-center text-sm text-zinc-400">
@@ -69,7 +105,101 @@ export default function CartView({
     );
   }
 
+  /** Oyun / PS Plus / TRY üçün PSN seçimi və hesab yükləmə mütləqdir. Yalnız hesab-açılış səbəti istisnadır. */
+  const deliveryNeedsPsn = items.some((i) =>
+    ["GAME", "PS_PLUS", "TRY_BALANCE"].includes(i.productType)
+  );
+  const blockedNoPsn = isAuthed && deliveryNeedsPsn && psnAccounts.length === 0;
+
   if (items.length === 0) {
+    if (message?.kind === "ok") {
+      const waPrefill = message.orderCode
+        ? `Salam. Sifariş kodum: ${message.orderCode}`
+        : "Salam, alış haqqında əlaqə saxlayıram.";
+      const waHref = `https://wa.me/${SUPPORT_WHATSAPP_MSISDN}?text=${encodeURIComponent(waPrefill)}`;
+      return (
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-10 text-center shadow-lg shadow-emerald-500/5">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 mb-5">
+            <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">Təşəkkürlər!</h2>
+          {message.orderCode ? (
+            <div className="mx-auto mb-5 max-w-md rounded-xl border border-emerald-500/30 bg-zinc-950/40 px-4 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-500/80">
+                Sifariş kodu
+              </p>
+              <p className="mt-1 font-mono text-lg font-bold tracking-wide text-white">{message.orderCode}</p>
+              <p className="mt-1 text-xs text-zinc-500">Bu kodu dəstəklə əlaqə saxlayarkən göndərin.</p>
+            </div>
+          ) : null}
+          {typeof message.cashbackEarnedAzn === "number" && message.cashbackEarnedAzn > 0 ? (
+            <div className="mx-auto mb-5 max-w-md rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-left">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/90">
+                Cashback qazancı
+              </p>
+              <p className="mt-2 text-sm font-medium leading-snug text-amber-50">
+                Bu alışınızdan{" "}
+                <span className="tabular-nums font-bold text-white">
+                  {message.cashbackEarnedAzn.toFixed(2)} AZN
+                </span>{" "}
+                cashback qazandınız
+                {typeof message.cashbackPctEarned === "number" && message.cashbackPctEarned > 0
+                  ? ` (${message.cashbackPctEarned}% loyalty).`
+                  : "."}
+              </p>
+              {typeof message.newCashbackBalanceAzn === "number" ? (
+                <p className="mt-2 text-xs text-amber-200/75">
+                  Cashback balansınız indi:{" "}
+                  <span className="font-semibold tabular-nums text-white">
+                    {message.newCashbackBalanceAzn.toFixed(2)} AZN
+                  </span>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          <p className="text-base text-emerald-200/90 max-w-md mx-auto leading-relaxed">{message.text}</p>
+
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href={waHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#20bd5a]"
+            >
+              <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+              </svg>
+              WhatsApp ilə əlaqə
+            </a>
+            {onNavigate ? (
+              <button
+                type="button"
+                onClick={onNavigate}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500"
+              >
+                Alış-verişə davam et
+              </button>
+            ) : (
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500"
+              >
+                Alış-verişə davam et
+              </Link>
+            )}
+
+            <Link
+              href="/profile/orders"
+              onClick={onNavigate}
+              className="inline-flex items-center gap-2 rounded-xl bg-zinc-800 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-700"
+            >
+              Sifarişlərimə bax
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-12 text-center">
         <ShoppingCart className="mx-auto h-10 w-10 text-zinc-600" />
@@ -94,11 +224,36 @@ export default function CartView({
     );
   }
 
-  const insufficient = isAuthed && walletBalanceAzn < totalAzn;
-  const noAccounts = isAuthed && psnAccounts.length === 0;
+  const insufficientWallet =
+    isAuthed && paymentSource === "wallet" && walletBalanceAzn < totalAzn;
+  const insufficientReferral =
+    isAuthed && paymentSource === "referral" && referralBalanceAzn < totalAzn;
+
+  function checkoutBalanceSuffix(d: Record<string, unknown>): string {
+    const nw = d.newWalletBalanceAzn;
+    const nr = d.newReferralBalanceAzn;
+    if (typeof nw === "number" && typeof nr === "number") {
+      return ` Cüzdan: ${nw.toFixed(2)} AZN · Referal: ${nr.toFixed(2)} AZN.`;
+    }
+    if (typeof d.newBalanceAzn === "number") {
+      return ` Yeni cüzdan göstəricisi: ${d.newBalanceAzn.toFixed(2)} AZN.`;
+    }
+    return "";
+  }
 
   async function checkout() {
-    if (!isAuthed || noAccounts) return;
+    if (!isAuthed || blockedNoPsn) return;
+    if (
+      items.some(
+        (i) => i.productType === "ACCOUNT_CREATION" && !i.accountCreation
+      )
+    ) {
+      setMessage({
+        kind: "error",
+        text: "PSN hesab açılışı üçün məlumatları doldurub yadda saxlayın (Redaktə et).",
+      });
+      return;
+    }
     setBusy(true);
     setMessage(null);
     try {
@@ -106,17 +261,79 @@ export default function CartView({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: items.map((i) => ({ id: i.id, qty: i.qty })),
-          psnAccountId,
+          items: items.map((i) => ({
+            id: i.id,
+            qty: i.qty,
+            ...(i.productType === "ACCOUNT_CREATION" && i.accountCreation
+              ? { accountCreation: i.accountCreation }
+              : {}),
+          })),
+          psnAccountId: deliveryNeedsPsn ? psnAccountId : null,
+          paymentSource,
         }),
       });
       const data = await res.json();
       if (res.ok) {
         clear();
         const target = data.deliveredTo?.label ?? "hesabına";
+        let text = "";
+
+        const pendingGameQty = Number(data.pendingGameFulfillmentQty ?? 0);
+        const balanceSuffix = pendingGameQty > 0 ? "" : checkoutBalanceSuffix(data);
+        const orderCode = typeof data.orderCode === "string" ? data.orderCode : undefined;
+
+        const gameFulfillmentSentence =
+          pendingGameQty > 0
+            ? pendingGameQty === 1
+              ? "Oyun admin tərəfindən seçdiyiniz PSN-da mağaza üzərindən alınacaq; tezliklə sizinlə əlaqə saxlanılacaq. Hazırki mərhələni Sifarişlər bölməsində izləyə bilərsiniz."
+              : `${pendingGameQty} oyun admin tərəfindən eyni qaydada icra olunacaq; əlaqə və status Sifarişlər bölməsindədir.`
+            : "";
+
+        const onlyAcct =
+          Boolean(data?.hasAccountCreation) &&
+          !data?.hasTryBalance &&
+          items.every((it) => it.productType === "ACCOUNT_CREATION");
+
+        if (onlyAcct && !data.deliveredTo) {
+          text = `Türkiyə PSN hesab açılışı sifarişiniz qəbul edildi və icraya götürüləcək. Ətraflı məlumat Sifarişlər bölməsindədir.${balanceSuffix}`;
+        } else if (Boolean(data?.hasAccountCreation) && data.deliveredTo) {
+          text = `Ödəniş tamamlandı (o cümlədən hesab açılışı xidməti). Hesab təhvil tarixini Sifarişlər bölməsində izləyə bilərsiniz.${balanceSuffix}`;
+          if (gameFulfillmentSentence) text = `${text.trim()} ${gameFulfillmentSentence}`;
+        } else if (pendingGameQty > 0 && !Boolean(data?.hasTryBalance)) {
+          text = `Ödəniş qəbul olundu.${gameFulfillmentSentence ? ` ${gameFulfillmentSentence}` : ""}${balanceSuffix}`;
+        } else {
+          text = `Alış tamamlandı — ${data.purchaseCount} məhsul ${target} hesabına çatdırıldı.${balanceSuffix}`;
+        }
+        if (data.hasTryBalance) {
+          const tryBalanceSuffix = pendingGameQty > 0 ? "" : checkoutBalanceSuffix(data);
+          const pendingCount = Number(data.tryBalancePendingCount ?? 0);
+          if (pendingCount > 0) {
+            text = `Hədiyyə kart sifarişiniz qəbul edildi və hazırda gözləmədədir. Kodunuz hazır olduqda email ilə göndəriləcək və Sifarişlər bölməsində görünəcək.${tryBalanceSuffix}`;
+          } else {
+            text = `Hədiyyə kartınız sisteminizə yükləndi. Kodunuzu Sifarişlər bölməsindən görə bilərsiniz.${tryBalanceSuffix}`;
+          }
+          if (gameFulfillmentSentence) {
+            text = `${text.trim()} ${gameFulfillmentSentence}`;
+          }
+        }
+
+        const earnedCb =
+          typeof data.cashbackAzn === "number" && data.cashbackAzn > 0 ? data.cashbackAzn : 0;
+
         setMessage({
           kind: "ok",
-          text: `Alış tamamlandı — ${data.purchaseCount} məhsul ${target} hesabına çatdırıldı. Yeni balans: ${data.newBalanceAzn.toFixed(2)} AZN.`,
+          text,
+          orderCode,
+          ...(earnedCb > 0
+            ? {
+                cashbackEarnedAzn: earnedCb,
+                cashbackPctEarned: Number(data.cashbackPct ?? 0),
+                newCashbackBalanceAzn:
+                  typeof data.newCashbackBalanceAzn === "number"
+                    ? data.newCashbackBalanceAzn
+                    : undefined,
+              }
+            : {}),
         });
       } else {
         setMessage({ kind: "error", text: data.error ?? "Sifariş alınmadı." });
@@ -128,8 +345,14 @@ export default function CartView({
     }
   }
 
+  const accountEditLine =
+    accountEdit != null
+      ? items.find((i) => i.id === accountEdit.itemId && i.productType === "ACCOUNT_CREATION")
+      : undefined;
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+    <>
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <ul className="space-y-3">
         {items.map((item) => (
           <CartLine
@@ -138,6 +361,9 @@ export default function CartView({
             onIncrement={() => setQty(item.id, item.qty + 1)}
             onDecrement={() => setQty(item.id, item.qty - 1)}
             onRemove={() => remove(item.id)}
+            onEditAccountCreation={
+              item.productType === "ACCOUNT_CREATION" ? () => openAccountCartEdit(item) : undefined
+            }
           />
         ))}
       </ul>
@@ -155,13 +381,22 @@ export default function CartView({
           </div>
         </div>
 
+        {isAuthed ? (
+          <div className="rounded-xl border border-zinc-700/80 bg-zinc-950/40 px-3 py-2 text-xs text-zinc-400">
+            <span className="font-medium text-zinc-300">Cashback balansı: </span>
+            <span className="tabular-nums font-semibold text-amber-200">{cashbackBalanceAzn.toFixed(2)} AZN</span>
+          </div>
+        ) : null}
+
         {loyaltyCashbackPct > 0 && (
           <div className="flex items-start justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-sm">
             <span className="flex items-start gap-2 text-amber-200/90">
               <Crown className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
               <span className="leading-snug">
-                <span className="block font-medium text-amber-300">Cashback</span>
-                <span className="text-[11px] text-amber-400/60">Alışdan sonra +{loyaltyCashbackPct}%</span>
+                <span className="block font-medium text-amber-300">Ödənişdən sonra cashback</span>
+                <span className="text-[11px] text-amber-400/60">
+                  Bu məbləğin {loyaltyCashbackPct}%-i cashback balansına yüklənəcək
+                </span>
               </span>
             </span>
             <span className="font-semibold tabular-nums text-amber-400">
@@ -170,7 +405,7 @@ export default function CartView({
           </div>
         )}
 
-        {isAuthed && psnAccounts.length > 0 && (
+        {isAuthed && deliveryNeedsPsn && psnAccounts.length > 0 && (
           <div className="space-y-2">
             <label className="flex items-center justify-between text-xs font-medium uppercase tracking-wider text-zinc-500">
               <span className="flex items-center gap-1.5"><Gamepad2 className="h-3.5 w-3.5" /> Hesab</span>
@@ -222,7 +457,7 @@ export default function CartView({
                 Daxil ol və Ödə <ArrowRight className="h-4 w-4" />
               </Link>
             )
-          ) : noAccounts ? (
+          ) : blockedNoPsn ? (
             <div className="space-y-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
               <p className="flex items-start gap-2 text-xs text-amber-200/90">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
@@ -238,16 +473,74 @@ export default function CartView({
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg bg-zinc-950/50 px-3 py-2.5 text-sm">
-                <span className="flex items-center gap-2 text-zinc-400">
-                  <Wallet className="h-4 w-4" /> Balans
-                </span>
-                <span className={`font-semibold tabular-nums ${insufficient ? "text-red-400" : "text-emerald-400"}`}>
-                  {walletBalanceAzn.toFixed(2)} AZN
-                </span>
+              <div
+                className="space-y-2 rounded-xl border border-zinc-800/70 bg-zinc-950/50 p-3"
+                role="radiogroup"
+                aria-label="Ödəniş mənbəyi"
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                  Ödəniş mənbəyi
+                </p>
+
+                <label
+                  className={`flex cursor-pointer items-start gap-2.5 rounded-lg p-2 transition ${
+                    paymentSource === "wallet"
+                      ? "bg-indigo-500/15 ring-1 ring-indigo-500/40"
+                      : "hover:bg-zinc-800/40"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="cartPaymentSource"
+                    className="mt-1 shrink-0"
+                    checked={paymentSource === "wallet"}
+                    onChange={() => setPaymentSource("wallet")}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-zinc-200">Öz balansım</span>
+                    <span className="text-xs text-zinc-500">Depozit / əsas cüzdan (ödəniş üçün)</span>
+                    <span
+                      className={`mt-0.5 block text-xs font-semibold tabular-nums ${
+                        insufficientWallet ? "text-red-400" : "text-emerald-400"
+                      }`}
+                    >
+                      {walletBalanceAzn.toFixed(2)} AZN
+                    </span>
+                  </span>
+                </label>
+
+                <label
+                  className={`flex items-start gap-2.5 rounded-lg p-2 transition ${
+                    referralBalanceAzn <= 0 ? "cursor-not-allowed opacity-45" : "cursor-pointer"
+                  } ${paymentSource === "referral" ? "bg-fuchsia-500/15 ring-1 ring-fuchsia-500/35" : "hover:bg-zinc-800/40"}`}
+                >
+                  <input
+                    type="radio"
+                    name="cartPaymentSource"
+                    className="mt-1 shrink-0 disabled:opacity-40"
+                    disabled={referralBalanceAzn <= 0}
+                    checked={paymentSource === "referral"}
+                    onChange={() => setPaymentSource("referral")}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-zinc-200">Referal balansım</span>
+                    <span className="text-xs text-zinc-500">Referal komissiya balansından</span>
+                    <span
+                      className={`mt-0.5 block text-xs font-semibold tabular-nums ${
+                        insufficientReferral ? "text-red-400" : "text-fuchsia-300"
+                      }`}
+                    >
+                      {referralBalanceAzn.toFixed(2)} AZN
+                    </span>
+                  </span>
+                </label>
               </div>
 
-              {insufficient ? (
+              <p className="text-[10px] leading-relaxed text-zinc-500">
+                Loyalty cashback alış başa çatdıqda ayrıca cashback balansınıza yazılır (ümumi cüzdandan ayrı).
+              </p>
+
+              {insufficientWallet ? (
                 <Link
                   href="/profile/wallet"
                   onClick={onNavigate}
@@ -258,6 +551,18 @@ export default function CartView({
                     {(totalAzn - walletBalanceAzn).toFixed(2)} AZN çatmır
                   </span>
                 </Link>
+              ) : insufficientReferral ? (
+                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs leading-relaxed text-amber-200/90">
+                  Referal balansında {(totalAzn - referralBalanceAzn).toFixed(2)} AZN çatmır. Əlavə komissiya üçün
+                  dəvətlər göndərin və ya seçimi öz balansına dəyişin.{" "}
+                  <Link
+                    href="/profile/referrals"
+                    onClick={onNavigate}
+                    className="font-semibold text-amber-300 underline underline-offset-2"
+                  >
+                    Referallarım
+                  </Link>
+                </div>
               ) : (
                 <button
                   type="button"
@@ -265,7 +570,7 @@ export default function CartView({
                   disabled={busy}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98] disabled:opacity-50"
                 >
-                  {busy ? "İşlənir…" : "Cüzdanla ödə"}
+                  {busy ? "İşlənir…" : paymentSource === "referral" ? "Referal ilə ödə" : "Cüzdanla ödə"}
                 </button>
               )}
             </div>
@@ -300,6 +605,16 @@ export default function CartView({
         </div>
       </aside>
     </div>
+
+      {accountEdit && accountEditLine ? (
+        <AccountCreationCartEditModal
+          key={accountEdit.key}
+          open
+          item={accountEditLine}
+          onClose={() => setAccountEdit(null)}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -308,13 +623,18 @@ function CartLine({
   onIncrement,
   onDecrement,
   onRemove,
+  onEditAccountCreation,
 }: {
   item: CartItem;
   onIncrement: () => void;
   onDecrement: () => void;
   onRemove: () => void;
+  onEditAccountCreation?: () => void;
 }) {
-  const isGame = item.productType === "GAME";
+  const isSingleLicense =
+    item.productType === "GAME" ||
+    item.productType === "PS_PLUS" ||
+    item.productType === "ACCOUNT_CREATION";
   return (
     <li className="flex gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-3 shadow-sm transition hover:border-zinc-700/60 hover:bg-zinc-900/50">
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-900 shadow-inner">
@@ -337,6 +657,40 @@ function CartLine({
             <p className="mt-1 text-[11px] font-medium tracking-wide text-zinc-500 uppercase">
               {labelForType(item.productType)}
             </p>
+            {item.productType === "ACCOUNT_CREATION" ? (
+              <div className="mt-2 w-full max-w-md space-y-2 rounded-lg border border-fuchsia-500/25 bg-fuchsia-500/[0.07] px-3 py-2">
+                {item.accountCreation?.fullName ? (
+                  <p className="text-[11px] text-zinc-400">
+                    {item.accountCreation.fullName}
+                    {item.accountCreation.birthDate ? ` · ${item.accountCreation.birthDate}` : ""}
+                  </p>
+                ) : null}
+                <div className="grid gap-1.5 text-xs">
+                  <p>
+                    <span className="text-zinc-500">E-poçt:</span>{" "}
+                    <span className="break-all font-medium text-zinc-200">
+                      {item.accountCreation?.email ?? "—"}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-zinc-500">Şifrə:</span>{" "}
+                    <span className="break-all font-mono font-medium text-zinc-200">
+                      {item.accountCreation?.password ?? "—"}
+                    </span>
+                  </p>
+                </div>
+                {onEditAccountCreation ? (
+                  <button
+                    type="button"
+                    onClick={onEditAccountCreation}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-fuchsia-300 transition hover:text-fuchsia-200"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Məlumatları redaktə et
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
           <button
             type="button"
@@ -349,9 +703,9 @@ function CartLine({
         </div>
 
         <div className="flex items-end justify-between">
-          {isGame ? (
+          {isSingleLicense ? (
             <span className="rounded-md bg-zinc-800/50 px-2 py-1 text-[10px] font-medium text-zinc-400">
-              Tək lisenziya
+              Tək sifariş
             </span>
           ) : (
             <div className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950/50 p-0.5">
@@ -392,6 +746,12 @@ function labelForType(t: string) {
       return "Əlavə / DLC";
     case "CURRENCY":
       return "Pul kartı";
+    case "PS_PLUS":
+      return "PS Plus";
+    case "TRY_BALANCE":
+      return "Hədiyyə Kartı";
+    case "ACCOUNT_CREATION":
+      return "PSN Hesab Açılışı";
     default:
       return "Digər";
   }

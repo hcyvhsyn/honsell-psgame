@@ -9,6 +9,14 @@ import {
   useState,
 } from "react";
 
+/** Səbətdə PSN hesab açılışı üçün müştəri məlumatları (checkout zamanı serverə göndərilir). */
+export type AccountCreationCartDetails = {
+  fullName: string;
+  birthDate: string;
+  email: string;
+  password: string;
+};
+
 export type CartItem = {
   id: string;
   title: string;
@@ -16,6 +24,7 @@ export type CartItem = {
   finalAzn: number;
   productType: string;
   qty: number;
+  accountCreation?: AccountCreationCartDetails;
 };
 
 type CartContextValue = {
@@ -24,6 +33,7 @@ type CartContextValue = {
   totalAzn: number;
   add: (item: Omit<CartItem, "qty">) => void;
   setQty: (id: string, qty: number) => void;
+  updateAccountCreation: (id: string, details: AccountCreationCartDetails) => void;
   remove: (id: string) => void;
   clear: () => void;
   has: (id: string) => boolean;
@@ -64,10 +74,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const add = useCallback((item: Omit<CartItem, "qty">) => {
     setItems((prev) => {
+      if (item.productType === "ACCOUNT_CREATION") {
+        const rest = prev.filter((i) => i.id !== item.id);
+        return [...rest, { ...item, qty: 1 }];
+      }
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
         // Cash cards / addons can be bought in multiples; full games stay at 1.
-        if (item.productType === "GAME") return prev;
+        if (item.productType === "GAME" || item.productType === "PS_PLUS") return prev;
         return prev.map((i) =>
           i.id === item.id ? { ...i, qty: i.qty + 1 } : i
         );
@@ -81,6 +95,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       qty <= 0
         ? prev.filter((i) => i.id !== id)
         : prev.map((i) => (i.id === id ? { ...i, qty } : i))
+    );
+  }, []);
+
+  const updateAccountCreation = useCallback((id: string, details: AccountCreationCartDetails) => {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === id && i.productType === "ACCOUNT_CREATION" ? { ...i, accountCreation: details } : i
+      )
     );
   }, []);
 
@@ -98,8 +120,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<CartContextValue>(() => {
     const count = items.reduce((sum, i) => sum + i.qty, 0);
     const totalAzn = items.reduce((sum, i) => sum + i.qty * i.finalAzn, 0);
-    return { items, count, totalAzn, add, setQty, remove, clear, has, hydrated };
-  }, [items, add, setQty, remove, clear, has, hydrated]);
+    return {
+      items,
+      count,
+      totalAzn,
+      add,
+      setQty,
+      updateAccountCreation,
+      remove,
+      clear,
+      has,
+      hydrated,
+    };
+  }, [items, add, setQty, updateAccountCreation, remove, clear, has, hydrated]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import WelcomeEmail from "@/emails/WelcomeEmail";
 import OtpEmail from "@/emails/OtpEmail";
 import ResetPasswordEmail from "@/emails/ResetPasswordEmail";
+import GiftCardEmail from "@/emails/GiftCardEmail";
 
 if (!process.env.RESEND_API_KEY) {
   throw new Error("RESEND_API_KEY is not set in environment variables.");
@@ -75,6 +76,27 @@ export async function sendResetPasswordEmail(
     throw new Error(
       `Resend failed to send reset-password email: ${error.message}`
     );
+  }
+
+  return data;
+}
+
+export async function sendGiftCardCodeEmail(params: {
+  email: string;
+  userName: string;
+  productTitle: string;
+  code: string;
+}) {
+  const { email, userName, productTitle, code } = params;
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: email,
+    subject: `Hədiyyə kart kodunuz hazırdır`,
+    react: GiftCardEmail({ userName, productTitle, code }),
+  });
+
+  if (error) {
+    throw new Error(`Resend failed to send gift-card email: ${error.message}`);
   }
 
   return data;

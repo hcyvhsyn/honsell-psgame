@@ -2,7 +2,7 @@
  * Loyalty programme — cashback only.
  *
  * Lifetime spend places the customer in one of five named tiers. Each tier
- * unlocks a higher cashback % that is credited to the wallet automatically
+ * unlocks a higher cashback % that is credited to the cashback balance automatically
  * after every purchase. There are no checkout-time discounts.
  */
 
@@ -43,7 +43,7 @@ export const LOYALTY_TIERS: LoyaltyTierDef[] = [
     cashbackPct: 1,
     accent: "amber",
     rewards: [
-      "Hər alışdan 1% cashback — cüzdana avtomatik qayıdır",
+      "Hər alışdan 1% cashback — cashback balansına avtomatik düşür",
       "Profilində Bronze rozetkası",
     ],
   },
@@ -53,7 +53,7 @@ export const LOYALTY_TIERS: LoyaltyTierDef[] = [
     cashbackPct: 2,
     accent: "slate",
     rewards: [
-      "Hər alışdan 2% cashback — cüzdana avtomatik qayıdır",
+      "Hər alışdan 2% cashback — cashback balansına avtomatik düşür",
       "Profilində Silver rozetkası",
     ],
   },
@@ -63,7 +63,7 @@ export const LOYALTY_TIERS: LoyaltyTierDef[] = [
     cashbackPct: 3,
     accent: "yellow",
     rewards: [
-      "Hər alışdan 3% cashback — cüzdana avtomatik qayıdır",
+      "Hər alışdan 3% cashback — cashback balansına avtomatik düşür",
       "Profilində Gold rozetkası",
     ],
   },
@@ -73,7 +73,7 @@ export const LOYALTY_TIERS: LoyaltyTierDef[] = [
     cashbackPct: 5,
     accent: "cyan",
     rewards: [
-      "Hər alışdan 5% cashback — maksimum (cüzdana avtomatik qayıdır)",
+      "Hər alışdan 5% cashback — maksimum (cashback balansına avtomatik düşür)",
       "Profilində Diamond rozetkası",
     ],
   },

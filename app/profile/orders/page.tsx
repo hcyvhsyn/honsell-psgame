@@ -3,6 +3,9 @@ import Link from "next/link";
 import { Receipt, Gamepad2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import {
+  parseGameOrderMeta,
+} from "@/lib/gameOrderFulfillment";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +19,8 @@ export default async function OrdersPage() {
     status: string;
     createdAt: Date;
     amountAznCents: number;
+    metadata: string | null;
+    gameId: string | null;
     game: { id: string; title: string; imageUrl: string | null; platform: string | null; productType: string } | null;
     serviceProduct?: { title: string; type: string } | null;
     serviceCode?: { code: string } | null;
@@ -65,7 +70,7 @@ export default async function OrdersPage() {
       <header>
         <h2 className="text-lg font-semibold">Sifarişlər</h2>
         <p className="text-sm text-zinc-400">
-          Etdiyin bütün alışlar və hansı PSN hesabına çatdırıldığı.
+          Alışların statusu və PSN bağlaması. Oyunlar admin tərəfindən icra olunana qədər mərhələlər burada görünür.
         </p>
       </header>
 
@@ -82,7 +87,9 @@ export default async function OrdersPage() {
         </div>
       ) : (
         <ul className="space-y-2">
-          {rows.map((r) => (
+          {rows.map((r) => {
+            const rowMeta = parseGameOrderMeta(r.metadata ?? null);
+            return (
             <li
               key={r.id}
               className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 sm:flex-row sm:items-center"
@@ -108,6 +115,24 @@ export default async function OrdersPage() {
                 <p className="hidden truncate text-sm font-medium sm:block">
                   {r.type === "SERVICE_PURCHASE" ? r.serviceProduct?.title : (r.game?.title ?? "Silinmiş məhsul")}
                 </p>
+                {(() => {
+                  const isGamePurchase =
+                    r.type === "PURCHASE" && r.gameId != null;
+
+                  return isGamePurchase && r.status === "PENDING" ? (
+                    <p className="mt-1 text-xs leading-snug text-amber-200/95">
+                      Sifarişiniz qəbul edildi və hazırda gözləmədədir. Qısa müddətdə sizinlə əlaqə saxlanılacaq. Zəhmət olmasa, PSN hesab məlumatlarınızı hazır saxlayın — proses başladıqda sizdən tələb oluna bilər.
+                    </p>
+                  ) : isGamePurchase && r.status === "SUCCESS" ? (
+                    <p className="mt-1 text-[11px] text-emerald-400/90">
+                      Oyun sifarişi tamamlanıb.
+                    </p>
+                  ) : isGamePurchase && r.status === "FAILED" ? (
+                    <p className="mt-1 text-[11px] text-rose-400/95">
+                      Sifariş tamamlanmadı — ödəniş məbləği uyğun olaraq cüzdanınıza və ya referal balansınıza geri qaytarıldı.
+                    </p>
+                  ) : null;
+                })()}
                 <div className="text-xs text-zinc-500">
                   {new Date(r.createdAt).toLocaleString("az-AZ")}
                   {r.psnAccount && (
@@ -116,6 +141,12 @@ export default async function OrdersPage() {
                     </>
                   )}
                 </div>
+                {rowMeta.orderCode ? (
+                  <p className="text-[11px] font-mono text-indigo-300/90">
+                    Sifariş kodu:{" "}
+                    <span className="font-semibold tracking-wide text-indigo-200">{rowMeta.orderCode}</span>
+                  </p>
+                ) : null}
                 {r.serviceCode && (
                   <div className="mt-2 rounded bg-emerald-500/10 p-2 text-sm">
                     <span className="text-emerald-500/60 mr-2 text-xs">Kodunuz:</span>
@@ -142,7 +173,8 @@ export default async function OrdersPage() {
                 </p>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </section>

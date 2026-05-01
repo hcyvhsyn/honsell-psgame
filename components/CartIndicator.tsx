@@ -1,6 +1,6 @@
 "use client";
 
-import { ShoppingCart } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { useModals } from "@/lib/modals";
 
@@ -12,12 +12,11 @@ export default function CartIndicator() {
     <button
       type="button"
       onClick={() => open("cart")}
-      className="relative inline-flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-200 transition hover:border-indigo-500/60 hover:text-white"
+      className="relative flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-transparent text-zinc-300 transition hover:bg-white/5 hover:text-white"
     >
-      <ShoppingCart className="h-4 w-4" />
-      <span className="hidden sm:inline">Səbət</span>
+      <ShoppingBag className="h-4 w-4" />
       {hydrated && count > 0 && (
-        <span className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-500 px-1.5 text-[11px] font-semibold text-white">
+        <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#5a189a] px-1 text-[10px] font-bold text-white">
           {count}
         </span>
       )}

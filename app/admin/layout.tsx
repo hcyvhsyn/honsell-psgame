@@ -1,29 +1,32 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  LayoutDashboard,
-  Users,
-  Receipt,
-  Gamepad2,
-  Settings as SettingsIcon,
-  ShieldCheck,
-  Wallet,
-} from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import LogoutButton from "@/components/LogoutButton";
 import Logo from "@/components/Logo";
+import AdminSidebar from "./sidebar/AdminSidebar";
 
 export const dynamic = "force-dynamic";
 
 const NAV = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/deposits", label: "Deposits", icon: Wallet, badgeKey: "pendingDeposits" as const },
-  { href: "/admin/transactions", label: "Transactions", icon: Receipt },
-  { href: "/admin/games", label: "Games", icon: Gamepad2 },
-  { href: "/admin/services", label: "Services", icon: SettingsIcon },
-  { href: "/admin/settings", label: "Settings", icon: SettingsIcon },
+  { href: "/admin", label: "Dashboard", iconName: "LayoutDashboard" as const },
+  { href: "/admin/users", label: "Users", iconName: "Users" as const },
+  { href: "/admin/deposits", label: "Deposits", iconName: "Wallet" as const, badgeKey: "pendingDeposits" as const },
+  { href: "/admin/transactions", label: "Transactions", iconName: "Receipt" as const },
+  { href: "/admin/games", label: "Games", iconName: "Gamepad2" as const },
+  { href: "/admin/orders", label: "Sifarişlər (hamısı)", iconName: "Receipt" as const, badgeKey: "pendingAllOrders" as const },
+  {
+    href: "/admin/game-orders",
+    label: "Oyun çatdırılması",
+    iconName: "ClipboardList" as const,
+    badgeKey: "pendingGameOrders" as const,
+  },
+  { href: "/admin/banners", label: "Bannerlər", iconName: "ImageIcon" as const },
+  { href: "/admin/services", label: "Gift Cardlar", iconName: "Gift" as const },
+  { href: "/admin/ps-plus", label: "PS Plus", iconName: "Crown" as const },
+  { href: "/admin/account-creation", label: "Hesab Açılışı", iconName: "UserPlus" as const },
+  { href: "/admin/settings", label: "Settings", iconName: "SettingsIcon" as const },
 ];
 
 export default async function AdminLayout({
@@ -39,7 +42,19 @@ export default async function AdminLayout({
     where: { type: "DEPOSIT", status: "PENDING" },
   });
 
-  const badges = { pendingDeposits } as const;
+  const pendingGameOrders = await prisma.transaction.count({
+    where: { type: "PURCHASE", status: "PENDING", gameId: { not: null } },
+  });
+
+  const pendingServiceOrders = await prisma.transaction.count({
+    where: { type: "SERVICE_PURCHASE", status: "PENDING" },
+  });
+
+  const badges = {
+    pendingDeposits,
+    pendingGameOrders,
+    pendingAllOrders: pendingGameOrders + pendingServiceOrders,
+  } as const;
 
   return (
     <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
@@ -54,28 +69,7 @@ export default async function AdminLayout({
           {user.email}
         </div>
 
-        <nav className="px-3 py-4">
-          {NAV.map(({ href, label, icon: Icon, badgeKey }) => {
-            const count = badgeKey ? badges[badgeKey] : 0;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className="mb-1 flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-900 hover:text-white"
-              >
-                <span className="flex items-center gap-3">
-                  <Icon className="h-4 w-4 text-zinc-500" />
-                  {label}
-                </span>
-                {count > 0 && (
-                  <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/40">
-                    {count}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+        <AdminSidebar nav={NAV} badges={badges} />
 
         <div className="px-3 pt-2">
           <Link

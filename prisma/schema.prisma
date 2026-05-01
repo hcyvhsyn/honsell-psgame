@@ -29,7 +29,13 @@ model User {
   otpExpiresAt   DateTime?
 
   // Wallet (stored in AZN, scaled by 100 to keep integer math clean)
-  walletBalance  Int      @default(0) // amount in qəpik (1 AZN = 100)
+  walletBalance           Int @default(0) // depozit / ödəniş üçün əsas cüzdan
+
+  /** Loyalty cashback bu balansa yığılır (cüzdandan ayrı). */
+  cashbackBalanceCents Int @default(0)
+
+  /** Referaldan komissiya ilə düşən balans — ödənişdə ayrıca seçilir. */
+  referralBalanceCents Int @default(0)
 
   // Affiliate / referral
   referralCode   String   @unique
@@ -215,6 +221,33 @@ model ScrapeRun {
   error          String?
 
   @@index([startedAt])
+}
+
+// ─── Banners (homepage hero carousel) ────────────────────────────────────────
+
+model Banner {
+  id        String   @id @default(cuid())
+  title     String?
+  subtitle  String?
+  imageUrl  String
+  linkUrl   String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Testimonials (customer reviews on homepage) ──────────────────────────────
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  avatarUrl String?
+  text      String
+  rating    Int      @default(5)
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
 }
 
 // ─── Global settings (single row, id = "global") ──────────────────────────────

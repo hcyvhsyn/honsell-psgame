@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import SiteHeader from "@/components/SiteHeader";
+import SiteHeader from "@/components/SiteHeaderServer";
 import WalletDepositForm from "@/components/WalletDepositForm";
 import { getCurrentUser } from "@/lib/auth";
 import { Wallet } from "lucide-react";

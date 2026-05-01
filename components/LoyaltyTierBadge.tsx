@@ -155,7 +155,7 @@ function TiersInfo({ tier }: { tier: LoyaltyTier }) {
 
       <p className="mt-5 text-center text-[11px] text-zinc-500">
         Səviyyələr ümumi xərcə görə avtomatik yenilənir. Cashback alış başa
-        çatdıqdan sonra dərhal cüzdana qaytarılır.
+        çatdıqdan sonra cashback balansına köçürülür.
       </p>
     </div>
   );

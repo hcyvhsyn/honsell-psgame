@@ -1,40 +1,80 @@
-import { Wallet } from "lucide-react";
+import { Banknote, UserRound, Sparkles } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import WalletDepositForm from "@/components/WalletDepositForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProfileWalletPage() {
   const user = await getCurrentUser();
-  if (!user) return null; // profile layout already redirects
+  if (!user) return null;
+
+  const commissionLifetimeCents = await prisma.transaction
+    .aggregate({
+      where: { beneficiaryId: user.id, type: "COMMISSION" },
+      _sum: { amountAznCents: true },
+    })
+    .then((a) => a._sum.amountAznCents ?? 0);
+
+  const walletAzn = user.walletBalance / 100;
+  const cashbackBalAzn = (user.cashbackBalanceCents ?? 0) / 100;
+  const referralSpendableAzn = user.referralBalanceCents / 100;
+  const commissionLifetimeAzn = commissionLifetimeCents / 100;
 
   return (
-    <section className="space-y-5">
-      <header className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/40">
-            <Wallet className="h-5 w-5" />
-          </span>
-          <div>
-            <h2 className="text-lg font-semibold">Cüzdan</h2>
-            <p className="text-sm text-zinc-400">
-              Balans yüklə və köçürmə tarixçəsinə bax.
-            </p>
+    <section className="flex flex-col items-center">
+      <h2 className="mb-10 mt-6 text-[32px] font-bold tracking-tight text-white">
+        Balans
+      </h2>
+
+      <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="relative flex flex-col items-center overflow-hidden rounded-[24px] border border-white/5 bg-[#111116] p-8 shadow-2xl">
+          <div className="absolute top-1/3 h-40 w-40 -translate-y-1/2 rounded-full bg-[#5a189a]/50 blur-[60px]" />
+
+          <div className="relative mb-4 mt-2">
+            <Banknote className="h-8 w-8 text-white" strokeWidth={1.5} />
           </div>
-        </div>
 
-        <div className="hidden rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-2 text-right sm:block">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-            Cari balans
-          </p>
-          <p className="mt-0.5 text-xl font-bold tabular-nums text-white">
-            {(user.walletBalance / 100).toFixed(2)}{" "}
-            <span className="text-xs font-medium text-zinc-400">AZN</span>
+          <p className="relative mt-2 text-[15px] font-medium text-zinc-300">Cüzdan balansı</p>
+          <p className="relative mt-2 text-3xl font-bold text-white">{walletAzn.toFixed(2)} ₼</p>
+          <p className="relative mt-3 max-w-[280px] text-center text-[11px] text-zinc-500">
+            Depozit və əsas ödəniş balansı — alış üçün seçilir.
           </p>
         </div>
-      </header>
 
-      <WalletDepositForm authed />
+        <div className="relative flex flex-col items-center overflow-hidden rounded-[24px] border border-amber-500/20 bg-[#111116] p-8 shadow-2xl">
+          <div className="absolute top-1/3 h-40 w-40 -translate-y-1/2 rounded-full bg-amber-500/20 blur-[60px]" />
+
+          <div className="relative mb-4 mt-2">
+            <Sparkles className="h-8 w-8 text-amber-400" strokeWidth={1.5} />
+          </div>
+
+          <p className="relative mt-2 text-[15px] font-medium text-zinc-300">Cashback balansı</p>
+          <p className="relative mt-2 text-3xl font-bold text-amber-100">{cashbackBalAzn.toFixed(2)} ₼</p>
+          <p className="relative mt-3 max-w-[280px] text-center text-[11px] text-zinc-500">
+            Loyalty təbəqənə görə hər uğurlu alışdan sonra faiz burada toplanır.
+          </p>
+        </div>
+
+        <div className="relative flex flex-col items-center overflow-hidden rounded-[24px] border border-white/5 bg-[#111116] p-8 shadow-2xl">
+          <div className="absolute top-1/3 h-40 w-40 -translate-y-1/2 rounded-full bg-[#5a189a]/50 blur-[60px]" />
+
+          <div className="relative mb-4 mt-2">
+            <UserRound className="h-8 w-8 text-white" strokeWidth={1.5} />
+          </div>
+
+          <p className="relative mt-2 text-[15px] font-medium text-zinc-300">Referal balansı</p>
+          <p className="relative mt-2 text-3xl font-bold text-white">{referralSpendableAzn.toFixed(2)} ₼</p>
+          <p className="relative mt-3 max-w-[280px] text-center text-[11px] text-zinc-500">
+            Hazırda alış üçün istifadə edə biləcəyiniz referal məbləği. Ömrü boyu əldə edilən komissiya (tarix üzrə):{" "}
+            {commissionLifetimeAzn.toFixed(2)} ₼
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-12 w-full border-t border-white/5 pt-10">
+        <WalletDepositForm authed />
+      </div>
     </section>
   );
 }

@@ -38,6 +38,8 @@ export async function GET() {
       id: user.id,
       name: user.name,
       walletBalance: user.walletBalance,
+      referralBalanceCents: user.referralBalanceCents,
+      cashbackBalanceCents: user.cashbackBalanceCents ?? 0,
     },
     psnAccounts,
     loyalty,

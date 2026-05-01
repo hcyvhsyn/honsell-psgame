@@ -63,6 +63,8 @@ function CartModalBody({
   const [data, setData] = useState<{
     isAuthed: boolean;
     walletBalanceAzn: number;
+    cashbackBalanceAzn: number;
+    referralBalanceAzn: number;
     psnAccounts: PsnOption[];
     loyaltyCashbackPct: number;
   } | null>(null);
@@ -73,14 +75,22 @@ function CartModalBody({
       .then((r) => r.json())
       .then(
         (d: {
-          user: { walletBalance: number } | null;
+          user: {
+            walletBalance: number;
+            referralBalanceCents?: number;
+            cashbackBalanceCents?: number;
+          } | null;
           psnAccounts: PsnOption[];
           loyalty?: { cashbackPct: number; label: string } | null;
         }) => {
           if (cancelled) return;
+          const refCent = d.user?.referralBalanceCents ?? 0;
+          const cbCent = d.user?.cashbackBalanceCents ?? 0;
           setData({
             isAuthed: !!d.user,
             walletBalanceAzn: d.user ? d.user.walletBalance / 100 : 0,
+            cashbackBalanceAzn: cbCent / 100,
+            referralBalanceAzn: refCent / 100,
             psnAccounts: d.psnAccounts ?? [],
             loyaltyCashbackPct: d.loyalty?.cashbackPct ?? 0,
           });
@@ -91,6 +101,8 @@ function CartModalBody({
         setData({
           isAuthed: false,
           walletBalanceAzn: 0,
+          cashbackBalanceAzn: 0,
+          referralBalanceAzn: 0,
           psnAccounts: [],
           loyaltyCashbackPct: 0,
         });
@@ -114,6 +126,8 @@ function CartModalBody({
         <CartView
           isAuthed={data.isAuthed}
           walletBalanceAzn={data.walletBalanceAzn}
+          cashbackBalanceAzn={data.cashbackBalanceAzn}
+          referralBalanceAzn={data.referralBalanceAzn}
           psnAccounts={data.psnAccounts}
           loyaltyCashbackPct={data.loyaltyCashbackPct}
           onRequestLogin={onRequestLogin}

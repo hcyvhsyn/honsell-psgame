@@ -29,8 +29,14 @@ export default function RootLayout({
   return (
     <html lang="az" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} bg-zinc-950 text-zinc-100 antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} bg-[#0A0A0F] text-zinc-100 antialiased min-h-screen relative`}
       >
+        {/* Global deep purple ambient glow */}
+        <div className="pointer-events-none fixed inset-0 z-[-1] overflow-hidden">
+          <div className="absolute -right-[20%] top-[20%] h-[800px] w-[800px] rounded-full bg-[radial-gradient(circle_at_center,rgba(88,28,135,0.15)_0%,transparent_60%)] blur-[100px]" />
+          <div className="absolute -bottom-[20%] -left-[10%] h-[600px] w-[600px] rounded-full bg-[radial-gradient(circle_at_center,rgba(88,28,135,0.12)_0%,transparent_60%)] blur-[100px]" />
+        </div>
+
         <ModalProvider>
           <CartProvider>
             {children}
