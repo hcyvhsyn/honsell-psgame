@@ -68,6 +68,7 @@ type ScrapedGame = {
   productType: "GAME" | "ADDON" | "CURRENCY" | "OTHER";
   priceTryCents: number;
   discountTryCents: number | null;
+  discountEndAt: Date | null;
 };
 
 function classify(raw: unknown): ScrapedGame["productType"] {
@@ -179,6 +180,7 @@ function extractFromHtml(html: string): ScrapedGame[] {
       productType: classify(product.storeDisplayClassification),
       priceTryCents: basePrice,
       discountTryCents,
+      discountEndAt: null,
     });
   }
 
@@ -201,6 +203,84 @@ async function fetchPage(url: string): Promise<ScrapedGame[]> {
   }
 }
 
+/**
+ * Fetches a single product page and extracts the discount end timestamp.
+ *
+ * A product page lists multiple offer rows (base SKU, deluxe edition, EA Play
+ * subscription discount, …). Each row carries its own `priceOrText` and
+ * `offerAvailability`. We pick the row whose price matches the discounted
+ * price we already scraped from the listing — that's the offer the storefront
+ * is actually showing the user. If nothing matches exactly, fall back to the
+ * earliest end date (most-likely the active sale, not a long-lived sub price).
+ */
+async function fetchProductDiscountEnd(
+  productId: string,
+  discountTryCents: number
+): Promise<Date | null> {
+  try {
+    const res = await fetch(
+      `https://store.playstation.com/tr-tr/product/${encodeURIComponent(productId)}`,
+      {
+        headers: {
+          "User-Agent": USER_AGENT,
+          "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
+        },
+        cache: "no-store",
+      }
+    );
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    type Candidate = { priceCents: number | null; iso: string };
+    const candidates: Candidate[] = [];
+
+    // priceOrText and offerAvailability live in the same offer object, ~100
+    // chars apart. The non-greedy gap caps runaway matches.
+    const pairRe =
+      /"priceOrText"\s*:\s*"([^"]*)"[\s\S]{0,400}?"offerAvailability"\s*:\s*"([^"]+)"/g;
+    let m: RegExpExecArray | null;
+    while ((m = pairRe.exec(html)) !== null) {
+      candidates.push({ priceCents: parseTryToCents(m[1]), iso: m[2] });
+    }
+
+    const toDate = (iso: string): Date | null => {
+      const d = new Date(iso);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+
+    if (candidates.length > 0) {
+      const exact = candidates.find((c) => c.priceCents === discountTryCents);
+      if (exact) return toDate(exact.iso);
+      // Prefer the soonest end among future candidates — sale offers expire
+      // before subscription tiers in practice.
+      const now = Date.now();
+      const future = candidates
+        .map((c) => toDate(c.iso))
+        .filter((d): d is Date => d != null && d.getTime() > now)
+        .sort((a, b) => a.getTime() - b.getTime());
+      if (future.length > 0) return future[0];
+    }
+
+    // Last-ditch fallback: any standalone offerAvailability or endTime.
+    const isoMatch = html.match(/"offerAvailability"\s*:\s*"([^"]+)"/);
+    if (isoMatch) {
+      const d = toDate(isoMatch[1]);
+      if (d) return d;
+    }
+    const tsMatch = html.match(/"endTime"\s*:\s*"?(\d{10,13})"?/);
+    if (tsMatch) {
+      const ms = Number(tsMatch[1]);
+      if (Number.isFinite(ms) && ms > 0) {
+        const date = new Date(tsMatch[1].length >= 13 ? ms : ms * 1000);
+        if (!Number.isNaN(date.getTime())) return date;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function categoryPageUrl(base: string, page: number): string {
   const stripped = base.replace(/\/\d+\/?$/, "").replace(/\/$/, "");
   return `${stripped}/${page}`;
@@ -215,30 +295,43 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function GET(req: Request) {
   try {
     await requireAdmin();
-  } catch {
-    return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403,
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Forbidden";
+    return new Response(JSON.stringify({ error: msg }), {
+      status: msg === "Forbidden" ? 403 : 500,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  const url = new URL(req.url);
-  const urlsParam = url.searchParams.get("urls");
-  const seedsParam = url.searchParams.get("seeds");
-  const pagesParam = url.searchParams.get("pages");
+  let categoryUrls: string[];
+  let seeds: string[];
+  let maxPages: number;
+  try {
+    const url = new URL(req.url);
+    const urlsParam = url.searchParams.get("urls");
+    const seedsParam = url.searchParams.get("seeds");
+    const pagesParam = url.searchParams.get("pages");
 
-  const categoryUrls = urlsParam
-    ? urlsParam.split(",").map((s) => s.trim()).filter(Boolean)
-    : DEFAULT_CATEGORY_URLS;
+    categoryUrls = urlsParam
+      ? urlsParam.split(",").map((s) => s.trim()).filter(Boolean)
+      : DEFAULT_CATEGORY_URLS;
 
-  const seeds = seedsParam
-    ? [
-        ...DEFAULT_SEARCH_SEEDS,
-        ...seedsParam.split(",").map((s) => s.trim()).filter(Boolean),
-      ]
-    : DEFAULT_SEARCH_SEEDS;
+    seeds = seedsParam
+      ? [
+          ...DEFAULT_SEARCH_SEEDS,
+          ...seedsParam.split(",").map((s) => s.trim()).filter(Boolean),
+        ]
+      : DEFAULT_SEARCH_SEEDS;
 
-  const maxPages = Math.max(1, Math.min(25, Number(pagesParam) || 10));
+    maxPages = Math.max(1, Math.min(25, Number(pagesParam) || 10));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Bad request";
+    console.error("scrape-ps-store: param parse failed", err);
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   const encoder = new TextEncoder();
 
@@ -250,9 +343,18 @@ export async function GET(req: Request) {
         );
       }
 
-      const run = await prisma.scrapeRun.create({ data: {} });
-
+      let run: { id: string } | null = null;
       try {
+        try {
+          run = await prisma.scrapeRun.create({ data: {} });
+        } catch (dbErr) {
+          const msg = dbErr instanceof Error ? dbErr.message : "DB error";
+          console.error("scrape-ps-store: scrapeRun.create failed", dbErr);
+          emit({ type: "error", error: `DB xətası: ${msg}` });
+          controller.close();
+          return;
+        }
+
         emit({
           type: "start",
           runId: run.id,
@@ -346,6 +448,47 @@ export async function GET(req: Request) {
           return;
         }
 
+        // Phase 2.5: fetch discount end dates for discounted products.
+        // Parallelize with a small concurrency cap — sequential fetches would
+        // take 10+ minutes for a few hundred discounted SKUs.
+        const discounted = [...merged.values()].filter(
+          (g): g is ScrapedGame & { discountTryCents: number } =>
+            g.discountTryCents != null
+        );
+        if (discounted.length > 0) {
+          emit({ type: "discountEndStart", total: discounted.length });
+          const CONCURRENCY = 6;
+          let done = 0;
+          let cursor = 0;
+
+          async function worker() {
+            while (true) {
+              const idx = cursor++;
+              if (idx >= discounted.length) return;
+              const g = discounted[idx];
+              const end = await fetchProductDiscountEnd(
+                g.productId,
+                g.discountTryCents
+              );
+              if (end) g.discountEndAt = end;
+              done++;
+              if (done % 10 === 0 || done === discounted.length) {
+                emit({
+                  type: "discountEndProgress",
+                  done,
+                  total: discounted.length,
+                });
+              }
+            }
+          }
+
+          await Promise.all(
+            Array.from({ length: Math.min(CONCURRENCY, discounted.length) }, () =>
+              worker()
+            )
+          );
+        }
+
         // Phase 3: upsert.
         const total = merged.size;
         let upserts = 0;
@@ -363,6 +506,7 @@ export async function GET(req: Request) {
               productType: g.productType,
               priceTryCents: g.priceTryCents,
               discountTryCents: g.discountTryCents,
+              discountEndAt: g.discountEndAt,
               isActive: true,
               lastScrapedAt: new Date(),
             },
@@ -374,6 +518,7 @@ export async function GET(req: Request) {
               productType: g.productType,
               priceTryCents: g.priceTryCents,
               discountTryCents: g.discountTryCents,
+              discountEndAt: g.discountEndAt,
               isActive: true,
               lastScrapedAt: new Date(),
             },
@@ -397,16 +542,19 @@ export async function GET(req: Request) {
         emit({ type: "done", scraped: total, upserts });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Unknown error";
-        try {
-          await prisma.scrapeRun.update({
-            where: { id: run.id },
-            data: {
-              status: "FAILED",
-              finishedAt: new Date(),
-              error: msg,
-            },
-          });
-        } catch {}
+        console.error("scrape-ps-store: stream failed", err);
+        if (run) {
+          try {
+            await prisma.scrapeRun.update({
+              where: { id: run.id },
+              data: {
+                status: "FAILED",
+                finishedAt: new Date(),
+                error: msg,
+              },
+            });
+          } catch {}
+        }
         emit({ type: "error", error: msg });
       } finally {
         controller.close();

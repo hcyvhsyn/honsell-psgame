@@ -69,7 +69,7 @@ export default async function HomePage() {
 
   const results: GameCardData[] = games.map((g) => {
     const price = computeDisplayPrice(g, settings);
-    return { id: g.id, title: g.title, imageUrl: g.imageUrl, platform: g.platform, productType: g.productType, finalAzn: price.finalAzn, originalAzn: price.originalAzn, discountPct: price.discountPct };
+    return { id: g.id, title: g.title, imageUrl: g.imageUrl, platform: g.platform, productType: g.productType, finalAzn: price.finalAzn, originalAzn: price.originalAzn, discountPct: price.discountPct, discountEndAt: g.discountTryCents != null && g.discountEndAt ? g.discountEndAt.toISOString() : null };
   });
 
   return (

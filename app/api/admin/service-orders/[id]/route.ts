@@ -2,6 +2,38 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { sendGiftCardCodeEmail } from "@/lib/resend";
+import { issueReviewInvite, type ReviewProductType } from "@/lib/reviewInvite";
+
+function reviewProductTypeFromService(type: string | undefined): ReviewProductType | null {
+  switch (type) {
+    case "PS_PLUS":
+      return "PS_PLUS";
+    case "TRY_BALANCE":
+      return "GIFT_CARD";
+    case "ACCOUNT_CREATION":
+      return "ACCOUNT_CREATION";
+    default:
+      return null;
+  }
+}
+
+async function maybeSendReviewInvite(tx: {
+  id: string;
+  userId: string;
+  user?: { email: string; name: string | null } | null;
+  serviceProduct?: { title: string; type: string } | null;
+}) {
+  const productType = reviewProductTypeFromService(tx.serviceProduct?.type);
+  if (!productType || !tx.user?.email || !tx.serviceProduct?.title) return;
+  await issueReviewInvite({
+    transactionId: tx.id,
+    userId: tx.userId,
+    userEmail: tx.user.email,
+    userName: tx.user.name,
+    productTitle: tx.serviceProduct.title,
+    productType,
+  });
+}
 
 export const runtime = "nodejs";
 
@@ -104,6 +136,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       });
     }
 
+    await maybeSendReviewInvite(tx);
     return NextResponse.json({ ok: true });
   }
 
@@ -167,6 +200,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       });
     });
 
+    await maybeSendReviewInvite(tx);
     return NextResponse.json({ ok: true });
   }
 
@@ -175,5 +209,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     data: { status: "SUCCESS" },
   });
 
+  await maybeSendReviewInvite(tx);
   return NextResponse.json({ ok: true });
 }

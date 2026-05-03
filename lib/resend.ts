@@ -3,6 +3,7 @@ import WelcomeEmail from "@/emails/WelcomeEmail";
 import OtpEmail from "@/emails/OtpEmail";
 import ResetPasswordEmail from "@/emails/ResetPasswordEmail";
 import GiftCardEmail from "@/emails/GiftCardEmail";
+import ReviewInviteEmail from "@/emails/ReviewInviteEmail";
 
 if (!process.env.RESEND_API_KEY) {
   throw new Error("RESEND_API_KEY is not set in environment variables.");
@@ -76,6 +77,27 @@ export async function sendResetPasswordEmail(
     throw new Error(
       `Resend failed to send reset-password email: ${error.message}`
     );
+  }
+
+  return data;
+}
+
+export async function sendReviewInviteEmail(params: {
+  email: string;
+  userName: string;
+  productTitle: string;
+  reviewUrl: string;
+}) {
+  const { email, userName, productTitle, reviewUrl } = params;
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: email,
+    subject: `${productTitle} — təcrübəni bölüş`,
+    react: ReviewInviteEmail({ userName, productTitle, reviewUrl }),
+  });
+
+  if (error) {
+    throw new Error(`Resend failed to send review-invite email: ${error.message}`);
   }
 
   return data;

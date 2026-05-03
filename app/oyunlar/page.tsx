@@ -53,6 +53,7 @@ export default async function OyunlarPage({
       finalAzn: price.finalAzn,
       originalAzn: price.originalAzn,
       discountPct: price.discountPct,
+      discountEndAt: g.discountTryCents != null && g.discountEndAt ? g.discountEndAt.toISOString() : null,
     };
   });
 

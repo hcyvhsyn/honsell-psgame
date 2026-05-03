@@ -65,12 +65,12 @@ export default async function AdminUsersPage({
         <table className="w-full text-sm">
           <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
             <tr>
-              <Th>User</Th>
+              <Th>İstifadəçi</Th>
               <Th>Status</Th>
-              <Th>Wallet</Th>
-              <Th>Referrals</Th>
-              <Th>Tx</Th>
-              <Th>Joined</Th>
+              <Th>Cüzdan</Th>
+              <Th>Referallar</Th>
+              <Th>Əməliyyat sayı</Th>
+              <Th>Qeydiyyat</Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-900">

@@ -59,9 +59,7 @@ export default function HediyyeKartlariClient({ cards }: { cards: Plan[] }) {
               <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent opacity-80" />
               
               <div className="absolute left-4 top-4 flex gap-1">
-                <span className="rounded-full bg-black/50 px-3 py-1.5 text-[12px] font-semibold tracking-wide text-zinc-200 backdrop-blur-md">
-                  TRY KART
-                </span>
+             
               </div>
             </div>
 

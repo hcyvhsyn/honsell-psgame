@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 const SIZE_CLASSES = {
@@ -23,6 +24,11 @@ export default function Modal({
   size?: keyof typeof SIZE_CLASSES;
   closeOnBackdrop?: boolean;
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     // Lock background scroll (body + html). This is important on mobile Safari.
@@ -43,9 +49,9 @@ export default function Modal({
     };
   }, [open]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -91,6 +97,7 @@ export default function Modal({
           }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 }

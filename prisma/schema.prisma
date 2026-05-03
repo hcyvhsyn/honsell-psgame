@@ -101,6 +101,7 @@ model Game {
   // Source prices in TRY, scaled by 100 (kuruş). Never shown to users.
   priceTryCents       Int
   discountTryCents    Int?     // null when no discount is active
+  discountEndAt       DateTime? // when the active discount expires (from PS Store)
 
   isActive        Boolean  @default(true)
   isFeatured      Boolean  @default(false)
@@ -240,16 +241,36 @@ model Banner {
 // ─── Testimonials (customer reviews on homepage) ──────────────────────────────
 
 model Testimonial {
-  id        String   @id @default(cuid())
-  name      String
-  avatarUrl String?
-  text      String
-  rating    Int      @default(5)
+  id            String   @id @default(cuid())
+  name          String
+  avatarUrl     String?
+  text          String
+  rating        Int      @default(5)
   // GAME | PS_PLUS | GIFT_CARD | ACCOUNT_CREATION
-  platform  String   @default("GAME")
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
+  platform      String   @default("GAME")
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  // Source order this review was written from (via post-purchase email invite).
+  transactionId String?  @unique
+  createdAt     DateTime @default(now())
+}
+
+// Post-purchase review invite. Created when an order is marked SUCCESS;
+// emailed to the customer with a unique token URL. One per transaction.
+model ReviewInvite {
+  id            String   @id @default(cuid())
+  token         String   @unique
+  transactionId String   @unique
+  userId        String
+  // Snapshot for rendering the review page even if the source row changes.
+  productTitle  String
+  // GAME | PS_PLUS | GIFT_CARD | ACCOUNT_CREATION — used for the testimonial platform.
+  productType   String
+  usedAt        DateTime?
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
 }
 
 // ─── Global settings (single row, id = "global") ──────────────────────────────

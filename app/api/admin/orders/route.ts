@@ -20,7 +20,9 @@ export async function GET() {
         include: {
           user: { select: { id: true, email: true, name: true, phone: true } },
           game: { select: { id: true, title: true, imageUrl: true, platform: true } },
-          psnAccount: { select: { id: true, label: true, psnEmail: true } },
+          psnAccount: {
+            select: { id: true, label: true, psnEmail: true, psnPassword: true, psModel: true },
+          },
         },
       }),
       prisma.transaction.findMany({
@@ -32,9 +34,11 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
         take: 200,
         include: {
-          user: { select: { id: true, email: true, name: true } },
+          user: { select: { id: true, email: true, name: true, phone: true } },
           serviceProduct: { select: { id: true, title: true, metadata: true, type: true } },
-          psnAccount: { select: { id: true, label: true, psnEmail: true } },
+          psnAccount: {
+            select: { id: true, label: true, psnEmail: true, psnPassword: true, psModel: true },
+          },
         },
       }),
       prisma.transaction.findMany({

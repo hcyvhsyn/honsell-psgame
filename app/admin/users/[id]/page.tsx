@@ -1,6 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Mail, Hash, Wallet, Calendar } from "lucide-react";
+import {
+  ArrowLeft,
+  Mail,
+  Hash,
+  Wallet,
+  Calendar,
+  Phone,
+  User as UserIcon,
+  Cake,
+  Gamepad2,
+  Star,
+} from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { fmtAzn, fmtDate } from "@/lib/format";
 import RoleToggle from "./RoleToggle";
@@ -29,6 +40,9 @@ export default async function AdminUserDetailPage({
           walletBalance: true,
         },
         orderBy: { createdAt: "desc" },
+      },
+      psnAccounts: {
+        orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
       },
       transactions: {
         orderBy: { createdAt: "desc" },
@@ -68,32 +82,18 @@ export default async function AdminUserDetailPage({
       </Link>
 
       <header className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-6">
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-semibold">
             {user.name ?? user.email}
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-zinc-400">
-            <span className="inline-flex items-center gap-1.5">
-              <Mail className="h-4 w-4" />
-              {user.email}
-            </span>
-            <span className="inline-flex items-center gap-1.5 font-mono">
-              <Hash className="h-4 w-4" />
-              {user.referralCode}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Calendar className="h-4 w-4" />
-              Joined {fmtDate(user.createdAt)}
-            </span>
-          </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {user.emailVerified ? (
               <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-300 ring-1 ring-emerald-500/30">
-                Email verified
+                Email təsdiqlənib
               </span>
             ) : (
               <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-300 ring-1 ring-amber-500/30">
-                Email pending
+                Email gözləyir
               </span>
             )}
             <span
@@ -121,6 +121,89 @@ export default async function AdminUserDetailPage({
           />
         </div>
       </header>
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
+        <header className="border-b border-zinc-800 px-5 py-3">
+          <h2 className="text-sm font-semibold">Profil məlumatları</h2>
+        </header>
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
+          <ProfileField icon={<UserIcon className="h-4 w-4" />} label="Ad Soyad" value={user.name} />
+          <ProfileField icon={<Mail className="h-4 w-4" />} label="Email" value={user.email} mono />
+          <ProfileField icon={<Phone className="h-4 w-4" />} label="Telefon" value={user.phone} />
+          <ProfileField
+            icon={<Cake className="h-4 w-4" />}
+            label="Doğum tarixi"
+            value={user.birthDate ? fmtDate(user.birthDate) : null}
+          />
+          <ProfileField
+            icon={<UserIcon className="h-4 w-4" />}
+            label="Cins"
+            value={
+              user.gender === "MALE"
+                ? "Kişi"
+                : user.gender === "FEMALE"
+                  ? "Qadın"
+                  : user.gender === "OTHER"
+                    ? "Digər"
+                    : null
+            }
+          />
+          <ProfileField icon={<Hash className="h-4 w-4" />} label="Referral kodu" value={user.referralCode} mono />
+          <ProfileField
+            icon={<Calendar className="h-4 w-4" />}
+            label="Qeydiyyat tarixi"
+            value={fmtDate(user.createdAt)}
+          />
+        </dl>
+      </section>
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
+        <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+          <h2 className="text-sm font-semibold">
+            PSN hesabları ({user.psnAccounts.length})
+          </h2>
+        </header>
+        {user.psnAccounts.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-zinc-500">
+            Bu istifadəçi hələ PSN hesabı əlavə etməyib.
+          </p>
+        ) : (
+          <ul className="divide-y divide-zinc-800/70">
+            {user.psnAccounts.map((p) => (
+              <li key={p.id} className="px-5 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-zinc-100">{p.label}</span>
+                      {p.isDefault && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300 ring-1 ring-amber-500/30">
+                          <Star className="h-3 w-3" /> Default
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-medium text-indigo-200 ring-1 ring-indigo-500/30">
+                        <Gamepad2 className="h-3 w-3" /> {p.psModel}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-xs text-zinc-500">
+                    Əlavə edilib: {fmtDate(p.createdAt)}
+                  </span>
+                </div>
+                <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-24 shrink-0 text-xs text-zinc-500">PSN email</span>
+                    <span className="truncate font-mono text-zinc-200">{p.psnEmail}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-24 shrink-0 text-xs text-zinc-500">Şifrə</span>
+                    <span className="truncate font-mono text-zinc-200">{p.psnPassword}</span>
+                  </div>
+                </dl>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
@@ -320,6 +403,34 @@ export default async function AdminUserDetailPage({
           </table>
         )}
       </section>
+    </div>
+  );
+}
+
+function ProfileField({
+  icon,
+  label,
+  value,
+  mono = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | null | undefined;
+  mono?: boolean;
+}) {
+  return (
+    <div>
+      <dt className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-zinc-500">
+        <span className="text-zinc-600">{icon}</span>
+        {label}
+      </dt>
+      <dd
+        className={`mt-1 text-sm ${value ? "text-zinc-100" : "text-zinc-500"} ${
+          mono ? "font-mono" : ""
+        }`}
+      >
+        {value || "—"}
+      </dd>
     </div>
   );
 }

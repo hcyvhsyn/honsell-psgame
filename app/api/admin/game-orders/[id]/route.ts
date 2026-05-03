@@ -7,6 +7,7 @@ import {
   mergeGameOrderStageMetadata,
   type GameOrderStage,
 } from "@/lib/gameOrderFulfillment";
+import { issueReviewInvite } from "@/lib/reviewInvite";
 
 export const runtime = "nodejs";
 
@@ -116,6 +117,17 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         }
       }
     });
+
+    if (row.user?.email) {
+      await issueReviewInvite({
+        transactionId: row.id,
+        userId: row.userId,
+        userEmail: row.user.email,
+        userName: row.user.name,
+        productTitle: gameRow.title,
+        productType: "GAME",
+      });
+    }
 
     return NextResponse.json({ ok: true });
   }

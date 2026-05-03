@@ -17,6 +17,7 @@ import {
   Check,
 } from "lucide-react";
 import GameCard, { GameCardData } from "./GameCard";
+import PlatformInfoButton from "./PlatformInfoButton";
 
 type ListingResponse = {
   total: number;
@@ -324,18 +325,21 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
             ariaLabel="Sıralama"
           />
 
-          <Dropdown
-            icon={<Gamepad2 className="h-4 w-4" />}
-            value={platform}
-            onChange={(v) => setPlatform(v as Platform)}
-            options={[
-              { value: "ALL", label: "Bütün platformalar" },
-              { value: "PS5", label: "PS5" },
-              { value: "PS4", label: "PS4" },
-            ]}
-            ariaLabel="Platforma"
-            align="end"
-          />
+          <div className="flex items-center gap-1.5">
+            <Dropdown
+              icon={<Gamepad2 className="h-4 w-4" />}
+              value={platform}
+              onChange={(v) => setPlatform(v as Platform)}
+              options={[
+                { value: "ALL", label: "Bütün platformalar" },
+                { value: "PS5", label: "PS5" },
+                { value: "PS4", label: "PS4" },
+              ]}
+              ariaLabel="Platforma"
+              align="end"
+            />
+            <PlatformInfoButton />
+          </div>
 
           <button
             type="button"
