@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 /**
  * Scrapes PS Store TR. Two parallel strategies:
@@ -524,52 +525,69 @@ export async function GET(req: Request) {
           );
         }
 
-        // Phase 3: upsert.
+        // Phase 3: upsert. Chunked Promise.allSettled — pipelines multiple
+        // round-trips against Supabase at once (sequential awaits made this
+        // phase the bottleneck) and a single bad row no longer stalls the run.
         const total = merged.size;
         let upserts = 0;
+        let upsertFailures = 0;
         emit({ type: "upsertStart", total });
 
-        for (const g of merged.values()) {
-          await prisma.game.upsert({
-            where: { productId: g.productId },
-            create: {
-              productId: g.productId,
-              title: g.title,
-              imageUrl: g.imageUrl,
-              productUrl: g.productUrl,
-              platform: g.platform,
-              productType: g.productType,
-              priceTryCents: g.priceTryCents,
-              discountTryCents: g.discountTryCents,
-              discountEndAt: g.discountEndAt,
-              heroImageUrl: g.heroImageUrl,
-              trailerUrl: g.trailerUrl,
-              screenshots: g.screenshots,
-              editionLabel: g.editionLabel,
-              isActive: true,
-              lastScrapedAt: new Date(),
-            },
-            update: {
-              title: g.title,
-              imageUrl: g.imageUrl,
-              productUrl: g.productUrl,
-              platform: g.platform,
-              productType: g.productType,
-              priceTryCents: g.priceTryCents,
-              discountTryCents: g.discountTryCents,
-              discountEndAt: g.discountEndAt,
-              heroImageUrl: g.heroImageUrl,
-              trailerUrl: g.trailerUrl,
-              screenshots: g.screenshots,
-              editionLabel: g.editionLabel,
-              isActive: true,
-              lastScrapedAt: new Date(),
-            },
-          });
-          upserts++;
-          if (upserts % 25 === 0 || upserts === total) {
-            emit({ type: "upsertProgress", done: upserts, total });
+        const UPSERT_CHUNK = 10;
+        const all = [...merged.values()];
+
+        for (let i = 0; i < all.length; i += UPSERT_CHUNK) {
+          const chunk = all.slice(i, i + UPSERT_CHUNK);
+          const results = await Promise.allSettled(
+            chunk.map((g) =>
+              prisma.game.upsert({
+                where: { productId: g.productId },
+                create: {
+                  productId: g.productId,
+                  title: g.title,
+                  imageUrl: g.imageUrl,
+                  productUrl: g.productUrl,
+                  platform: g.platform,
+                  productType: g.productType,
+                  priceTryCents: g.priceTryCents,
+                  discountTryCents: g.discountTryCents,
+                  discountEndAt: g.discountEndAt,
+                  heroImageUrl: g.heroImageUrl,
+                  trailerUrl: g.trailerUrl,
+                  screenshots: g.screenshots,
+                  editionLabel: g.editionLabel,
+                  isActive: true,
+                  lastScrapedAt: new Date(),
+                },
+                update: {
+                  title: g.title,
+                  imageUrl: g.imageUrl,
+                  productUrl: g.productUrl,
+                  platform: g.platform,
+                  productType: g.productType,
+                  priceTryCents: g.priceTryCents,
+                  discountTryCents: g.discountTryCents,
+                  discountEndAt: g.discountEndAt,
+                  heroImageUrl: g.heroImageUrl,
+                  trailerUrl: g.trailerUrl,
+                  screenshots: g.screenshots,
+                  editionLabel: g.editionLabel,
+                  isActive: true,
+                  lastScrapedAt: new Date(),
+                },
+              })
+            )
+          );
+
+          for (const r of results) {
+            if (r.status === "fulfilled") upserts++;
+            else {
+              upsertFailures++;
+              console.error("scrape-ps-store: upsert failed", r.reason);
+            }
           }
+
+          emit({ type: "upsertProgress", done: upserts, total, failures: upsertFailures });
         }
 
         await prisma.scrapeRun.update({
