@@ -23,7 +23,7 @@ import {
 import Logo from "@/components/Logo";
 import LogoutButton from "@/components/LogoutButton";
 
-type BadgeKey = "pendingDeposits" | "pendingGameOrders" | "pendingAllOrders";
+type BadgeKey = "pendingDeposits" | "pendingGameOrders" | "pendingAllOrders" | "expiringSubs";
 
 type IconName =
   | "LayoutDashboard"

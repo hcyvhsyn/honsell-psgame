@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { getSettings, tryCentsToAznWithMargin } from "@/lib/pricing";
 
 export const runtime = "nodejs";
 
@@ -48,6 +47,7 @@ export async function POST(req: Request) {
         tier,
         durationMonths,
         tryPrice,
+        aznPrice,
         isActive,
         sortOrder,
       } = body;
@@ -55,6 +55,7 @@ export async function POST(req: Request) {
       const tierStr = String(tier ?? "");
       const dur = Number(durationMonths);
       const tryPriceNum = Number(tryPrice);
+      const aznPriceNum = Number(aznPrice);
 
       if (!["ESSENTIAL", "EXTRA", "DELUXE"].includes(tierStr)) {
         return NextResponse.json({ error: "Tier düzgün deyil" }, { status: 400 });
@@ -63,17 +64,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Müddət 1, 3 və ya 12 ay olmalıdır" }, { status: 400 });
       }
       if (!Number.isFinite(tryPriceNum) || tryPriceNum <= 0) {
-        return NextResponse.json({ error: "TRY qiyməti düzgün deyil" }, { status: 400 });
+        return NextResponse.json({ error: "TRY (maya) qiyməti düzgün deyil" }, { status: 400 });
+      }
+      if (!Number.isFinite(aznPriceNum) || aznPriceNum <= 0) {
+        return NextResponse.json({ error: "AZN satış qiyməti düzgün deyil" }, { status: 400 });
       }
 
-      const settings = await getSettings();
       const tryCents = Math.round(tryPriceNum * 100);
-      const azn = tryCentsToAznWithMargin(
-        tryCents,
-        settings.tryToAznRate,
-        settings.profitMarginPsPlusPct ?? settings.profitMarginPct
-      );
-      const priceAznCents = Math.round(azn * 100);
+      const priceAznCents = Math.round(aznPriceNum * 100);
 
       const tierLabel: Record<string, string> = { ESSENTIAL: "Essential", EXTRA: "Extra", DELUXE: "Deluxe" };
       const title = `PS Plus ${tierLabel[tierStr]} — ${dur} ay`;

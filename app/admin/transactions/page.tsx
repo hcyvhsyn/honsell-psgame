@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { fmtAzn, fmtDate } from "@/lib/format";
 import ActionButtons from "./ActionButtons";
+import DeleteTransactionButton from "./DeleteTransactionButton";
 
 export const dynamic = "force-dynamic";
 
@@ -105,12 +106,13 @@ export default async function AdminTransactionsPage({
               <Th>Detail</Th>
               <Th>Status</Th>
               <Th className="text-right">Amount</Th>
+              <Th className="text-right">Sil</Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-900">
             {txs.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-zinc-500">
+                <td colSpan={7} className="px-5 py-8 text-center text-zinc-500">
                   No transactions match these filters.
                 </td>
               </tr>
@@ -159,6 +161,16 @@ export default async function AdminTransactionsPage({
                 >
                   {t.amountAznCents < 0 ? "−" : "+"}
                   {fmtAzn(Math.abs(t.amountAznCents))}
+                </Td>
+                <Td className="text-right">
+                  <div className="flex justify-end">
+                    <DeleteTransactionButton
+                      id={t.id}
+                      label={`${t.type} · ${t.user.email} · ${fmtAzn(
+                        Math.abs(t.amountAznCents)
+                      )}`}
+                    />
+                  </div>
                 </Td>
               </tr>
             ))}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { fmtAzn, fmtDate } from "@/lib/format";
+import { CopyPhoneButton, UserRowActions } from "./UserRowActions";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +34,27 @@ export default async function AdminUsersPage({
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
       include: {
-        _count: { select: { referrals: true, transactions: true } },
+        _count: { select: { referrals: true } },
       },
     }),
   ]);
+
+  const userIds = users.map((u) => u.id);
+  const spentRows = userIds.length
+    ? await prisma.transaction.groupBy({
+        by: ["userId"],
+        where: {
+          userId: { in: userIds },
+          status: "SUCCESS",
+          type: { in: ["PURCHASE", "SERVICE_PURCHASE"] },
+        },
+        _sum: { amountAznCents: true },
+      })
+    : [];
+  const spentByUser = new Map<string, number>();
+  for (const row of spentRows) {
+    spentByUser.set(row.userId, Math.abs(row._sum.amountAznCents ?? 0));
+  }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -66,17 +84,19 @@ export default async function AdminUsersPage({
           <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
             <tr>
               <Th>İstifadəçi</Th>
+              <Th>Nömrə</Th>
               <Th>Status</Th>
               <Th>Cüzdan</Th>
+              <Th>Xərclənmiş</Th>
               <Th>Referallar</Th>
-              <Th>Əməliyyat sayı</Th>
               <Th>Qeydiyyat</Th>
+              <Th className="text-right">Əməliyyatlar</Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-900">
             {users.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-zinc-500">
+                <td colSpan={8} className="px-5 py-8 text-center text-zinc-500">
                   No users match this search.
                 </td>
               </tr>
@@ -99,6 +119,16 @@ export default async function AdminUsersPage({
                     </div>
                   </Link>
                 </Td>
+                <Td className="text-zinc-300">
+                  {u.phone ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-xs">{u.phone}</span>
+                      <CopyPhoneButton phone={u.phone} />
+                    </div>
+                  ) : (
+                    <span className="text-zinc-600">—</span>
+                  )}
+                </Td>
                 <Td>
                   <div className="flex flex-col gap-1">
                     {u.emailVerified ? (
@@ -118,9 +148,14 @@ export default async function AdminUsersPage({
                   </div>
                 </Td>
                 <Td>{fmtAzn(u.walletBalance)}</Td>
+                <Td className="text-zinc-300">
+                  {fmtAzn(spentByUser.get(u.id) ?? 0)}
+                </Td>
                 <Td>{u._count.referrals}</Td>
-                <Td>{u._count.transactions}</Td>
                 <Td className="text-zinc-400">{fmtDate(u.createdAt)}</Td>
+                <Td className="text-right">
+                  <UserRowActions userId={u.id} email={u.email} />
+                </Td>
               </tr>
             ))}
           </tbody>
@@ -162,8 +197,14 @@ export default async function AdminUsersPage({
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
-  return <th className="px-4 py-3 text-left font-medium">{children}</th>;
+function Th({
+  children,
+  className = "text-left",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <th className={`px-4 py-3 font-medium ${className}`}>{children}</th>;
 }
 
 function Td({

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { sendGiftCardCodeEmail } from "@/lib/resend";
 import { issueReviewInvite, type ReviewProductType } from "@/lib/reviewInvite";
+import { createSubscriptionFromTransaction } from "@/lib/subscriptions";
 
 function reviewProductTypeFromService(type: string | undefined): ReviewProductType | null {
   switch (type) {
@@ -204,9 +205,22 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ ok: true });
   }
 
-  await prisma.transaction.update({
-    where: { id: tx.id },
-    data: { status: "SUCCESS" },
+  await prisma.$transaction(async (ptx) => {
+    await ptx.transaction.update({
+      where: { id: tx.id },
+      data: { status: "SUCCESS" },
+    });
+
+    if (productType === "PS_PLUS" && tx.serviceProductId) {
+      await createSubscriptionFromTransaction(ptx, {
+        transactionId: tx.id,
+        userId: tx.userId,
+        serviceProductId: tx.serviceProductId,
+        psnAccountId: tx.psnAccountId,
+        priceAznCents: tx.amountAznCents,
+        serviceProductMetadata: tx.serviceProduct?.metadata,
+      });
+    }
   });
 
   await maybeSendReviewInvite(tx);

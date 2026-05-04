@@ -10,6 +10,7 @@ import {
   Share2,
   LogOut,
   Wallet,
+  Crown,
 } from "lucide-react";
 
 const ITEMS = [
@@ -17,6 +18,7 @@ const ITEMS = [
   { href: "/profile/settings", label: "Hesab məlumatları", icon: UserRound },
   { href: "/profile/wallet", label: "Balans", icon: Wallet },
   { href: "/profile/accounts", label: "PSN hesabları", icon: Gamepad2 },
+  { href: "/profile/subscriptions", label: "Aktiv abunəliklər", icon: Crown },
   { href: "/profile/orders", label: "Sifarişlər", icon: Receipt },
   { href: "/profile/referrals", label: "Referallar", icon: Share2 },
 ];

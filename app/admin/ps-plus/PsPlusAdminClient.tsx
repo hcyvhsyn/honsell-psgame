@@ -60,6 +60,7 @@ export default function PsPlusAdminClient() {
   });
 
   const [tryInputs, setTryInputs] = useState<Record<string, string>>({});
+  const [aznInputs, setAznInputs] = useState<Record<string, string>>({});
 
   const router = useRouter();
 
@@ -138,12 +139,15 @@ export default function PsPlusAdminClient() {
 
   useEffect(() => {
     // Seed UI from existing products
-    const next: Record<string, string> = {};
+    const nextTry: Record<string, string> = {};
+    const nextAzn: Record<string, string> = {};
     for (const tier of TIERS) {
       for (const dur of DURATIONS) {
         const p = getProduct(tier, dur);
-        const cents = Number((p?.metadata as { tryPriceCents?: number } | null)?.tryPriceCents ?? 0);
-        if (Number.isFinite(cents) && cents > 0) next[keyFor(tier, dur)] = (cents / 100).toFixed(2);
+        const tryCents = Number((p?.metadata as { tryPriceCents?: number } | null)?.tryPriceCents ?? 0);
+        if (Number.isFinite(tryCents) && tryCents > 0) nextTry[keyFor(tier, dur)] = (tryCents / 100).toFixed(2);
+        const aznCents = Number(p?.priceAznCents ?? 0);
+        if (Number.isFinite(aznCents) && aznCents > 0) nextAzn[keyFor(tier, dur)] = (aznCents / 100).toFixed(2);
       }
       const anyP = products.find((p) => String((p.metadata as { tier?: string } | null)?.tier ?? "") === tier);
       if (anyP) {
@@ -156,22 +160,35 @@ export default function PsPlusAdminClient() {
         }));
       }
     }
-    setTryInputs((prev) => ({ ...next, ...prev }));
+    setTryInputs((prev) => ({ ...nextTry, ...prev }));
+    setAznInputs((prev) => ({ ...nextAzn, ...prev }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products]);
 
-  function computeAzn(tryPrice: string): string {
-    const v = Number(tryPrice);
-    if (!pricing || !Number.isFinite(v) || v <= 0) return "—";
-    const azn = v * pricing.tryToAznRate * (1 + pricing.profitMarginPsPlusPct / 100);
-    return (Math.round(azn * 100) / 100).toFixed(2);
+  function computeProfit(tryPrice: string, aznPrice: string): { value: string; positive: boolean | null } {
+    const t = Number(tryPrice);
+    const a = Number(aznPrice);
+    if (!pricing || !Number.isFinite(t) || t <= 0 || !Number.isFinite(a) || a <= 0) {
+      return { value: "—", positive: null };
+    }
+    const cost = t * pricing.tryToAznRate;
+    const profit = a - cost;
+    return {
+      value: (Math.round(profit * 100) / 100).toFixed(2),
+      positive: profit >= 0,
+    };
   }
 
   async function saveCell(tier: Tier, dur: Duration) {
     const k = keyFor(tier, dur);
     const tryPrice = Number(tryInputs[k]);
+    const aznPrice = Number(aznInputs[k]);
     if (!Number.isFinite(tryPrice) || tryPrice <= 0) {
-      alert("TRY qiyməti düzgün deyil!");
+      alert("TRY (maya) qiyməti düzgün deyil!");
+      return;
+    }
+    if (!Number.isFinite(aznPrice) || aznPrice <= 0) {
+      alert("AZN satış qiyməti düzgün deyil!");
       return;
     }
     setSaving(true);
@@ -185,6 +202,7 @@ export default function PsPlusAdminClient() {
         tier,
         durationMonths: dur,
         tryPrice,
+        aznPrice,
         isActive: existing?.isActive ?? true,
         sortOrder: existing?.sortOrder ?? 0,
       }),
@@ -359,9 +377,9 @@ export default function PsPlusAdminClient() {
       <div>
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-200">Plan qiymətləri (TRY daxil et)</h2>
+            <h2 className="text-lg font-semibold text-zinc-200">Plan qiymətləri</h2>
             <p className="mt-1 text-sm text-zinc-400">
-              AZN avtomatik hesablanır (Pricing Settings → TRY rate + PS Plus kâr %).
+              TRY = maya qiyməti, AZN = satış qiyməti (əl ilə daxil et). Xeyir avtomatik hesablanır.
             </p>
           </div>
           <button
@@ -399,10 +417,12 @@ export default function PsPlusAdminClient() {
                       const p = getProduct(tier, dur);
                       const k = keyFor(tier, dur);
                       const tryVal = tryInputs[k] ?? "";
+                      const aznVal = aznInputs[k] ?? "";
+                      const profit = computeProfit(tryVal, aznVal);
                       return (
                         <td key={tier} className="px-5 py-4 text-center">
                           <div className="mx-auto w-full max-w-[220px] space-y-2">
-                            <div className="text-xs text-zinc-500">TRY qiyməti</div>
+                            <div className="text-left text-xs text-zinc-500">TRY (maya)</div>
                             <input
                               value={tryVal}
                               onChange={(e) =>
@@ -413,8 +433,30 @@ export default function PsPlusAdminClient() {
                               className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
                               placeholder="məs: 199.99"
                             />
+                            <div className="text-left text-xs text-zinc-500">AZN (satış)</div>
+                            <input
+                              value={aznVal}
+                              onChange={(e) =>
+                                setAznInputs((prev) => ({ ...prev, [k]: e.target.value }))
+                              }
+                              type="number"
+                              step="0.01"
+                              className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
+                              placeholder="məs: 14.99"
+                            />
                             <div className="text-xs text-zinc-500">
-                              AZN: <span className="font-semibold text-zinc-200">{computeAzn(tryVal)}</span>
+                              Xeyir:{" "}
+                              <span
+                                className={`font-semibold ${
+                                  profit.positive === null
+                                    ? "text-zinc-200"
+                                    : profit.positive
+                                      ? "text-emerald-300"
+                                      : "text-rose-300"
+                                }`}
+                              >
+                                {profit.value} AZN
+                              </span>
                             </div>
 
                             <div className="flex items-center justify-center gap-2">

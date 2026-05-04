@@ -49,6 +49,8 @@ model User {
   transactions   Transaction[]      @relation("UserTransactions")
   commissions    Transaction[]      @relation("CommissionBeneficiary")
 
+  subscriptions  Subscription[]
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
@@ -71,6 +73,7 @@ model PsnAccount {
   isDefault   Boolean  @default(false)
 
   transactions Transaction[]
+  subscriptions Subscription[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -140,6 +143,7 @@ model ServiceProduct {
 
   codes           ServiceCode[]
   transactions    Transaction[]
+  subscriptions   Subscription[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -205,6 +209,52 @@ model Transaction {
   createdAt      DateTime @default(now())
 
   @@index([status, type])
+}
+
+// ─── PS Plus subscriptions (auto-renew, expiry tracking) ─────────────────────
+
+model Subscription {
+  id                String   @id @default(cuid())
+
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  serviceProductId  String
+  serviceProduct    ServiceProduct @relation(fields: [serviceProductId], references: [id])
+
+  // Optional PSN account this subscription is bound to (nullable for legacy/unbound).
+  psnAccountId      String?
+  psnAccount        PsnAccount? @relation(fields: [psnAccountId], references: [id])
+
+  // Snapshot fields so the row stays meaningful even if the ServiceProduct row changes.
+  tier              String   // ESSENTIAL | EXTRA | DELUXE
+  durationMonths    Int      // 1 | 3 | 12 — used as the auto-renew period.
+  priceAznCents     Int      // Last-known renewal price in qəpik.
+
+  startsAt          DateTime
+  expiresAt         DateTime
+
+  // ACTIVE | CANCELLED | EXPIRED
+  status            String   @default("ACTIVE")
+
+  autoRenew         Boolean  @default(false)
+
+  // Notification de-dup. Stores the expiry-date these reminders were sent for,
+  // so a subscription that gets renewed gets a fresh reminder cycle.
+  remind3SentAt     DateTime?
+  remind1SentAt     DateTime?
+  lowBalanceSentAt  DateTime?
+
+  // Last successful renewal info (admin debugging).
+  lastRenewedAt     DateTime?
+  lastRenewalTxId   String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status, expiresAt])
+  @@index([autoRenew, expiresAt])
 }
 
 // ─── PS Store scrape history ──────────────────────────────────────────────────

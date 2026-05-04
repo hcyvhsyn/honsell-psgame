@@ -10,6 +10,7 @@ const NAV = [
   { href: "/admin/users", label: "Users", iconName: "Users" as const },
   { href: "/admin/deposits", label: "Deposits", iconName: "Wallet" as const, badgeKey: "pendingDeposits" as const },
   { href: "/admin/transactions", label: "Transactions", iconName: "Receipt" as const },
+  { href: "/admin/subscriptions", label: "Abunəliklər", iconName: "Crown" as const, badgeKey: "expiringSubs" as const },
   { href: "/admin/games", label: "Games", iconName: "Gamepad2" as const },
   { href: "/admin/orders", label: "Sifarişlər (hamısı)", iconName: "Receipt" as const, badgeKey: "pendingAllOrders" as const },
   { href: "/admin/banners", label: "Bannerlər", iconName: "ImageIcon" as const },
@@ -41,10 +42,19 @@ export default async function AdminLayout({
     where: { type: "SERVICE_PURCHASE", status: "PENDING" },
   });
 
+  const in3Days = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+  const expiringSubs = await prisma.subscription.count({
+    where: {
+      status: "ACTIVE",
+      expiresAt: { lte: in3Days },
+    },
+  });
+
   const badges = {
     pendingDeposits,
     pendingGameOrders,
     pendingAllOrders: pendingGameOrders + pendingServiceOrders,
+    expiringSubs,
   } as const;
 
   return (
