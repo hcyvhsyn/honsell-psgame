@@ -9,6 +9,7 @@ import SiteHeaderServer from "@/components/SiteHeaderServer";
 import GameCard, { type GameCardData } from "@/components/GameCard";
 import AddToCartButton from "./AddToCartButton";
 import ScreenshotGallery from "./ScreenshotGallery";
+import { SITE_URL, SITE_NAME } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -25,18 +26,50 @@ export async function generateMetadata({
   params: Promise<{ productId: string }>;
 }): Promise<Metadata> {
   const { productId } = await params;
-  const game = await prisma.game.findUnique({
-    where: { productId },
-    select: { title: true, imageUrl: true, heroImageUrl: true },
-  });
-  if (!game) return { title: "Oyun tapılmadı | Honsell" };
+  const [game, settings] = await Promise.all([
+    prisma.game.findUnique({
+      where: { productId },
+      select: {
+        title: true,
+        imageUrl: true,
+        heroImageUrl: true,
+        platform: true,
+        productType: true,
+        priceTryCents: true,
+        discountTryCents: true,
+        discountEndAt: true,
+      },
+    }),
+    getSettings(),
+  ]);
+  if (!game) return { title: "Oyun tapılmadı", robots: { index: false } };
+
+  const display = computeDisplayPrice(game, settings);
+  const platforms = game.platform ? game.platform.split(",").join("/") : "PlayStation";
+  const discountTag = display.discountPct ? ` (${display.discountPct}% endirim)` : "";
+  const priceTag = `${display.finalAzn.toFixed(2)} ₼`;
+
+  const title = `${game.title} — ${priceTag}${discountTag} | ${platforms}`;
+  const description = `${game.title} ${platforms} oyununu Azərbaycanda ən sərfəli qiymətə (${priceTag}) al. Anında çatdırılma, etibarlı ödəniş, rəsmi PSN hesabına yüklənmə.`;
   const cover = game.heroImageUrl ?? game.imageUrl ?? undefined;
+  const canonical = `/oyunlar/${encodeURIComponent(productId)}`;
+
   return {
-    title: `${game.title} | Honsell PS Store`,
-    description: `${game.title} — PlayStation Store oyununu əlverişli qiymətə əldə edin.`,
+    title,
+    description,
+    alternates: { canonical },
     openGraph: {
-      title: game.title,
-      images: cover ? [{ url: cover }] : undefined,
+      type: "website",
+      title,
+      description,
+      url: canonical,
+      images: cover ? [{ url: cover, alt: game.title }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: cover ? [cover] : undefined,
     },
   };
 }
@@ -95,9 +128,55 @@ export default async function GameDetailPage({
     : [];
 
   const heroImage = game.heroImageUrl ?? game.imageUrl;
+  const canonicalUrl = `${SITE_URL}/oyunlar/${encodeURIComponent(game.productId)}`;
+  const productImages = [heroImage, game.imageUrl, ...screenshots]
+    .filter((u): u is string => Boolean(u))
+    .filter((u, i, arr) => arr.indexOf(u) === i);
+
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: game.title,
+    description: `${game.title} — ${platforms.join("/") || "PlayStation"} oyununu Azərbaycanda ən sərfəli qiymətə.`,
+    sku: game.productId,
+    image: productImages,
+    brand: { "@type": "Brand", name: "PlayStation" },
+    category: PRODUCT_TYPE_LABEL[game.productType] ?? "Oyun",
+    url: canonicalUrl,
+    offers: {
+      "@type": "Offer",
+      url: canonicalUrl,
+      priceCurrency: "AZN",
+      price: display.finalAzn.toFixed(2),
+      availability: "https://schema.org/InStock",
+      itemCondition: "https://schema.org/NewCondition",
+      seller: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
+      ...(game.discountEndAt && display.discountPct
+        ? { priceValidUntil: game.discountEndAt.toISOString().slice(0, 10) }
+        : {}),
+    },
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Ana səhifə", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Oyunlar", item: `${SITE_URL}/oyunlar` },
+      { "@type": "ListItem", position: 3, name: game.title, item: canonicalUrl },
+    ],
+  };
 
   return (
     <main className="min-h-screen bg-[#0A0A0F] text-zinc-100">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <SiteHeaderServer />
 
       {/* Hero */}

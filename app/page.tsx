@@ -22,6 +22,7 @@ import PsPlusClient from "./ps-plus/PsPlusClient";
 import HediyyeKartlariClient from "./hediyye-kartlari/HediyyeKartlariClient";
 import HesabAcmaHomeCategoryCard from "@/components/HesabAcmaHomeCategoryCard";
 import ReviewWriteButton from "@/components/ReviewWriteButton";
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -90,8 +91,48 @@ export default async function HomePage() {
       : null,
   }));
 
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    url: SITE_URL,
+    description: SITE_DESCRIPTION,
+    inLanguage: "az-AZ",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/oyunlar?q={search_term_string}` },
+      "query-input": "required name=search_term_string",
+    },
+  };
+
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: `${SITE_URL}/icon.png`,
+    email: "info@honsell.store",
+    telephone: "+994702560509",
+    contactPoint: {
+      "@type": "ContactPoint",
+      telephone: "+994702560509",
+      contactType: "customer support",
+      email: "info@honsell.store",
+      areaServed: "AZ",
+      availableLanguage: ["az", "tr", "en"],
+    },
+  };
+
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+      />
       <SiteHeaderServer />
 
       <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">

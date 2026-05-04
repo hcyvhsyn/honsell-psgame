@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { CartProvider } from "@/lib/cart";
@@ -6,6 +6,7 @@ import { ModalProvider } from "@/lib/modals";
 import AppModals from "@/components/AppModals";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import CoffeeFloat from "@/components/CoffeeFloat";
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -19,8 +20,70 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Honsell PS Store",
-  description: "PlayStation Store oyunlarını ",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — Azərbaycanda PlayStation oyunları`,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "PlayStation",
+    "PS5",
+    "PS4",
+    "PS Plus",
+    "PSN",
+    "PS Store Azərbaycan",
+    "oyun almaq",
+    "hədiyyə kartı",
+    "Türkiyə PSN hesabı",
+    "PlayStation Türkiye",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "az_AZ",
+    siteName: SITE_NAME,
+    url: SITE_URL,
+    title: `${SITE_NAME} — Azərbaycanda PlayStation oyunları`,
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: "/icon.png",
+        width: 512,
+        height: 512,
+        alt: SITE_NAME,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — Azərbaycanda PlayStation oyunları`,
+    description: SITE_DESCRIPTION,
+    images: ["/icon.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0A0A0F",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
