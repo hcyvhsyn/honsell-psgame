@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Gamepad2, Plus, Trash2 } from "lucide-react";
 import { useCart } from "@/lib/cart";
@@ -17,6 +18,8 @@ export type GameCardData = {
   discountPct: number | null;
   /** ISO timestamp of when the active discount expires; null if no discount or unknown. */
   discountEndAt: string | null;
+  /** PS Store productId — when present, the card links to /oyunlar/[productId]. */
+  productId?: string | null;
 };
 
 function pad(n: number) {
@@ -55,52 +58,72 @@ export default function GameCard({ game }: { game: GameCardData }) {
   const countdown = useCountdown(game.discountEndAt);
 
   const platforms = game.platform ? game.platform.split(",") : [];
+  const detailHref = game.productId ? `/oyunlar/${game.productId}` : null;
+
+  const cover = (
+    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[18px] bg-zinc-900">
+      {game.imageUrl ? (
+        <Image
+          src={game.imageUrl}
+          alt={game.title}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+          className="object-cover transition-transform duration-700 group-hover:scale-105"
+          unoptimized
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center text-zinc-600 bg-gradient-to-br from-zinc-900 to-zinc-800">
+          <Gamepad2 className="h-10 w-10 opacity-30" />
+        </div>
+      )}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+
+      {platforms.length > 0 && (
+        <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
+          {platforms.map((p) => (
+            <span
+              key={p}
+              className="rounded-full border border-white/40 bg-black/30 px-3 py-1 text-[11px] font-semibold tracking-wide text-white backdrop-blur-md"
+            >
+              {p}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <li className="group flex flex-col overflow-hidden rounded-[24px] border border-zinc-800 bg-[#0A0A0A] transition hover:-translate-y-1 hover:border-indigo-500/50 hover:shadow-[0_8px_30px_-10px_rgba(99,102,241,0.15)]">
       <div className="relative p-3 pb-0">
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[18px] bg-zinc-900">
-          {game.imageUrl ? (
-            <Image
-              src={game.imageUrl}
-              alt={game.title}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
-              unoptimized
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-zinc-600 bg-gradient-to-br from-zinc-900 to-zinc-800">
-              <Gamepad2 className="h-10 w-10 opacity-30" />
-            </div>
-          )}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-
-          {platforms.length > 0 && (
-            <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
-              {platforms.map((p) => (
-                <span
-                  key={p}
-                  className="rounded-full border border-white/40 bg-black/30 px-3 py-1 text-[11px] font-semibold tracking-wide text-white backdrop-blur-md"
-                >
-                  {p}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+        {detailHref ? (
+          <Link href={detailHref} aria-label={game.title} className="block">
+            {cover}
+          </Link>
+        ) : (
+          cover
+        )}
 
         {game.discountPct != null && (
-          <span className="absolute -right-1 -top-1 grid h-16 w-16 place-items-center rounded-full bg-[#6D28D9] text-sm font-bold text-white shadow-[0_8px_24px_-6px_rgba(109,40,217,0.6)] ring-4 ring-[#0A0A0A]">
+          <span className="pointer-events-none absolute -right-1 -top-1 grid h-16 w-16 place-items-center rounded-full bg-[#6D28D9] text-sm font-bold text-white shadow-[0_8px_24px_-6px_rgba(109,40,217,0.6)] ring-4 ring-[#0A0A0A]">
             -{game.discountPct}%
           </span>
         )}
       </div>
 
       <div className="flex flex-1 flex-col px-5 pb-5 pt-4 text-center">
-        <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-white">
-          {game.title}
-        </h3>
+        {detailHref ? (
+          <Link
+            href={detailHref}
+            className="line-clamp-2 text-lg font-semibold leading-tight text-white transition hover:text-indigo-300"
+          >
+            {game.title}
+          </Link>
+        ) : (
+          <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-white">
+            {game.title}
+          </h3>
+        )}
 
         <div className="mt-3 flex items-baseline justify-center gap-3">
           {game.originalAzn != null && (

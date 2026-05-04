@@ -47,7 +47,7 @@ export default async function HomePage() {
         take: HOMEPAGE_LIMIT,
       }),
       prisma.game.groupBy({ by: ["productType"], where: { isActive: true }, _count: { _all: true } }),
-      prisma.banner.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }] }).catch(() => []),
+      prisma.banner.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }], include: { game: true } }).catch(() => []),
       prisma.testimonial.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }], take: 6 }).catch(() => []),
       prisma.serviceProduct.findMany({
         where: { isActive: true, type: "PS_PLUS" },
@@ -69,8 +69,26 @@ export default async function HomePage() {
 
   const results: GameCardData[] = games.map((g) => {
     const price = computeDisplayPrice(g, settings);
-    return { id: g.id, title: g.title, imageUrl: g.imageUrl, platform: g.platform, productType: g.productType, finalAzn: price.finalAzn, originalAzn: price.originalAzn, discountPct: price.discountPct, discountEndAt: g.discountTryCents != null && g.discountEndAt ? g.discountEndAt.toISOString() : null };
+    return { id: g.id, productId: g.productId, title: g.title, imageUrl: g.imageUrl, platform: g.platform, productType: g.productType, finalAzn: price.finalAzn, originalAzn: price.originalAzn, discountPct: price.discountPct, discountEndAt: g.discountTryCents != null && g.discountEndAt ? g.discountEndAt.toISOString() : null };
   });
+
+  const bannerSlides = banners.map((b) => ({
+    id: b.id,
+    title: b.title,
+    subtitle: b.subtitle,
+    imageUrl: b.imageUrl,
+    linkUrl: b.linkUrl,
+    actionType: (b.actionType === "ADD_TO_CART" ? "ADD_TO_CART" : "LINK") as "LINK" | "ADD_TO_CART",
+    game: b.game
+      ? {
+          id: b.game.id,
+          title: b.game.title,
+          imageUrl: b.game.imageUrl,
+          finalAzn: computeDisplayPrice(b.game, settings).finalAzn,
+          productType: b.game.productType,
+        }
+      : null,
+  }));
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -78,8 +96,8 @@ export default async function HomePage() {
 
       <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
         <div className="relative overflow-hidden rounded-3xl border border-zinc-800/60">
-          {banners.length > 0 ? (
-            <HomeBannerSlider banners={banners} />
+          {bannerSlides.length > 0 ? (
+            <HomeBannerSlider banners={bannerSlides} />
           ) : (
             <div className="relative bg-gradient-to-br from-indigo-950 via-zinc-900 to-zinc-950" style={{ aspectRatio: "21/7" }}>
               <div className="pointer-events-none absolute -left-20 top-0 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />

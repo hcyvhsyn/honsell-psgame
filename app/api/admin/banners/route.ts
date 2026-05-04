@@ -11,6 +11,7 @@ export async function GET() {
   try {
     const banners = await prisma.banner.findMany({
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      include: { game: { select: { id: true, title: true, imageUrl: true } } },
     });
     return NextResponse.json(banners);
   } catch {
@@ -27,14 +28,21 @@ export async function POST(req: Request) {
 
   try {
     if (action === "UPSERT") {
-      const { id, title, subtitle, imageUrl, linkUrl, isActive, sortOrder } = body;
+      const { id, title, subtitle, imageUrl, linkUrl, isActive, sortOrder, actionType, gameId } = body;
       if (!imageUrl) return NextResponse.json({ error: "imageUrl tələb olunur" }, { status: 400 });
+
+      const normalizedAction = actionType === "ADD_TO_CART" ? "ADD_TO_CART" : "LINK";
+      if (normalizedAction === "ADD_TO_CART" && !gameId) {
+        return NextResponse.json({ error: "Səbətə əlavə üçün oyun seçilməlidir" }, { status: 400 });
+      }
 
       const payload = {
         title: title || null,
         subtitle: subtitle || null,
         imageUrl: String(imageUrl),
-        linkUrl: linkUrl || null,
+        linkUrl: normalizedAction === "LINK" ? (linkUrl || null) : null,
+        actionType: normalizedAction,
+        gameId: normalizedAction === "ADD_TO_CART" ? String(gameId) : null,
         isActive: Boolean(isActive ?? true),
         sortOrder: Number(sortOrder || 0),
       };
@@ -52,6 +60,17 @@ export async function POST(req: Request) {
       const { id } = body;
       if (!id) return NextResponse.json({ error: "id tələb olunur" }, { status: 400 });
       await prisma.banner.delete({ where: { id } });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === "REORDER") {
+      const { ids } = body;
+      if (!Array.isArray(ids)) return NextResponse.json({ error: "ids massiv olmalıdır" }, { status: 400 });
+      await prisma.$transaction(
+        ids.map((id: string, index: number) =>
+          prisma.banner.update({ where: { id: String(id) }, data: { sortOrder: index } })
+        )
+      );
       return NextResponse.json({ ok: true });
     }
 

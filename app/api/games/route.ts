@@ -106,6 +106,7 @@ export async function GET(req: Request) {
     const price = computeDisplayPrice(g, settings);
     return {
       id: g.id,
+      productId: g.productId,
       title: g.title,
       imageUrl: g.imageUrl,
       platform: g.platform,

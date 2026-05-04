@@ -106,11 +106,18 @@ model Game {
   discountTryCents    Int?     // null when no discount is active
   discountEndAt       DateTime? // when the active discount expires (from PS Store)
 
+  // Rich media + metadata scraped from PS Store listing pages
+  heroImageUrl    String?  // BACKGROUND-role media (wide hero/cover)
+  trailerUrl      String?  // PREVIEW-role media (mp4 trailer URL)
+  screenshots     Json?    // String[] — additional IMAGE-role media URLs
+  editionLabel    String?  // e.g. "Tam Sürüm Oyun", "Premium Sürüm"
+
   isActive        Boolean  @default(true)
   isFeatured      Boolean  @default(false)
   lastScrapedAt   DateTime @default(now())
 
   transactions    Transaction[]
+  banners         Banner[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -277,15 +284,21 @@ model ScrapeRun {
 // ─── Banners (homepage hero carousel) ────────────────────────────────────────
 
 model Banner {
-  id        String   @id @default(cuid())
-  title     String?
-  subtitle  String?
-  imageUrl  String
-  linkUrl   String?
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  title      String?
+  subtitle   String?
+  imageUrl   String
+  linkUrl    String?
+  // LINK | ADD_TO_CART
+  actionType String   @default("LINK")
+  gameId     String?
+  game       Game?    @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  isActive   Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([gameId])
 }
 
 // ─── Testimonials (customer reviews on homepage) ──────────────────────────────

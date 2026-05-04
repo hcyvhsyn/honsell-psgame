@@ -69,6 +69,10 @@ type ScrapedGame = {
   priceTryCents: number;
   discountTryCents: number | null;
   discountEndAt: Date | null;
+  heroImageUrl: string | null;
+  trailerUrl: string | null;
+  screenshots: string[];
+  editionLabel: string | null;
 };
 
 function classify(raw: unknown): ScrapedGame["productType"] {
@@ -115,9 +119,10 @@ type RawProduct = {
   id: string;
   name: string;
   price?: { basePrice?: unknown; discountedPrice?: unknown };
-  media?: Array<{ role?: string; url?: string }>;
+  media?: Array<{ role?: string; type?: string; url?: string }>;
   platforms?: unknown;
   storeDisplayClassification?: unknown;
+  localizedStoreDisplayClassification?: unknown;
   [key: string]: unknown;
 };
 
@@ -164,10 +169,36 @@ function extractFromHtml(html: string): ScrapedGame[] {
     const discountTryCents =
       discountPrice != null && discountPrice < basePrice ? discountPrice : null;
 
+    const media = Array.isArray(product.media) ? product.media : [];
+    const findMedia = (role: string, type?: string) =>
+      media.find((m) => m?.role === role && (!type || m?.type === type))?.url;
+
     const imageUrl =
-      product.media?.find?.((m) => m?.role === "MASTER")?.url ??
-      product.media?.[0]?.url ??
+      findMedia("MASTER", "IMAGE") ??
+      findMedia("MASTER") ??
+      media[0]?.url ??
       null;
+    const heroImageUrl =
+      findMedia("BACKGROUND", "IMAGE") ??
+      findMedia("BACKGROUND") ??
+      null;
+    const trailerUrl = findMedia("PREVIEW", "VIDEO") ?? findMedia("PREVIEW") ?? null;
+
+    // Collect supplemental screenshots: any IMAGE-role media that isn't the hero
+    // or the master cover, deduped.
+    const usedUrls = new Set([imageUrl, heroImageUrl].filter(Boolean) as string[]);
+    const screenshots: string[] = [];
+    for (const m of media) {
+      if (!m?.url || m.type !== "IMAGE") continue;
+      if (usedUrls.has(m.url)) continue;
+      usedUrls.add(m.url);
+      screenshots.push(String(m.url));
+    }
+
+    const editionLabel =
+      typeof product.localizedStoreDisplayClassification === "string"
+        ? product.localizedStoreDisplayClassification
+        : null;
 
     const productId = String(product.id);
     seen.add(productId);
@@ -181,6 +212,10 @@ function extractFromHtml(html: string): ScrapedGame[] {
       priceTryCents: basePrice,
       discountTryCents,
       discountEndAt: null,
+      heroImageUrl: heroImageUrl ? String(heroImageUrl) : null,
+      trailerUrl: trailerUrl ? String(trailerUrl) : null,
+      screenshots,
+      editionLabel,
     });
   }
 
@@ -507,6 +542,10 @@ export async function GET(req: Request) {
               priceTryCents: g.priceTryCents,
               discountTryCents: g.discountTryCents,
               discountEndAt: g.discountEndAt,
+              heroImageUrl: g.heroImageUrl,
+              trailerUrl: g.trailerUrl,
+              screenshots: g.screenshots,
+              editionLabel: g.editionLabel,
               isActive: true,
               lastScrapedAt: new Date(),
             },
@@ -519,6 +558,10 @@ export async function GET(req: Request) {
               priceTryCents: g.priceTryCents,
               discountTryCents: g.discountTryCents,
               discountEndAt: g.discountEndAt,
+              heroImageUrl: g.heroImageUrl,
+              trailerUrl: g.trailerUrl,
+              screenshots: g.screenshots,
+              editionLabel: g.editionLabel,
               isActive: true,
               lastScrapedAt: new Date(),
             },

@@ -3,19 +3,31 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, Check } from "lucide-react";
+import { useCart } from "@/lib/cart";
 
-type Banner = {
+export type BannerCartGame = {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  finalAzn: number;
+  productType: string;
+};
+
+export type BannerSlide = {
   id: string;
   title: string | null;
   subtitle: string | null;
   imageUrl: string;
   linkUrl: string | null;
+  actionType: "LINK" | "ADD_TO_CART";
+  game: BannerCartGame | null;
 };
 
-export default function HomeBannerSlider({ banners }: { banners: Banner[] }) {
+export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }) {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
+  const cart = useCart();
 
   const prev = useCallback(() => setCurrent((c) => (c - 1 + banners.length) % banners.length), [banners.length]);
   const next = useCallback(() => setCurrent((c) => (c + 1) % banners.length), [banners.length]);
@@ -29,7 +41,9 @@ export default function HomeBannerSlider({ banners }: { banners: Banner[] }) {
   if (banners.length === 0) return null;
 
   const banner = banners[current];
-  const Wrapper = banner.linkUrl ? Link : "div";
+  const isCart = banner.actionType === "ADD_TO_CART" && banner.game;
+  const inCart = isCart ? cart.has(banner.game!.id) : false;
+  const linkHref = !isCart && banner.linkUrl ? banner.linkUrl : null;
 
   return (
     <div
@@ -38,7 +52,6 @@ export default function HomeBannerSlider({ banners }: { banners: Banner[] }) {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      {/* Slides */}
       {banners.map((b, i) => (
         <div
           key={b.id}
@@ -53,35 +66,50 @@ export default function HomeBannerSlider({ banners }: { banners: Banner[] }) {
             unoptimized
             priority={i === 0}
           />
-          {/* Gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
         </div>
       ))}
 
-      {/* Text content */}
-      {(banner.title || banner.subtitle) && (
-        /* @ts-expect-error href is conditional */
-        <Wrapper
-          {...(banner.linkUrl ? { href: banner.linkUrl } : {})}
-          className="absolute bottom-0 left-0 p-6 sm:p-10"
-        >
-          {banner.title && (
-            <h2 className="text-xl font-black text-white drop-shadow sm:text-3xl lg:text-4xl">
-              {banner.title}
-            </h2>
-          )}
-          {banner.subtitle && (
-            <p className="mt-1 text-sm text-zinc-200 drop-shadow sm:text-base">{banner.subtitle}</p>
-          )}
-          {banner.linkUrl && (
+      <div className="absolute bottom-0 left-0 p-6 sm:p-10">
+        {linkHref ? (
+          <Link href={linkHref} className="block">
+            {banner.title && (
+              <h2 className="text-xl font-black text-white drop-shadow sm:text-3xl lg:text-4xl">{banner.title}</h2>
+            )}
+            {banner.subtitle && (
+              <p className="mt-1 text-sm text-zinc-200 drop-shadow sm:text-base">{banner.subtitle}</p>
+            )}
             <span className="mt-4 inline-block rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/30">
               Kəşfet →
             </span>
-          )}
-        </Wrapper>
-      )}
+          </Link>
+        ) : (
+          <>
+            {banner.title && (
+              <h2 className="text-xl font-black text-white drop-shadow sm:text-3xl lg:text-4xl">{banner.title}</h2>
+            )}
+            {banner.subtitle && (
+              <p className="mt-1 text-sm text-zinc-200 drop-shadow sm:text-base">{banner.subtitle}</p>
+            )}
+            {isCart && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (inCart) cart.remove(banner.game!.id);
+                  else cart.add(banner.game!);
+                }}
+                className={`mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition ${
+                  inCart ? "bg-emerald-500/80 hover:bg-emerald-500" : "bg-indigo-500/80 hover:bg-indigo-500"
+                }`}
+              >
+                {inCart ? <><Check className="h-4 w-4" /> Səbətdədir</> : <><ShoppingCart className="h-4 w-4" /> Səbətə əlavə et · {banner.game!.finalAzn.toFixed(2)} ₼</>}
+              </button>
+            )}
+          </>
+        )}
+      </div>
 
-      {/* Navigation arrows */}
       {banners.length > 1 && (
         <>
           <button
@@ -97,7 +125,6 @@ export default function HomeBannerSlider({ banners }: { banners: Banner[] }) {
             <ChevronRight className="h-5 w-5" />
           </button>
 
-          {/* Dots */}
           <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
             {banners.map((_, i) => (
               <button
