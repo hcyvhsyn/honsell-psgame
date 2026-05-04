@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
+import { sendAdminDepositNotification } from "@/lib/resend";
 
 export const runtime = "nodejs";
 
@@ -92,6 +93,17 @@ export async function POST(req: Request) {
       },
       select: { id: true, status: true, amountAznCents: true, createdAt: true },
     });
+
+    try {
+      await sendAdminDepositNotification({
+        depositId: tx.id,
+        userEmail: user.email,
+        userName: user.name,
+        amountAzn: amountCents / 100,
+      });
+    } catch (notifyErr) {
+      console.error("admin deposit notify failed", notifyErr);
+    }
 
     return NextResponse.json({ ok: true, request: tx });
   } catch (err) {

@@ -12,6 +12,7 @@ import {
   applyCashbackToBalance,
   getLifetimeSpendAznForLoyalty,
 } from "@/lib/loyaltyCashback";
+import { sendAdminOrderNotification } from "@/lib/resend";
 
 export const runtime = "nodejs";
 
@@ -464,6 +465,24 @@ export async function POST(req: Request) {
 
   const hasTryBalance = lines.some((l) => l.kind === "TRY_BALANCE");
   const tryBalancePendingCount = Number(result.tryBalancePendingCount ?? 0);
+
+  try {
+    await sendAdminOrderNotification({
+      orderCode: result.orderCode,
+      userEmail: user.email,
+      userName: user.name,
+      totalAzn: totalCents / 100,
+      paymentSource,
+      items: lines.map((l) => ({
+        kind: l.kind,
+        title: l.kind === "GAME" ? l.game.title : l.service.title,
+        qty: l.qty,
+        lineAzn: l.lineCents / 100,
+      })),
+    });
+  } catch (notifyErr) {
+    console.error("admin order notify failed", notifyErr);
+  }
 
   return NextResponse.json({
     ok: true,

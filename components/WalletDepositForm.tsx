@@ -31,7 +31,8 @@ type DepositInfo = {
 
 export default function WalletDepositForm({ authed }: { authed: boolean }) {
   const [info, setInfo] = useState<DepositInfo | null>(null);
-  const [amount, setAmount] = useState(20);
+  const [amount, setAmount] = useState("20");
+  const amountNum = Number(amount.replace(",", "."));
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -75,6 +76,10 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!Number.isFinite(amountNum) || amountNum < 1) {
+      setMessage({ ok: false, text: "Məbləğ ən azı 1 AZN olmalıdır." });
+      return;
+    }
     if (!file) {
       setMessage({ ok: false, text: "Qəbz şəklini seç." });
       return;
@@ -124,7 +129,7 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
     const res = await fetch("/api/wallet/request-deposit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amountAzn: amount, receiptPath: initData.path }),
+      body: JSON.stringify({ amountAzn: amountNum, receiptPath: initData.path }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
@@ -207,11 +212,16 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
             Məbləğ (AZN)
           </label>
           <input
-            type="number"
-            min={1}
-            step={1}
+            type="text"
+            inputMode="decimal"
             value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
+            onChange={(e) => {
+              const v = e.target.value.replace(",", ".");
+              if (v === "" || /^\d*\.?\d{0,2}$/.test(v)) {
+                setAmount(v);
+              }
+            }}
+            placeholder="0.00"
             className="mt-1.5 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none"
           />
           <div className="mt-2 flex flex-wrap gap-2">
@@ -219,9 +229,9 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
               <button
                 key={preset}
                 type="button"
-                onClick={() => setAmount(preset)}
+                onClick={() => setAmount(String(preset))}
                 className={`rounded-md border px-2.5 py-1 text-xs ${
-                  amount === preset
+                  amountNum === preset
                     ? "border-indigo-500/60 bg-indigo-500/10 text-indigo-200"
                     : "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700"
                 }`}
@@ -261,7 +271,9 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
           disabled={busy || !card}
           className="inline-flex w-full items-center justify-center rounded-md bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-400 disabled:opacity-50"
         >
-          {busy ? "Göndərilir…" : `${amount} AZN üçün sorğu göndər`}
+          {busy
+            ? "Göndərilir…"
+            : `${Number.isFinite(amountNum) && amountNum > 0 ? amountNum.toFixed(2) : "0.00"} AZN üçün sorğu göndər`}
         </button>
 
         {message && (

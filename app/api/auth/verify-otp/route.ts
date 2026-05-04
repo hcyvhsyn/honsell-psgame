@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE_NAME } from "@/lib/auth";
-import { sendWelcomeEmail } from "@/lib/resend";
+import { sendAdminNewUserNotification, sendWelcomeEmail } from "@/lib/resend";
 
 export const runtime = "nodejs";
 
@@ -50,6 +50,17 @@ export async function POST(req: Request) {
     await sendWelcomeEmail(email, user.name ?? email.split("@")[0]);
   } catch (err) {
     console.error("welcome email failed", err);
+  }
+
+  try {
+    await sendAdminNewUserNotification({
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      phone: user.phone,
+    });
+  } catch (err) {
+    console.error("admin new-user notify failed", err);
   }
 
   const res = NextResponse.json({
