@@ -11,7 +11,7 @@ function generateToken(): string {
 }
 
 function getBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell-psstore.com";
+  return process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell.store";
 }
 
 /**

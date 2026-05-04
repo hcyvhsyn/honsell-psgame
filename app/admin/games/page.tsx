@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Search, Star } from "lucide-react";
+import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import StarToggle from "./StarToggle";
 
@@ -8,6 +9,18 @@ export const dynamic = "force-dynamic";
 const PAGE_SIZE = 30;
 const PLATFORMS = ["ALL", "PS5", "PS4"] as const;
 const TYPES = ["ALL", "GAME", "ADDON", "CURRENCY", "OTHER"] as const;
+const DISCOUNTS = ["ALL", "WITH", "WITHOUT"] as const;
+const DISCOUNT_LABEL: Record<(typeof DISCOUNTS)[number], string> = {
+  ALL: "Hamısı",
+  WITH: "Endirimli",
+  WITHOUT: "Endirimsiz",
+};
+const SORTS = ["DEFAULT", "PRICE_ASC", "PRICE_DESC"] as const;
+const SORT_LABEL: Record<(typeof SORTS)[number], string> = {
+  DEFAULT: "Default",
+  PRICE_ASC: "Ucuzdan bahaya",
+  PRICE_DESC: "Bahadan ucuza",
+};
 
 export default async function AdminGamesPage({
   searchParams,
@@ -17,6 +30,8 @@ export default async function AdminGamesPage({
     platform?: string;
     productType?: string;
     featured?: string;
+    discount?: string;
+    sort?: string;
     page?: string;
   };
 }) {
@@ -24,6 +39,12 @@ export default async function AdminGamesPage({
   const platform = String(searchParams.platform ?? "ALL").toUpperCase();
   const productType = String(searchParams.productType ?? "ALL").toUpperCase();
   const featuredOnly = searchParams.featured === "1";
+  const discount = String(searchParams.discount ?? "ALL").toUpperCase() as (typeof DISCOUNTS)[number];
+  const discountFilter = (DISCOUNTS as readonly string[]).includes(discount) ? discount : "ALL";
+  const sortRaw = String(searchParams.sort ?? "DEFAULT").toUpperCase();
+  const sort = (SORTS as readonly string[]).includes(sortRaw)
+    ? (sortRaw as (typeof SORTS)[number])
+    : "DEFAULT";
   const page = Math.max(1, Number(searchParams.page ?? "1") || 1);
 
   const where = {
@@ -31,14 +52,23 @@ export default async function AdminGamesPage({
     ...(platform !== "ALL" ? { platform } : {}),
     ...(productType !== "ALL" ? { productType } : {}),
     ...(featuredOnly ? { isFeatured: true } : {}),
+    ...(discountFilter === "WITH" ? { discountTryCents: { not: null } } : {}),
+    ...(discountFilter === "WITHOUT" ? { discountTryCents: null } : {}),
   };
+
+  const orderBy: Prisma.GameOrderByWithRelationInput[] =
+    sort === "PRICE_ASC"
+      ? [{ priceTryCents: "asc" }, { updatedAt: "desc" }]
+      : sort === "PRICE_DESC"
+        ? [{ priceTryCents: "desc" }, { updatedAt: "desc" }]
+        : [{ isFeatured: "desc" }, { updatedAt: "desc" }];
 
   const [total, featuredCount, games] = await Promise.all([
     prisma.game.count({ where }),
     prisma.game.count({ where: { isFeatured: true } }),
     prisma.game.findMany({
       where,
-      orderBy: [{ isFeatured: "desc" }, { updatedAt: "desc" }],
+      orderBy,
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
       include: {
@@ -59,13 +89,22 @@ export default async function AdminGamesPage({
       ...(platform !== "ALL" ? { platform } : {}),
       ...(productType !== "ALL" ? { productType } : {}),
       ...(featuredOnly ? { featured: "1" } : {}),
+      ...(discountFilter !== "ALL" ? { discount: discountFilter } : {}),
+      ...(sort !== "DEFAULT" ? { sort } : {}),
       page: String(page),
       ...Object.fromEntries(
         Object.entries(overrides).filter(([, v]) => v !== undefined)
       ),
     };
     Object.entries(overrides).forEach(([k, v]) => {
-      if (v === undefined || v === "ALL" || v === "" || v === "0") delete merged[k];
+      if (
+        v === undefined ||
+        v === "ALL" ||
+        v === "" ||
+        v === "0" ||
+        v === "DEFAULT"
+      )
+        delete merged[k];
     });
     return `/admin/games?${new URLSearchParams(merged).toString()}`;
   }
@@ -110,6 +149,20 @@ export default async function AdminGamesPage({
           options={TYPES}
           build={(v) => buildHref({ productType: v, page: "1" })}
         />
+        <FilterRow
+          label="Endirim"
+          current={discountFilter}
+          options={DISCOUNTS}
+          getLabel={(v) => DISCOUNT_LABEL[v as (typeof DISCOUNTS)[number]] ?? v}
+          build={(v) => buildHref({ discount: v, page: "1" })}
+        />
+        <FilterRow
+          label="Sırala"
+          current={sort}
+          options={SORTS}
+          getLabel={(v) => SORT_LABEL[v as (typeof SORTS)[number]] ?? v}
+          build={(v) => buildHref({ sort: v, page: "1" })}
+        />
         <Link
           href={buildHref({ featured: featuredOnly ? "0" : "1", page: "1" })}
           className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs ring-1 transition ${
@@ -135,6 +188,7 @@ export default async function AdminGamesPage({
               <Th>Platform</Th>
               <Th>Type</Th>
               <Th>Price (TRY)</Th>
+              <Th>Endirim bitir</Th>
               <Th>Sold</Th>
               <Th>Active</Th>
             </tr>
@@ -142,7 +196,7 @@ export default async function AdminGamesPage({
           <tbody className="divide-y divide-zinc-900">
             {games.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-zinc-500">
+                <td colSpan={8} className="px-5 py-8 text-center text-zinc-500">
                   No games match these filters.
                 </td>
               </tr>
@@ -186,6 +240,13 @@ export default async function AdminGamesPage({
                     </>
                   ) : (
                     fmtTry(g.priceTryCents)
+                  )}
+                </Td>
+                <Td className="text-zinc-300">
+                  {g.discountTryCents != null && g.discountEndAt ? (
+                    <DiscountEnd date={g.discountEndAt} />
+                  ) : (
+                    <span className="text-zinc-600">—</span>
                   )}
                 </Td>
                 <Td className="text-zinc-200">{g._count.transactions}</Td>
@@ -244,11 +305,13 @@ function FilterRow({
   current,
   options,
   build,
+  getLabel,
 }: {
   label: string;
   current: string;
   options: readonly string[];
   build: (v: string) => string;
+  getLabel?: (v: string) => string;
 }) {
   return (
     <div className="flex items-center gap-2">
@@ -268,11 +331,32 @@ function FilterRow({
                   : "bg-zinc-900 text-zinc-300 ring-zinc-800 hover:bg-zinc-800"
               }`}
             >
-              {opt}
+              {getLabel ? getLabel(opt) : opt}
             </Link>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function DiscountEnd({ date }: { date: Date }) {
+  const ms = new Date(date).getTime() - Date.now();
+  const days = Math.ceil(ms / (1000 * 60 * 60 * 24));
+  const dateStr = new Date(date).toLocaleDateString("az-AZ", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  let hint: { text: string; className: string };
+  if (days < 0) hint = { text: "Bitib", className: "text-zinc-500" };
+  else if (days === 0) hint = { text: "Bu gün", className: "text-rose-300" };
+  else if (days <= 3) hint = { text: `${days} gün`, className: "text-amber-300" };
+  else hint = { text: `${days} gün`, className: "text-zinc-500" };
+  return (
+    <div>
+      <div className="text-zinc-200">{dateStr}</div>
+      <div className={`text-xs ${hint.className}`}>{hint.text}</div>
     </div>
   );
 }

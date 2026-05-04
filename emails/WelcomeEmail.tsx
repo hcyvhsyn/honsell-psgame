@@ -17,7 +17,7 @@ interface WelcomeEmailProps {
   userName: string;
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell-psstore.com";
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell.store";
 
 export default function WelcomeEmail({ userName }: WelcomeEmailProps) {
   return (
