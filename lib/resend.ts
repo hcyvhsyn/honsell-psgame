@@ -504,6 +504,63 @@ export async function sendAdminSubscriptionDigest(params: {
   }
 }
 
+// ─── Favorite-on-sale notification ────────────────────────────────────────────
+
+export async function sendFavoriteOnSaleEmail(params: {
+  email: string;
+  userName: string;
+  productTitle: string;
+  productId: string;
+  finalAzn: number;
+  originalAzn: number | null;
+  discountPct: number | null;
+  discountEndAt: Date | null;
+  imageUrl: string | null;
+}) {
+  const productUrl = `${ADMIN_BASE_URL}/oyunlar/${encodeURIComponent(params.productId)}`;
+  const endLine = params.discountEndAt
+    ? `<p style="margin:8px 0 0;color:#a1a1aa;font-size:12px">Endirim bitir: <b style="color:#d4d4d8">${fmtDateAz(params.discountEndAt)}</b></p>`
+    : "";
+  const originalLine = params.originalAzn
+    ? `<span style="color:#71717a;text-decoration:line-through;margin-right:8px">${fmtAzn(params.originalAzn)}</span>`
+    : "";
+  const badge =
+    params.discountPct != null
+      ? `<span style="display:inline-block;background:#6D28D9;color:#fff;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;margin-bottom:12px">-${params.discountPct}% endirim</span>`
+      : "";
+  const cover = params.imageUrl
+    ? `<img src="${params.imageUrl}" alt="${escapeHtml(params.productTitle)}" style="width:100%;max-width:480px;border-radius:14px;display:block;margin:0 auto 16px" />`
+    : "";
+
+  const body = `
+    ${cover}
+    ${badge}
+    <h2 style="margin:0 0 12px;font-size:20px;color:#fff">${escapeHtml(params.productTitle)} endirimə düşdü!</h2>
+    <p style="margin:0 0 8px;color:#d4d4d8">Favorilərinə əlavə etdiyin oyun yenidən endirimdədir.</p>
+    <p style="margin:0;font-size:18px">
+      ${originalLine}<b style="color:#fff;font-size:22px">${fmtAzn(params.finalAzn)}</b>
+    </p>
+    ${endLine}
+  `;
+
+  const { error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: params.email,
+    subject: `Favoritindəki oyun endirimdədir — ${params.productTitle}`,
+    html: subscriptionEmailShell({
+      greeting: `Salam ${params.userName},`,
+      heading: "Favoritin endirimdədir",
+      bodyHtml: body,
+      ctaHref: productUrl,
+      ctaLabel: "Oyuna bax",
+      accent: "emerald",
+    }),
+  });
+  if (error) {
+    throw new Error(`Resend favorite-on-sale email failed: ${error.message}`);
+  }
+}
+
 export async function sendGiftCardCodeEmail(params: {
   email: string;
   userName: string;

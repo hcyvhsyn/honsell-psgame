@@ -4,9 +4,13 @@ import "./globals.css";
 import { CartProvider } from "@/lib/cart";
 import { ModalProvider } from "@/lib/modals";
 import AppModals from "@/components/AppModals";
+import FavoritesBootstrap from "@/components/FavoritesBootstrap";
+import FavoriteIntroModal from "@/components/FavoriteIntroModal";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import CoffeeFloat from "@/components/CoffeeFloat";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -103,13 +107,18 @@ export default function RootLayout({
         </div>
 
         <ModalProvider>
-          <CartProvider>
-            {children}
-            <AppModals />
-            <WhatsAppFloat />
-            <CoffeeFloat />
-          </CartProvider>
+          <FavoritesBootstrap>
+            <CartProvider>
+              {children}
+              <AppModals />
+              <FavoriteIntroModal />
+              <WhatsAppFloat />
+              <CoffeeFloat />
+            </CartProvider>
+          </FavoritesBootstrap>
         </ModalProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

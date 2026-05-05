@@ -16,6 +16,7 @@ import {
   Image as ImageIcon,
   ClipboardList,
   HelpCircle,
+  LayoutGrid,
   Menu,
   X,
   ShieldCheck,
@@ -37,7 +38,8 @@ type IconName =
   | "UserPlus"
   | "ImageIcon"
   | "ClipboardList"
-  | "HelpCircle";
+  | "HelpCircle"
+  | "LayoutGrid";
 
 type NavItem = {
   href: string;
@@ -59,6 +61,7 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   ImageIcon,
   ClipboardList,
   HelpCircle,
+  LayoutGrid,
 };
 
 export default function AdminSidebar({

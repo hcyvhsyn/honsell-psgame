@@ -16,6 +16,7 @@ import {
   Star,
   Sparkles,
   ArrowRight,
+  LayoutGrid,
 } from "lucide-react";
 import FaqAccordion from "@/components/FaqAccordion";
 import PsPlusClient from "./ps-plus/PsPlusClient";
@@ -24,8 +25,7 @@ import HesabAcmaHomeCategoryCard from "@/components/HesabAcmaHomeCategoryCard";
 import ReviewWriteButton from "@/components/ReviewWriteButton";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 1800;
 
 const HOMEPAGE_LIMIT = 4;
 const DEFAULT_TYPE = "GAME";
@@ -40,6 +40,8 @@ export default async function HomePage() {
     psPlusProducts,
     giftCardProducts,
     accountCreationProduct,
+    featuredCollections,
+    faqs,
   ] = await Promise.all([
       getSettings(),
       prisma.game.findMany({
@@ -63,6 +65,28 @@ export default async function HomePage() {
       prisma.serviceProduct.findFirst({
         where: { isActive: true, type: "ACCOUNT_CREATION" },
       }),
+      prisma.collection
+        .findMany({
+          where: { isActive: true },
+          orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
+          take: 6,
+          include: {
+            _count: { select: { games: true } },
+            games: {
+              orderBy: { position: "asc" },
+              take: 1,
+              include: { game: { select: { imageUrl: true, heroImageUrl: true } } },
+            },
+          },
+        })
+        .catch(() => []),
+      prisma.faqItem
+        .findMany({
+          where: { isActive: true },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+          select: { id: true, question: true, answer: true },
+        })
+        .catch(() => [] as { id: string; question: string; answer: string }[]),
     ]);
 
   const totals: Record<string, number> = { GAME: 0, ADDON: 0, CURRENCY: 0, OTHER: 0 };
@@ -105,6 +129,18 @@ export default async function HomePage() {
     },
   };
 
+  const faqJsonLd = faqs.length > 0
+    ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: faqs.map((f) => ({
+          "@type": "Question",
+          name: f.question,
+          acceptedAnswer: { "@type": "Answer", text: f.answer },
+        })),
+      }
+    : null;
+
   const organizationJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -133,7 +169,17 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
       />
+      {faqJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+      )}
       <SiteHeaderServer />
+
+      <h1 className="sr-only">
+        Honsell PS Store — Azərbaycanda PlayStation oyunları, PS Plus, hədiyyə kartları və PSN hesab açma
+      </h1>
 
       <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
         <div className="relative overflow-hidden rounded-3xl border border-zinc-800/60">
@@ -148,11 +194,11 @@ export default async function HomePage() {
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-400" />
                   {totals.GAME.toLocaleString("az-AZ")} oyun · canlı kataloq
                 </span>
-                <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl">
+                <p className="text-3xl font-black tracking-tight text-white sm:text-5xl">
                   PlayStation oyunları
                   <br />
                   ən sərfəli qiymətlə
-                </h1>
+                </p>
               </div>
             </div>
           )}
@@ -163,8 +209,9 @@ export default async function HomePage() {
       <section className="py-16">
         <MarqueeHeader text="KATEQORİYALAR" />
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <FancyCategoryCard href="/oyunlar" icon={<Gamepad2 className="h-6 w-6 text-white" />} label="Oyunlar" sub={`${totals.GAME}+ məhsul`} />
+            <FancyCategoryCard href="/kolleksiyalar" icon={<LayoutGrid className="h-6 w-6 text-white" />} label="Kolleksiyalar" sub="Tematik oyun siyahıları" />
             <FancyCategoryCard href="/hediyye-kartlari" icon={<Gift className="h-6 w-6 text-white" />} label="Hədiyyə Kartları" sub="Anında e-pin kodlar" />
             <FancyCategoryCard href="/ps-plus" icon={<Crown className="h-6 w-6 text-white" />} label="PS Plus" sub="Essential · Extra · Deluxe" />
             <HesabAcmaHomeCategoryCard
@@ -190,8 +237,8 @@ export default async function HomePage() {
         <MarqueeHeader text="OYUNLAR" />
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
           <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {results.map((g) => (
-              <GameCard key={g.id} game={g} />
+            {results.map((g, i) => (
+              <GameCard key={g.id} game={g} priority={i < 4} />
             ))}
           </ul>
 
@@ -205,6 +252,58 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {featuredCollections.length > 0 && (
+        <section id="kolleksiyalar" className="py-16">
+          <MarqueeHeader text="KOLLEKSIYALAR" />
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {featuredCollections.map((c) => {
+                const cover =
+                  c.imageUrl ??
+                  c.games[0]?.game.heroImageUrl ??
+                  c.games[0]?.game.imageUrl ??
+                  null;
+                return (
+                  <Link
+                    key={c.id}
+                    href={`/kolleksiya/${c.slug}`}
+                    className="group relative aspect-[5/3] overflow-hidden rounded-3xl border border-white/10 bg-zinc-900 transition hover:-translate-y-1 hover:border-indigo-500/40"
+                  >
+                    {cover ? (
+                      <Image
+                        src={cover}
+                        alt={c.title}
+                        fill
+                        sizes="(max-width: 1024px) 100vw, 33vw"
+                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-fuchsia-700/20" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-6">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300">Kolleksiya</p>
+                      <h3 className="mt-1 text-xl font-black text-white sm:text-2xl">{c.title}</h3>
+                      <p className="mt-1 text-sm text-zinc-300">{c._count.games} oyun</p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div className="mt-8 flex justify-center">
+              <Link
+                href="/kolleksiyalar"
+                className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 hover:border-white/20"
+              >
+                Bütün kolleksiyalar <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section id="ps-plus" className="py-16">
         <MarqueeHeader text="PS PLUS" />
@@ -361,7 +460,7 @@ export default async function HomePage() {
       <section className="py-16">
         <MarqueeHeader text="TEZ VERİLƏN SUALLAR" />
         <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-          <FaqAccordion />
+          <FaqAccordion items={faqs} />
         </div>
       </section>
 
@@ -373,11 +472,60 @@ export default async function HomePage() {
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between border-b border-white/5 pb-10">
             <p className="text-3xl font-black tracking-tight text-white">HONSELL</p>
             <nav className="flex flex-wrap items-center gap-6 text-sm text-zinc-300">
-              <Link href="/#kateqoriya" className="hover:text-white transition">Kateqoriya</Link>
-              <Link href="/#niye-biz" className="hover:text-white transition">Niyə biz?</Link>
-              <Link href="/#mehsullar" className="hover:text-white transition">Məhsullar</Link>
+              <Link href="/oyunlar" className="hover:text-white transition">PlayStation Oyunları</Link>
+              <Link href="/ps-plus" className="hover:text-white transition">PS Plus Üzvlüyü</Link>
+              <Link href="/hediyye-kartlari" className="hover:text-white transition">Hədiyyə Kartları</Link>
+              <Link href="/hesab-acma" className="hover:text-white transition">PSN Hesab Açma</Link>
+              <Link href="/bilmeli-olduglarin" className="hover:text-white transition">Bələdçilər</Link>
               <Link href="/#reyler" className="hover:text-white transition">Rəylər</Link>
             </nav>
+          </div>
+
+          {/* SEO link block — categories and popular searches */}
+          <div className="mt-10 grid gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 text-sm">
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Kateqoriyalar</p>
+              <ul className="space-y-2 text-zinc-300">
+                <li><Link href="/oyunlar" className="hover:text-white transition">PS5 oyunları</Link></li>
+                <li><Link href="/oyunlar" className="hover:text-white transition">PS4 oyunları</Link></li>
+                <li><Link href="/endirimler" className="hover:text-white transition">Endirimli oyunlar</Link></li>
+                <li><Link href="/oyunlar" className="hover:text-white transition">Yeni çıxan oyunlar</Link></li>
+              </ul>
+            </div>
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Xidmətlər</p>
+              <ul className="space-y-2 text-zinc-300">
+                <li><Link href="/ps-plus" className="hover:text-white transition">PS Plus Essential</Link></li>
+                <li><Link href="/ps-plus" className="hover:text-white transition">PS Plus Extra</Link></li>
+                <li><Link href="/ps-plus" className="hover:text-white transition">PS Plus Deluxe</Link></li>
+                <li><Link href="/hesab-acma" className="hover:text-white transition">Türkiyə PSN hesabı</Link></li>
+              </ul>
+            </div>
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Hədiyyə Kartları</p>
+              <ul className="space-y-2 text-zinc-300">
+                <li><Link href="/hediyye-kartlari" className="hover:text-white transition">TRY Wallet kartları</Link></li>
+                <li><Link href="/hediyye-kartlari" className="hover:text-white transition">PSN top-up</Link></li>
+                <li><Link href="/hediyye-kartlari" className="hover:text-white transition">PlayStation gift card</Link></li>
+              </ul>
+            </div>
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Bələdçilər</p>
+              <ul className="space-y-2 text-zinc-300">
+                <li><Link href="/bilmeli-olduglarin/ps-plus-essential-extra-deluxe-muqayisesi" className="hover:text-white transition">PS Plus müqayisəsi</Link></li>
+                <li><Link href="/bilmeli-olduglarin/azerbaycanda-ps-store-oyunu-nece-alinir" className="hover:text-white transition">PS Store oyunu necə alınır</Link></li>
+                <li><Link href="/bilmeli-olduglarin" className="hover:text-white transition">Bütün bələdçilər</Link></li>
+              </ul>
+            </div>
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Şirkət</p>
+              <ul className="space-y-2 text-zinc-300">
+                <li><Link href="/#reyler" className="hover:text-white transition">Müştəri rəyləri</Link></li>
+                <li><Link href="/#niye-biz" className="hover:text-white transition">Niyə biz?</Link></li>
+                <li><Link href="/profile" className="hover:text-white transition">Hesabım</Link></li>
+                <li><Link href="/cart" className="hover:text-white transition">Səbətim</Link></li>
+              </ul>
+            </div>
           </div>
 
           {/* Bottom row: Contact and Socials */}

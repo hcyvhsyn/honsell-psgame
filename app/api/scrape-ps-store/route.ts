@@ -1,6 +1,9 @@
 import * as cheerio from "cheerio";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { revalidateGames } from "@/lib/revalidate";
+import { sendFavoriteOnSaleEmail } from "@/lib/resend";
+import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -525,6 +528,27 @@ export async function GET(req: Request) {
           );
         }
 
+        // Snapshot pre-upsert discount state so we can detect "newly on sale"
+        // transitions and email favoriters once the upsert lands. Map keyed by
+        // productId — value is the previous discountTryCents (null = not on sale).
+        const productIds = [...merged.keys()];
+        const prevDiscountByProductId = new Map<string, number | null>();
+        let snapshotOk = false;
+        try {
+          const existing = await prisma.game.findMany({
+            where: { productId: { in: productIds } },
+            select: { productId: true, discountTryCents: true },
+          });
+          for (const row of existing) {
+            prevDiscountByProductId.set(row.productId, row.discountTryCents);
+          }
+          snapshotOk = true;
+        } catch (e) {
+          // Skip favorite notifications when we can't tell what changed —
+          // otherwise the next scrape would email everyone for every active sale.
+          console.error("scrape-ps-store: pre-upsert snapshot failed", e);
+        }
+
         // Phase 3: upsert. Chunked Promise.allSettled — pipelines multiple
         // round-trips against Supabase at once (sequential awaits made this
         // phase the bottleneck) and a single bad row no longer stalls the run.
@@ -590,6 +614,130 @@ export async function GET(req: Request) {
           emit({ type: "upsertProgress", done: upserts, total, failures: upsertFailures });
         }
 
+        // Phase 4: favorite-on-sale email notifications.
+        // Collect productIds that transitioned from no-discount → discount in
+        // this scrape run (a fresh sale). Skip entirely if we couldn't take a
+        // pre-upsert snapshot — otherwise we'd email everyone for every
+        // already-active sale.
+        const newlyDiscounted = snapshotOk
+          ? all.filter((g) => {
+              if (g.discountTryCents == null) return false;
+              const prev = prevDiscountByProductId.get(g.productId);
+              // prev === null   → existed but had no discount → now on sale
+              // prev undefined  → brand-new productId → no favoriters yet, but
+              //                   still classified as new for consistency
+              return prev == null;
+            })
+          : [];
+
+        if (newlyDiscounted.length > 0) {
+          emit({ type: "favoriteNotifyStart", total: newlyDiscounted.length });
+          let notified = 0;
+          let failed = 0;
+
+          let settings: Awaited<ReturnType<typeof getSettings>> | null = null;
+          try {
+            settings = await getSettings();
+          } catch (e) {
+            console.error("scrape-ps-store: getSettings failed", e);
+          }
+
+          if (settings) {
+            // Pull the just-upserted Game rows so we have their internal `id`s
+            // (Favorite is keyed on Game.id, not productId) and the discount
+            // window timestamp.
+            const dbGames = await prisma.game.findMany({
+              where: {
+                productId: { in: newlyDiscounted.map((g) => g.productId) },
+              },
+              select: {
+                id: true,
+                productId: true,
+                title: true,
+                imageUrl: true,
+                priceTryCents: true,
+                discountTryCents: true,
+                discountEndAt: true,
+              },
+            });
+
+            for (const game of dbGames) {
+              try {
+                if (game.discountTryCents == null) continue;
+
+                const favRows = await prisma.favorite.findMany({
+                  where: { gameId: game.id },
+                  select: {
+                    userId: true,
+                    user: {
+                      select: { id: true, email: true, name: true },
+                    },
+                  },
+                });
+                if (favRows.length === 0) continue;
+
+                const display = computeDisplayPrice(game, settings);
+                // Use discountEndAt if available, otherwise the run's start
+                // time, as the dedup key — a future sale on the same SKU will
+                // have a different end date and re-notify.
+                const discountStartedAt = game.discountEndAt ?? new Date();
+
+                for (const f of favRows) {
+                  if (!f.user?.email) continue;
+                  try {
+                    // Dedup row blocks duplicate emails for the same sale window.
+                    await prisma.favoriteNotification.create({
+                      data: {
+                        userId: f.userId,
+                        gameId: game.id,
+                        discountStartedAt,
+                      },
+                    });
+                  } catch {
+                    // Unique constraint hit → already notified for this sale.
+                    continue;
+                  }
+
+                  try {
+                    await sendFavoriteOnSaleEmail({
+                      email: f.user.email,
+                      userName:
+                        f.user.name?.split(" ")[0] ??
+                        f.user.email.split("@")[0],
+                      productTitle: game.title,
+                      productId: game.productId,
+                      finalAzn: display.finalAzn,
+                      originalAzn: display.originalAzn,
+                      discountPct: display.discountPct,
+                      discountEndAt: game.discountEndAt,
+                      imageUrl: game.imageUrl,
+                    });
+                    notified++;
+                  } catch (e) {
+                    failed++;
+                    console.error(
+                      "scrape-ps-store: favorite email send failed",
+                      e
+                    );
+                  }
+                }
+              } catch (e) {
+                console.error(
+                  "scrape-ps-store: favorite notify per-game failed",
+                  e
+                );
+              }
+            }
+          }
+
+          emit({
+            type: "favoriteNotifyDone",
+            notified,
+            failed,
+            games: newlyDiscounted.length,
+          });
+        }
+
         await prisma.scrapeRun.update({
           where: { id: run.id },
           data: {
@@ -599,6 +747,12 @@ export async function GET(req: Request) {
             upsertedCount: upserts,
           },
         });
+
+        try {
+          revalidateGames();
+        } catch (e) {
+          console.error("scrape-ps-store: revalidate failed", e);
+        }
 
         emit({ type: "done", scraped: total, upserts });
       } catch (err) {

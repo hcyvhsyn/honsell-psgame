@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { getSettings, tryCentsToAznWithMargin } from "@/lib/pricing";
+import { revalidateServices } from "@/lib/revalidate";
 
 export const runtime = "nodejs";
 
@@ -100,13 +101,11 @@ export async function POST(req: Request) {
         sortOrder: Number(sortOrder || 0),
       };
 
-      if (id) {
-        const p = await prisma.serviceProduct.update({ where: { id }, data: payload });
-        return NextResponse.json(p);
-      } else {
-        const p = await prisma.serviceProduct.create({ data: payload });
-        return NextResponse.json(p);
-      }
+      const p = id
+        ? await prisma.serviceProduct.update({ where: { id }, data: payload })
+        : await prisma.serviceProduct.create({ data: payload });
+      revalidateServices();
+      return NextResponse.json(p);
     }
 
     if (action === "DELETE_CODE") {
@@ -133,6 +132,7 @@ export async function POST(req: Request) {
         prisma.serviceCode.deleteMany({ where: { serviceProductId: id } }),
         prisma.serviceProduct.delete({ where: { id } }),
       ]);
+      revalidateServices();
       return NextResponse.json({ ok: true });
     }
 

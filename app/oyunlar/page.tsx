@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import GameBrowser from "@/components/GameBrowser";
@@ -5,10 +7,49 @@ import SiteHeaderServer from "@/components/SiteHeaderServer";
 import type { GameCardData } from "@/components/GameCard";
 import { Gamepad2 } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
+
+export const metadata: Metadata = {
+  title: "PlayStation Oyunları — PS4 və PS5 Oyun Kataloqu",
+  description:
+    "Azərbaycanda PlayStation oyunlarının ən böyük kataloqu. PS4, PS5, endirimli oyunlar, ən yeni çıxışlar — anında çatdırılma və etibarlı ödəniş.",
+  alternates: { canonical: "/oyunlar" },
+  openGraph: {
+    title: "PlayStation Oyunları — PS4 və PS5 Oyun Kataloqu | Honsell PS Store",
+    description:
+      "Azərbaycanda PlayStation oyunlarının ən böyük kataloqu. Endirimli oyunlar, ən yeni çıxışlar — anında çatdırılma.",
+    url: "/oyunlar",
+  },
+};
 
 const PAGE_SIZE = 24;
 const TYPE = "GAME";
+
+const getOyunlarPageData = unstable_cache(
+  async (page: number) => {
+    const offset = (page - 1) * PAGE_SIZE;
+    const [games, typeAllCount, typeOnSaleCount, totalsArr] = await Promise.all([
+      prisma.game.findMany({
+        where: { isActive: true, productType: TYPE },
+        orderBy: { lastScrapedAt: "desc" },
+        take: PAGE_SIZE,
+        skip: offset,
+      }),
+      prisma.game.count({ where: { isActive: true, productType: TYPE } }),
+      prisma.game.count({
+        where: { isActive: true, productType: TYPE, discountTryCents: { not: null } },
+      }),
+      prisma.game.groupBy({
+        by: ["productType"],
+        where: { isActive: true },
+        _count: { _all: true },
+      }),
+    ]);
+    return { games, typeAllCount, typeOnSaleCount, totalsArr };
+  },
+  ["oyunlar-page"],
+  { revalidate: 600, tags: ["games"] }
+);
 
 export default async function OyunlarPage({
   searchParams,
@@ -18,25 +59,10 @@ export default async function OyunlarPage({
   const sp = (await searchParams) ?? {};
   const pageRaw = Array.isArray(sp.page) ? sp.page[0] : sp.page;
   const page = Math.max(1, Number(pageRaw) || 1);
-  const offset = (page - 1) * PAGE_SIZE;
 
-  const [settings, games, typeAllCount, typeOnSaleCount, totalsArr] = await Promise.all([
+  const [settings, { games, typeAllCount, typeOnSaleCount, totalsArr }] = await Promise.all([
     getSettings(),
-    prisma.game.findMany({
-      where: { isActive: true, productType: TYPE },
-      orderBy: { lastScrapedAt: "desc" },
-      take: PAGE_SIZE,
-      skip: offset,
-    }),
-    prisma.game.count({ where: { isActive: true, productType: TYPE } }),
-    prisma.game.count({
-      where: { isActive: true, productType: TYPE, discountTryCents: { not: null } },
-    }),
-    prisma.game.groupBy({
-      by: ["productType"],
-      where: { isActive: true },
-      _count: { _all: true },
-    }),
+    getOyunlarPageData(page),
   ]);
 
   const totals: Record<string, number> = { GAME: 0, ADDON: 0, CURRENCY: 0, OTHER: 0 };

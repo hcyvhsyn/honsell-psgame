@@ -4,15 +4,24 @@ import { useState } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
 
-export default function ScreenshotGallery({ screenshots }: { screenshots: string[] }) {
+export default function ScreenshotGallery({
+  screenshots,
+  gameTitle,
+}: {
+  screenshots: string[];
+  gameTitle?: string;
+}) {
   const [active, setActive] = useState<string | null>(null);
 
   if (screenshots.length === 0) return null;
 
+  const altFor = (i: number) =>
+    gameTitle ? `${gameTitle} oyununun ekran görüntüsü ${i + 1}` : `Oyun ekran görüntüsü ${i + 1}`;
+
   return (
     <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {screenshots.map((url) => (
+        {screenshots.map((url, i) => (
           <button
             key={url}
             type="button"
@@ -21,7 +30,7 @@ export default function ScreenshotGallery({ screenshots }: { screenshots: string
           >
             <Image
               src={url}
-              alt=""
+              alt={altFor(i)}
               fill
               sizes="(max-width: 640px) 50vw, 33vw"
               className="object-cover transition-transform duration-300 group-hover:scale-105"
@@ -48,7 +57,14 @@ export default function ScreenshotGallery({ screenshots }: { screenshots: string
             className="relative aspect-video w-full max-w-5xl overflow-hidden rounded-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <Image src={active} alt="" fill sizes="100vw" className="object-contain" unoptimized />
+            <Image
+              src={active}
+              alt={gameTitle ? `${gameTitle} oyununun böyüdülmüş ekran görüntüsü` : "Oyun ekran görüntüsü"}
+              fill
+              sizes="100vw"
+              className="object-contain"
+              unoptimized
+            />
           </div>
         </div>
       )}

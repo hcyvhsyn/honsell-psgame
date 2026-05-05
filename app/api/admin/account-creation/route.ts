@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { revalidateServices } from "@/lib/revalidate";
 
 export const runtime = "nodejs";
 
@@ -60,19 +61,17 @@ export async function POST(req: Request) {
         metadata: {},
       };
 
+      let p;
       if (id) {
-        const p = await prisma.serviceProduct.update({ where: { id }, data: payload });
-        return NextResponse.json(p);
+        p = await prisma.serviceProduct.update({ where: { id }, data: payload });
       } else {
-        // Check if one already exists
         const existing = await prisma.serviceProduct.findFirst({ where: { type: "ACCOUNT_CREATION" } });
-        if (existing) {
-          const p = await prisma.serviceProduct.update({ where: { id: existing.id }, data: payload });
-          return NextResponse.json(p);
-        }
-        const p = await prisma.serviceProduct.create({ data: payload });
-        return NextResponse.json(p);
+        p = existing
+          ? await prisma.serviceProduct.update({ where: { id: existing.id }, data: payload })
+          : await prisma.serviceProduct.create({ data: payload });
       }
+      revalidateServices();
+      return NextResponse.json(p);
     }
 
     return NextResponse.json({ error: "Bilinməyən action" }, { status: 400 });

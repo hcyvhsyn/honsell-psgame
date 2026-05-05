@@ -401,8 +401,8 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
             }`}
             aria-busy={loading}
           >
-            {data.results.map((g) => (
-              <GameCard key={g.id} game={g} />
+            {data.results.map((g, i) => (
+              <GameCard key={g.id} game={g} priority={i < 4} />
             ))}
           </ul>
         )}

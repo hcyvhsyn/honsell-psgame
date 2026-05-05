@@ -1,9 +1,23 @@
+import type { Metadata } from "next";
 import { UserPlus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import HesabAcmaPageClient from "./HesabAcmaPageClient";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  title: "Türkiyə PSN Hesabı Açma — PlayStation Network",
+  description:
+    "Türkiyə PSN hesabınızı peşəkarlarımız sizin üçün açsın. Tam doğrulanmış hesab, etibarlı proses, qısa müddətdə təhvil.",
+  alternates: { canonical: "/hesab-acma" },
+  openGraph: {
+    title: "Türkiyə PSN Hesabı Açma Xidməti | Honsell PS Store",
+    description:
+      "Tam doğrulanmış Türkiyə PlayStation Network hesabı — peşəkarlarımız sizin üçün açır.",
+    url: "/hesab-acma",
+  },
+};
 
 export default async function HesabAcmaPage() {
   const service = await prisma.serviceProduct.findFirst({

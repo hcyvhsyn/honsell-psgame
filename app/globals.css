@@ -48,3 +48,191 @@ body {
     animation: none;
   }
 }
+
+/* Guide / article prose styling — applied to markdown-rendered HTML */
+.guide-prose {
+  color: rgb(212 212 216); /* zinc-300 */
+  font-size: 1rem;
+  line-height: 1.75;
+}
+.guide-prose > * + * { margin-top: 1.25em; }
+.guide-prose h2 {
+  color: white;
+  font-size: 1.625rem;
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-top: 2.5em;
+  margin-bottom: 0.75em;
+}
+.guide-prose h3 {
+  color: white;
+  font-size: 1.25rem;
+  line-height: 1.3;
+  font-weight: 700;
+  margin-top: 2em;
+  margin-bottom: 0.5em;
+}
+.guide-prose p { color: rgb(212 212 216); }
+.guide-prose strong { color: white; font-weight: 600; }
+.guide-prose a {
+  color: rgb(165 180 252); /* indigo-300 */
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(99, 102, 241, 0.5);
+  transition: color 0.15s;
+}
+.guide-prose a:hover { color: rgb(199 210 254); }
+.guide-prose ul, .guide-prose ol { padding-left: 1.5em; }
+.guide-prose ul { list-style-type: disc; }
+.guide-prose ol { list-style-type: decimal; }
+.guide-prose li { margin-top: 0.5em; }
+.guide-prose li::marker { color: rgb(99 102 241); }
+.guide-prose blockquote {
+  border-left: 3px solid rgb(99 102 241);
+  padding: 0.5em 1.25em;
+  background: rgba(99, 102, 241, 0.08);
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: rgb(228 228 231);
+  font-style: normal;
+}
+.guide-prose blockquote p:first-child { margin-top: 0; }
+.guide-prose blockquote p:last-child { margin-bottom: 0; }
+.guide-prose code {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgb(252 165 165); /* rose-300 */
+  padding: 0.15em 0.4em;
+  border-radius: 0.3rem;
+  font-size: 0.875em;
+}
+.guide-prose pre {
+  background: rgb(24 24 27); /* zinc-900 */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem;
+  border-radius: 0.75rem;
+  overflow-x: auto;
+}
+.guide-prose pre code { background: transparent; color: inherit; padding: 0; }
+.guide-prose hr {
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 3em 0;
+}
+.guide-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.guide-prose th, .guide-prose td {
+  padding: 0.625em 0.875em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+}
+.guide-prose thead { background: rgba(99, 102, 241, 0.1); }
+.guide-prose th { color: white; font-weight: 600; }
+.guide-prose tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
+.guide-prose tbody tr:last-child td { border-bottom: 0; }
+
+/* Colored check / cross markers in tables */
+.guide-prose .check-yes {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.15);
+  color: rgb(52, 211, 153);
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.guide-prose .check-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: rgba(239, 68, 68, 0.12);
+  color: rgb(248, 113, 113);
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.guide-prose .guide-feature-table td:not(:first-child),
+.guide-prose .guide-feature-table th:not(:first-child) {
+  text-align: center;
+  width: 18%;
+}
+
+/* Dynamic price grid (PS Plus guide) */
+.guide-price-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.guide-price-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(24, 24, 27, 0.6);
+  border-radius: 1rem;
+  padding: 1.25rem;
+}
+.guide-price-card-tier {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(165, 180, 252);
+}
+.guide-price-card-name {
+  margin-top: 0.25rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: white;
+}
+.guide-price-card-rows {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.guide-price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+.guide-price-row-label {
+  font-size: 0.8rem;
+  color: rgb(161, 161, 170);
+}
+.guide-price-row-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  font-variant-numeric: tabular-nums;
+}
+.guide-price-row.featured {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+.guide-price-row.featured .guide-price-row-value {
+  color: rgb(199, 210, 254);
+}
+.guide-price-empty {
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgb(113, 113, 122);
+  padding: 1.5rem;
+  border-radius: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+}

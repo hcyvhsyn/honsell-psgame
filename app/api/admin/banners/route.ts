@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { revalidateBanners } from "@/lib/revalidate";
 
 export const runtime = "nodejs";
 
@@ -47,19 +48,18 @@ export async function POST(req: Request) {
         sortOrder: Number(sortOrder || 0),
       };
 
-      if (id) {
-        const b = await prisma.banner.update({ where: { id }, data: payload });
-        return NextResponse.json(b);
-      } else {
-        const b = await prisma.banner.create({ data: payload });
-        return NextResponse.json(b);
-      }
+      const b = id
+        ? await prisma.banner.update({ where: { id }, data: payload })
+        : await prisma.banner.create({ data: payload });
+      revalidateBanners();
+      return NextResponse.json(b);
     }
 
     if (action === "DELETE") {
       const { id } = body;
       if (!id) return NextResponse.json({ error: "id tələb olunur" }, { status: 400 });
       await prisma.banner.delete({ where: { id } });
+      revalidateBanners();
       return NextResponse.json({ ok: true });
     }
 
@@ -71,6 +71,7 @@ export async function POST(req: Request) {
           prisma.banner.update({ where: { id: String(id) }, data: { sortOrder: index } })
         )
       );
+      revalidateBanners();
       return NextResponse.json({ ok: true });
     }
 

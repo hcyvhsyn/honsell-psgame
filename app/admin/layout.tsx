@@ -14,6 +14,7 @@ const NAV = [
   { href: "/admin/games", label: "Games", iconName: "Gamepad2" as const },
   { href: "/admin/orders", label: "Sifarişlər (hamısı)", iconName: "Receipt" as const, badgeKey: "pendingAllOrders" as const },
   { href: "/admin/banners", label: "Bannerlər", iconName: "ImageIcon" as const },
+  { href: "/admin/collections", label: "Kolleksiyalar", iconName: "LayoutGrid" as const },
   { href: "/admin/faq", label: "FAQ", iconName: "HelpCircle" as const },
   { href: "/admin/services", label: "Gift Cardlar", iconName: "Gift" as const },
   { href: "/admin/ps-plus", label: "PS Plus", iconName: "Crown" as const },

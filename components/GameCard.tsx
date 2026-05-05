@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Gamepad2, Plus, Trash2 } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import FavoriteButton from "./FavoriteButton";
 
 export type GameCardData = {
   id: string;
@@ -27,15 +28,16 @@ function pad(n: number) {
 }
 
 function useCountdown(iso: string | null) {
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     if (!iso) return;
+    setNow(Date.now());
     const tick = () => setNow(Date.now());
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
   }, [iso]);
 
-  if (!iso) return null;
+  if (!iso || now === null) return null;
   const end = new Date(iso).getTime();
   if (Number.isNaN(end)) return null;
   const diff = end - now;
@@ -52,7 +54,7 @@ function useCountdown(iso: string | null) {
   return { expired: false, text };
 }
 
-export default function GameCard({ game }: { game: GameCardData }) {
+export default function GameCard({ game, priority = false }: { game: GameCardData; priority?: boolean }) {
   const { add, remove, has, hydrated } = useCart();
   const inCart = hydrated && has(game.id);
   const countdown = useCountdown(game.discountEndAt);
@@ -70,6 +72,7 @@ export default function GameCard({ game }: { game: GameCardData }) {
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
           className="object-cover transition-transform duration-700 group-hover:scale-105"
           unoptimized
+          priority={priority}
         />
       ) : (
         <div className="flex h-full items-center justify-center text-zinc-600 bg-gradient-to-br from-zinc-900 to-zinc-800">
@@ -77,6 +80,8 @@ export default function GameCard({ game }: { game: GameCardData }) {
         </div>
       )}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+
+      <FavoriteButton gameId={game.id} variant="card" />
 
       {platforms.length > 0 && (
         <div className="absolute bottom-3 left-3 flex items-center gap-1.5">

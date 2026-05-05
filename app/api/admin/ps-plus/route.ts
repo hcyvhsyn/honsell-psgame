@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { revalidateServices } from "@/lib/revalidate";
 
 export const runtime = "nodejs";
 
@@ -89,13 +90,11 @@ export async function POST(req: Request) {
         },
       };
 
-      if (id) {
-        const p = await prisma.serviceProduct.update({ where: { id }, data: payload });
-        return NextResponse.json(p);
-      } else {
-        const p = await prisma.serviceProduct.create({ data: payload });
-        return NextResponse.json(p);
-      }
+      const p = id
+        ? await prisma.serviceProduct.update({ where: { id }, data: payload })
+        : await prisma.serviceProduct.create({ data: payload });
+      revalidateServices();
+      return NextResponse.json(p);
     }
 
     if (action === "SET_TIER_ASSETS") {
@@ -135,6 +134,7 @@ export async function POST(req: Request) {
         data: { imageUrl, description: description || null },
       });
 
+      revalidateServices();
       return NextResponse.json({ ok: true, updated: ids.length });
     }
 
@@ -142,6 +142,7 @@ export async function POST(req: Request) {
       const { id } = body;
       if (!id) return NextResponse.json({ error: "id tələb olunur" }, { status: 400 });
       await prisma.serviceProduct.delete({ where: { id } });
+      revalidateServices();
       return NextResponse.json({ ok: true });
     }
 

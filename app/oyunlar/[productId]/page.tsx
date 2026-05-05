@@ -8,10 +8,11 @@ import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import GameCard, { type GameCardData } from "@/components/GameCard";
 import AddToCartButton from "./AddToCartButton";
+import FavoriteButton from "@/components/FavoriteButton";
 import ScreenshotGallery from "./ScreenshotGallery";
 import { SITE_URL, SITE_NAME } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 const PRODUCT_TYPE_LABEL: Record<string, string> = {
   GAME: "Oyun",
@@ -185,7 +186,7 @@ export default async function GameDetailPage({
           <div className="absolute inset-0 -z-10 overflow-hidden">
             <Image
               src={heroImage}
-              alt=""
+              alt={`${game.title} — ${platforms.join("/") || "PlayStation"} oyununun arxa fonu`}
               fill
               priority
               sizes="100vw"
@@ -281,6 +282,10 @@ export default async function GameDetailPage({
                 />
               </div>
 
+              <div className="mt-3">
+                <FavoriteButton gameId={game.id} variant="detail" />
+              </div>
+
               {game.productUrl && (
                 <a
                   href={game.productUrl}
@@ -320,7 +325,7 @@ export default async function GameDetailPage({
           <h2 className="mb-4 text-lg font-semibold text-zinc-200">
             Ekran görüntüləri
           </h2>
-          <ScreenshotGallery screenshots={screenshots} />
+          <ScreenshotGallery screenshots={screenshots} gameTitle={game.title} />
         </section>
       )}
 

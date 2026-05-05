@@ -2,42 +2,28 @@
 
 import { useState } from "react";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { useEffect } from "react";
 
 type Faq = { id: string; question: string; answer: string };
 
-export default function FaqAccordion() {
+export default function FaqAccordion({ items }: { items: Faq[] }) {
   const [open, setOpen] = useState<number | null>(null);
-  const [faqs, setFaqs] = useState<Faq[] | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/faq", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d: { faqs?: Faq[] }) => {
-        if (cancelled) return;
-        setFaqs(Array.isArray(d.faqs) ? d.faqs : []);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setFaqs([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  if (!items || items.length === 0) return null;
 
-  if (faqs && faqs.length === 0) return null;
-  
   return (
     <div className="flex flex-col">
-      {(faqs ?? []).map((f, i) => (
-        <div key={i} className="border-b border-white/10 last:border-0">
+      {items.map((f, i) => (
+        <div key={f.id} className="border-b border-white/10 last:border-0">
           <button
             onClick={() => setOpen(open === i ? null : i)}
-            className="group flex w-full items-center justify-between py-6 text-left transition-colors"
+            className="group flex w-full items-center justify-between gap-4 py-6 text-left transition-colors"
+            aria-expanded={open === i}
           >
-            <span className={`text-xl font-medium sm:text-2xl ${open === i ? "text-white" : "text-zinc-100 group-hover:text-white"}`}>
+            <span
+              className={`text-xl font-medium sm:text-2xl ${
+                open === i ? "text-white" : "text-zinc-100 group-hover:text-white"
+              }`}
+            >
               {f.question}
             </span>
             {open === i ? (

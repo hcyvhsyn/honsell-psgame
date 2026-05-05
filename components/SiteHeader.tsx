@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { User, Menu, X, LogIn, ChevronDown, Wallet, UserPlus } from "lucide-react";
 import CartIndicator from "./CartIndicator";
+import FavoriteIndicator from "./FavoriteIndicator";
 import Logo from "./Logo";
 import { useModals } from "@/lib/modals";
 
@@ -39,10 +40,12 @@ export default function SiteHeader({
             
             {/* Desktop Center Links */}
             <nav className="hidden md:flex items-center gap-6 text-sm text-zinc-300">
-              <Link href="/#kateqoriya" className="hover:text-white transition">Kateqoriya</Link>
-              <Link href="/#niye-biz" className="hover:text-white transition">Niyə biz?</Link>
-              <Link href="/#mehsullar" className="hover:text-white transition">Məhsullar</Link>
-              <Link href="/#reyler" className="hover:text-white transition">Rəylər</Link>
+              <Link href="/oyunlar" className="hover:text-white transition">Oyunlar</Link>
+              <Link href="/kolleksiyalar" className="hover:text-white transition">Kolleksiyalar</Link>
+              <Link href="/endirimler" className="text-rose-300 hover:text-rose-200 transition">Endirimlər</Link>
+              <Link href="/ps-plus" className="hover:text-white transition">PS Plus</Link>
+              <Link href="/hediyye-kartlari" className="hover:text-white transition">Hədiyyə Kartları</Link>
+              <Link href="/bilmeli-olduglarin" className="hover:text-white transition">Bələdçilər</Link>
             </nav>
           </div>
 
@@ -55,6 +58,7 @@ export default function SiteHeader({
               Aze <ChevronDown className="h-3.5 w-3.5 opacity-70" />
             </button>
 
+            <FavoriteIndicator />
             <CartIndicator />
 
             {user ? (

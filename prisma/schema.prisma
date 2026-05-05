@@ -51,6 +51,8 @@ model User {
 
   subscriptions  Subscription[]
 
+  favorites      Favorite[]
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
@@ -118,6 +120,8 @@ model Game {
 
   transactions    Transaction[]
   banners         Banner[]
+  collections     CollectionGame[]
+  favorites       Favorite[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -126,6 +130,40 @@ model Game {
   @@index([productType])
   @@index([title])
   @@index([isFeatured])
+}
+
+// ─── Collections (curated game lists) ─────────────────────────────────────────
+
+model Collection {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String?
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  games       CollectionGame[]
+
+  @@index([isActive, sortOrder])
+  @@index([isFeatured])
+}
+
+model CollectionGame {
+  collectionId String
+  gameId       String
+  position     Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  game         Game       @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, gameId])
+  @@index([collectionId, position])
+  @@index([gameId])
 }
 
 // ─── Service Products (TRY Balans, PS Plus, Account Creation) ────────────────
@@ -360,6 +398,40 @@ model Settings {
   depositCardHolder  String?
 
   updatedAt          DateTime @updatedAt
+}
+
+// ─── Favorites (wishlist + sale notifications) ───────────────────────────────
+
+model Favorite {
+  userId    String
+  gameId    String
+  createdAt DateTime @default(now())
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game      Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  // One row per (user, game). Toggle by upsert/delete.
+  @@id([userId, gameId])
+  @@index([gameId])
+  @@index([userId, createdAt])
+}
+
+// Dedup table — one row per sale-notification email sent.
+// Keyed by (userId, gameId, discountStartedAt) where discountStartedAt is the
+// timestamp at which the favorited game first transitioned from no-discount to
+// discount during a scrape run. Prevents re-sending if a later scrape run sees
+// the same active sale window.
+model FavoriteNotification {
+  id                 String   @id @default(cuid())
+  userId             String
+  gameId             String
+  // Snapshot of the discount start date so a future *new* sale (separate from
+  // the one we already notified for) creates a fresh row.
+  discountStartedAt  DateTime
+  sentAt             DateTime @default(now())
+
+  @@unique([userId, gameId, discountStartedAt])
+  @@index([gameId])
 }
 
 // ─── FAQ (homepage "Tez-tez verilən suallar") ─────────────────────────────────
