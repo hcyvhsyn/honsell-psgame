@@ -16,11 +16,16 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { getLoyaltyTier } from "@/lib/loyalty";
 import ReferralCodeCopy from "@/components/ReferralCodeCopy";
+import ReferralShareButtons from "@/components/ReferralShareButtons";
+import {
+  REFERRAL_TIERS,
+  countSuccessfulReferrals,
+  describeReferralProgress,
+} from "@/lib/referralTiers";
 import { GAME_STAGE_LABEL_AZ, parseGameOrderMeta } from "@/lib/gameOrderFulfillment";
 
 export const dynamic = "force-dynamic";
 
-const NEXT_REFERRAL_MILESTONE = 10;
 const NEXT_PSN_TARGET = 3;
 
 export default async function ProfileOverviewPage() {
@@ -128,10 +133,11 @@ export default async function ProfileOverviewPage() {
   const commissionAzn = commissionCents / 100;
   const totalSpentAzn = totalSpentCents / 100;
   const loyalty = getLoyaltyTier(totalSpentAzn);
-  const refereePct = Math.min(
-    100,
-    Math.round((refereeCount / NEXT_REFERRAL_MILESTONE) * 100)
-  );
+
+  // Tier progress (5/10/25 uğurlu dəvət)
+  const successfulReferrals = await countSuccessfulReferrals(prisma, user.id).catch(() => 0);
+  const tierState = describeReferralProgress(successfulReferrals);
+
   const psnPct = Math.min(
     100,
     Math.round((accountCount / NEXT_PSN_TARGET) * 100)
@@ -209,53 +215,124 @@ export default async function ProfileOverviewPage() {
         </div>
       </section>
 
-      {/* ───── Referral hero ───── */}
-      <section className="relative overflow-hidden rounded-[24px] border border-white/5 bg-[#111116] p-5 sm:p-8 shadow-2xl">
-        <div className="absolute -right-10 top-0 h-56 w-56 rounded-full bg-fuchsia-500/20 blur-[80px]" />
+      {/* ───── Referral hero (ana qazanc kanalı) ───── */}
+      <section className="relative overflow-hidden rounded-[24px] border border-fuchsia-500/25 bg-gradient-to-br from-fuchsia-700/15 via-purple-700/10 to-[#111116] p-5 sm:p-8 shadow-2xl">
+        <div className="absolute -right-10 top-0 h-56 w-56 rounded-full bg-fuchsia-500/30 blur-[80px]" />
+        <div className="absolute -bottom-12 -left-10 h-48 w-48 rounded-full bg-purple-500/20 blur-[80px]" />
 
-        <div className="relative grid gap-8 sm:grid-cols-[1fr_auto] sm:items-center">
-          <div className="space-y-4">
-            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-fuchsia-400">
-              <Share2 className="h-4 w-4" /> Referal kodun
-            </p>
-            <div className="flex flex-wrap items-center gap-4">
-              <span className="max-w-full break-all rounded-xl border border-white/10 bg-white/5 px-4 py-3 font-mono text-2xl sm:px-6 sm:text-3xl font-bold tracking-[0.18em] sm:tracking-[0.3em] text-white backdrop-blur">
+        <div className="relative space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-fuchsia-300">
+                <Share2 className="h-4 w-4" /> Referal proqramı
+              </p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                Hər dəvətindən qazan
+              </h2>
+              <p className="mt-1 max-w-xl text-sm text-zinc-300">
+                Kodun ilə qeydiyyatdan keçən dostlarının hər alışından komissiya qazanırsan.
+                Qazanc balansı ödənişdə istifadə oluna bilər.
+              </p>
+            </div>
+            <Link
+              href="/qazan"
+              className="hidden shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/15 sm:inline-flex"
+            >
+              Necə işləyir <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {/* Code + share buttons */}
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-zinc-950/40 p-4 backdrop-blur sm:p-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="break-all rounded-xl border border-white/15 bg-white/[0.06] px-4 py-2.5 font-mono text-xl font-bold tracking-[0.2em] text-white">
                 {user.referralCode}
               </span>
               <ReferralCodeCopy code={user.referralCode} />
             </div>
-            <p className="text-sm text-zinc-400 max-w-sm leading-relaxed">
-              Kodu paylaş — dostların qeydiyyatdan keçəndə hər ikiniz qazanır.
-            </p>
+            <ReferralShareButtons code={user.referralCode} variant="compact" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4 sm:flex sm:flex-col">
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat
-              label="Dəvət"
+              label="Toplam dəvət"
               value={refereeCount.toString()}
-              icon={<Trophy className="h-4 w-4 text-fuchsia-400" />}
+              icon={<Trophy className="h-4 w-4 text-fuchsia-300" />}
+            />
+            <Stat
+              label="Uğurlu dəvət"
+              value={successfulReferrals.toString()}
+              icon={<Sparkles className="h-4 w-4 text-fuchsia-300" />}
             />
             <Stat
               label="Qazanc"
               value={`${commissionAzn.toFixed(2)} AZN`}
-              icon={<Sparkles className="h-4 w-4 text-fuchsia-400" />}
+              icon={<Sparkles className="h-4 w-4 text-emerald-300" />}
+            />
+            <Stat
+              label="Tier"
+              value={tierState.current ? `${tierState.current.emoji} ${tierState.current.label}` : "—"}
+              icon={<Crown className="h-4 w-4 text-amber-300" />}
             />
           </div>
-        </div>
 
-        <div className="relative mt-8">
-          <div className="mb-2 flex items-center justify-between text-xs text-zinc-400">
-            <span>
-              Növbəti hədəfə qədər:{" "}
-              <span className="font-semibold text-white">
-                {Math.max(0, NEXT_REFERRAL_MILESTONE - refereeCount)} dəvət
-              </span>
-            </span>
-            <span className="font-semibold text-fuchsia-400">
-              {refereeCount}/{NEXT_REFERRAL_MILESTONE}
-            </span>
-          </div>
-          <ProgressBar value={refereePct} from="from-fuchsia-500" to="to-[#5a189a]" />
+          {/* Tier progress */}
+          {tierState.next ? (
+            <div>
+              <div className="mb-2 flex items-center justify-between text-xs text-zinc-300">
+                <span>
+                  Növbəti pillə:{" "}
+                  <span className="font-semibold text-white">
+                    {tierState.next.emoji} {tierState.next.label}
+                  </span>{" "}
+                  · {(tierState.next.bonusAznCents / 100).toFixed(0)} AZN bonus
+                </span>
+                <span className="font-semibold text-fuchsia-300">
+                  {successfulReferrals}/{tierState.next.threshold}
+                </span>
+              </div>
+              <ProgressBar
+                value={tierState.progressPct}
+                from="from-fuchsia-500"
+                to="to-amber-400"
+              />
+              <p className="mt-2 text-[11px] text-zinc-400">
+                Daha {tierState.toNext} uğurlu dəvət — referala alış edən dost = uğurlu dəvətdir.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+              🎉 Bütün pillələri açmısan! Hər yeni uğurlu dəvətlə komissiya qazanmağa davam edirsən.
+            </div>
+          )}
+
+          {/* Tier tableau */}
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {REFERRAL_TIERS.map((t) => {
+              const reached = successfulReferrals >= t.threshold;
+              return (
+                <li
+                  key={t.threshold}
+                  className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm ${
+                    reached
+                      ? "border-amber-500/40 bg-amber-500/10 text-amber-100"
+                      : "border-white/10 bg-white/[0.03] text-zinc-300"
+                  }`}
+                >
+                  <span className="text-xl">{t.emoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">
+                      {t.label}
+                    </p>
+                    <p className="text-xs font-medium">
+                      {t.threshold} dəvət · +{(t.bonusAznCents / 100).toFixed(0)} AZN bonus
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </section>
 

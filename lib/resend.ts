@@ -3,6 +3,7 @@ import WelcomeEmail from "@/emails/WelcomeEmail";
 import OtpEmail from "@/emails/OtpEmail";
 import ResetPasswordEmail from "@/emails/ResetPasswordEmail";
 import GiftCardEmail from "@/emails/GiftCardEmail";
+import StreamingDeliveryEmail from "@/emails/StreamingDeliveryEmail";
 import ReviewInviteEmail from "@/emails/ReviewInviteEmail";
 
 if (!process.env.RESEND_API_KEY) {
@@ -34,12 +35,16 @@ export function generateOtpCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-export async function sendWelcomeEmail(email: string, userName: string) {
+export async function sendWelcomeEmail(
+  email: string,
+  userName: string,
+  referralCode?: string | null
+) {
   const { data, error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to: email,
     subject: `Honsell PS Store-a xoş gəldin, ${userName}`,
-    react: WelcomeEmail({ userName }),
+    react: WelcomeEmail({ userName, referralCode }),
   });
 
   if (error) {
@@ -566,17 +571,59 @@ export async function sendGiftCardCodeEmail(params: {
   userName: string;
   productTitle: string;
   code: string;
+  referralCode?: string | null;
 }) {
-  const { email, userName, productTitle, code } = params;
+  const { email, userName, productTitle, code, referralCode } = params;
   const { data, error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to: email,
     subject: `Hədiyyə kart kodunuz hazırdır`,
-    react: GiftCardEmail({ userName, productTitle, code }),
+    react: GiftCardEmail({ userName, productTitle, code, referralCode }),
   });
 
   if (error) {
     throw new Error(`Resend failed to send gift-card email: ${error.message}`);
+  }
+
+  return data;
+}
+
+export async function sendStreamingDeliveryEmail(params: {
+  email: string;
+  userName: string;
+  providerLabel: string;
+  accountEmail: string;
+  accountPassword: string;
+  slotName: string;
+  pinCode: string;
+  startDate: string;
+  endDate: string;
+  months: number;
+  paymentAznFormatted: string;
+  referralCode?: string | null;
+}) {
+  const { email, userName, providerLabel } = params;
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: email,
+    subject: `${providerLabel} abunəliyiniz aktivləşdirildi`,
+    react: StreamingDeliveryEmail({
+      userName,
+      providerLabel,
+      accountEmail: params.accountEmail,
+      accountPassword: params.accountPassword,
+      slotName: params.slotName,
+      pinCode: params.pinCode,
+      startDate: params.startDate,
+      endDate: params.endDate,
+      months: params.months,
+      paymentAznFormatted: params.paymentAznFormatted,
+      referralCode: params.referralCode,
+    }),
+  });
+
+  if (error) {
+    throw new Error(`Resend failed to send streaming-delivery email: ${error.message}`);
   }
 
   return data;

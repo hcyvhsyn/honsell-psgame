@@ -382,6 +382,10 @@ export async function GET(req: Request) {
         );
       }
 
+      // Captured before any DB writes so the post-upsert cleanup can identify
+      // rows that this run did NOT touch (lastScrapedAt < runStartedAt).
+      const runStartedAt = new Date();
+
       let run: { id: string } | null = null;
       try {
         try {
@@ -612,6 +616,50 @@ export async function GET(req: Request) {
           }
 
           emit({ type: "upsertProgress", done: upserts, total, failures: upsertFailures });
+        }
+
+        // Phase 3.5: clear stale discount rows.
+        // The upsert only writes products this run actually found. When a sale
+        // ends, the SKU typically also drops out of the "Deals" hub and any
+        // franchise search seeds, so its row is never revisited and the old
+        // `discountTryCents` lingers. Two cleanup passes:
+        //   (a) any active row whose `discountEndAt` is now in the past — the
+        //       sale window has definitively closed.
+        //   (b) any active row with a discount and NULL end date that this run
+        //       did NOT refresh. We just did a wide scrape; if a discount were
+        //       still live, the SKU would normally have surfaced somewhere.
+        //       False-positive cost: a brief missing badge until the next run
+        //       touches the row, vs. showing a phantom sale forever.
+        const cleanupAt = new Date();
+        try {
+          const expiredCleanup = await prisma.game.updateMany({
+            where: {
+              isActive: true,
+              discountTryCents: { not: null },
+              discountEndAt: { lt: cleanupAt },
+            },
+            data: { discountTryCents: null, discountEndAt: null },
+          });
+          const orphanCleanup = await prisma.game.updateMany({
+            where: {
+              isActive: true,
+              discountTryCents: { not: null },
+              discountEndAt: null,
+              lastScrapedAt: { lt: runStartedAt },
+            },
+            data: { discountTryCents: null },
+          });
+          emit({
+            type: "discountCleanup",
+            expired: expiredCleanup.count,
+            orphaned: orphanCleanup.count,
+          });
+        } catch (e) {
+          console.error("scrape-ps-store: discount cleanup failed", e);
+          emit({
+            type: "discountCleanupError",
+            error: e instanceof Error ? e.message : "cleanup error",
+          });
         }
 
         // Phase 4: favorite-on-sale email notifications.

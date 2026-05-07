@@ -1,11 +1,15 @@
+import ReferralFooter from "./_ReferralFooter";
+
 export default function GiftCardEmail({
   userName,
   productTitle,
   code,
+  referralCode,
 }: {
   userName: string;
   productTitle: string;
   code: string;
+  referralCode?: string | null;
 }) {
   return (
     <div style={{ fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" }}>
@@ -59,6 +63,8 @@ export default function GiftCardEmail({
           <p style={{ margin: "16px 0 0", color: "#0f172a", opacity: 0.7, fontSize: 12, lineHeight: 1.6 }}>
             Bu email avtomatik göndərilib. Kod həmçinin hesabınızda <b>Sifarişlər</b> bölməsində görünəcək.
           </p>
+
+          <ReferralFooter code={referralCode} />
         </div>
 
         <p style={{ margin: "14px 0 0", color: "#64748b", fontSize: 12, textAlign: "center" }}>

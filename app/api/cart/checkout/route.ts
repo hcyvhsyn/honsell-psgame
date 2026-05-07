@@ -12,7 +12,14 @@ import {
   applyCashbackToBalance,
   getLifetimeSpendAznForLoyalty,
 } from "@/lib/loyaltyCashback";
-import { sendAdminOrderNotification } from "@/lib/resend";
+import { sendAdminOrderNotification, sendStreamingDeliveryEmail } from "@/lib/resend";
+import {
+  STREAMING_SERVICE_LABELS,
+  addMonths,
+  parseStreamingStock,
+} from "@/lib/streamingCart";
+import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
+import { evaluateReferralTiers } from "@/lib/referralTiers";
 
 export const runtime = "nodejs";
 
@@ -23,10 +30,15 @@ type AccountCreationBody = {
   password: string;
 };
 
+type StreamingBody = {
+  gmail: string;
+};
+
 type CartLinePayload = {
   id: string;
   qty: number;
   accountCreation?: unknown;
+  streaming?: unknown;
 };
 
 function splitFullName(full: string): { firstName: string; lastName: string } {
@@ -35,6 +47,20 @@ function splitFullName(full: string): { firstName: string; lastName: string } {
   const i = t.indexOf(" ");
   if (i === -1) return { firstName: t, lastName: "-" };
   return { firstName: t.slice(0, i), lastName: t.slice(i + 1).trim() || "-" };
+}
+
+function parseStreamingBody(raw: unknown):
+  | { ok: true; value: StreamingBody }
+  | { ok: false; error: string } {
+  if (!raw || typeof raw !== "object") {
+    return { ok: false, error: "Streaming xidməti üçün Gmail ünvanı tələb olunur." };
+  }
+  const o = raw as Record<string, unknown>;
+  const gmail = typeof o.gmail === "string" ? o.gmail.trim().toLowerCase() : "";
+  if (!gmail || !/^[^\s@]+@gmail\.com$/.test(gmail)) {
+    return { ok: false, error: "Etibarlı Gmail ünvanı (@gmail.com) tələb olunur." };
+  }
+  return { ok: true, value: { gmail } };
 }
 
 function parseAccountCreationBody(raw: unknown):
@@ -77,6 +103,7 @@ export async function POST(req: Request) {
       id: typeof i?.id === "string" ? i.id : "",
       qty: Math.max(1, Math.min(20, Math.floor(Number(i?.qty) || 1))),
       accountCreation: i?.accountCreation,
+      streaming: i?.streaming,
     }))
     .filter((i: CartLinePayload) => i.id);
 
@@ -98,7 +125,7 @@ export async function POST(req: Request) {
       where: {
         id: { in: ids },
         isActive: true,
-        type: { in: ["PS_PLUS", "TRY_BALANCE", "ACCOUNT_CREATION"] },
+        type: { in: ["PS_PLUS", "TRY_BALANCE", "ACCOUNT_CREATION", "STREAMING"] },
       },
     }),
   ]);
@@ -139,6 +166,16 @@ export async function POST(req: Request) {
         unitCostCents: number;
         lineCents: number;
         detail: AccountCreationBody;
+      }
+    | {
+        kind: "STREAMING";
+        service: ServiceModel;
+        qty: number;
+        unitListCents: number;
+        unitCostCents: number;
+        lineCents: number;
+        deliveryMode: "CODE" | "GMAIL";
+        gmail?: string;
       };
 
   if (games.length + services.length !== payloads.length) {
@@ -210,6 +247,30 @@ export async function POST(req: Request) {
         unitCostCents: service.priceAznCents,
         lineCents: service.priceAznCents * p.qty,
         detail: parsed.value,
+      });
+      continue;
+    }
+
+    if (service.type === "STREAMING") {
+      const meta = (service.metadata as Record<string, unknown> | null) ?? {};
+      const deliveryMode = String(meta.deliveryMode ?? "CODE") === "GMAIL" ? "GMAIL" : "CODE";
+      let gmail: string | undefined;
+      if (deliveryMode === "GMAIL") {
+        const parsed = parseStreamingBody(p.streaming);
+        if (!parsed.ok) {
+          return NextResponse.json({ error: parsed.error }, { status: 400 });
+        }
+        gmail = parsed.value.gmail;
+      }
+      lines.push({
+        kind: "STREAMING",
+        service,
+        qty: p.qty,
+        unitListCents: service.priceAznCents,
+        unitCostCents: service.priceAznCents,
+        lineCents: service.priceAznCents * p.qty,
+        deliveryMode,
+        gmail,
       });
       continue;
     }
@@ -295,6 +356,15 @@ export async function POST(req: Request) {
 
       const purchaseIds: string[] = [];
       const serviceOrderIds: string[] = [];
+      const referredByForTierCheck = new Set<string>();
+      const streamingDeliveries: Array<{
+        codeRaw: string;
+        productTitle: string;
+        service: string;
+        durationMonths: number;
+        priceAznCents: number;
+        startsAt: Date;
+      }> = [];
       const totalCommissionCents = 0;
       let cashbackCents = 0;
       let tryBalancePendingCount = 0;
@@ -392,7 +462,7 @@ export async function POST(req: Request) {
               },
             });
             serviceOrderIds.push(serviceOrder.id);
-          } else {
+          } else if (line.kind === "ACCOUNT_CREATION") {
             const names = splitFullName(line.detail.fullName);
             const serviceOrder = await tx.transaction.create({
               data: {
@@ -416,6 +486,95 @@ export async function POST(req: Request) {
               },
             });
             serviceOrderIds.push(serviceOrder.id);
+          } else {
+            // STREAMING
+            if (line.deliveryMode === "CODE") {
+              const sc = await tx.serviceCode.findFirst({
+                where: { serviceProductId: line.service.id, isUsed: false },
+                orderBy: { createdAt: "asc" },
+              });
+              if (!sc) {
+                const serviceOrder = await tx.transaction.create({
+                  data: {
+                    userId: user.id,
+                    type: "SERVICE_PURCHASE",
+                    status: "PENDING",
+                    amountAznCents: -line.unitListCents,
+                    serviceProductId: line.service.id,
+                    metadata: JSON.stringify({
+                      fromCart: true,
+                      kind: "STREAMING",
+                      deliveryMode: "CODE",
+                      reason: "OUT_OF_STOCK",
+                      paymentSource: payTag,
+                      orderCode,
+                    }),
+                  },
+                });
+                serviceOrderIds.push(serviceOrder.id);
+              } else {
+                await tx.serviceCode.update({
+                  where: { id: sc.id },
+                  data: { isUsed: true },
+                });
+                const serviceOrder = await tx.transaction.create({
+                  data: {
+                    userId: user.id,
+                    type: "SERVICE_PURCHASE",
+                    status: "SUCCESS",
+                    amountAznCents: -line.unitListCents,
+                    serviceProductId: line.service.id,
+                    serviceCodeId: sc.id,
+                    metadata: JSON.stringify({
+                      fromCart: true,
+                      kind: "STREAMING",
+                      deliveryMode: "CODE",
+                      paymentSource: payTag,
+                      orderCode,
+                    }),
+                  },
+                });
+                serviceOrderIds.push(serviceOrder.id);
+                const meta = (line.service.metadata as Record<string, unknown> | null) ?? {};
+                streamingDeliveries.push({
+                  codeRaw: sc.code,
+                  productTitle: line.service.title,
+                  service: String(meta.service ?? ""),
+                  durationMonths: Number(meta.durationMonths ?? 0),
+                  priceAznCents: line.unitListCents,
+                  startsAt: serviceOrder.createdAt,
+                });
+                // Streaming üçün referal komissiyası
+                const cm = await awardStreamingReferralCommission(tx, {
+                  sourceTransactionId: serviceOrder.id,
+                  buyerUserId: user.id,
+                  serviceProductId: line.service.id,
+                  lineCents: line.unitListCents,
+                  streamingProfitSharePct: settings.referralStreamingProfitSharePct,
+                });
+                if (cm) referredByForTierCheck.add(cm.referredById);
+              }
+            } else {
+              // GMAIL — manual delivery
+              const serviceOrder = await tx.transaction.create({
+                data: {
+                  userId: user.id,
+                  type: "SERVICE_PURCHASE",
+                  status: "PENDING",
+                  amountAznCents: -line.unitListCents,
+                  serviceProductId: line.service.id,
+                  metadata: JSON.stringify({
+                    fromCart: true,
+                    kind: "STREAMING",
+                    deliveryMode: "GMAIL",
+                    paymentSource: payTag,
+                    orderCode,
+                    gmail: line.gmail,
+                  }),
+                },
+              });
+              serviceOrderIds.push(serviceOrder.id);
+            }
           }
         }
       }
@@ -443,6 +602,8 @@ export async function POST(req: Request) {
         tryBalancePendingCount,
         tryBalanceDeliveredCount,
         orderCode,
+        streamingDeliveries,
+        referredByForTierCheck: Array.from(referredByForTierCheck),
       };
     });
   } catch (e: unknown) {
@@ -465,6 +626,45 @@ export async function POST(req: Request) {
 
   const hasTryBalance = lines.some((l) => l.kind === "TRY_BALANCE");
   const tryBalancePendingCount = Number(result.tryBalancePendingCount ?? 0);
+  const hasStreaming = lines.some((l) => l.kind === "STREAMING");
+
+  // Tier mükafatı yoxlaması — komissiya yarananda referrer üçün cəhd et.
+  for (const referrerId of result.referredByForTierCheck ?? []) {
+    try {
+      await evaluateReferralTiers(prisma, referrerId);
+    } catch (err) {
+      console.error("evaluateReferralTiers failed", err);
+    }
+  }
+
+  if (Array.isArray(result.streamingDeliveries) && result.streamingDeliveries.length > 0) {
+    for (const d of result.streamingDeliveries) {
+      const entry = parseStreamingStock(d.codeRaw);
+      if (!entry) continue;
+      const startDate = d.startsAt;
+      const endDate = addMonths(startDate, d.durationMonths);
+      const fmt = (dt: Date) =>
+        dt.toLocaleDateString("az-AZ", { day: "2-digit", month: "2-digit", year: "numeric" });
+      try {
+        await sendStreamingDeliveryEmail({
+          email: user.email,
+          userName: user.name ?? "dost",
+          providerLabel: STREAMING_SERVICE_LABELS[d.service] ?? d.productTitle,
+          accountEmail: entry.accountEmail,
+          accountPassword: entry.accountPassword,
+          slotName: entry.slotName,
+          pinCode: entry.pinCode,
+          startDate: fmt(startDate),
+          endDate: fmt(endDate),
+          months: d.durationMonths,
+          paymentAznFormatted: (d.priceAznCents / 100).toFixed(2),
+          referralCode: user.referralCode,
+        });
+      } catch (err) {
+        console.error("streaming delivery email failed", err);
+      }
+    }
+  }
 
   try {
     await sendAdminOrderNotification({
@@ -500,6 +700,7 @@ export async function POST(req: Request) {
     newReferralBalanceAzn: newReferralCents / 100,
     newBalanceAzn: newWalletCents / 100,
     hasAccountCreation: lines.some((l) => l.kind === "ACCOUNT_CREATION"),
+    hasStreaming,
     pendingGameFulfillmentQty: lines.reduce(
       (n, l) => n + (l.kind === "GAME" ? l.qty : 0),
       0

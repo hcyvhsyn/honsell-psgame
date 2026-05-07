@@ -40,6 +40,7 @@ export async function GET() {
       walletBalance: user.walletBalance,
       referralBalanceCents: user.referralBalanceCents,
       cashbackBalanceCents: user.cashbackBalanceCents ?? 0,
+      referralCode: user.referralCode,
     },
     psnAccounts,
     loyalty,

@@ -23,6 +23,7 @@ export function revalidateServices(): void {
   revalidatePath("/ps-plus");
   revalidatePath("/hediyye-kartlari");
   revalidatePath("/hesab-acma");
+  revalidatePath("/streaming");
 }
 
 /** Banner-lər admin paneldən dəyişdirildikdə. */

@@ -10,6 +10,8 @@ export type PricingSettings = {
   affiliateRatePct: number;
   /** % of profit margin shared with the referrer per purchase. */
   referralProfitSharePct: number;
+  /** Streaming abunəliklər üçün ayrıca komissiya faizi (final qiymət üzərindən). */
+  referralStreamingProfitSharePct: number;
 };
 
 export type DisplayPrice = {
@@ -37,6 +39,7 @@ export async function getSettings(): Promise<PricingSettings> {
       profitMarginPsPlusPct: s.profitMarginPsPlusPct ?? s.profitMarginPct,
       affiliateRatePct: s.affiliateRatePct,
       referralProfitSharePct: s.referralProfitSharePct,
+      referralStreamingProfitSharePct: s.referralStreamingProfitSharePct ?? 10,
     };
   } catch (err) {
     // Prod DB might not be migrated yet (missing new Settings columns).
@@ -44,7 +47,8 @@ export async function getSettings(): Promise<PricingSettings> {
     const missingNewColumns =
       msg.includes("profitMarginGamesPct") ||
       msg.includes("profitMarginGiftCardsPct") ||
-      msg.includes("profitMarginPsPlusPct");
+      msg.includes("profitMarginPsPlusPct") ||
+      msg.includes("referralStreamingProfitSharePct");
     if (!missingNewColumns) throw err;
 
     const rows = await prisma.$queryRaw<
@@ -74,6 +78,7 @@ export async function getSettings(): Promise<PricingSettings> {
       profitMarginPsPlusPct: s.profitMarginPct,
       affiliateRatePct: s.affiliateRatePct,
       referralProfitSharePct: s.referralProfitSharePct,
+      referralStreamingProfitSharePct: 10,
     };
   }
 }

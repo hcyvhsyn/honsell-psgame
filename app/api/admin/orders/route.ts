@@ -11,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [gameOrders, psPlusOrders, giftCardOrders, accountCreationOrders] =
+  const [gameOrders, psPlusOrders, giftCardOrders, accountCreationOrders, streamingOrders] =
     await Promise.all([
       prisma.transaction.findMany({
         where: { type: "PURCHASE", status: "PENDING", gameId: { not: null } },
@@ -68,6 +68,19 @@ export async function GET() {
           serviceProduct: { select: { id: true, title: true, type: true } },
         },
       }),
+      prisma.transaction.findMany({
+        where: {
+          type: "SERVICE_PURCHASE",
+          status: "PENDING",
+          serviceProduct: { type: "STREAMING" },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        include: {
+          user: { select: { id: true, email: true, name: true, phone: true } },
+          serviceProduct: { select: { id: true, title: true, type: true, metadata: true } },
+        },
+      }),
     ]);
 
   return NextResponse.json({
@@ -75,6 +88,7 @@ export async function GET() {
     psPlusOrders,
     giftCardOrders,
     accountCreationOrders,
+    streamingOrders,
   });
 }
 

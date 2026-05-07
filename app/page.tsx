@@ -17,10 +17,12 @@ import {
   Sparkles,
   ArrowRight,
   LayoutGrid,
+  Tv,
 } from "lucide-react";
 import FaqAccordion from "@/components/FaqAccordion";
 import PsPlusClient from "./ps-plus/PsPlusClient";
 import HediyyeKartlariClient from "./hediyye-kartlari/HediyyeKartlariClient";
+import StreamingClient from "./streaming/StreamingClient";
 import HesabAcmaHomeCategoryCard from "@/components/HesabAcmaHomeCategoryCard";
 import ReviewWriteButton from "@/components/ReviewWriteButton";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
@@ -40,6 +42,7 @@ export default async function HomePage() {
     psPlusProducts,
     giftCardProducts,
     accountCreationProduct,
+    streamingProducts,
     featuredCollections,
     faqs,
   ] = await Promise.all([
@@ -64,6 +67,11 @@ export default async function HomePage() {
       }),
       prisma.serviceProduct.findFirst({
         where: { isActive: true, type: "ACCOUNT_CREATION" },
+      }),
+      prisma.serviceProduct.findMany({
+        where: { isActive: true, type: "STREAMING" },
+        orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
+        include: { _count: { select: { codes: { where: { isUsed: false } } } } },
       }),
       prisma.collection
         .findMany({
@@ -206,14 +214,55 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="py-16">
+      <section id="kateqoriyalar" className="py-16">
         <MarqueeHeader text="KATEQORİYALAR" />
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            <FancyCategoryCard href="/oyunlar" icon={<Gamepad2 className="h-6 w-6 text-white" />} label="Oyunlar" sub={`${totals.GAME}+ məhsul`} />
-            <FancyCategoryCard href="/kolleksiyalar" icon={<LayoutGrid className="h-6 w-6 text-white" />} label="Kolleksiyalar" sub="Tematik oyun siyahıları" />
-            <FancyCategoryCard href="/hediyye-kartlari" icon={<Gift className="h-6 w-6 text-white" />} label="Hədiyyə Kartları" sub="Anında e-pin kodlar" />
-            <FancyCategoryCard href="/ps-plus" icon={<Crown className="h-6 w-6 text-white" />} label="PS Plus" sub="Essential · Extra · Deluxe" />
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <FancyCategoryCard
+              href="/oyunlar"
+              icon={<Gamepad2 className="h-5 w-5 text-white" />}
+              label="Oyunlar"
+              sub={`${totals.GAME}+ məhsul`}
+              imageUrl={results[0]?.imageUrl ?? bannerSlides[0]?.imageUrl ?? null}
+              accentClass="border-emerald-400/25 from-emerald-400/20 to-white/[0.03]"
+            />
+            <FancyCategoryCard
+              href="/kolleksiyalar"
+              icon={<LayoutGrid className="h-5 w-5 text-white" />}
+              label="Kolleksiyalar"
+              sub="Tematik oyun siyahıları"
+              imageUrl={
+                featuredCollections[0]?.imageUrl ??
+                featuredCollections[0]?.games[0]?.game.heroImageUrl ??
+                featuredCollections[0]?.games[0]?.game.imageUrl ??
+                null
+              }
+              accentClass="border-sky-400/25 from-sky-400/20 to-white/[0.03]"
+            />
+            <FancyCategoryCard
+              href="/hediyye-kartlari"
+              icon={<Gift className="h-5 w-5 text-white" />}
+              label="Hədiyyə Kartları"
+              sub="Anında e-pin kodlar"
+              imageUrl={giftCardProducts[0]?.imageUrl ?? null}
+              accentClass="border-rose-400/25 from-rose-400/20 to-white/[0.03]"
+            />
+            <FancyCategoryCard
+              href="/ps-plus"
+              icon={<Crown className="h-5 w-5 text-white" />}
+              label="PS Plus"
+              sub="Essential · Extra · Deluxe"
+              imageUrl={psPlusProducts[0]?.imageUrl ?? null}
+              accentClass="border-amber-300/25 from-amber-300/20 to-white/[0.03]"
+            />
+            <FancyCategoryCard
+              href="/streaming"
+              icon={<Tv className="h-5 w-5 text-white" />}
+              label="Streaming"
+              sub="HBO Max · Gain · YouTube"
+              imageUrl={streamingProducts[0]?.imageUrl ?? null}
+              accentClass="border-cyan-300/25 from-cyan-300/20 to-white/[0.03]"
+            />
             <HesabAcmaHomeCategoryCard
               product={
                 accountCreationProduct
@@ -225,9 +274,11 @@ export default async function HomePage() {
                     }
                   : null
               }
-              icon={<UserPlus className="h-6 w-6 text-white" />}
+              icon={<UserPlus className="h-5 w-5 text-white" />}
               label="Hesab Açma"
               sub="Türkiyə PSN hesabı"
+              imageUrl={accountCreationProduct?.imageUrl ?? null}
+              accentClass="border-violet-300/25 from-violet-300/20 to-white/[0.03]"
             />
           </div>
         </div>
@@ -344,6 +395,59 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {(() => {
+        // Ana səhifədə hər streaming xidməti üçün yalnız 1 aylıq paket göstərilir.
+        // Eyni xidmətdə həm 1, həm 2 nəfərlik 1-aylıq varsa, 1 nəfərlik üstün tutulur.
+        const oneMonthByService = new Map<string, (typeof streamingProducts)[number]>();
+        for (const p of streamingProducts) {
+          const m = (p.metadata as Record<string, unknown> | null) ?? {};
+          if (Number(m.durationMonths) !== 1) continue;
+          const service = String(m.service ?? "");
+          if (!service) continue;
+          const seats = Number(m.seats ?? 1);
+          const existing = oneMonthByService.get(service);
+          if (!existing) {
+            oneMonthByService.set(service, p);
+            continue;
+          }
+          const existingSeats = Number(
+            ((existing.metadata as Record<string, unknown> | null) ?? {}).seats ?? 1
+          );
+          if (seats < existingSeats) oneMonthByService.set(service, p);
+        }
+        const homepageStreamingProducts = Array.from(oneMonthByService.values());
+
+        if (homepageStreamingProducts.length === 0) return null;
+
+        return (
+          <section id="streaming" className="py-16">
+            <MarqueeHeader text="STREAMING" />
+            <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+              <StreamingClient
+                flat
+                products={homepageStreamingProducts.map((p) => ({
+                  id: p.id,
+                  title: p.title,
+                  description: p.description,
+                  imageUrl: p.imageUrl,
+                  priceAznCents: p.priceAznCents,
+                  metadata: (p.metadata as Record<string, unknown> | null) ?? null,
+                  availableStock: p._count.codes,
+                }))}
+              />
+              <div className="mt-8 flex justify-center">
+                <Link
+                  href="/streaming"
+                  className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 hover:border-white/20"
+                >
+                  Daha çox yüklə <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                </Link>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       <section id="gift-cards" className="py-16">
         <MarqueeHeader text="HƏDİYYƏ KARTLARI" />
@@ -464,8 +568,39 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ─── Referral CTA strip ───────────────────────────────────────── */}
+      <section className="relative overflow-hidden border-y border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-700/30 via-purple-700/20 to-fuchsia-700/30 py-12">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(232,121,249,0.25),transparent_60%)]" />
+        <div className="relative mx-auto max-w-5xl px-6 text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.3em] text-fuchsia-300">
+            Referal proqramı
+          </p>
+          <h2 className="mt-3 text-3xl font-black text-white sm:text-4xl">
+            Dostunu dəvət et — hər alışından AZN qazan
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-fuchsia-50/80 sm:text-base">
+            Kodunla qeydiyyatdan keçən hər dost üçün siz hər oyun, PS Plus və streaming
+            alışından komissiya qazanırsız. 5/10/25 uğurlu dəvət üçün bonus AZN.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/qazan"
+              className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-fuchsia-900 transition hover:bg-fuchsia-50"
+            >
+              Necə qazanıram? <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/profile/referrals"
+              className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+            >
+              Mənim referal kabinetim
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ─── Footer ───────────────────────────────────────────────────── */}
-      <footer className="mt-20 border-t border-white/5 bg-[#0B0B0E]">
+      <footer className="mt-0 border-t border-white/5 bg-[#0B0B0E]">
         <div className="mx-auto max-w-[1200px] px-6 py-12">
           
           {/* Top row: Logo and Links */}
@@ -474,8 +609,10 @@ export default async function HomePage() {
             <nav className="flex flex-wrap items-center gap-6 text-sm text-zinc-300">
               <Link href="/oyunlar" className="hover:text-white transition">PlayStation Oyunları</Link>
               <Link href="/ps-plus" className="hover:text-white transition">PS Plus Üzvlüyü</Link>
+              <Link href="/streaming" className="hover:text-white transition">Streaming</Link>
               <Link href="/hediyye-kartlari" className="hover:text-white transition">Hədiyyə Kartları</Link>
               <Link href="/hesab-acma" className="hover:text-white transition">PSN Hesab Açma</Link>
+              <Link href="/qazan" className="text-fuchsia-300 hover:text-fuchsia-200 transition">Qazan (Referal)</Link>
               <Link href="/bilmeli-olduglarin" className="hover:text-white transition">Bələdçilər</Link>
               <Link href="/#reyler" className="hover:text-white transition">Rəylər</Link>
             </nav>
@@ -569,23 +706,56 @@ export default async function HomePage() {
 
 // ─── Helper Components ────────────────────────────────────────────────────────
 
-function FancyCategoryCard({ href, icon, label, sub }: { href: string; icon: React.ReactNode; label: string; sub: string }) {
+function FancyCategoryCard({
+  href,
+  icon,
+  label,
+  sub,
+  imageUrl,
+  accentClass,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  sub: string;
+  imageUrl?: string | null;
+  accentClass: string;
+}) {
   return (
     <Link
       href={href}
-      className="group relative mt-6 block rounded-[24px] bg-[#150A21] p-6 pt-8 shadow-2xl transition hover:-translate-y-1"
+      className="group relative flex min-h-[210px] overflow-hidden rounded-[24px] border border-white/10 bg-[#150A21] p-5 shadow-2xl transition hover:-translate-y-1 hover:border-indigo-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A78BFA]/60"
     >
-      <div className="absolute -top-8 left-6 grid h-16 w-16 place-items-center overflow-hidden rounded-full border-4 border-[#0A0A0F] bg-[#150A21]">
-        {icon}
-      </div>
-      <div>
-        <h3 className="mt-2 text-lg font-bold text-white">{label}</h3>
-        <p className="mt-2 text-sm text-[#9CA3AF]">{sub}</p>
-      </div>
-      <div className="mt-6 flex items-center justify-between">
-        <span className="text-sm font-semibold text-[#A78BFA] transition group-hover:text-white">
-          Keçid et →
-        </span>
+      {imageUrl ? (
+        <Image
+          src={imageUrl}
+          alt=""
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 16vw"
+          className="object-cover opacity-20 saturate-125 transition duration-700 group-hover:scale-105 group-hover:opacity-25"
+          unoptimized
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-[#201032] via-[#150A21] to-[#0A0A0F]" />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#150A21] via-[#150A21]/85 to-[#150A21]/35" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(167,139,250,0.20),transparent_34%)] opacity-80" />
+
+      <div className="relative z-10 flex flex-1 flex-col justify-between">
+        <div className="flex items-start justify-between gap-4">
+          <span className={`grid h-11 w-11 place-items-center rounded-2xl border bg-gradient-to-br backdrop-blur-sm ${accentClass}`}>
+            {icon}
+          </span>
+          <ArrowRight className="h-5 w-5 text-white/45 transition group-hover:translate-x-1 group-hover:text-white" />
+        </div>
+
+        <div>
+          <h3 className="text-lg font-black leading-tight text-white">{label}</h3>
+          <p className="mt-2 min-h-[42px] text-sm leading-relaxed text-zinc-300">{sub}</p>
+          <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-[#A78BFA] transition group-hover:text-white">
+            Keçid et <ArrowRight className="h-4 w-4" />
+          </span>
+        </div>
       </div>
     </Link>
   );
@@ -700,4 +870,3 @@ function MarqueeHeader({ text }: { text: string }) {
     </div>
   );
 }
-

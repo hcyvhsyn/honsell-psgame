@@ -18,6 +18,7 @@ const NAV = [
   { href: "/admin/faq", label: "FAQ", iconName: "HelpCircle" as const },
   { href: "/admin/services", label: "Gift Cardlar", iconName: "Gift" as const },
   { href: "/admin/ps-plus", label: "PS Plus", iconName: "Crown" as const },
+  { href: "/admin/streaming", label: "Streaming", iconName: "Tv" as const },
   { href: "/admin/account-creation", label: "Hesab Açılışı", iconName: "UserPlus" as const },
   { href: "/admin/settings", label: "Settings", iconName: "SettingsIcon" as const },
 ];

@@ -72,6 +72,7 @@ function CartModalBody({
     referralBalanceAzn: number;
     psnAccounts: PsnOption[];
     loyaltyCashbackPct: number;
+    referralCode: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -84,6 +85,7 @@ function CartModalBody({
             walletBalance: number;
             referralBalanceCents?: number;
             cashbackBalanceCents?: number;
+            referralCode?: string | null;
           } | null;
           psnAccounts: PsnOption[];
           loyalty?: { cashbackPct: number; label: string } | null;
@@ -98,6 +100,7 @@ function CartModalBody({
             referralBalanceAzn: refCent / 100,
             psnAccounts: d.psnAccounts ?? [],
             loyaltyCashbackPct: d.loyalty?.cashbackPct ?? 0,
+            referralCode: d.user?.referralCode ?? null,
           });
         }
       )
@@ -110,6 +113,7 @@ function CartModalBody({
           referralBalanceAzn: 0,
           psnAccounts: [],
           loyaltyCashbackPct: 0,
+          referralCode: null,
         });
       });
     return () => {
@@ -135,6 +139,7 @@ function CartModalBody({
           referralBalanceAzn={data.referralBalanceAzn}
           psnAccounts={data.psnAccounts}
           loyaltyCashbackPct={data.loyaltyCashbackPct}
+          referralCode={data.referralCode}
           onRequestLogin={onRequestLogin}
           onNavigate={onClose}
         />

@@ -17,6 +17,11 @@ export type AccountCreationCartDetails = {
   password: string;
 };
 
+/** YouTube Premium kimi xidmətlər üçün müştərinin Gmail ünvanı. */
+export type StreamingCartDetails = {
+  gmail: string;
+};
+
 export type CartItem = {
   id: string;
   title: string;
@@ -25,6 +30,7 @@ export type CartItem = {
   productType: string;
   qty: number;
   accountCreation?: AccountCreationCartDetails;
+  streaming?: StreamingCartDetails;
 };
 
 type CartContextValue = {
@@ -34,6 +40,7 @@ type CartContextValue = {
   add: (item: Omit<CartItem, "qty">) => void;
   setQty: (id: string, qty: number) => void;
   updateAccountCreation: (id: string, details: AccountCreationCartDetails) => void;
+  updateStreaming: (id: string, details: StreamingCartDetails) => void;
   remove: (id: string) => void;
   clear: () => void;
   has: (id: string) => boolean;
@@ -74,7 +81,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const add = useCallback((item: Omit<CartItem, "qty">) => {
     setItems((prev) => {
-      if (item.productType === "ACCOUNT_CREATION") {
+      if (item.productType === "ACCOUNT_CREATION" || item.productType === "STREAMING") {
         const rest = prev.filter((i) => i.id !== item.id);
         return [...rest, { ...item, qty: 1 }];
       }
@@ -106,6 +113,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const updateStreaming = useCallback((id: string, details: StreamingCartDetails) => {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === id && i.productType === "STREAMING" ? { ...i, streaming: details } : i
+      )
+    );
+  }, []);
+
   const remove = useCallback((id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
   }, []);
@@ -127,12 +142,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       add,
       setQty,
       updateAccountCreation,
+      updateStreaming,
       remove,
       clear,
       has,
       hydrated,
     };
-  }, [items, add, setQty, updateAccountCreation, remove, clear, has, hydrated]);
+  }, [items, add, setQty, updateAccountCreation, updateStreaming, remove, clear, has, hydrated]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

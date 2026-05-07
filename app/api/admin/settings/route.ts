@@ -70,6 +70,11 @@ export async function POST(req: Request) {
   const profitMarginGiftCardsPct = Number(body.profitMarginGiftCardsPct);
   const profitMarginPsPlusPct = Number(body.profitMarginPsPlusPct);
   const affiliateRatePct = Number(body.affiliateRatePct);
+  const referralStreamingProfitSharePctRaw = body.referralStreamingProfitSharePct;
+  const referralStreamingProfitSharePct =
+    referralStreamingProfitSharePctRaw === undefined
+      ? null
+      : Number(referralStreamingProfitSharePctRaw);
 
   if (!Number.isFinite(tryToAznRate) || tryToAznRate <= 0) {
     return NextResponse.json({ error: "Invalid tryToAznRate" }, { status: 400 });
@@ -89,6 +94,17 @@ export async function POST(req: Request) {
   if (!Number.isFinite(affiliateRatePct) || affiliateRatePct < 0) {
     return NextResponse.json({ error: "Invalid affiliateRatePct" }, { status: 400 });
   }
+  if (
+    referralStreamingProfitSharePct !== null &&
+    (!Number.isFinite(referralStreamingProfitSharePct) ||
+      referralStreamingProfitSharePct < 0 ||
+      referralStreamingProfitSharePct > 100)
+  ) {
+    return NextResponse.json(
+      { error: "Invalid referralStreamingProfitSharePct" },
+      { status: 400 }
+    );
+  }
 
   const depositCardNumber =
     typeof body.depositCardNumber === "string"
@@ -100,29 +116,23 @@ export async function POST(req: Request) {
       : null;
 
   try {
+    const baseData = {
+      tryToAznRate,
+      profitMarginPct,
+      profitMarginGamesPct,
+      profitMarginGiftCardsPct,
+      profitMarginPsPlusPct,
+      affiliateRatePct,
+      depositCardNumber,
+      depositCardHolder,
+      ...(referralStreamingProfitSharePct !== null
+        ? { referralStreamingProfitSharePct }
+        : {}),
+    };
     const updated = await prisma.settings.upsert({
       where: { id: "global" },
-      create: {
-        id: "global",
-        tryToAznRate,
-        profitMarginPct,
-        profitMarginGamesPct,
-        profitMarginGiftCardsPct,
-        profitMarginPsPlusPct,
-        affiliateRatePct,
-        depositCardNumber,
-        depositCardHolder,
-      },
-      update: {
-        tryToAznRate,
-        profitMarginPct,
-        profitMarginGamesPct,
-        profitMarginGiftCardsPct,
-        profitMarginPsPlusPct,
-        affiliateRatePct,
-        depositCardNumber,
-        depositCardHolder,
-      },
+      create: { id: "global", ...baseData },
+      update: baseData,
     });
     return NextResponse.json(updated);
   } catch (err) {

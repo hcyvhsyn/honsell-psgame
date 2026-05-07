@@ -20,6 +20,7 @@ import {
   Menu,
   X,
   ShieldCheck,
+  Tv,
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import LogoutButton from "@/components/LogoutButton";
@@ -39,7 +40,8 @@ type IconName =
   | "ImageIcon"
   | "ClipboardList"
   | "HelpCircle"
-  | "LayoutGrid";
+  | "LayoutGrid"
+  | "Tv";
 
 type NavItem = {
   href: string;
@@ -62,6 +64,7 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   ClipboardList,
   HelpCircle,
   LayoutGrid,
+  Tv,
 };
 
 export default function AdminSidebar({

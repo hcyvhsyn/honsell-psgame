@@ -60,6 +60,10 @@ type OrdersPayload = {
     user: { id: string; email: string; name: string | null };
     serviceProduct: { id: string; title: string; type: string } | null;
   })[];
+  streamingOrders: (AnyOrder & {
+    user: { id: string; email: string; name: string | null; phone: string | null };
+    serviceProduct: { id: string; title: string; type: string; metadata: unknown } | null;
+  })[];
 };
 
 function fmtAzn(cents: number) {
@@ -74,6 +78,26 @@ function fmtDate(d: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function parseStreamingMeta(metadata?: string | null): {
+  deliveryMode?: "CODE" | "GMAIL";
+  gmail?: string;
+  reason?: string;
+  orderCode?: string;
+} {
+  if (!metadata) return {};
+  try {
+    const m = JSON.parse(metadata) as Record<string, unknown>;
+    return {
+      deliveryMode: m.deliveryMode === "GMAIL" ? "GMAIL" : m.deliveryMode === "CODE" ? "CODE" : undefined,
+      gmail: typeof m.gmail === "string" ? m.gmail : undefined,
+      reason: typeof m.reason === "string" ? m.reason : undefined,
+      orderCode: typeof m.orderCode === "string" ? m.orderCode : undefined,
+    };
+  } catch {
+    return {};
+  }
 }
 
 function getPaymentSource(metadata?: string | null): "WALLET" | "REFERRAL" | "UNKNOWN" {
@@ -93,6 +117,7 @@ const TABS = [
   { id: "psplus", label: "PS Plus" },
   { id: "gift", label: "Hədiyyə kart (TRY)" },
   { id: "account", label: "Hesab açma" },
+  { id: "streaming", label: "Streaming" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -160,6 +185,7 @@ export default function OrdersAdminClient() {
       psplus: data?.psPlusOrders.length ?? 0,
       gift: data?.giftCardOrders.length ?? 0,
       account: data?.accountCreationOrders.length ?? 0,
+      streaming: data?.streamingOrders?.length ?? 0,
     };
   }, [data]);
 
@@ -185,7 +211,7 @@ export default function OrdersAdminClient() {
   async function actService(
     id: string,
     action: "SUCCESS" | "FAILED",
-    listKey: "psPlusOrders" | "giftCardOrders" | "accountCreationOrders"
+    listKey: "psPlusOrders" | "giftCardOrders" | "accountCreationOrders" | "streamingOrders"
   ) {
     if (!confirm(action === "SUCCESS" ? "Sifarişi tamamla?" : "Sifarişi rədd et?")) return;
     setError(null);
@@ -352,6 +378,40 @@ export default function OrdersAdminClient() {
                   />
                 ),
               }))}
+            />
+          )}
+
+          {tab === "streaming" && (
+            <OrdersTable
+              empty="Gözləyən streaming sifarişi yoxdur."
+              rows={(data.streamingOrders ?? []).map((o) => {
+                const meta = parseStreamingMeta(o.metadata);
+                return {
+                  id: o.id,
+                  userId: o.user.id,
+                  userLabel: o.user.name ?? o.user.email,
+                  userSub: o.user.email,
+                  item: o.serviceProduct?.title ?? "Streaming",
+                  itemSub:
+                    meta.deliveryMode === "GMAIL"
+                      ? meta.gmail
+                        ? `Gmail: ${meta.gmail}`
+                        : "Gmail (məlumat yoxdur)"
+                      : meta.reason === "OUT_OF_STOCK"
+                        ? "Kod stokda bitib — manual çatdırılma"
+                        : "Kod (avto) — gözləmədə",
+                  paymentSource: getPaymentSource(o.metadata),
+                  amount: fmtAzn(o.amountAznCents),
+                  date: fmtDate(o.createdAt),
+                  actions: (
+                    <RowActions
+                      pending={pending}
+                      onApprove={() => actService(o.id, "SUCCESS", "streamingOrders")}
+                      onReject={() => actService(o.id, "FAILED", "streamingOrders")}
+                    />
+                  ),
+                };
+              })}
             />
           )}
         </>

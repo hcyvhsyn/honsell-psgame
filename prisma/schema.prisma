@@ -392,6 +392,9 @@ model Settings {
   // % of the store's profit margin shared with the referrer per purchase.
   // Default 20 → at a 20% margin, the referrer effectively gets 4% of revenue.
   referralProfitSharePct Float @default(20)
+  // Streaming abunəlikləri üçün ayrıca komissiya faizi — final qiymət üzərindən tətbiq olunur
+  // (oyunlardan fərqli olaraq cost izlənmir). Default 10%.
+  referralStreamingProfitSharePct Float @default(10)
 
   // Bank card the customer transfers funds to during manual deposit.
   depositCardNumber  String?

@@ -8,6 +8,7 @@ import {
   type GameOrderStage,
 } from "@/lib/gameOrderFulfillment";
 import { issueReviewInvite } from "@/lib/reviewInvite";
+import { evaluateReferralTiers } from "@/lib/referralTiers";
 
 export const runtime = "nodejs";
 
@@ -127,6 +128,17 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         productTitle: gameRow.title,
         productType: "GAME",
       });
+    }
+
+    // Tier mükafatı yoxlaması — referrer üçün (idempotent).
+    const buyer = row.user ?? (await prisma.user.findUnique({ where: { id: row.userId } }));
+    const referrerForTier = buyer?.referredById ?? null;
+    if (referrerForTier) {
+      try {
+        await evaluateReferralTiers(prisma, referrerForTier);
+      } catch (err) {
+        console.error("evaluateReferralTiers failed", err);
+      }
     }
 
     return NextResponse.json({ ok: true });

@@ -47,7 +47,11 @@ export async function POST(req: Request) {
 
   // Best-effort welcome email — don't fail verification if Resend hiccups.
   try {
-    await sendWelcomeEmail(email, user.name ?? email.split("@")[0]);
+    await sendWelcomeEmail(
+      email,
+      user.name ?? email.split("@")[0],
+      user.referralCode
+    );
   } catch (err) {
     console.error("welcome email failed", err);
   }

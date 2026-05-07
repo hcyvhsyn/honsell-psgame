@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { sendGiftCardCodeEmail } from "@/lib/resend";
+import { sendGiftCardCodeEmail, sendStreamingDeliveryEmail } from "@/lib/resend";
 import { issueReviewInvite, type ReviewProductType } from "@/lib/reviewInvite";
 import { createSubscriptionFromTransaction } from "@/lib/subscriptions";
+import {
+  STREAMING_SERVICE_LABELS,
+  addMonths,
+  parseStreamingStock,
+} from "@/lib/streamingCart";
+import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
+import { evaluateReferralTiers } from "@/lib/referralTiers";
+import { getSettings } from "@/lib/pricing";
 
 function reviewProductTypeFromService(type: string | undefined): ReviewProductType | null {
   switch (type) {
@@ -13,6 +21,8 @@ function reviewProductTypeFromService(type: string | undefined): ReviewProductTy
       return "GIFT_CARD";
     case "ACCOUNT_CREATION":
       return "ACCOUNT_CREATION";
+    case "STREAMING":
+      return "GIFT_CARD";
     default:
       return null;
   }
@@ -134,11 +144,119 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         userName,
         productTitle,
         code: updated.code,
+        referralCode: tx.user?.referralCode ?? null,
       });
     }
 
     await maybeSendReviewInvite(tx);
     return NextResponse.json({ ok: true });
+  }
+
+  if (productType === "STREAMING") {
+    let deliveryMode: "CODE" | "GMAIL" = "CODE";
+    let metaObj: Record<string, unknown> = {};
+    try {
+      if (tx.metadata) {
+        metaObj = JSON.parse(tx.metadata) as Record<string, unknown>;
+        if (metaObj.deliveryMode === "GMAIL") deliveryMode = "GMAIL";
+      }
+    } catch {
+      /* ignore */
+    }
+
+    let deliveredCodeRaw: string | null = null;
+    const settings = await getSettings();
+
+    const updated = await prisma.$transaction(async (ptx) => {
+      let serviceCodeId = tx.serviceCodeId;
+      let codeValue = tx.serviceCode?.code ?? null;
+
+      if (deliveryMode === "CODE" && !serviceCodeId) {
+        const sc = await ptx.serviceCode.findFirst({
+          where: { serviceProductId: tx.serviceProductId ?? "", isUsed: false },
+          orderBy: { createdAt: "asc" },
+        });
+        if (!sc) return { ok: false as const, reason: "OUT_OF_STOCK" as const };
+
+        await ptx.serviceCode.update({ where: { id: sc.id }, data: { isUsed: true } });
+        serviceCodeId = sc.id;
+        codeValue = sc.code;
+      }
+
+      await ptx.transaction.update({
+        where: { id: tx.id },
+        data: {
+          status: "SUCCESS",
+          ...(serviceCodeId ? { serviceCodeId } : {}),
+        },
+      });
+
+      // Streaming referral commission (mənbə Transaction-a görə təkrarlanmır).
+      const cm = await awardStreamingReferralCommission(ptx, {
+        sourceTransactionId: tx.id,
+        buyerUserId: tx.userId,
+        serviceProductId: tx.serviceProductId,
+        lineCents: Math.abs(tx.amountAznCents),
+        streamingProfitSharePct: settings.referralStreamingProfitSharePct,
+      });
+
+      return {
+        ok: true as const,
+        code: codeValue,
+        commissionedReferrerId: cm?.referredById ?? null,
+      };
+    });
+
+    if (!updated.ok) {
+      return NextResponse.json(
+        { error: "Stokda streaming məlumatı yoxdur. Stok əlavə edib yenidən cəhd edin." },
+        { status: 409 }
+      );
+    }
+
+    deliveredCodeRaw = updated.code;
+
+    if (updated.commissionedReferrerId) {
+      try {
+        await evaluateReferralTiers(prisma, updated.commissionedReferrerId);
+      } catch (err) {
+        console.error("evaluateReferralTiers failed", err);
+      }
+    }
+
+    if (deliveryMode === "CODE" && deliveredCodeRaw && tx.user?.email) {
+      const entry = parseStreamingStock(deliveredCodeRaw);
+      const productMeta = (tx.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
+      const months = Number(productMeta.durationMonths ?? 0);
+      const serviceKey = String(productMeta.service ?? "");
+      const startDate = tx.createdAt;
+      const endDate = addMonths(startDate, months);
+      const fmt = (dt: Date) =>
+        dt.toLocaleDateString("az-AZ", { day: "2-digit", month: "2-digit", year: "numeric" });
+      if (entry) {
+        try {
+          await sendStreamingDeliveryEmail({
+            email: tx.user.email,
+            userName: tx.user.name ?? "dost",
+            providerLabel: STREAMING_SERVICE_LABELS[serviceKey] ?? tx.serviceProduct?.title ?? "Streaming",
+            accountEmail: entry.accountEmail,
+            accountPassword: entry.accountPassword,
+            slotName: entry.slotName,
+            pinCode: entry.pinCode,
+            startDate: fmt(startDate),
+            endDate: fmt(endDate),
+            months,
+            paymentAznFormatted: (Math.abs(tx.amountAznCents) / 100).toFixed(2),
+            referralCode: tx.user.referralCode ?? null,
+          });
+        } catch (err) {
+          console.error("streaming delivery email failed", err);
+        }
+      }
+    }
+
+    await maybeSendReviewInvite(tx);
+    return NextResponse.json({ ok: true, deliveryMode });
   }
 
   if (productType === "ACCOUNT_CREATION") {

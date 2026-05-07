@@ -15,11 +15,12 @@ import {
 
 interface WelcomeEmailProps {
   userName: string;
+  referralCode?: string | null;
 }
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell.store";
 
-export default function WelcomeEmail({ userName }: WelcomeEmailProps) {
+export default function WelcomeEmail({ userName, referralCode }: WelcomeEmailProps) {
   return (
     <Html>
       <Head />
@@ -63,6 +64,19 @@ export default function WelcomeEmail({ userName }: WelcomeEmailProps) {
               Mağazaya bax
             </Button>
           </Section>
+
+          {referralCode ? (
+            <Section style={referralBox}>
+              <Text style={referralLabel}>REFERAL PROQRAMI — ANA QAZANC KANALI</Text>
+              <Text style={referralBody}>
+                Kodunu paylaş — hər dəvətindən AZN qazan. 5/10/25 uğurlu dəvətə bonuslar.
+              </Text>
+              <Text style={referralCodeStyle}>{referralCode}</Text>
+              <Link style={referralLink} href={`${baseUrl}/qazan`}>
+                Necə qazanıram? →
+              </Link>
+            </Section>
+          ) : null}
 
           <Hr style={divider} />
 
@@ -216,4 +230,50 @@ const footerMeta: React.CSSProperties = {
   fontSize: "11px",
   color: "#5e5e72",
   margin: 0,
+};
+
+const referralBox: React.CSSProperties = {
+  marginTop: "20px",
+  padding: "18px 18px 14px",
+  borderRadius: "12px",
+  border: "1px solid rgba(168,85,247,0.35)",
+  backgroundImage:
+    "linear-gradient(135deg, rgba(168,85,247,0.18), rgba(124,58,237,0.05))",
+};
+
+const referralLabel: React.CSSProperties = {
+  fontSize: "11px",
+  letterSpacing: "3px",
+  color: "#d8b4fe",
+  margin: "0 0 6px 0",
+};
+
+const referralBody: React.CSSProperties = {
+  fontSize: "13px",
+  lineHeight: "20px",
+  color: "#e9e5f3",
+  margin: "0 0 10px 0",
+};
+
+const referralCodeStyle: React.CSSProperties = {
+  display: "inline-block",
+  fontFamily:
+    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  fontSize: "16px",
+  fontWeight: 700,
+  letterSpacing: "3px",
+  color: "#ffffff",
+  background: "rgba(255,255,255,0.08)",
+  padding: "5px 12px",
+  borderRadius: "8px",
+  margin: "0 0 6px 0",
+};
+
+const referralLink: React.CSSProperties = {
+  display: "inline-block",
+  fontSize: "12px",
+  fontWeight: 600,
+  color: "#c4b5fd",
+  textDecoration: "none",
+  marginTop: "4px",
 };

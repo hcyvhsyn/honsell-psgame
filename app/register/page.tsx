@@ -31,12 +31,28 @@ export default function RegisterPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [resendIn, setResendIn] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
+  // True when ?ref=… arrived in the URL — the input is locked so the
+  // inviter's commission can't be silently stripped on the way to submit.
+  const [referralLocked, setReferralLocked] = useState(false);
 
   useEffect(() => {
     if (resendIn <= 0) return;
     const t = setTimeout(() => setResendIn((s) => s - 1), 1000);
     return () => clearTimeout(t);
   }, [resendIn]);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      if (ref && ref.trim()) {
+        setForm((f) => ({ ...f, referralCode: ref.trim().toUpperCase() }));
+        setReferralLocked(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   async function submitDetails(e: React.FormEvent) {
     e.preventDefault();
@@ -178,6 +194,12 @@ export default function RegisterPage() {
                     setForm({ ...form, referralCode: v.toUpperCase() })
                   }
                   uppercase
+                  readOnly={referralLocked}
+                  hint={
+                    referralLocked
+                      ? "Dəvət linki ilə gəldiniz — referal kodu sabitləndi."
+                      : undefined
+                  }
                 />
 
                 <button
@@ -284,6 +306,8 @@ function Field({
   uppercase,
   trailing,
   autoComplete,
+  readOnly,
+  hint,
   ...rest
 }: {
   icon: React.ReactNode;
@@ -296,6 +320,8 @@ function Field({
   uppercase?: boolean;
   trailing?: React.ReactNode;
   autoComplete?: string;
+  readOnly?: boolean;
+  hint?: string;
 }) {
   return (
     <label className="relative block">
@@ -310,11 +336,23 @@ function Field({
         required={rest.required}
         minLength={rest.minLength}
         autoComplete={autoComplete}
+        readOnly={readOnly}
+        aria-readonly={readOnly || undefined}
+        tabIndex={readOnly ? -1 : undefined}
         className={`w-full rounded-md border border-zinc-800 bg-zinc-950 py-2.5 pl-10 text-sm placeholder:text-zinc-500 focus:border-indigo-500 focus:outline-none ${
           trailing ? "pr-10" : "pr-3"
-        } ${uppercase ? "tracking-widest uppercase" : ""}`}
+        } ${uppercase ? "tracking-widest uppercase" : ""} ${
+          readOnly
+            ? "cursor-not-allowed bg-zinc-900/70 text-zinc-300 focus:border-zinc-800"
+            : ""
+        }`}
       />
       {trailing}
+      {hint && (
+        <span className="mt-1 block pl-1 text-[11px] text-emerald-400/90">
+          {hint}
+        </span>
+      )}
     </label>
   );
 }

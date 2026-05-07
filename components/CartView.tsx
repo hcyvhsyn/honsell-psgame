@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 import AccountCreationCartEditModal from "@/components/AccountCreationCartEditModal";
+import ReferralShareButtons from "@/components/ReferralShareButtons";
+import { Share2 } from "lucide-react";
 
 /** Dəstək xətti — WhatsApp (ulduzlu format, + prefiksi olmadan). */
 const SUPPORT_WHATSAPP_MSISDN = "994702560509";
@@ -38,6 +40,7 @@ export default function CartView({
   referralBalanceAzn = 0,
   psnAccounts,
   loyaltyCashbackPct = 0,
+  referralCode = null,
   onRequestLogin,
   onNavigate,
 }: {
@@ -49,6 +52,8 @@ export default function CartView({
   psnAccounts: PsnOption[];
   /** Cashback % the buyer will earn after this purchase. 0 = none. */
   loyaltyCashbackPct?: number;
+  /** Login olmuş istifadəçinin referal kodu — uğurlu sifarişdən sonra share blok-da göstərilir. */
+  referralCode?: string | null;
   /** When provided, replaces the “login” link with a callback (used in modal flow). */
   onRequestLogin?: () => void;
   /** Fired when the user clicks any internal Link inside the cart (used to close the modal). */
@@ -105,7 +110,7 @@ export default function CartView({
     );
   }
 
-  /** Oyun / PS Plus / TRY üçün PSN seçimi və hesab yükləmə mütləqdir. Yalnız hesab-açılış səbəti istisnadır. */
+  /** Oyun / PS Plus / TRY üçün PSN seçimi və hesab yükləmə mütləqdir. Hesab-açılışı və streaming PSN tələb etmir. */
   const deliveryNeedsPsn = items.some((i) =>
     ["GAME", "PS_PLUS", "TRY_BALANCE"].includes(i.productType)
   );
@@ -196,6 +201,33 @@ export default function CartView({
               Sifarişlərimə bax
             </Link>
           </div>
+
+          {referralCode ? (
+            <div className="mx-auto mt-8 max-w-2xl rounded-2xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-700/15 via-purple-700/10 to-transparent p-5 text-left shadow-xl">
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-fuchsia-500/20 ring-1 ring-fuchsia-500/40">
+                  <Share2 className="h-5 w-5 text-fuchsia-200" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold uppercase tracking-wider text-fuchsia-300">
+                    İndi qazanc başlat
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-white">
+                    Kodunu paylaş — hər dəvət etdiyin dostun alışından komissiya qazan.
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    Kodun:{" "}
+                    <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono font-semibold text-white">
+                      {referralCode}
+                    </span>
+                  </p>
+                  <div className="mt-3">
+                    <ReferralShareButtons code={referralCode} variant="compact" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       );
     }
@@ -254,6 +286,19 @@ export default function CartView({
       });
       return;
     }
+    const missingStreamingGmail = items.find(
+      (i) =>
+        i.productType === "STREAMING" &&
+        i.title.toLowerCase().includes("youtube") &&
+        !i.streaming?.gmail
+    );
+    if (missingStreamingGmail) {
+      setMessage({
+        kind: "error",
+        text: `${missingStreamingGmail.title} üçün Gmail ünvanı tələb olunur.`,
+      });
+      return;
+    }
     setBusy(true);
     setMessage(null);
     try {
@@ -266,6 +311,9 @@ export default function CartView({
             qty: i.qty,
             ...(i.productType === "ACCOUNT_CREATION" && i.accountCreation
               ? { accountCreation: i.accountCreation }
+              : {}),
+            ...(i.productType === "STREAMING" && i.streaming
+              ? { streaming: i.streaming }
               : {}),
           })),
           psnAccountId: deliveryNeedsPsn ? psnAccountId : null,
@@ -303,6 +351,13 @@ export default function CartView({
           text = `Ödəniş qəbul olundu.${gameFulfillmentSentence ? ` ${gameFulfillmentSentence}` : ""}${balanceSuffix}`;
         } else {
           text = `Alış tamamlandı — ${data.purchaseCount} məhsul ${target} hesabına çatdırıldı.${balanceSuffix}`;
+        }
+        if (data.hasStreaming) {
+          const streamingSuffix = pendingGameQty > 0 ? "" : checkoutBalanceSuffix(data);
+          text = `Streaming sifarişiniz qəbul edildi. Giriş məlumatları (və ya YouTube üçün dəvət) tezliklə email və Sifarişlər bölməsinə göndəriləcək.${streamingSuffix}`;
+          if (gameFulfillmentSentence) {
+            text = `${text.trim()} ${gameFulfillmentSentence}`;
+          }
         }
         if (data.hasTryBalance) {
           const tryBalanceSuffix = pendingGameQty > 0 ? "" : checkoutBalanceSuffix(data);
@@ -634,7 +689,8 @@ function CartLine({
   const isSingleLicense =
     item.productType === "GAME" ||
     item.productType === "PS_PLUS" ||
-    item.productType === "ACCOUNT_CREATION";
+    item.productType === "ACCOUNT_CREATION" ||
+    item.productType === "STREAMING";
   return (
     <li className="flex gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-3 shadow-sm transition hover:border-zinc-700/60 hover:bg-zinc-900/50">
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-900 shadow-inner">
@@ -657,6 +713,16 @@ function CartLine({
             <p className="mt-1 text-[11px] font-medium tracking-wide text-zinc-500 uppercase">
               {labelForType(item.productType)}
             </p>
+            {item.productType === "STREAMING" && item.streaming?.gmail ? (
+              <div className="mt-2 w-full max-w-md rounded-lg border border-fuchsia-500/25 bg-fuchsia-500/[0.07] px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-fuchsia-300">
+                  Gmail ünvanı
+                </p>
+                <p className="mt-0.5 break-all text-xs font-medium text-zinc-200">
+                  {item.streaming.gmail}
+                </p>
+              </div>
+            ) : null}
             {item.productType === "ACCOUNT_CREATION" ? (
               <div className="mt-2 w-full max-w-md space-y-2 rounded-lg border border-fuchsia-500/25 bg-fuchsia-500/[0.07] px-3 py-2">
                 {item.accountCreation?.fullName ? (
@@ -752,6 +818,8 @@ function labelForType(t: string) {
       return "Hədiyyə Kartı";
     case "ACCOUNT_CREATION":
       return "PSN Hesab Açılışı";
+    case "STREAMING":
+      return "Streaming abunəliyi";
     default:
       return "Digər";
   }

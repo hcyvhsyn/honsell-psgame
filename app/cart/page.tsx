@@ -45,6 +45,7 @@ export default async function CartPage() {
           referralBalanceAzn={user ? user.referralBalanceCents / 100 : 0}
           psnAccounts={psnAccounts}
           loyaltyCashbackPct={loyaltyCashbackPct}
+          referralCode={user?.referralCode ?? null}
         />
       </section>
     </main>
