@@ -461,7 +461,7 @@ function GameOrderCard({
         <div className="flex min-w-0 flex-1 items-start gap-3">
           <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900">
             {o.game?.imageUrl ? (
-              <Image src={o.game.imageUrl} alt="" fill className="object-cover" sizes="56px" unoptimized />
+              <Image src={o.game.imageUrl} alt="" fill className="object-cover" sizes="56px" />
             ) : (
               <div className="flex h-full items-center justify-center text-zinc-600">
                 <Gamepad2 className="h-6 w-6" />

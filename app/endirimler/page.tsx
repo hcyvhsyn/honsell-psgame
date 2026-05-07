@@ -27,11 +27,16 @@ export const metadata: Metadata = {
 
 const getDiscountedGames = unstable_cache(
   async () => {
+    const now = new Date();
     return prisma.game.findMany({
       where: {
         isActive: true,
         productType: "GAME",
         discountTryCents: { not: null },
+        // Bitməmiş endirimlər: ya `discountEndAt` boşdur, ya da gələcəkdədir.
+        // Stale endirimləri DB səviyyəsində filterləyirik ki, fantom təkliflər
+        // səhifəyə düşməsin.
+        OR: [{ discountEndAt: null }, { discountEndAt: { gt: now } }],
       },
       orderBy: { lastScrapedAt: "desc" },
     });

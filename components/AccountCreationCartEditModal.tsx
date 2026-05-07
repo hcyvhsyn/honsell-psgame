@@ -85,7 +85,6 @@ export default function AccountCreationCartEditModal({
                   fill
                   sizes="64px"
                   className="object-cover"
-                  unoptimized
                 />
               ) : null}
             </div>

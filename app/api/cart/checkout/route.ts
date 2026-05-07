@@ -19,7 +19,14 @@ import {
   parseStreamingStock,
 } from "@/lib/streamingCart";
 import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
-import { evaluateReferralTiers } from "@/lib/referralTiers";
+import {
+  recordPurchaseSpend,
+  recordSuccessfulInvite,
+} from "@/lib/referralCycle";
+import {
+  clearReviewAffiliateCookie,
+  readReviewAffiliateCookie,
+} from "@/lib/reviewAffiliate";
 
 export const runtime = "nodejs";
 
@@ -116,6 +123,11 @@ export async function POST(req: Request) {
 
   const settings = await getSettings();
   const ids = payloads.map((i) => i.id);
+
+  // Rəy affiliate cookie-si — alış SUCCESS olduqda rəy müəllifinə
+  // komissiya yazılması üçün GAME alış metadata-sına stamp olunur.
+  // Validasiya award vaxtı edilir; burada sadəcə dəyər saxlanır.
+  const reviewAffiliateId = await readReviewAffiliateCookie();
 
   const [games, services] = await Promise.all([
     prisma.game.findMany({
@@ -389,6 +401,9 @@ export async function POST(req: Request) {
                   manualDelivery: true,
                   fulfillmentStage: "NEW",
                   orderCode,
+                  ...(reviewAffiliateId
+                    ? { reviewAffiliateId, reviewAffiliateLineCents: line.unitListCents }
+                    : {}),
                 }),
               },
             });
@@ -552,7 +567,22 @@ export async function POST(req: Request) {
                   lineCents: line.unitListCents,
                   streamingProfitSharePct: settings.referralStreamingProfitSharePct,
                 });
-                if (cm) referredByForTierCheck.add(cm.referredById);
+                if (cm) {
+                  referredByForTierCheck.add(cm.referredById);
+                  // +10 pts to inviter on referee's first SUCCESS purchase.
+                  try {
+                    await recordSuccessfulInvite(tx, cm.referredById, user.id);
+                  } catch (err) {
+                    console.error("recordSuccessfulInvite failed", err);
+                  }
+                }
+                // Buyer earns 1 pt / AZN they themselves spent. Runs for
+                // every streaming auto-delivery, even when there's no inviter.
+                try {
+                  await recordPurchaseSpend(tx, user.id, line.unitListCents);
+                } catch (err) {
+                  console.error("recordPurchaseSpend failed", err);
+                }
               }
             } else {
               // GMAIL — manual delivery
@@ -610,6 +640,16 @@ export async function POST(req: Request) {
     throw e;
   }
 
+  // GAME alındıqdan sonra rəy affiliate cookie-sini təmizlə —
+  // attribution alışın metadata-sına yazıldı, daha lazım deyil.
+  if (reviewAffiliateId && lines.some((l) => l.kind === "GAME")) {
+    try {
+      await clearReviewAffiliateCookie();
+    } catch {
+      /* ignore */
+    }
+  }
+
   const cashbackCentsApplied = Number(result.cashbackCents ?? 0);
 
   let newWalletCents = user.walletBalance;
@@ -628,14 +668,8 @@ export async function POST(req: Request) {
   const tryBalancePendingCount = Number(result.tryBalancePendingCount ?? 0);
   const hasStreaming = lines.some((l) => l.kind === "STREAMING");
 
-  // Tier mükafatı yoxlaması — komissiya yarananda referrer üçün cəhd et.
-  for (const referrerId of result.referredByForTierCheck ?? []) {
-    try {
-      await evaluateReferralTiers(prisma, referrerId);
-    } catch (err) {
-      console.error("evaluateReferralTiers failed", err);
-    }
-  }
+  // Cycle tier-ləri artıq tx daxilində streaming komissiya yazıldıqda
+  // qiymətləndirilir; burada ayrıca yoxlama lazım deyil.
 
   if (Array.isArray(result.streamingDeliveries) && result.streamingDeliveries.length > 0) {
     for (const d of result.streamingDeliveries) {

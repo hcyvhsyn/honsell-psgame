@@ -14,8 +14,10 @@ const NAV = [
   { href: "/admin/games", label: "Games", iconName: "Gamepad2" as const },
   { href: "/admin/orders", label: "Sifarişlər (hamısı)", iconName: "Receipt" as const, badgeKey: "pendingAllOrders" as const },
   { href: "/admin/banners", label: "Bannerlər", iconName: "ImageIcon" as const },
+  { href: "/admin/reviews", label: "Rəylər", iconName: "MessageSquare" as const, badgeKey: "pendingReviews" as const },
   { href: "/admin/collections", label: "Kolleksiyalar", iconName: "LayoutGrid" as const },
   { href: "/admin/faq", label: "FAQ", iconName: "HelpCircle" as const },
+  { href: "/admin/referral-tiers", label: "Referal Pillələri", iconName: "Crown" as const },
   { href: "/admin/services", label: "Gift Cardlar", iconName: "Gift" as const },
   { href: "/admin/ps-plus", label: "PS Plus", iconName: "Crown" as const },
   { href: "/admin/streaming", label: "Streaming", iconName: "Tv" as const },
@@ -52,11 +54,16 @@ export default async function AdminLayout({
     },
   });
 
+  const pendingReviews = await prisma.gameReview.count({
+    where: { status: "PENDING" },
+  });
+
   const badges = {
     pendingDeposits,
     pendingGameOrders,
     pendingAllOrders: pendingGameOrders + pendingServiceOrders,
     expiringSubs,
+    pendingReviews,
   } as const;
 
   return (

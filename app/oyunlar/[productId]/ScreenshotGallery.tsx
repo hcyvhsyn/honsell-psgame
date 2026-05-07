@@ -34,7 +34,6 @@ export default function ScreenshotGallery({
               fill
               sizes="(max-width: 640px) 50vw, 33vw"
               className="object-cover transition-transform duration-300 group-hover:scale-105"
-              unoptimized
             />
           </button>
         ))}
@@ -63,7 +62,6 @@ export default function ScreenshotGallery({
               fill
               sizes="100vw"
               className="object-contain"
-              unoptimized
             />
           </div>
         </div>

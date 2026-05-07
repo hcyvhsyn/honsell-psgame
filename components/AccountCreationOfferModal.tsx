@@ -104,7 +104,6 @@ export default function AccountCreationOfferModal({
                   fill
                   sizes="64px"
                   className="object-cover"
-                  unoptimized
                 />
               ) : null}
             </div>

@@ -21,11 +21,17 @@ import {
   X,
   ShieldCheck,
   Tv,
+  MessageSquare,
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import LogoutButton from "@/components/LogoutButton";
 
-type BadgeKey = "pendingDeposits" | "pendingGameOrders" | "pendingAllOrders" | "expiringSubs";
+type BadgeKey =
+  | "pendingDeposits"
+  | "pendingGameOrders"
+  | "pendingAllOrders"
+  | "expiringSubs"
+  | "pendingReviews";
 
 type IconName =
   | "LayoutDashboard"
@@ -41,7 +47,8 @@ type IconName =
   | "ClipboardList"
   | "HelpCircle"
   | "LayoutGrid"
-  | "Tv";
+  | "Tv"
+  | "MessageSquare";
 
 type NavItem = {
   href: string;
@@ -65,6 +72,7 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   HelpCircle,
   LayoutGrid,
   Tv,
+  MessageSquare,
 };
 
 export default function AdminSidebar({

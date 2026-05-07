@@ -103,7 +103,6 @@ function CategoryCardBackdrop({ imageUrl }: { imageUrl?: string | null }) {
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 16vw"
           className="object-cover opacity-20 saturate-125 transition duration-700 group-hover:scale-105 group-hover:opacity-25"
-          unoptimized
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-[#201032] via-[#150A21] to-[#0A0A0F]" />

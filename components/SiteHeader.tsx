@@ -17,20 +17,52 @@ type NavLinkItem = {
   featured?: boolean;
 };
 
-const primaryNavLinks: NavLinkItem[] = [
-  { href: "/oyunlar", label: "Oyunlar" },
-  { href: "/kolleksiyalar", label: "Kolleksiyalar" },
-  { href: "/endirimler", label: "Endirimlər", featured: true },
-  { href: "/ps-plus", label: "PS Plus" },
-  { href: "/streaming", label: "Streaming" },
-];
+type NavGroup = {
+  label: string;
+  items: NavLinkItem[];
+};
 
-const secondaryNavLinks: NavLinkItem[] = [
-  { href: "/hediyye-kartlari", label: "Hədiyyə Kartları" },
-  { href: "/bilmeli-olduglarin", label: "Bələdçilər" },
-];
+// Featured solo link sits on the bar before the dropdowns; "Endirimlər" is
+// time-sensitive and must always be one click away.
+const featuredLink: NavLinkItem = {
+  href: "/endirimler",
+  label: "Endirimlər",
+  featured: true,
+};
 
-const allNavLinks = [...primaryNavLinks, ...secondaryNavLinks];
+const playstationGroup: NavGroup = {
+  label: "PlayStation",
+  items: [
+    { href: "/oyunlar", label: "Oyunlar" },
+    { href: "/kolleksiyalar", label: "Kolleksiyalar" },
+    { href: "/ps-plus", label: "PS Plus" },
+    { href: "/hediyye-kartlari", label: "Hədiyyə Kartları" },
+  ],
+};
+
+// Streaming has only one route today; kept as a solo link rather than a
+// single-item dropdown.
+const streamingLink: NavLinkItem = { href: "/streaming", label: "Streaming" };
+
+// Public review hub — daha çox göz qabağında olsun deyə top-level link.
+const reviewsLink: NavLinkItem = { href: "/reyler", label: "Rəylər" };
+
+const otherGroup: NavGroup = {
+  label: "Digər",
+  items: [
+    { href: "/qazan", label: "Qazan" },
+    { href: "/bilmeli-olduglarin", label: "Bələdçilər" },
+  ],
+};
+
+// Mobile drawer flattens the groups but keeps section headings.
+const mobileSections: { heading?: string; items: NavLinkItem[] }[] = [
+  { items: [featuredLink] },
+  { heading: playstationGroup.label, items: playstationGroup.items },
+  { heading: "Streaming", items: [streamingLink] },
+  { heading: "Rəylər", items: [reviewsLink] },
+  { heading: otherGroup.label, items: otherGroup.items },
+];
 
 export default function SiteHeader({
   user,
@@ -61,31 +93,13 @@ export default function SiteHeader({
 
           <nav className="hidden min-w-0 items-center justify-center xl:flex" aria-label="Əsas naviqasiya">
             <div className="flex min-w-0 items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1">
-              {primaryNavLinks.map((item) => (
-                <HeaderNavLink key={item.href} href={item.href} featured={item.featured}>
-                  {item.label}
-                </HeaderNavLink>
-              ))}
-
-              <div className="group relative">
-                <button
-                  type="button"
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.07] hover:text-white group-focus-within:bg-white/[0.07] group-focus-within:text-white"
-                >
-                  Digər <ChevronDown className="h-3.5 w-3.5 opacity-70" />
-                </button>
-                <div className="invisible absolute left-1/2 top-full z-50 mt-3 w-56 -translate-x-1/2 rounded-2xl border border-white/10 bg-[#0B0B0E]/95 p-2 opacity-0 shadow-2xl backdrop-blur-xl transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-                  {secondaryNavLinks.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="block rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.07] hover:text-white"
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
+              <NavDropdown group={playstationGroup} />
+              <HeaderNavLink href={streamingLink.href}>{streamingLink.label}</HeaderNavLink>
+              <HeaderNavLink href={reviewsLink.href}>{reviewsLink.label}</HeaderNavLink>
+              <HeaderNavLink href={featuredLink.href} featured>
+                {featuredLink.label}
+              </HeaderNavLink>
+              <NavDropdown group={otherGroup} />
             </div>
           </nav>
 
@@ -172,19 +186,28 @@ export default function SiteHeader({
             className="absolute left-0 right-0 top-16 rounded-b-3xl border-b border-white/10 bg-[#09090C] px-4 pb-6 pt-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="grid gap-2">
-              {allNavLinks.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold transition hover:bg-white/[0.07] ${
-                    item.featured ? "text-rose-200" : "text-zinc-200"
-                  }`}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {item.label}
-                  <span className="text-zinc-500">→</span>
-                </Link>
+            <div className="grid gap-3">
+              {mobileSections.map((section, idx) => (
+                <div key={section.heading ?? `section-${idx}`} className="grid gap-2">
+                  {section.heading && (
+                    <p className="px-2 pt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                      {section.heading}
+                    </p>
+                  )}
+                  {section.items.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold transition hover:bg-white/[0.07] ${
+                        item.featured ? "text-rose-200" : "text-zinc-200"
+                      }`}
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      {item.label}
+                      <span className="text-zinc-500">→</span>
+                    </Link>
+                  ))}
+                </div>
               ))}
 
               <div className="mt-2 h-px bg-white/10" />
@@ -254,5 +277,36 @@ function HeaderNavLink({
     >
       {children}
     </Link>
+  );
+}
+
+function NavDropdown({ group }: { group: NavGroup }) {
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.07] hover:text-white group-focus-within:bg-white/[0.07] group-focus-within:text-white xl:px-4"
+      >
+        {group.label} <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+      </button>
+      {/*
+        Wrapper-in `pt-3`-ı vizual boşluğu (12px) saxlayır, amma boşluq özü
+        hover hədəfidir — kursor düymədən panelə keçəndə `group` hover-i
+        kəsilmir.
+      */}
+      <div className="invisible absolute left-1/2 top-full z-50 w-56 -translate-x-1/2 pt-3 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+        <div className="rounded-2xl border border-white/10 bg-[#0B0B0E]/95 p-2 shadow-2xl backdrop-blur-xl">
+          {group.items.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="block rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.07] hover:text-white"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

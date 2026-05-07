@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
   try {
     if (action === "UPSERT") {
-      const { id, title, subtitle, imageUrl, linkUrl, isActive, sortOrder, actionType, gameId } = body;
+      const { id, title, subtitle, imageUrl, mobileImageUrl, linkUrl, isActive, sortOrder, actionType, gameId } = body;
       if (!imageUrl) return NextResponse.json({ error: "imageUrl tələb olunur" }, { status: 400 });
 
       const normalizedAction = actionType === "ADD_TO_CART" ? "ADD_TO_CART" : "LINK";
@@ -41,6 +41,7 @@ export async function POST(req: Request) {
         title: title || null,
         subtitle: subtitle || null,
         imageUrl: String(imageUrl),
+        mobileImageUrl: mobileImageUrl ? String(mobileImageUrl) : null,
         linkUrl: normalizedAction === "LINK" ? (linkUrl || null) : null,
         actionType: normalizedAction,
         gameId: normalizedAction === "ADD_TO_CART" ? String(gameId) : null,

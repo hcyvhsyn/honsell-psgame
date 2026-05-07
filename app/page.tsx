@@ -110,6 +110,7 @@ export default async function HomePage() {
     title: b.title,
     subtitle: b.subtitle,
     imageUrl: b.imageUrl,
+    mobileImageUrl: b.mobileImageUrl ?? null,
     linkUrl: b.linkUrl,
     actionType: (b.actionType === "ADD_TO_CART" ? "ADD_TO_CART" : "LINK") as "LINK" | "ADD_TO_CART",
     game: b.game
@@ -194,7 +195,7 @@ export default async function HomePage() {
           {bannerSlides.length > 0 ? (
             <HomeBannerSlider banners={bannerSlides} />
           ) : (
-            <div className="relative bg-gradient-to-br from-indigo-950 via-zinc-900 to-zinc-950" style={{ aspectRatio: "21/7" }}>
+            <div className="relative aspect-[4/5] bg-gradient-to-br from-indigo-950 via-zinc-900 to-zinc-950 sm:aspect-[16/8] lg:aspect-[21/7]">
               <div className="pointer-events-none absolute -left-20 top-0 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
               <div className="pointer-events-none absolute right-0 bottom-0 h-64 w-64 rounded-full bg-fuchsia-700/20 blur-3xl" />
               <div className="relative flex h-full flex-col items-start justify-center px-8 sm:px-14">
@@ -328,7 +329,6 @@ export default async function HomePage() {
                         fill
                         sizes="(max-width: 1024px) 100vw, 33vw"
                         className="object-cover transition-transform duration-700 group-hover:scale-105"
-                        unoptimized
                       />
                     ) : (
                       <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-fuchsia-700/20" />
@@ -493,7 +493,7 @@ export default async function HomePage() {
               >
                 <div className="absolute -top-8 left-6 h-16 w-16 overflow-hidden rounded-full border-4 border-[#0A0A0F] bg-[#150A21]">
                   {t.avatarUrl ? (
-                    <Image src={t.avatarUrl} alt={t.name} fill className="object-cover" unoptimized />
+                    <Image src={t.avatarUrl} alt={t.name} fill className="object-cover" />
                   ) : (
                     <div className="grid h-full w-full place-items-center bg-white/10 text-xl font-bold text-white">
                       {t.name.charAt(0)}
@@ -733,7 +733,6 @@ function FancyCategoryCard({
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 16vw"
           className="object-cover opacity-20 saturate-125 transition duration-700 group-hover:scale-105 group-hover:opacity-25"
-          unoptimized
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-[#201032] via-[#150A21] to-[#0A0A0F]" />

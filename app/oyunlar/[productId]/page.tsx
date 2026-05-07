@@ -4,12 +4,14 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { ArrowLeft, ExternalLink, Gamepad2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import GameCard, { type GameCardData } from "@/components/GameCard";
 import AddToCartButton from "./AddToCartButton";
 import FavoriteButton from "@/components/FavoriteButton";
 import ScreenshotGallery from "./ScreenshotGallery";
+import GameReviewsSection from "./GameReviewsSection";
 import { SITE_URL, SITE_NAME } from "@/lib/site";
 
 export const revalidate = 3600;
@@ -82,6 +84,7 @@ export default async function GameDetailPage({
 }) {
   const { productId } = await params;
   const settings = await getSettings();
+  const currentUser = await getCurrentUser().catch(() => null);
 
   const game = await prisma.game.findUnique({
     where: { productId },
@@ -191,7 +194,6 @@ export default async function GameDetailPage({
               priority
               sizes="100vw"
               className="object-cover"
-              unoptimized
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/80 to-[#0A0A0F]/40" />
             <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0F] via-transparent to-[#0A0A0F]/30" />
@@ -328,6 +330,18 @@ export default async function GameDetailPage({
           <ScreenshotGallery screenshots={screenshots} gameTitle={game.title} />
         </section>
       )}
+
+      {/* Reviews */}
+      <GameReviewsSection
+        game={{
+          id: game.id,
+          productId: game.productId,
+          title: game.title,
+          coverImageUrl: heroImage ?? game.imageUrl,
+          finalAzn: display.finalAzn,
+        }}
+        viewerUserId={currentUser?.id ?? null}
+      />
 
       {/* Similar */}
       {similarCards.length > 0 && (

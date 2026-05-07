@@ -149,7 +149,6 @@ export default async function CollectionPage({
               priority
               sizes="100vw"
               className="object-cover"
-              unoptimized
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/85 to-[#0A0A0F]/40" />
           </div>

@@ -13,11 +13,16 @@ import {
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import ReferralShareButtons from "@/components/ReferralShareButtons";
 import ReferralCodeCopy from "@/components/ReferralCodeCopy";
+import CycleCountdown from "@/components/CycleCountdown";
 import QazanCalculatorClient from "./QazanCalculatorClient";
 import { getCurrentUser } from "@/lib/auth";
 import { getSettings } from "@/lib/pricing";
-import { getReferralLeaderboard } from "@/lib/referralLeaderboard";
-import { REFERRAL_TIERS } from "@/lib/referralTiers";
+import {
+  getReferralLeaderboard,
+  getLastCycleLeaderboard,
+} from "@/lib/referralLeaderboard";
+import { getCurrentCycle } from "@/lib/referralCycle";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -29,13 +34,35 @@ export const metadata: Metadata = {
 };
 
 export default async function QazanPage() {
-  const [user, settings, leaderboard] = await Promise.all([
-    getCurrentUser(),
-    getSettings(),
-    getReferralLeaderboard(10).catch(() => []),
-  ]);
+  const [user, settings, leaderboard, lastCycle, cycle, tiers] =
+    await Promise.all([
+      getCurrentUser(),
+      getSettings(),
+      getReferralLeaderboard(10).catch(() => ({} as never)).then(
+        (v) => (Array.isArray(v) ? v : [])
+      ),
+      getLastCycleLeaderboard(10).catch(() => ({ cycle: null, entries: [] })),
+      getCurrentCycle().catch(() => null),
+      prisma.referralTier
+        .findMany({
+          where: { isActive: true },
+          orderBy: [{ position: "asc" }, { thresholdPoints: "asc" }],
+        })
+        .catch(() => []),
+    ]);
 
-  const gamePct = Math.round(settings.referralProfitSharePct);
+  // Game commission is `referralProfitSharePct` applied to PROFIT (final - cost),
+  // not to the customer's price. Express it as the effective % of price so the
+  // public-facing copy doesn't overpromise. Streaming is already a flat % of
+  // the final price, so it's used directly.
+  const gameMarginPct =
+    settings.profitMarginGamesPct ?? settings.profitMarginPct;
+  const gamePct = Math.max(
+    1,
+    Math.round(
+      (settings.referralProfitSharePct * gameMarginPct) / (100 + gameMarginPct)
+    )
+  );
   const streamingPct = Math.round(settings.referralStreamingProfitSharePct);
 
   return (
@@ -53,7 +80,7 @@ export default async function QazanPage() {
             Dostunu dəvət et,
             <br />
             <span className="bg-gradient-to-r from-fuchsia-400 to-amber-300 bg-clip-text text-transparent">
-              hər alışından AZN qazan
+              hər alışından PUL qazan
             </span>
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-zinc-300 sm:text-lg">
@@ -155,25 +182,43 @@ export default async function QazanPage() {
             Pilləli mükafatlar
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-zinc-400">
-            Uğurlu dəvət = referal kodu ilə qoşulan və ən azı bir alış edən dost.
+            Hər ay yenilənir. <strong className="text-zinc-200">Hər 1 AZN öz xərcin = 1 bal</strong>,{" "}
+            <strong className="text-zinc-200">hər uğurlu dəvət = 10 bal</strong>. Pilləyə çatanda
+            bonus avtomatik referal balansına yazılır. Ay sonunda bu bölmə sıfırlanır.
           </p>
+          {cycle ? <CycleCountdown endsAt={cycle.endsAt.toISOString()} /> : null}
         </div>
-        <ul className="mt-10 grid gap-5 sm:grid-cols-3">
-          {REFERRAL_TIERS.map((t) => (
-            <li
-              key={t.threshold}
-              className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/10 to-transparent p-6 text-center"
-            >
-              <p className="text-4xl">{t.emoji}</p>
-              <h3 className="mt-2 text-xl font-bold text-white">{t.label}</h3>
-              <p className="mt-1 text-xs text-zinc-400">{t.threshold} uğurlu dəvət</p>
-              <p className="mt-4 text-2xl font-black tabular-nums text-amber-300">
-                +{(t.bonusAznCents / 100).toFixed(0)} AZN
-              </p>
-              <p className="mt-1 text-[11px] uppercase tracking-wider text-zinc-500">birdəfəlik bonus</p>
-            </li>
-          ))}
-        </ul>
+        {tiers.length === 0 ? (
+          <div className="mt-10 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-12 text-center text-sm text-zinc-500">
+            Hazırda aktiv pillə yoxdur. Admin pilləri əlavə etdikdən sonra burada görünəcək.
+          </div>
+        ) : (
+          <ul
+            className={`mt-10 grid gap-5 ${
+              tiers.length >= 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"
+            }`}
+          >
+            {tiers.map((t) => (
+              <li
+                key={t.id}
+                className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/10 to-transparent p-6 text-center"
+              >
+                <p className="text-4xl">{t.emoji}</p>
+                <h3 className="mt-2 text-xl font-bold text-white">{t.label}</h3>
+                <p className="mt-1 text-xs text-zinc-400">
+                  {t.thresholdPoints} bal · {t.thresholdPoints} AZN xərc və ya{" "}
+                  {Math.ceil(t.thresholdPoints / 10)} dəvət
+                </p>
+                <p className="mt-4 text-2xl font-black tabular-nums text-amber-300">
+                  +{(t.bonusAznCents / 100).toFixed(0)} AZN
+                </p>
+                <p className="mt-1 text-[11px] uppercase tracking-wider text-zinc-500">
+                  ay ərzində
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {/* Leaderboard */}
@@ -183,7 +228,7 @@ export default async function QazanPage() {
             Bu ay liderlər
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-center text-sm text-zinc-400">
-            Cari ay üçün ən çox qazanan referallarımız (anonim).
+            Cari ay üçün ən çox bal toplayan istifadəçilərimiz (anonim) — öz xərc və dəvətlərinə görə.
           </p>
           {leaderboard.length === 0 ? (
             <div className="mt-8 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-12 text-center text-sm text-zinc-500">
@@ -214,10 +259,12 @@ export default async function QazanPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-white">{entry.displayName}</p>
-                      <p className="text-[11px] text-zinc-500">Bu ay qazanc</p>
+                      <p className="text-[11px] text-zinc-500">
+                        {entry.invites} dəvət · {entry.spendAzn.toFixed(0)} AZN xərc
+                      </p>
                     </div>
-                    <p className="font-bold tabular-nums text-emerald-300">
-                      {entry.earnedAzn.toFixed(2)} AZN
+                    <p className="font-bold tabular-nums text-amber-300">
+                      {entry.points} bal
                     </p>
                   </li>
                 );
@@ -226,6 +273,70 @@ export default async function QazanPage() {
           )}
         </div>
       </section>
+
+      {/* Past cycle archive — last 1 month */}
+      {lastCycle.cycle ? (
+        <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+          <h2 className="text-center text-3xl font-black tracking-tight text-white sm:text-4xl">
+            Keçən ay nəticələri
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-center text-sm text-zinc-400">
+            {lastCycle.cycle.startsAt.toLocaleDateString("az-AZ", {
+              month: "long",
+              year: "numeric",
+            })}{" "}
+            ayının yekun sıralaması.
+          </p>
+          {lastCycle.entries.length === 0 ? (
+            <div className="mt-8 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-12 text-center text-sm text-zinc-500">
+              Keçən ay heç kim sıralamada deyildi.
+            </div>
+          ) : (
+            <ol className="mt-8 space-y-2">
+              {lastCycle.entries.map((entry) => {
+                const medal =
+                  entry.rank === 1
+                    ? "🥇"
+                    : entry.rank === 2
+                    ? "🥈"
+                    : entry.rank === 3
+                    ? "🥉"
+                    : null;
+                return (
+                  <li
+                    key={entry.userId}
+                    className={`flex items-center gap-4 rounded-2xl border p-4 ${
+                      entry.rank <= 3
+                        ? "border-zinc-700 bg-zinc-900/40"
+                        : "border-white/5 bg-white/[0.02]"
+                    }`}
+                  >
+                    <div className="flex w-10 shrink-0 items-center justify-center text-xl">
+                      {medal ?? (
+                        <span className="text-sm text-zinc-500">#{entry.rank}</span>
+                      )}
+                    </div>
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-800 text-sm font-semibold text-zinc-300 ring-1 ring-white/10">
+                      {entry.avatarLetter}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-zinc-200">
+                        {entry.displayName}
+                      </p>
+                      <p className="text-[11px] text-zinc-500">
+                        {entry.invites} dəvət · {entry.spendAzn.toFixed(0)} AZN xərc
+                      </p>
+                    </div>
+                    <p className="font-bold tabular-nums text-zinc-300">
+                      {entry.points} bal
+                    </p>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </section>
+      ) : null}
 
       {/* FAQ */}
       <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
@@ -240,7 +351,7 @@ export default async function QazanPage() {
             },
             {
               q: "Komissiya faizi nə qədərdir?",
-              a: `Hazırda oyunlardan kar payı ${gamePct}%, streaming abunəliklərində isə final qiymətdən ${streamingPct}% komissiya verilir. Tarif idarə tərəfindən dəyişə bilər.`,
+              a: `Hazırda hər oyun alışından son qiymətin ~${gamePct}%-i, streaming abunəliklərində isə final qiymətin ${streamingPct}%-i referal balansına yazılır. Tarif idarə tərəfindən dəyişə bilər.`,
             },
             {
               q: "Referal balansını necə istifadə edə bilərəm?",

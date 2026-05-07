@@ -10,7 +10,10 @@ import {
   parseStreamingStock,
 } from "@/lib/streamingCart";
 import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
-import { evaluateReferralTiers } from "@/lib/referralTiers";
+import {
+  recordPurchaseSpend,
+  recordSuccessfulInvite,
+} from "@/lib/referralCycle";
 import { getSettings } from "@/lib/pricing";
 
 function reviewProductTypeFromService(type: string | undefined): ReviewProductType | null {
@@ -200,6 +203,18 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         streamingProfitSharePct: settings.referralStreamingProfitSharePct,
       });
 
+      // Cycle bookkeeping:
+      //   • buyer earns own-spend points regardless of whether they were invited
+      //   • inviter (if any) earns +10 pts on referee's first SUCCESS purchase
+      try {
+        await recordPurchaseSpend(ptx, tx.userId, Math.abs(tx.amountAznCents));
+        if (cm?.referredById) {
+          await recordSuccessfulInvite(ptx, cm.referredById, tx.userId);
+        }
+      } catch (err) {
+        console.error("referral cycle bookkeeping failed", err);
+      }
+
       return {
         ok: true as const,
         code: codeValue,
@@ -215,14 +230,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
 
     deliveredCodeRaw = updated.code;
-
-    if (updated.commissionedReferrerId) {
-      try {
-        await evaluateReferralTiers(prisma, updated.commissionedReferrerId);
-      } catch (err) {
-        console.error("evaluateReferralTiers failed", err);
-      }
-    }
 
     if (deliveryMode === "CODE" && deliveredCodeRaw && tx.user?.email) {
       const entry = parseStreamingStock(deliveredCodeRaw);

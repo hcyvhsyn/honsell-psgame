@@ -259,7 +259,6 @@ function PlanCard({
               className={`object-cover transition-transform duration-700 ${
                 inStock ? "group-hover:scale-105" : "grayscale"
               }`}
-              unoptimized
             />
           ) : (
             <div className="flex h-full items-center justify-center text-zinc-700">

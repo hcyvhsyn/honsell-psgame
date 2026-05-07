@@ -17,11 +17,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getLoyaltyTier } from "@/lib/loyalty";
 import ReferralCodeCopy from "@/components/ReferralCodeCopy";
 import ReferralShareButtons from "@/components/ReferralShareButtons";
-import {
-  REFERRAL_TIERS,
-  countSuccessfulReferrals,
-  describeReferralProgress,
-} from "@/lib/referralTiers";
+import { getCurrentCycle } from "@/lib/referralCycle";
 import { GAME_STAGE_LABEL_AZ, parseGameOrderMeta } from "@/lib/gameOrderFulfillment";
 
 export const dynamic = "force-dynamic";
@@ -135,8 +131,52 @@ export default async function ProfileOverviewPage() {
   const loyalty = getLoyaltyTier(totalSpentAzn);
 
   // Tier progress (5/10/25 uğurlu dəvət)
-  const successfulReferrals = await countSuccessfulReferrals(prisma, user.id).catch(() => 0);
-  const tierState = describeReferralProgress(successfulReferrals);
+  // Cari ay üçün referral cycle məlumatları + admin tərəfindən idarə olunan
+  // pillələr. Bal sistemi: 10 × dəvət + AZN xərc.
+  const cycle = await getCurrentCycle().catch(() => null);
+  const [cycleResult, allTiers] = await Promise.all([
+    cycle
+      ? prisma.referralCycleResult
+          .findUnique({
+            where: { cycleId_userId: { cycleId: cycle.id, userId: user.id } },
+            select: { points: true, invites: true, spendCents: true },
+          })
+          .catch(() => null)
+      : Promise.resolve(null),
+    prisma.referralTier
+      .findMany({
+        where: { isActive: true },
+        orderBy: [{ thresholdPoints: "asc" }],
+      })
+      .catch(() => []),
+  ]);
+  const userPoints = cycleResult?.points ?? 0;
+  const userInvites = cycleResult?.invites ?? 0;
+  const userCycleSpendAzn = (cycleResult?.spendCents ?? 0) / 100;
+
+  let currentTier: (typeof allTiers)[number] | null = null;
+  let nextTier: (typeof allTiers)[number] | null = null;
+  for (const t of allTiers) {
+    if (userPoints >= t.thresholdPoints) currentTier = t;
+    else {
+      nextTier = t;
+      break;
+    }
+  }
+  const tierProgressPct = nextTier
+    ? Math.min(
+        100,
+        Math.max(
+          0,
+          Math.round(
+            ((userPoints - (currentTier?.thresholdPoints ?? 0)) /
+              (nextTier.thresholdPoints - (currentTier?.thresholdPoints ?? 0))) *
+              100
+          )
+        )
+      )
+    : 100;
+  const pointsToNext = nextTier ? Math.max(0, nextTier.thresholdPoints - userPoints) : 0;
 
   const psnPct = Math.min(
     100,
@@ -261,78 +301,86 @@ export default async function ProfileOverviewPage() {
               icon={<Trophy className="h-4 w-4 text-fuchsia-300" />}
             />
             <Stat
-              label="Uğurlu dəvət"
-              value={successfulReferrals.toString()}
+              label="Bu ay dəvət"
+              value={userInvites.toString()}
               icon={<Sparkles className="h-4 w-4 text-fuchsia-300" />}
             />
             <Stat
-              label="Qazanc"
-              value={`${commissionAzn.toFixed(2)} AZN`}
-              icon={<Sparkles className="h-4 w-4 text-emerald-300" />}
+              label="Bu ay bal"
+              value={userPoints.toString()}
+              icon={<Sparkles className="h-4 w-4 text-amber-300" />}
             />
             <Stat
-              label="Tier"
-              value={tierState.current ? `${tierState.current.emoji} ${tierState.current.label}` : "—"}
+              label="Bu ay tier"
+              value={currentTier ? `${currentTier.emoji} ${currentTier.label}` : "—"}
               icon={<Crown className="h-4 w-4 text-amber-300" />}
             />
           </div>
 
+          <p className="text-[11px] text-zinc-500">
+            Cari ay xərc: {userCycleSpendAzn.toFixed(0)} AZN · ümumi qazanc:{" "}
+            {commissionAzn.toFixed(2)} AZN
+          </p>
+
           {/* Tier progress */}
-          {tierState.next ? (
+          {nextTier ? (
             <div>
               <div className="mb-2 flex items-center justify-between text-xs text-zinc-300">
                 <span>
                   Növbəti pillə:{" "}
                   <span className="font-semibold text-white">
-                    {tierState.next.emoji} {tierState.next.label}
+                    {nextTier.emoji} {nextTier.label}
                   </span>{" "}
-                  · {(tierState.next.bonusAznCents / 100).toFixed(0)} AZN bonus
+                  · {(nextTier.bonusAznCents / 100).toFixed(0)} AZN bonus
                 </span>
                 <span className="font-semibold text-fuchsia-300">
-                  {successfulReferrals}/{tierState.next.threshold}
+                  {userPoints}/{nextTier.thresholdPoints} bal
                 </span>
               </div>
               <ProgressBar
-                value={tierState.progressPct}
+                value={tierProgressPct}
                 from="from-fuchsia-500"
                 to="to-amber-400"
               />
               <p className="mt-2 text-[11px] text-zinc-400">
-                Daha {tierState.toNext} uğurlu dəvət — referala alış edən dost = uğurlu dəvətdir.
+                Daha {pointsToNext} bal — öz xərcindən 1 bal/AZN, hər uğurlu dəvətdən +10 bal. Ay
+                sonunda bu hissə sıfırlanır.
               </p>
             </div>
-          ) : (
+          ) : allTiers.length > 0 ? (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-              🎉 Bütün pillələri açmısan! Hər yeni uğurlu dəvətlə komissiya qazanmağa davam edirsən.
+              🎉 Bu ay bütün pillələri açmısan! Komissiya qazanmağa davam et.
             </div>
-          )}
+          ) : null}
 
           {/* Tier tableau */}
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {REFERRAL_TIERS.map((t) => {
-              const reached = successfulReferrals >= t.threshold;
-              return (
-                <li
-                  key={t.threshold}
-                  className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm ${
-                    reached
-                      ? "border-amber-500/40 bg-amber-500/10 text-amber-100"
-                      : "border-white/10 bg-white/[0.03] text-zinc-300"
-                  }`}
-                >
-                  <span className="text-xl">{t.emoji}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">
-                      {t.label}
-                    </p>
-                    <p className="text-xs font-medium">
-                      {t.threshold} dəvət · +{(t.bonusAznCents / 100).toFixed(0)} AZN bonus
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          {allTiers.length > 0 && (
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {allTiers.map((t) => {
+                const reached = userPoints >= t.thresholdPoints;
+                return (
+                  <li
+                    key={t.id}
+                    className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm ${
+                      reached
+                        ? "border-amber-500/40 bg-amber-500/10 text-amber-100"
+                        : "border-white/10 bg-white/[0.03] text-zinc-300"
+                    }`}
+                  >
+                    <span className="text-xl">{t.emoji}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">
+                        {t.label}
+                      </p>
+                      <p className="text-xs font-medium">
+                        {t.thresholdPoints} bal · +{(t.bonusAznCents / 100).toFixed(0)} AZN
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       </section>
 
@@ -481,7 +529,6 @@ export default async function ProfileOverviewPage() {
                       fill
                       sizes="56px"
                       className="object-cover"
-                      unoptimized
                     />
                   ) : (
                     <div className="grid h-full place-items-center text-zinc-600 bg-white/5">

@@ -53,6 +53,13 @@ model User {
 
   favorites      Favorite[]
 
+  referralCycleResults ReferralCycleResult[]
+  referralCycleRewards ReferralCycleReward[]
+
+  gameReviews     GameReview[]
+  reviewReactions ReviewReaction[]
+  reviewComments  ReviewComment[]
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
@@ -122,6 +129,7 @@ model Game {
   banners         Banner[]
   collections     CollectionGame[]
   favorites       Favorite[]
+  reviews         GameReview[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -322,11 +330,13 @@ model ScrapeRun {
 // ─── Banners (homepage hero carousel) ────────────────────────────────────────
 
 model Banner {
-  id         String   @id @default(cuid())
-  title      String?
-  subtitle   String?
-  imageUrl   String
-  linkUrl    String?
+  id             String  @id @default(cuid())
+  title          String?
+  subtitle       String?
+  imageUrl       String
+  // Mobil cihazlar üçün opsional alternativ şəkil. Boş olduqda `imageUrl` istifadə olunur.
+  mobileImageUrl String?
+  linkUrl        String?
   // LINK | ADD_TO_CART
   actionType String   @default("LINK")
   gameId     String?
@@ -395,6 +405,9 @@ model Settings {
   // Streaming abunəlikləri üçün ayrıca komissiya faizi — final qiymət üzərindən tətbiq olunur
   // (oyunlardan fərqli olaraq cost izlənmir). Default 10%.
   referralStreamingProfitSharePct Float @default(10)
+  // Rəy yazan istifadəçinin affiliate linkindən gələn alışlardan qazandığı %.
+  // Final satış məbləği üzərindən tətbiq olunur. Default 5%.
+  reviewAffiliateRatePct Float @default(5)
 
   // Bank card the customer transfers funds to during manual deposit.
   depositCardNumber  String?
@@ -449,4 +462,171 @@ model FaqItem {
   updatedAt DateTime @updatedAt
 
   @@index([isActive, sortOrder])
+}
+
+// ─── Referral cycles (monthly leaderboards + tier rewards) ────────────────────
+//
+// Each calendar month is a `ReferralCycle`. Inside the cycle, every referrer
+// has a `ReferralCycleResult` row that accumulates points:
+//   - +10 points per "successful invite" (referee's first SUCCESS purchase)
+//   - +1 point per AZN spent by referees in the cycle
+// Tiers (admin-configurable via `ReferralTier`) award `bonusAznCents` once a
+// user crosses the threshold IN THAT CYCLE; the award is recorded in
+// `ReferralCycleReward` (idempotent via the unique constraint) and the AZN
+// flows to `User.referralBalanceCents` (same destination as commission).
+
+model ReferralCycle {
+  id        String   @id @default(cuid())
+  // Inclusive start of the calendar month (UTC midnight of day 1).
+  startsAt  DateTime
+  // Exclusive end (UTC midnight of next month's day 1).
+  endsAt    DateTime
+  // Set once `closeExpiredCycles()` snapshots final ranks.
+  closedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  results ReferralCycleResult[]
+  rewards ReferralCycleReward[]
+
+  @@unique([startsAt])
+  @@index([endsAt])
+}
+
+model ReferralCycleResult {
+  id         String   @id @default(cuid())
+  cycleId    String
+  cycle      ReferralCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  invites    Int      @default(0) // count of "successful invites" inside this cycle
+  spendCents Int      @default(0) // referee spend (AZN cents) attributable to this user this cycle
+  points     Int      @default(0) // invites*10 + floor(spendCents/100)
+
+  // Final rank — only populated after the cycle closes.
+  rank       Int?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([cycleId, userId])
+  @@index([cycleId, points])
+  @@index([userId])
+}
+
+model ReferralTier {
+  id              String   @id @default(cuid())
+  // Points required to unlock this tier inside a single cycle.
+  thresholdPoints Int      @unique
+  label           String
+  emoji           String
+  bonusAznCents   Int
+  // Sort order in admin UI (low → high).
+  position        Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  awards          ReferralCycleReward[]
+
+  @@index([isActive, position])
+}
+
+model ReferralCycleReward {
+  id            String   @id @default(cuid())
+  cycleId       String
+  cycle         ReferralCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tierId        String
+  tier          ReferralTier @relation(fields: [tierId], references: [id])
+
+  // Snapshotted from `tier.bonusAznCents` at award time so subsequent admin
+  // edits to the tier don't rewrite history.
+  bonusAznCents Int
+  awardedAt     DateTime @default(now())
+
+  @@unique([cycleId, userId, tierId])
+  @@index([userId])
+}
+
+// ─── Game reviews (rəylər) + sosial qarşılıqlı təsir + affiliate ──────────────
+//
+// Hər istifadəçi bir oyun üçün yalnız bir rəy yaza bilər. Rəy admin
+// moderasiyasından keçdikdən sonra (status = APPROVED) public görünür.
+// Rəy kartındakı "Bu Oyunu Satın Al" düyməsinə klikləyən hər kəs
+// `?via=<reviewId>` query parametri ilə oyun səhifəsinə yönləndirilir;
+// bu identifikator 30 günlük HTTP-only cookie-yə yazılır və alış SUCCESS
+// status alanda rəy müəllifinə referal balansından komissiya yazılır.
+
+model GameReview {
+  id        String   @id @default(cuid())
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 1..5 (UI-da ulduz). Server tərəfdə də limitlənir.
+  rating    Int
+  // 200..5000 simvol. Hər iki tərəfdə validasiya olunur.
+  body      String
+
+  // PENDING | APPROVED | REJECTED | HIDDEN
+  // PENDING  — yeni göndərilmiş, admin onayını gözləyir
+  // APPROVED — public görünür
+  // REJECTED — admin rədd edib (görünməz)
+  // HIDDEN   — adminin əvvəl onayladığı, sonra gizlədiyi rəy
+  status    String   @default("PENDING")
+
+  // Admin moderasiya audit-i.
+  moderatedAt   DateTime?
+  moderatedById String?
+  moderationNote String?
+
+  reactions ReviewReaction[]
+  comments  ReviewComment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Hər istifadəçi bir oyun üçün bir rəy.
+  @@unique([userId, gameId])
+  @@index([gameId, status, createdAt])
+  @@index([userId])
+  @@index([status])
+}
+
+model ReviewReaction {
+  reviewId  String
+  review    GameReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // +1 (Like) | -1 (Dislike). Toggle: eyni dəyər təkrar gəlsə kayıt silinir,
+  // əks dəyər gəlsə isə update olunur.
+  value     Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([reviewId, userId])
+  @@index([reviewId, value])
+}
+
+model ReviewComment {
+  id        String   @id @default(cuid())
+  reviewId  String
+  review    GameReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  body      String
+  // Admin tərəfindən gizlənilibsə, public siyahıda görünmür.
+  isHidden  Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reviewId, createdAt])
+  @@index([userId])
 }

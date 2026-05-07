@@ -8,7 +8,11 @@ import {
   type GameOrderStage,
 } from "@/lib/gameOrderFulfillment";
 import { issueReviewInvite } from "@/lib/reviewInvite";
-import { evaluateReferralTiers } from "@/lib/referralTiers";
+import {
+  recordPurchaseSpend,
+  recordSuccessfulInvite,
+} from "@/lib/referralCycle";
+import { awardReviewAffiliateCommission } from "@/lib/reviewAffiliate";
 
 export const runtime = "nodejs";
 
@@ -117,6 +121,48 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           });
         }
       }
+
+      // Cycle bookkeeping (idempotent via the COMMISSION-existence guard
+      // and the marker transaction inside `recordSuccessfulInvite`):
+      //   • buyer earns 1 pt / AZN they themselves spent
+      //   • inviter (if any) earns +10 pts on the referee's first success
+      if (!existingCommission) {
+        try {
+          await recordPurchaseSpend(ptx, row.userId, unitListCents);
+          if (referredById) {
+            await recordSuccessfulInvite(ptx, referredById, row.userId);
+          }
+        } catch (err) {
+          console.error("referral cycle bookkeeping failed", err);
+        }
+      }
+
+      // Rəy affiliate komissiyası — alışın metadata-sında reviewAffiliateId varsa
+      // və rəy APPROVED + alıcı != müəllif şərtləri ödənirsə, müəllifə yazılır.
+      // Klassik referrer komissiyasından ayrı və əlavə olaraq işləyir.
+      try {
+        if (row.metadata) {
+          const meta = JSON.parse(row.metadata) as {
+            reviewAffiliateId?: string;
+            reviewAffiliateLineCents?: number;
+          };
+          if (meta.reviewAffiliateId) {
+            await awardReviewAffiliateCommission(ptx, {
+              reviewId: meta.reviewAffiliateId,
+              sourcePurchaseId: row.id,
+              buyerUserId: row.userId,
+              gameId: gameRow.id,
+              lineCents: Math.max(
+                0,
+                Number(meta.reviewAffiliateLineCents) || unitListCents
+              ),
+              reviewAffiliateRatePct: settings.reviewAffiliateRatePct,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("review affiliate commission failed", err);
+      }
     });
 
     if (row.user?.email) {
@@ -128,17 +174,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         productTitle: gameRow.title,
         productType: "GAME",
       });
-    }
-
-    // Tier mükafatı yoxlaması — referrer üçün (idempotent).
-    const buyer = row.user ?? (await prisma.user.findUnique({ where: { id: row.userId } }));
-    const referrerForTier = buyer?.referredById ?? null;
-    if (referrerForTier) {
-      try {
-        await evaluateReferralTiers(prisma, referrerForTier);
-      } catch (err) {
-        console.error("evaluateReferralTiers failed", err);
-      }
     }
 
     return NextResponse.json({ ok: true });

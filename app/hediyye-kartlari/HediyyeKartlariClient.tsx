@@ -49,7 +49,6 @@ export default function HediyyeKartlariClient({ cards }: { cards: Plan[] }) {
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                   className="object-cover transition-transform duration-700 group-hover:scale-105"
-                  unoptimized
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-zinc-600 bg-gradient-to-br from-zinc-900 to-zinc-800">

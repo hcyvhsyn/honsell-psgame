@@ -105,7 +105,6 @@ export default async function CollectionsIndexPage() {
                       fill
                       sizes="(max-width: 1024px) 100vw, 33vw"
                       className="object-cover transition-transform duration-700 group-hover:scale-105"
-                      unoptimized
                     />
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-fuchsia-700/20" />

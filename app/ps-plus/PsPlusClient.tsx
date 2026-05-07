@@ -190,7 +190,6 @@ export default function PsPlusClient({ plans, hideTierSelector = false, flatMode
                         fill
                         sizes="(max-width: 768px) 100vw, 33vw"
                         className="object-cover transition-transform duration-700 group-hover:scale-105"
-                        unoptimized
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-900 to-zinc-800 text-zinc-500">

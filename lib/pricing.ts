@@ -12,6 +12,8 @@ export type PricingSettings = {
   referralProfitSharePct: number;
   /** Streaming abunəliklər üçün ayrıca komissiya faizi (final qiymət üzərindən). */
   referralStreamingProfitSharePct: number;
+  /** Rəy affiliate komissiya faizi (final qiymət üzərindən). */
+  reviewAffiliateRatePct: number;
 };
 
 export type DisplayPrice = {
@@ -40,6 +42,7 @@ export async function getSettings(): Promise<PricingSettings> {
       affiliateRatePct: s.affiliateRatePct,
       referralProfitSharePct: s.referralProfitSharePct,
       referralStreamingProfitSharePct: s.referralStreamingProfitSharePct ?? 10,
+      reviewAffiliateRatePct: s.reviewAffiliateRatePct ?? 5,
     };
   } catch (err) {
     // Prod DB might not be migrated yet (missing new Settings columns).
@@ -48,7 +51,8 @@ export async function getSettings(): Promise<PricingSettings> {
       msg.includes("profitMarginGamesPct") ||
       msg.includes("profitMarginGiftCardsPct") ||
       msg.includes("profitMarginPsPlusPct") ||
-      msg.includes("referralStreamingProfitSharePct");
+      msg.includes("referralStreamingProfitSharePct") ||
+      msg.includes("reviewAffiliateRatePct");
     if (!missingNewColumns) throw err;
 
     const rows = await prisma.$queryRaw<
@@ -79,6 +83,7 @@ export async function getSettings(): Promise<PricingSettings> {
       affiliateRatePct: s.affiliateRatePct,
       referralProfitSharePct: s.referralProfitSharePct,
       referralStreamingProfitSharePct: 10,
+      reviewAffiliateRatePct: 5,
     };
   }
 }
@@ -121,9 +126,18 @@ export function tryCentsToAznWithMargin(
  * Compute the display price for a game. If a discount is active, the final
  * price uses the discounted TRY amount and `originalAzn` carries the
  * strike-through original.
+ *
+ * Expiry rules: bir endirim "aktiv" sayılır o zaman ki, `discountTryCents`
+ * sıfırdan azdır AND ya `discountEndAt` boşdur, ya da gələcəkdədir. Köhnə
+ * skreyp run-larından qalan stale endirimlər sayəsində runtime-da bu yoxlama
+ * vacibdir — yoxsa istifadəçi artıq bitmiş endirimlə oyun ala bilər.
  */
 export function computeDisplayPrice(
-  game: { priceTryCents: number; discountTryCents: number | null },
+  game: {
+    priceTryCents: number;
+    discountTryCents: number | null;
+    discountEndAt?: Date | string | null;
+  },
   settings: PricingSettings
 ): DisplayPrice {
   const originalAzn = tryCentsToAznWithMargin(
@@ -132,7 +146,19 @@ export function computeDisplayPrice(
     settings.profitMarginGamesPct ?? settings.profitMarginPct
   );
 
-  if (game.discountTryCents != null && game.discountTryCents < game.priceTryCents) {
+  const endAt =
+    game.discountEndAt instanceof Date
+      ? game.discountEndAt
+      : game.discountEndAt
+        ? new Date(game.discountEndAt)
+        : null;
+  const expired = endAt != null && endAt.getTime() <= Date.now();
+
+  if (
+    !expired &&
+    game.discountTryCents != null &&
+    game.discountTryCents < game.priceTryCents
+  ) {
     const finalAzn = tryCentsToAznWithMargin(
       game.discountTryCents,
       settings.tryToAznRate,

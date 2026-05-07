@@ -97,7 +97,7 @@ export default async function OrdersPage() {
               <div className="flex items-center gap-3">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-zinc-900">
                   {r.game?.imageUrl ? (
-                    <Image src={r.game.imageUrl} alt={r.game.title} fill sizes="56px" className="object-cover" unoptimized />
+                    <Image src={r.game.imageUrl} alt={r.game.title} fill sizes="56px" className="object-cover" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-zinc-600">
                       <Gamepad2 className="h-5 w-5" />

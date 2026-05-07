@@ -15,16 +15,14 @@ export default function QazanCalculatorClient({
   const [purchasesPerReferral, setPurchasesPerReferral] = useState(2); // ayda neçə alış edir
 
   const monthly = useMemo(() => {
-    // İdealdan sadələşmiş model: hər referee ayda X dəfə alış edir,
-    // alışların yarısı oyun, yarısı streaming.
+    // Sadələşmiş model: hər referee ayda X dəfə alış edir, alışların yarısı
+    // oyun, yarısı streaming. `gamePct` və `streamingPct` artıq son qiymətə
+    // tətbiq olunan effektiv faizlərdir (server tərəfində profit×share-dən
+    // hesablanır), ona görə birbaşa vurub qazancı tapırıq.
     const totalPurchases = referralsPerMonth * purchasesPerReferral;
     const gamePurchases = totalPurchases / 2;
     const streamingPurchases = totalPurchases / 2;
-    // Oyunlarda komissiya — biz profit-in faizini veririk; sadəlik üçün
-    // marka 20% qəbul edirik və o profitin gamePct-ini ödəyirik.
-    // Yəni effektiv ≈ avgGameSpend * 0.2 * gamePct/100.
-    const effectiveGameRate = (0.2 * gamePct) / 100;
-    const gameEarn = gamePurchases * avgGameSpend * effectiveGameRate;
+    const gameEarn = gamePurchases * avgGameSpend * (gamePct / 100);
     const streamingEarn = streamingPurchases * avgStreamingSpend * (streamingPct / 100);
     return {
       perMonth: gameEarn + streamingEarn,

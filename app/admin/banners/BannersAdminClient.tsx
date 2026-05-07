@@ -9,6 +9,7 @@ type Banner = {
   title: string | null;
   subtitle: string | null;
   imageUrl: string;
+  mobileImageUrl: string | null;
   linkUrl: string | null;
   actionType: "LINK" | "ADD_TO_CART";
   gameId: string | null;
@@ -21,6 +22,7 @@ type EditForm = {
   title: string;
   subtitle: string;
   imageUrl: string;
+  mobileImageUrl: string;
   linkUrl: string;
   actionType: "LINK" | "ADD_TO_CART";
   gameId: string;
@@ -35,11 +37,12 @@ export default function BannersAdminClient() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | "NEW" | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ title: "", subtitle: "", imageUrl: "", linkUrl: "", actionType: "LINK", gameId: "", gameLabel: "", isActive: true, sortOrder: "0" });
+  const [editForm, setEditForm] = useState<EditForm>({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "LINK", gameId: "", gameLabel: "", isActive: true, sortOrder: "0" });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState<"desktop" | "mobile" | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mobileFileInputRef = useRef<HTMLInputElement>(null);
   const [gameQuery, setGameQuery] = useState("");
   const [gameOptions, setGameOptions] = useState<GameOption[]>([]);
   const [searchingGames, setSearchingGames] = useState(false);
@@ -96,7 +99,7 @@ export default function BannersAdminClient() {
   function openNew() {
     setSaveError(null);
     setEditingId("NEW");
-    setEditForm({ title: "", subtitle: "", imageUrl: "", linkUrl: "", actionType: "LINK", gameId: "", gameLabel: "", isActive: true, sortOrder: String(banners.length) });
+    setEditForm({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "LINK", gameId: "", gameLabel: "", isActive: true, sortOrder: String(banners.length) });
     setGameQuery("");
     setGameOptions([]);
   }
@@ -108,6 +111,7 @@ export default function BannersAdminClient() {
       title: b.title ?? "",
       subtitle: b.subtitle ?? "",
       imageUrl: b.imageUrl,
+      mobileImageUrl: b.mobileImageUrl ?? "",
       linkUrl: b.linkUrl ?? "",
       actionType: b.actionType ?? "LINK",
       gameId: b.gameId ?? "",
@@ -138,10 +142,10 @@ export default function BannersAdminClient() {
     return () => clearTimeout(t);
   }, [gameQuery, editForm.actionType]);
 
-  async function handleImageUpload(file: File) {
+  async function handleImageUpload(file: File, target: "desktop" | "mobile") {
     if (!file.type.startsWith("image/")) { alert("Yalnız şəkil faylı"); return; }
     if (file.size > 10 * 1024 * 1024) { alert("Fayl çox böyükdür (max 10 MB)"); return; }
-    setUploadingImage(true);
+    setUploadingImage(target);
     try {
       const init = await fetch("/api/admin/banners/image-upload", {
         method: "POST",
@@ -153,9 +157,11 @@ export default function BannersAdminClient() {
       const supabase = getSupabaseBrowser();
       const { error: upErr } = await supabase.storage.from(initData.bucket).uploadToSignedUrl(initData.path, initData.token, file);
       if (upErr) { alert(`Upload alınmadı: ${upErr.message}`); return; }
-      setEditForm((prev) => ({ ...prev, imageUrl: initData.publicUrl }));
+      setEditForm((prev) => target === "desktop"
+        ? { ...prev, imageUrl: initData.publicUrl }
+        : { ...prev, mobileImageUrl: initData.publicUrl });
     } finally {
-      setUploadingImage(false);
+      setUploadingImage(null);
     }
   }
 
@@ -173,6 +179,7 @@ export default function BannersAdminClient() {
         title: editForm.title,
         subtitle: editForm.subtitle,
         imageUrl: editForm.imageUrl,
+        mobileImageUrl: editForm.mobileImageUrl || null,
         linkUrl: editForm.linkUrl,
         actionType: editForm.actionType,
         gameId: editForm.gameId || null,
@@ -261,15 +268,18 @@ export default function BannersAdminClient() {
             <h3 className="mb-6 text-lg font-bold">{editingId === "NEW" ? "Yeni Banner" : "Banneri Redaktə et"}</h3>
 
             <div className="space-y-4">
-              {/* Image Upload */}
+              {/* Desktop Image Upload */}
               <div>
-                <p className="mb-1 text-sm text-zinc-300">Şəkil <span className="text-rose-400">*</span></p>
+                <p className="mb-1 text-sm text-zinc-300">
+                  Desktop şəkli <span className="text-rose-400">*</span>
+                  <span className="ml-2 text-xs text-zinc-500">(geniş, 21:7 və ya 16:8)</span>
+                </p>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
                   className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, "desktop"); e.target.value = ""; }}
                 />
                 {editForm.imageUrl ? (
                   <div className="relative overflow-hidden rounded-xl border border-zinc-800">
@@ -293,11 +303,58 @@ export default function BannersAdminClient() {
                 ) : (
                   <button
                     type="button"
-                    disabled={uploadingImage}
+                    disabled={uploadingImage !== null}
                     onClick={() => fileInputRef.current?.click()}
                     className="flex h-36 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700 bg-zinc-900 text-sm text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 disabled:opacity-50"
                   >
-                    {uploadingImage ? <><Loader2 className="h-4 w-4 animate-spin" /> Yüklənir...</> : <><Upload className="h-5 w-5" /> Şəkil seç (PNG/JPEG/WEBP, max 10 MB)</>}
+                    {uploadingImage === "desktop" ? <><Loader2 className="h-4 w-4 animate-spin" /> Yüklənir...</> : <><Upload className="h-5 w-5" /> Şəkil seç (PNG/JPEG/WEBP, max 10 MB)</>}
+                  </button>
+                )}
+              </div>
+
+              {/* Mobile Image Upload (optional) */}
+              <div>
+                <p className="mb-1 text-sm text-zinc-300">
+                  Mobil şəkli <span className="text-zinc-500 text-xs">(opsional)</span>
+                  <span className="ml-2 text-xs text-zinc-500">(portret, 4:5 tövsiyə olunur)</span>
+                </p>
+                <p className="mb-2 text-xs text-zinc-500">
+                  Boş buraxılarsa, telefonda da desktop şəkli istifadə olunacaq.
+                </p>
+                <input
+                  ref={mobileFileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, "mobile"); e.target.value = ""; }}
+                />
+                {editForm.mobileImageUrl ? (
+                  <div className="relative overflow-hidden rounded-xl border border-zinc-800">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={editForm.mobileImageUrl} alt="" className="mx-auto h-56 w-auto object-contain" />
+                    <button
+                      type="button"
+                      onClick={() => setEditForm({ ...editForm, mobileImageUrl: "" })}
+                      className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => mobileFileInputRef.current?.click()}
+                      className="absolute bottom-2 right-2 rounded-lg bg-black/60 px-3 py-1.5 text-xs text-white hover:bg-black/80"
+                    >
+                      Dəyiş
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={uploadingImage !== null}
+                    onClick={() => mobileFileInputRef.current?.click()}
+                    className="flex h-32 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700 bg-zinc-900 text-sm text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 disabled:opacity-50"
+                  >
+                    {uploadingImage === "mobile" ? <><Loader2 className="h-4 w-4 animate-spin" /> Yüklənir...</> : <><Upload className="h-5 w-5" /> Mobil şəkil seç</>}
                   </button>
                 )}
               </div>
@@ -391,7 +448,7 @@ export default function BannersAdminClient() {
 
             <div className="mt-8 flex justify-end gap-3">
               <button onClick={() => { setEditingId(null); setSaveError(null); }} className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700">İmtina</button>
-              <button onClick={saveBanner} disabled={saving || uploadingImage} className="inline-flex items-center gap-2 rounded bg-indigo-500 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-400 disabled:opacity-50">
+              <button onClick={saveBanner} disabled={saving || uploadingImage !== null} className="inline-flex items-center gap-2 rounded bg-indigo-500 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-400 disabled:opacity-50">
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />} Yadda saxla
               </button>
             </div>
