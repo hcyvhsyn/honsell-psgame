@@ -11,6 +11,7 @@ import {
   Sparkles,
   TrendingUp,
   Crown,
+  PiggyBank,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -33,6 +34,7 @@ export default async function ProfileOverviewPage() {
   let refereeCount = 0;
   let commissionCents = 0;
   let totalSpentCents = 0;
+  let totalSavingsCents = 0;
   let recentOrders: Array<{
     id: string;
     type: string;
@@ -52,6 +54,7 @@ export default async function ProfileOverviewPage() {
       refereeCount,
       commissionCents,
       totalSpentCents,
+      totalSavingsCents,
       recentOrders,
     ] = await Promise.all([
       prisma.psnAccount.count({ where: { userId: user.id } }),
@@ -71,6 +74,16 @@ export default async function ProfileOverviewPage() {
           _sum: { amountAznCents: true },
         })
         .then((a) => Math.abs(a._sum.amountAznCents ?? 0)),
+      prisma.transaction
+        .aggregate({
+          where: {
+            userId: user.id,
+            type: { in: ["PURCHASE", "SERVICE_PURCHASE"] },
+            status: { in: ["SUCCESS", "PENDING"] },
+          },
+          _sum: { savingsAznCents: true },
+        })
+        .then((a) => a._sum.savingsAznCents ?? 0),
       prisma.transaction.findMany({
         where: { userId: user.id, type: { in: ["PURCHASE", "SERVICE_PURCHASE"] } },
         orderBy: { createdAt: "desc" },
@@ -84,7 +97,11 @@ export default async function ProfileOverviewPage() {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     // Back-compat fallback when prod DB hasn't been migrated yet.
-    if (msg.includes("Transaction.serviceProductId") || msg.includes("serviceProductId")) {
+    if (
+      msg.includes("Transaction.serviceProductId") ||
+      msg.includes("serviceProductId") ||
+      msg.includes("savingsAznCents")
+    ) {
       [
         accountCount,
         orderCount,
@@ -119,6 +136,7 @@ export default async function ProfileOverviewPage() {
           },
         }),
       ]);
+      totalSavingsCents = 0;
     } else {
       throw err;
     }
@@ -128,6 +146,7 @@ export default async function ProfileOverviewPage() {
   const cashbackAzn = (user.cashbackBalanceCents ?? 0) / 100;
   const commissionAzn = commissionCents / 100;
   const totalSpentAzn = totalSpentCents / 100;
+  const totalSavingsAzn = totalSavingsCents / 100;
   const loyalty = getLoyaltyTier(totalSpentAzn);
 
   // Tier progress (5/10/25 uğurlu dəvət)
@@ -251,6 +270,39 @@ export default async function ProfileOverviewPage() {
                 Loyalty səviyyənə görə hər alışdan faiz burada yığılır.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ───── Savings — bugünə qədər endirimdən qənaət ───── */}
+      <section className="relative overflow-hidden rounded-[24px] border border-emerald-500/20 bg-gradient-to-br from-emerald-700/15 via-teal-700/10 to-[#111116] p-5 sm:p-7 shadow-2xl">
+        <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-emerald-500/25 blur-[80px]" />
+        <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-teal-500/15 blur-[80px]" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40">
+              <PiggyBank className="h-7 w-7" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-300">
+                Bugünə qədər qənaət
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-white sm:text-xl">
+                Honsell Store seçərək nə qədər qənaət etmisən
+              </h3>
+              <p className="mt-1 text-sm text-zinc-400">
+                Endirimdə alınan oyunlardan toplam qazancın.
+              </p>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 backdrop-blur sm:min-w-[200px] sm:text-right">
+            <p className="text-xs uppercase tracking-wider text-zinc-400">Qənaət</p>
+            <p className="mt-1 flex items-baseline gap-2 sm:justify-end">
+              <span className="text-3xl font-bold tabular-nums text-emerald-300 sm:text-4xl">
+                {totalSavingsAzn.toFixed(2)}
+              </span>
+              <span className="text-sm font-medium text-emerald-200/70">AZN</span>
+            </p>
           </div>
         </div>
       </section>

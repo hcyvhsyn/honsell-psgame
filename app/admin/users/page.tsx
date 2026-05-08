@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { fmtAzn, fmtDate } from "@/lib/format";
 import { CopyPhoneButton, UserRowActions } from "./UserRowActions";
+import CreateUserButton from "./CreateUserButton";
 
 export const dynamic = "force-dynamic";
 
@@ -68,15 +69,18 @@ export default async function AdminUsersPage({
           </p>
         </div>
 
-        <form className="relative w-full max-w-sm">
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder="Search email, name, referral code…"
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 py-2 pl-9 pr-3 text-sm placeholder:text-zinc-500 focus:border-indigo-500 focus:outline-none"
-          />
-        </form>
+        <div className="flex items-center gap-3">
+          <form className="relative w-full max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+            <input
+              name="q"
+              defaultValue={q}
+              placeholder="Search email, name, referral code…"
+              className="w-full rounded-md border border-zinc-800 bg-zinc-950 py-2 pl-9 pr-3 text-sm placeholder:text-zinc-500 focus:border-indigo-500 focus:outline-none"
+            />
+          </form>
+          <CreateUserButton />
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-zinc-800">

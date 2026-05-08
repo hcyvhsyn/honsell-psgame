@@ -44,8 +44,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bu e-poçt artıq istifadə olunur" }, { status: 409 });
   }
 
-  let referredById: string | null = existing?.referredById ?? null;
-  if (referralCode && !existing) {
+  // Unverified account already exists for this email — instead of silently
+  // refreshing the record, tell the caller that they should reset the password
+  // (works equally well for self-registered accounts that never confirmed and
+  // for admin-created accounts that haven't completed /set-password).
+  if (existing && !existing.emailVerified) {
+    return NextResponse.json(
+      {
+        error:
+          "Bu e-poçtla hesabınız var. Şifrəni yenilə düyməsinə basaraq şifrənizi yeniləyin.",
+        accountExists: true,
+        needsPasswordReset: true,
+        email,
+      },
+      { status: 409 }
+    );
+  }
+
+  let referredById: string | null = null;
+  if (referralCode) {
     const referrer = await prisma.user.findUnique({
       where: { referralCode },
     });
@@ -61,20 +78,7 @@ export async function POST(req: Request) {
   const otpCode = generateOtpCode();
   const otpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
 
-  if (existing) {
-    // User signed up before but never verified — refresh the record so the
-    // latest password / name takes effect, then re-send the code.
-    await prisma.user.update({
-      where: { id: existing.id },
-      data: {
-        name,
-        phone,
-        passwordHash: hashPassword(password),
-        otpCode,
-        otpExpiresAt,
-      },
-    });
-  } else {
+  {
     let code = generateReferralCode();
     for (let i = 0; i < 5; i++) {
       const clash = await prisma.user.findUnique({

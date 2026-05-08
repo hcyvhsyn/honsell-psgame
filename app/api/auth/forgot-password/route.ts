@@ -18,10 +18,12 @@ export async function POST(req: Request) {
 
   const user = await prisma.user.findUnique({ where: { email } });
 
-  // Don't leak account existence or verification state — always succeed.
-  // Reset is only meaningful for verified accounts; an unverified account
-  // should finish registration first via the OTP flow.
-  if (!user || !user.emailVerified) {
+  // Don't leak account existence — always succeed publicly. We send the reset
+  // code to *any* matching account (verified or not). For unverified accounts
+  // (self-signed but never confirmed, or admin-created but never visited the
+  // /set-password link), a successful reset will also mark the email as
+  // verified — see /api/auth/reset-password.
+  if (!user) {
     return NextResponse.json({ ok: true, expiresInMinutes: OTP_TTL_MINUTES });
   }
 

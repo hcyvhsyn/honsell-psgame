@@ -26,7 +26,6 @@ export async function POST(req: Request) {
   const user = await prisma.user.findUnique({ where: { email } });
   if (
     !user ||
-    !user.emailVerified ||
     !user.otpCode ||
     !user.otpExpiresAt
   ) {
@@ -45,12 +44,19 @@ export async function POST(req: Request) {
     );
   }
 
+  // Receiving the OTP proves email ownership, so verify the email here too —
+  // covers self-signups that never confirmed and admin-created accounts that
+  // never opened their /set-password link. Also clear any stale set-password
+  // token so it can't be reused after a password reset.
   await prisma.user.update({
     where: { id: user.id },
     data: {
       passwordHash: hashPassword(password),
+      emailVerified: true,
       otpCode: null,
       otpExpiresAt: null,
+      setPasswordToken: null,
+      setPasswordTokenExpiresAt: null,
     },
   });
 

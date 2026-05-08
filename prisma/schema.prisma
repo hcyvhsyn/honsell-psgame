@@ -28,6 +28,12 @@ model User {
   otpCode        String?
   otpExpiresAt   DateTime?
 
+  // Set when an admin manually creates the account. The user receives an email
+  // with a one-time link → /set-password?token=… that lets them choose a
+  // password and verifies their email in one step.
+  setPasswordToken           String?   @unique
+  setPasswordTokenExpiresAt  DateTime?
+
   // Wallet (stored in AZN, scaled by 100 to keep integer math clean)
   walletBalance           Int @default(0) // depozit / ödəniş üçün əsas cüzdan
 
@@ -233,6 +239,11 @@ model Transaction {
 
   // Amount in qəpik (AZN * 100). Positive = credit, negative = debit.
   amountAznCents Int
+
+  // Customer savings on this transaction (AZN qəpik, ≥ 0). Set on PURCHASE
+  // rows when a discount was active at checkout: original − final per unit ×
+  // qty. Profile aggregates this to display lifetime savings.
+  savingsAznCents Int @default(0)
 
   // Optional purchase details
   gameId         String?

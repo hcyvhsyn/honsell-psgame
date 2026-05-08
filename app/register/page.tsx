@@ -31,6 +31,11 @@ export default function RegisterPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [resendIn, setResendIn] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
+  // True when the API reports that an unverified account already exists for
+  // this email — we show a "şifrəni yenilə" CTA instead of the regular error.
+  const [accountExists, setAccountExists] = useState<{ email: string } | null>(
+    null
+  );
   // True when ?ref=… arrived in the URL — the input is locked so the
   // inviter's commission can't be silently stripped on the way to submit.
   const [referralLocked, setReferralLocked] = useState(false);
@@ -59,6 +64,7 @@ export default function RegisterPage() {
     setBusy(true);
     setError(null);
     setInfo(null);
+    setAccountExists(null);
 
     const res = await fetch("/api/auth/register", {
       method: "POST",
@@ -69,6 +75,10 @@ export default function RegisterPage() {
     setBusy(false);
 
     if (!res.ok) {
+      if (res.status === 409 && data.needsPasswordReset && data.email) {
+        setAccountExists({ email: data.email });
+        return;
+      }
       setError(data.error ?? "Qeydiyyat alınmadı.");
       return;
     }
@@ -209,6 +219,25 @@ export default function RegisterPage() {
                 >
                   {busy ? "Kod göndərilir…" : "Təsdiq kodu göndər"}
                 </button>
+
+                {accountExists && (
+                  <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm text-amber-100">
+                    <p className="font-medium text-amber-200">
+                      Bu e-poçtla hesabınız var
+                    </p>
+                    <p className="mt-1 text-amber-100/80">
+                      <span className="font-mono">{accountExists.email}</span>{" "}
+                      üçün artıq qeydiyyat mövcuddur, lakin tamamlanmayıb. Şifrəni
+                      yeniləyərək hesabınıza daxil olun.
+                    </p>
+                    <Link
+                      href={`/forgot-password?email=${encodeURIComponent(accountExists.email)}`}
+                      className="mt-3 inline-flex items-center justify-center rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 transition hover:bg-amber-400"
+                    >
+                      Şifrəni yenilə
+                    </Link>
+                  </div>
+                )}
 
                 {error && (
                   <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-300">

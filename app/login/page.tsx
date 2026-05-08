@@ -23,11 +23,13 @@ function LoginInner() {
   const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsReset, setNeedsReset] = useState<{ email: string } | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    setNeedsReset(null);
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -35,7 +37,11 @@ function LoginInner() {
     });
     if (res.ok) { window.location.href = next; return; }
     const data = await res.json().catch(() => ({}));
-    setError(data.error ?? "Daxil olmaq alınmadı.");
+    if (res.status === 403 && data.needsVerification && data.email) {
+      setNeedsReset({ email: data.email });
+    } else {
+      setError(data.error ?? "Daxil olmaq alınmadı.");
+    }
     setBusy(false);
   }
 
@@ -129,6 +135,23 @@ function LoginInner() {
                 {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
+
+            {needsReset && (
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                <p className="font-medium text-amber-200">Hesabınız təsdiqlənməyib</p>
+                <p className="mt-1 text-amber-100/80">
+                  <span className="font-mono">{needsReset.email}</span> üçün
+                  hesab tamamlanmayıb. Şifrəni yeniləyərək hesabınızı
+                  aktivləşdirin.
+                </p>
+                <Link
+                  href={`/forgot-password?email=${encodeURIComponent(needsReset.email)}`}
+                  className="mt-3 inline-flex items-center justify-center rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 transition hover:bg-amber-400"
+                >
+                  Şifrəni yenilə
+                </Link>
+              </div>
+            )}
 
             {error && (
               <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">

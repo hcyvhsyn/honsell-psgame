@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Loader2, Plus, Edit2, Trash2, Upload, X, GripVertical } from "lucide-react";
+import { Loader2, Plus, Edit2, Trash2, Upload, X, GripVertical, Eye, EyeOff } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 type Banner = {
@@ -27,17 +27,28 @@ type EditForm = {
   actionType: "LINK" | "ADD_TO_CART";
   gameId: string;
   gameLabel: string;
+  gameImageUrl: string | null;
+  gameFinalAzn: number | null;
+  gameOriginalAzn: number | null;
+  gameDiscountPct: number | null;
   isActive: boolean;
   sortOrder: string;
 };
 
-type GameOption = { id: string; title: string; imageUrl: string | null };
+type GameOption = {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  finalAzn?: number;
+  originalAzn?: number | null;
+  discountPct?: number | null;
+};
 
 export default function BannersAdminClient() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | "NEW" | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "LINK", gameId: "", gameLabel: "", isActive: true, sortOrder: "0" });
+  const [editForm, setEditForm] = useState<EditForm>({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "LINK", gameId: "", gameLabel: "", gameImageUrl: null, gameFinalAzn: null, gameOriginalAzn: null, gameDiscountPct: null, isActive: true, sortOrder: "0" });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState<"desktop" | "mobile" | null>(null);
@@ -99,7 +110,7 @@ export default function BannersAdminClient() {
   function openNew() {
     setSaveError(null);
     setEditingId("NEW");
-    setEditForm({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "LINK", gameId: "", gameLabel: "", isActive: true, sortOrder: String(banners.length) });
+    setEditForm({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "ADD_TO_CART", gameId: "", gameLabel: "", gameImageUrl: null, gameFinalAzn: null, gameOriginalAzn: null, gameDiscountPct: null, isActive: true, sortOrder: String(banners.length) });
     setGameQuery("");
     setGameOptions([]);
   }
@@ -116,6 +127,10 @@ export default function BannersAdminClient() {
       actionType: b.actionType ?? "LINK",
       gameId: b.gameId ?? "",
       gameLabel: b.game?.title ?? "",
+      gameImageUrl: b.game?.imageUrl ?? null,
+      gameFinalAzn: null,
+      gameOriginalAzn: null,
+      gameDiscountPct: null,
       isActive: b.isActive,
       sortOrder: String(b.sortOrder),
     });
@@ -133,7 +148,14 @@ export default function BannersAdminClient() {
         const res = await fetch(`/api/games?q=${encodeURIComponent(q)}&type=GAME&limit=10`);
         if (res.ok) {
           const data = await res.json();
-          setGameOptions((data.results ?? []).map((g: { id: string; title: string; imageUrl: string | null }) => ({ id: g.id, title: g.title, imageUrl: g.imageUrl })));
+          setGameOptions((data.results ?? []).map((g: GameOption) => ({
+            id: g.id,
+            title: g.title,
+            imageUrl: g.imageUrl,
+            finalAzn: g.finalAzn,
+            originalAzn: g.originalAzn,
+            discountPct: g.discountPct,
+          })));
         }
       } finally {
         setSearchingGames(false);
@@ -166,8 +188,16 @@ export default function BannersAdminClient() {
   }
 
   async function saveBanner() {
-    if (!editForm.imageUrl) { setSaveError("Şəkil yükləmək mütləqdir!"); return; }
-    if (editForm.actionType === "ADD_TO_CART" && !editForm.gameId) { setSaveError("Oyun seçməlisiniz!"); return; }
+    // Oyun seçilibsə, server avtomatik olaraq oyunun heroImageUrl-ini istifadə
+    // edəcək — ona görə şəkil yalnız LINK action-da məcburidir.
+    if (editForm.actionType === "LINK" && !editForm.imageUrl) {
+      setSaveError("Link banneri üçün şəkil mütləqdir!");
+      return;
+    }
+    if (editForm.actionType === "ADD_TO_CART" && !editForm.gameId) {
+      setSaveError("Oyun seçməlisiniz!");
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     const res = await fetch("/api/admin/banners", {
@@ -196,6 +226,22 @@ export default function BannersAdminClient() {
     setSaving(false);
     setEditingId(null);
     load();
+  }
+
+  async function toggleActive(b: Banner) {
+    // Optimistik yeniləmə — istifadəçi dərhal nəticəni görsün, sonra server-i sinxronlaşdır.
+    const nextActive = !b.isActive;
+    setBanners((prev) => prev.map((x) => (x.id === b.id ? { ...x, isActive: nextActive } : x)));
+    const res = await fetch("/api/admin/banners", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "TOGGLE_ACTIVE", id: b.id, isActive: nextActive }),
+    });
+    if (!res.ok) {
+      // Rollback
+      setBanners((prev) => prev.map((x) => (x.id === b.id ? { ...x, isActive: b.isActive } : x)));
+      alert("Status dəyişmədi");
+    }
   }
 
   async function deleteBanner(id: string) {
@@ -253,6 +299,13 @@ export default function BannersAdminClient() {
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                <button
+                  onClick={() => toggleActive(b)}
+                  title={b.isActive ? "Passiv et" : "Aktiv et"}
+                  className={`rounded p-2 transition ${b.isActive ? "text-emerald-400 hover:text-emerald-300" : "text-zinc-500 hover:text-zinc-300"}`}
+                >
+                  {b.isActive ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </button>
                 <button onClick={() => openEdit(b)} className="rounded p-2 text-zinc-500 hover:text-indigo-400"><Edit2 className="h-4 w-4" /></button>
                 <button onClick={() => deleteBanner(b.id)} className="rounded p-2 text-zinc-500 hover:text-rose-400"><Trash2 className="h-4 w-4" /></button>
               </div>
@@ -264,14 +317,113 @@ export default function BannersAdminClient() {
       {/* Edit Modal */}
       {editingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
             <h3 className="mb-6 text-lg font-bold">{editingId === "NEW" ? "Yeni Banner" : "Banneri Redaktə et"}</h3>
 
             <div className="space-y-4">
+              <label className="block text-sm text-zinc-300">
+                Klikləndikdə
+                <select
+                  value={editForm.actionType}
+                  onChange={(e) => setEditForm({ ...editForm, actionType: e.target.value as "LINK" | "ADD_TO_CART" })}
+                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                >
+                  <option value="ADD_TO_CART">Səbətə əlavə et (oyun)</option>
+                  <option value="LINK">Linkə yönləndir</option>
+                </select>
+              </label>
+
+              {editForm.actionType === "ADD_TO_CART" && (
+                <div>
+                  <p className="mb-1 text-sm text-zinc-300">Oyun <span className="text-rose-400">*</span>
+                    <span className="ml-2 text-xs text-zinc-500">(şəkil, ad və qiymət avtomatik götürülür)</span>
+                  </p>
+                  {editForm.gameId && editForm.gameLabel ? (
+                    <div className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-3">
+                      {editForm.gameImageUrl && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={editForm.gameImageUrl} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-white">{editForm.gameLabel}</p>
+                        {editForm.gameFinalAzn != null && (
+                          <p className="mt-0.5 text-xs text-zinc-400">
+                            {editForm.gameOriginalAzn != null && (
+                              <span className="line-through">{editForm.gameOriginalAzn.toFixed(2)}₼</span>
+                            )}{" "}
+                            <span className="font-semibold text-emerald-400">{editForm.gameFinalAzn.toFixed(2)}₼</span>
+                            {editForm.gameDiscountPct != null && (
+                              <span className="ml-2 rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-bold text-cyan-300">
+                                -%{editForm.gameDiscountPct}
+                              </span>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm((p) => ({ ...p, gameId: "", gameLabel: "", gameImageUrl: null, gameFinalAzn: null, gameOriginalAzn: null, gameDiscountPct: null }))}
+                        className="text-zinc-500 hover:text-rose-400"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        value={gameQuery}
+                        onChange={(e) => setGameQuery(e.target.value)}
+                        placeholder="Oyun adı yaz (min 2 hərf)..."
+                        className="w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                      />
+                      {(searchingGames || gameOptions.length > 0) && (
+                        <div className="mt-2 max-h-56 overflow-y-auto rounded border border-zinc-800 bg-zinc-900">
+                          {searchingGames && <div className="px-3 py-2 text-xs text-zinc-500">Axtarılır...</div>}
+                          {gameOptions.map((g) => (
+                            <button
+                              key={g.id}
+                              type="button"
+                              onClick={() => {
+                                setEditForm((p) => ({
+                                  ...p,
+                                  gameId: g.id,
+                                  gameLabel: g.title,
+                                  gameImageUrl: g.imageUrl,
+                                  gameFinalAzn: g.finalAzn ?? null,
+                                  gameOriginalAzn: g.originalAzn ?? null,
+                                  gameDiscountPct: g.discountPct ?? null,
+                                }));
+                                setGameQuery("");
+                                setGameOptions([]);
+                              }}
+                              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-800"
+                            >
+                              {g.imageUrl && (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img src={g.imageUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <span className="block truncate">{g.title}</span>
+                                {g.finalAzn != null && (
+                                  <span className="block text-[11px] text-zinc-500">
+                                    {g.finalAzn.toFixed(2)}₼
+                                    {g.discountPct != null && <span className="ml-1 text-cyan-400">-%{g.discountPct}</span>}
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* Desktop Image Upload */}
               <div>
                 <p className="mb-1 text-sm text-zinc-300">
-                  Desktop şəkli <span className="text-rose-400">*</span>
+                  Desktop şəkli {editForm.actionType === "LINK" ? <span className="text-rose-400">*</span> : <span className="text-xs text-zinc-500">(opsional — boş buraxılarsa, oyunun şəkli istifadə olunacaq)</span>}
                   <span className="ml-2 text-xs text-zinc-500">(geniş, 21:7 və ya 16:8)</span>
                 </p>
                 <input
@@ -361,77 +513,19 @@ export default function BannersAdminClient() {
 
               <label className="block text-sm text-zinc-300">
                 Başlıq (ixtiyari)
+                <span className="ml-2 text-xs text-zinc-500">Boş buraxılarsa, oyunun adı göstərilir</span>
                 <input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none" placeholder="Məs: Yay Endirimi" />
               </label>
               <label className="block text-sm text-zinc-300">
                 Alt başlıq (ixtiyari)
                 <input value={editForm.subtitle} onChange={(e) => setEditForm({ ...editForm, subtitle: e.target.value })} className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none" placeholder="Məs: Seçilmiş oyunlarda 50%-ə qədər endirim" />
               </label>
-              <label className="block text-sm text-zinc-300">
-                Klikləndikdə
-                <select
-                  value={editForm.actionType}
-                  onChange={(e) => setEditForm({ ...editForm, actionType: e.target.value as "LINK" | "ADD_TO_CART" })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value="LINK">Linkə yönləndir</option>
-                  <option value="ADD_TO_CART">Səbətə əlavə et (oyun)</option>
-                </select>
-              </label>
 
-              {editForm.actionType === "LINK" ? (
+              {editForm.actionType === "LINK" && (
                 <label className="block text-sm text-zinc-300">
                   Link (ixtiyari)
                   <input value={editForm.linkUrl} onChange={(e) => setEditForm({ ...editForm, linkUrl: e.target.value })} className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none" placeholder="/hediyye-kartlari" />
                 </label>
-              ) : (
-                <div>
-                  <p className="mb-1 text-sm text-zinc-300">Oyun <span className="text-rose-400">*</span></p>
-                  {editForm.gameId && editForm.gameLabel ? (
-                    <div className="flex items-center justify-between rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white">
-                      <span className="truncate">{editForm.gameLabel}</span>
-                      <button
-                        type="button"
-                        onClick={() => setEditForm((p) => ({ ...p, gameId: "", gameLabel: "" }))}
-                        className="ml-2 text-zinc-500 hover:text-rose-400"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <input
-                        value={gameQuery}
-                        onChange={(e) => setGameQuery(e.target.value)}
-                        placeholder="Oyun adı yaz (min 2 hərf)..."
-                        className="w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
-                      />
-                      {(searchingGames || gameOptions.length > 0) && (
-                        <div className="mt-2 max-h-48 overflow-y-auto rounded border border-zinc-800 bg-zinc-900">
-                          {searchingGames && <div className="px-3 py-2 text-xs text-zinc-500">Axtarılır...</div>}
-                          {gameOptions.map((g) => (
-                            <button
-                              key={g.id}
-                              type="button"
-                              onClick={() => {
-                                setEditForm((p) => ({ ...p, gameId: g.id, gameLabel: g.title }));
-                                setGameQuery("");
-                                setGameOptions([]);
-                              }}
-                              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-800"
-                            >
-                              {g.imageUrl && (
-                                /* eslint-disable-next-line @next/next/no-img-element */
-                                <img src={g.imageUrl} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
-                              )}
-                              <span className="truncate">{g.title}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
               )}
               <div className="flex gap-4">
                 <label className="block flex-1 text-sm text-zinc-300">

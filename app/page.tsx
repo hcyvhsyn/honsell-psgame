@@ -105,24 +105,33 @@ export default async function HomePage() {
     return { id: g.id, productId: g.productId, title: g.title, imageUrl: g.imageUrl, platform: g.platform, productType: g.productType, finalAzn: price.finalAzn, originalAzn: price.originalAzn, discountPct: price.discountPct, discountEndAt: g.discountTryCents != null && g.discountEndAt ? g.discountEndAt.toISOString() : null };
   });
 
-  const bannerSlides = banners.map((b) => ({
-    id: b.id,
-    title: b.title,
-    subtitle: b.subtitle,
-    imageUrl: b.imageUrl,
-    mobileImageUrl: b.mobileImageUrl ?? null,
-    linkUrl: b.linkUrl,
-    actionType: (b.actionType === "ADD_TO_CART" ? "ADD_TO_CART" : "LINK") as "LINK" | "ADD_TO_CART",
-    game: b.game
-      ? {
-          id: b.game.id,
-          title: b.game.title,
-          imageUrl: b.game.imageUrl,
-          finalAzn: computeDisplayPrice(b.game, settings).finalAzn,
-          productType: b.game.productType,
-        }
-      : null,
-  }));
+  const bannerSlides = banners.map((b) => {
+    const price = b.game ? computeDisplayPrice(b.game, settings) : null;
+    return {
+      id: b.id,
+      title: b.title,
+      subtitle: b.subtitle,
+      imageUrl: b.imageUrl || b.game?.heroImageUrl || b.game?.imageUrl || "",
+      mobileImageUrl: b.mobileImageUrl ?? null,
+      linkUrl: b.linkUrl,
+      actionType: (b.actionType === "ADD_TO_CART" ? "ADD_TO_CART" : "LINK") as "LINK" | "ADD_TO_CART",
+      game: b.game && price
+        ? {
+            id: b.game.id,
+            productId: b.game.productId,
+            title: b.game.title,
+            imageUrl: b.game.imageUrl,
+            heroImageUrl: b.game.heroImageUrl,
+            platform: b.game.platform,
+            productType: b.game.productType,
+            finalAzn: price.finalAzn,
+            originalAzn: price.originalAzn,
+            discountPct: price.discountPct,
+            discountEndAt: b.game.discountTryCents != null && b.game.discountEndAt ? b.game.discountEndAt.toISOString() : null,
+          }
+        : null,
+    };
+  }).filter((b) => b.imageUrl);
 
   const websiteJsonLd = {
     "@context": "https://schema.org",
@@ -191,10 +200,10 @@ export default async function HomePage() {
       </h1>
 
       <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
-        <div className="relative overflow-hidden rounded-3xl border border-zinc-800/60">
-          {bannerSlides.length > 0 ? (
-            <HomeBannerSlider banners={bannerSlides} />
-          ) : (
+        {bannerSlides.length > 0 ? (
+          <HomeBannerSlider banners={bannerSlides} />
+        ) : (
+          <div className="relative overflow-hidden rounded-3xl border border-zinc-800/60">
             <div className="relative aspect-[4/5] bg-gradient-to-br from-indigo-950 via-zinc-900 to-zinc-950 sm:aspect-[16/8] lg:aspect-[21/7]">
               <div className="pointer-events-none absolute -left-20 top-0 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
               <div className="pointer-events-none absolute right-0 bottom-0 h-64 w-64 rounded-full bg-fuchsia-700/20 blur-3xl" />
@@ -210,9 +219,9 @@ export default async function HomePage() {
                 </p>
               </div>
             </div>
-          )}
-          <HeroMotionOverlay />
-        </div>
+            <HeroMotionOverlay />
+          </div>
+        )}
       </section>
 
       <section id="kateqoriyalar" className="py-16">

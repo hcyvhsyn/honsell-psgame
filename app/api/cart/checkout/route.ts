@@ -153,6 +153,7 @@ export async function POST(req: Request) {
         unitListCents: number;
         unitCostCents: number;
         lineCents: number;
+        unitSavingsCents: number;
       }
     | {
         kind: "TRY_BALANCE";
@@ -204,6 +205,10 @@ export async function POST(req: Request) {
     if (game) {
       const price = computeDisplayPrice(game, settings);
       const unitListCents = Math.round(price.finalAzn * 100);
+      const unitSavingsCents =
+        price.originalAzn != null
+          ? Math.max(0, Math.round(price.originalAzn * 100) - unitListCents)
+          : 0;
       const tryForCost =
         game.discountTryCents != null && game.discountTryCents < game.priceTryCents
           ? game.discountTryCents
@@ -216,6 +221,7 @@ export async function POST(req: Request) {
         unitListCents,
         unitCostCents,
         lineCents: unitListCents * p.qty,
+        unitSavingsCents,
       });
       continue;
     }
@@ -393,6 +399,7 @@ export async function POST(req: Request) {
                 type: "PURCHASE",
                 status: "PENDING",
                 amountAznCents: -line.unitListCents,
+                savingsAznCents: line.unitSavingsCents,
                 gameId: line.game.id,
                 psnAccountId: psnAccount!.id,
                 metadata: JSON.stringify({

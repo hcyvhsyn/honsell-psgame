@@ -32,6 +32,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const settings = await getSettings();
   const price = computeDisplayPrice(game, settings);
   const priceCents = Math.round(price.finalAzn * 100);
+  const savingsCents =
+    price.originalAzn != null
+      ? Math.max(0, Math.round(price.originalAzn * 100) - priceCents)
+      : 0;
 
   if (paymentSource === "referral") {
     if (user.referralBalanceCents < priceCents) {
@@ -82,6 +86,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         type: "PURCHASE",
         status: "PENDING",
         amountAznCents: -priceCents,
+        savingsAznCents: savingsCents,
         gameId: game.id,
         psnAccountId: psnId,
         metadata: JSON.stringify({

@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import WelcomeEmail from "@/emails/WelcomeEmail";
 import OtpEmail from "@/emails/OtpEmail";
 import ResetPasswordEmail from "@/emails/ResetPasswordEmail";
+import SetPasswordEmail from "@/emails/SetPasswordEmail";
 import GiftCardEmail from "@/emails/GiftCardEmail";
 import StreamingDeliveryEmail from "@/emails/StreamingDeliveryEmail";
 import ReviewInviteEmail from "@/emails/ReviewInviteEmail";
@@ -31,8 +32,35 @@ function fmtAzn(value: number): string {
 
 export const OTP_TTL_MINUTES = 10;
 
+/** TTL of admin-issued set-password links (manual user creation). */
+export const SET_PASSWORD_TTL_HOURS = 48;
+
 export function generateOtpCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+export async function sendSetPasswordEmail(params: {
+  email: string;
+  userName: string;
+  setPasswordUrl: string;
+  expiresInHours?: number;
+}) {
+  const { email, userName, setPasswordUrl } = params;
+  const expiresInHours = params.expiresInHours ?? SET_PASSWORD_TTL_HOURS;
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: email,
+    subject: "Hesabını aktivləşdir — şifrəni təyin et",
+    react: SetPasswordEmail({ userName, setPasswordUrl, expiresInHours }),
+  });
+
+  if (error) {
+    throw new Error(
+      `Resend failed to send set-password email: ${error.message}`
+    );
+  }
+
+  return data;
 }
 
 export async function sendWelcomeEmail(
