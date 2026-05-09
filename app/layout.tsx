@@ -7,7 +7,6 @@ import AppModals from "@/components/AppModals";
 import FavoritesBootstrap from "@/components/FavoritesBootstrap";
 import FavoriteIntroModal from "@/components/FavoriteIntroModal";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
-import CoffeeFloat from "@/components/CoffeeFloat";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -113,7 +112,6 @@ export default function RootLayout({
               <AppModals />
               <FavoriteIntroModal />
               <WhatsAppFloat />
-              <CoffeeFloat />
             </CartProvider>
           </FavoritesBootstrap>
         </ModalProvider>

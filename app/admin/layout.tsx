@@ -1,28 +1,79 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import AdminSidebar from "./sidebar/AdminSidebar";
+import AdminSidebar, { type NavGroupSpec } from "./sidebar/AdminSidebar";
 
 export const dynamic = "force-dynamic";
 
-const NAV = [
-  { href: "/admin", label: "Dashboard", iconName: "LayoutDashboard" as const },
-  { href: "/admin/users", label: "Users", iconName: "Users" as const },
-  { href: "/admin/deposits", label: "Deposits", iconName: "Wallet" as const, badgeKey: "pendingDeposits" as const },
-  { href: "/admin/transactions", label: "Transactions", iconName: "Receipt" as const },
-  { href: "/admin/subscriptions", label: "Abunəliklər", iconName: "Crown" as const, badgeKey: "expiringSubs" as const },
-  { href: "/admin/games", label: "Games", iconName: "Gamepad2" as const },
-  { href: "/admin/orders", label: "Sifarişlər (hamısı)", iconName: "Receipt" as const, badgeKey: "pendingAllOrders" as const },
-  { href: "/admin/banners", label: "Bannerlər", iconName: "ImageIcon" as const },
-  { href: "/admin/reviews", label: "Rəylər", iconName: "MessageSquare" as const, badgeKey: "pendingReviews" as const },
-  { href: "/admin/collections", label: "Kolleksiyalar", iconName: "LayoutGrid" as const },
-  { href: "/admin/faq", label: "FAQ", iconName: "HelpCircle" as const },
-  { href: "/admin/referral-tiers", label: "Referal Pillələri", iconName: "Crown" as const },
-  { href: "/admin/services", label: "Gift Cardlar", iconName: "Gift" as const },
-  { href: "/admin/ps-plus", label: "PS Plus", iconName: "Crown" as const },
-  { href: "/admin/streaming", label: "Streaming", iconName: "Tv" as const },
-  { href: "/admin/account-creation", label: "Hesab Açılışı", iconName: "UserPlus" as const },
-  { href: "/admin/settings", label: "Settings", iconName: "SettingsIcon" as const },
+/**
+ * Sidebar yenidən-strukturu — sıralı qruplar:
+ *   • Ümumi — kross-bölmə menecment (istifadəçilər, sifarişlər, settings...)
+ *   • Məzmun — homepage və scope-lu məzmun (banner, FAQ, guide-lar, rəylər)
+ *   • PlayStation — yalnız PS məhsulları
+ *   • Yayım Platformaları — streaming xidmətləri və icmallar
+ *   • İş Platformaları / Süni İntellekt — placeholder, tezliklə
+ *
+ * Yeni admin səhifəsi əlavə olunduqda burada uyğun qrupa yazırsan — sidebar
+ * avtomatik göstərir və active route məntiqi işləyir.
+ */
+const NAV_GROUPS: NavGroupSpec[] = [
+  {
+    label: "Ümumi",
+    iconName: "LayoutDashboard",
+    items: [
+      { href: "/admin", label: "Dashboard", iconName: "LayoutDashboard" },
+      { href: "/admin/users", label: "İstifadəçilər", iconName: "Users" },
+      { href: "/admin/deposits", label: "Depozitlər", iconName: "Wallet", badgeKey: "pendingDeposits" },
+      { href: "/admin/transactions", label: "Tranzaksiyalar", iconName: "Receipt" },
+      { href: "/admin/orders", label: "Sifarişlər (hamısı)", iconName: "Receipt", badgeKey: "pendingAllOrders" },
+      { href: "/admin/subscriptions", label: "Abunəliklər", iconName: "Crown", badgeKey: "expiringSubs" },
+      { href: "/admin/referral-tiers", label: "Referal Pillələri", iconName: "Crown" },
+      { href: "/admin/settings", label: "Settings", iconName: "SettingsIcon" },
+    ],
+  },
+  {
+    label: "Məzmun",
+    iconName: "ImageIcon",
+    items: [
+      { href: "/admin/banners", label: "Bannerlər", iconName: "ImageIcon" },
+      { href: "/admin/faq", label: "FAQ", iconName: "HelpCircle" },
+      { href: "/admin/platform-guides", label: "Faydalı Başlıqlar", iconName: "ClipboardList" },
+      { href: "/admin/reviews", label: "Oyun Rəyləri", iconName: "MessageSquare", badgeKey: "pendingReviews" },
+    ],
+  },
+  {
+    label: "PlayStation",
+    iconName: "Gamepad2",
+    items: [
+      { href: "/admin/games", label: "Oyunlar", iconName: "Gamepad2" },
+      { href: "/admin/collections", label: "Kolleksiyalar", iconName: "LayoutGrid" },
+      { href: "/admin/ps-plus", label: "PS Plus", iconName: "Crown" },
+      { href: "/admin/services", label: "Hədiyyə Kartları", iconName: "Gift" },
+      { href: "/admin/account-creation", label: "Hesab Açılışı", iconName: "UserPlus" },
+    ],
+  },
+  {
+    label: "Yayım Platformaları",
+    iconName: "Tv",
+    items: [
+      { href: "/admin/streaming", label: "Abunəliklər", iconName: "Tv" },
+      { href: "/admin/streaming/titles", label: "Title-lər", iconName: "Tv" },
+      { href: "/admin/streaming/featured", label: "Banner", iconName: "ImageIcon" },
+      { href: "/admin/streaming-reviews", label: "İcmallar", iconName: "MessageSquare" },
+    ],
+  },
+  {
+    label: "İş Platformaları",
+    iconName: "Briefcase",
+    comingSoon: true,
+    items: [],
+  },
+  {
+    label: "Süni İntellekt",
+    iconName: "Brain",
+    comingSoon: true,
+    items: [],
+  },
 ];
 
 export default async function AdminLayout({
@@ -68,7 +119,7 @@ export default async function AdminLayout({
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100 md:flex-row">
-      <AdminSidebar nav={NAV} badges={badges} userEmail={user.email} />
+      <AdminSidebar groups={NAV_GROUPS} badges={badges} userEmail={user.email} />
 
       <main className="flex-1 overflow-x-hidden">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">{children}</div>

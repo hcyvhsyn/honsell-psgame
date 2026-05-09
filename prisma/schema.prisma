@@ -23,6 +23,9 @@ model User {
   // Optional profile fields edited from /profile/settings.
   birthDate      DateTime?
   gender         String?    // "MALE" | "FEMALE" | "OTHER"
+  /// Avatar şəkil URL-i — icmallar və profil sahələrində göstərilir.
+  /// Boş olarsa client tərəfdə hərfli avatar (initial badge) çəkilir.
+  avatarUrl      String?
 
   emailVerified  Boolean   @default(false)
   otpCode        String?
@@ -65,6 +68,13 @@ model User {
   gameReviews     GameReview[]
   reviewReactions ReviewReaction[]
   reviewComments  ReviewComment[]
+
+  // Streaming icmal sistemi — etibarlı istifadəçilərin yazdığı icmallar admin
+  // moderasiyası olmadan dərhal APPROVED kimi yayımlanır.
+  streamingReviewTrusted    Boolean @default(false)
+  streamingReviews          StreamingReview[]
+  streamingReviewReactions  StreamingReviewReaction[]
+  streamingTitleFavorites   StreamingTitleFavorite[]
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -354,10 +364,160 @@ model Banner {
   game       Game?    @relation(fields: [gameId], references: [id], onDelete: SetNull)
   isActive   Boolean  @default(true)
   sortOrder  Int      @default(0)
+  /// Bannerin göstəriləcəyi səhifə: HOME | PLAYSTATION | (gələcəkdə yeni scope-lar
+  /// əlavə oluna bilər). Hər scope-un öz sıralaması və idarəsi var.
+  scope      String   @default("HOME")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   @@index([gameId])
+  @@index([scope, isActive, sortOrder])
+}
+
+// ─── Streaming Content (films & series available on streaming services) ───────
+
+/// Bir film və ya seriya. Streaming xidmətinin (HBO Max, Gain, YouTube Premium,
+/// Netflix) Azərbaycanda yayımlanan kataloqunu admin manual olaraq saxlayır.
+/// `azAvailable=false` olan title-lar public-də gizlənir.
+model StreamingTitle {
+  id           String   @id @default(cuid())
+  // Public path-larda istifadə olunan unikal slug (məs: "stranger-things").
+  slug         String   @unique
+  title        String
+  // MOVIE | SERIES
+  kind         String   @default("MOVIE")
+  // STREAMING_SERVICES-dən biri: HBO_MAX | GAIN | YOUTUBE_PREMIUM | NETFLIX
+  service      String
+  posterUrl    String?
+  backdropUrl  String?
+  year         Int?
+  // String massivi JSON kimi: ["Drama", "Sci-Fi"]
+  genres       Json?
+  description  String?
+  // Azərbaycanda yayımlanır? Public listing-də yalnız true olanlar göstərilir.
+  azAvailable  Boolean  @default(true)
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  // Xarici provayder ID-si (OMDb halında IMDb ID, məs: "tt0372784"). Avtomatik
+  // doldurulduqda dublikatın qarşısını almaq üçün istifadə olunur.
+  externalId   String?
+  // OMDb-dən çəkilən orijinal dil kodu (məs: "en", "tr", "ru").
+  originalLanguage String?
+  // Admin manual seçir — ISO dil kodları massivi: ["az", "tr", "en"]
+  dubbedLanguages   Json?
+  subtitleLanguages Json?
+  // YouTube trailer linki (məs: "https://www.youtube.com/watch?v=abc123").
+  // TMDB-dən orijinal dildə rəsmi trailer üstün, manual override mümkündür.
+  trailerUrl       String?
+
+  featured     StreamingFeatured[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([service, isActive, azAvailable])
+  @@index([service, sortOrder])
+}
+
+/// Streaming overview və ya konkret service səhifəsində göstərilən banner
+/// elementi. Admin hər scope üçün ayrıca banner siyahısı qurur.
+model StreamingFeatured {
+  id        String   @id @default(cuid())
+  // "OVERVIEW" və ya konkret service kodu (HBO_MAX, GAIN, YOUTUBE_PREMIUM, NETFLIX)
+  scope     String
+  titleId   String
+  title     StreamingTitle @relation(fields: [titleId], references: [id], onDelete: Cascade)
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scope, isActive, sortOrder])
+  @@index([titleId])
+}
+
+// ─── Streaming customer reviews ───────────────────────────────────────────────
+
+/// Müştərinin TMDB film/serial üzrə yazdığı icmal. tmdbId+kind referansdır;
+/// admin StreamingTitle-dan asılı deyil. Snapshot sahələri TMDB datasını saxlayır
+/// ki, icmal göstərmək üçün hər dəfə TMDB-yə müraciət etməyək.
+model StreamingReview {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// TMDB id (movie/tv) — bizim StreamingTitle row-dan asılı olmadan icmal yazılır.
+  tmdbId  Int
+  /// MOVIE | SERIES — TMDB endpoint seçimi üçün lazımdır.
+  kind    String
+  /// Müştərinin baxdığı platforma: HBO_MAX | GAIN | YOUTUBE_PREMIUM | NETFLIX
+  service String
+
+  /// 1–10
+  rating  Int
+  /// İcmal mətni (cəza-filterdən keçir).
+  body    String
+  /// İzləmə dili — tr | ru | en | original
+  watchLanguage String?
+  /// İcmalda spoiler varmı? Spoiler-li icmallar başqaları üçün blur ilə göstərilir,
+  /// klik etdikdə açılır.
+  spoiler Boolean @default(false)
+
+  /// PENDING | APPROVED | REJECTED
+  status  String @default("PENDING")
+  rejectedReason String?
+
+  // Snapshot — icmali göstərmək üçün TMDB-dən kopyalanır
+  titleSnap     String
+  posterUrlSnap String?
+  backdropUrlSnap String?
+  yearSnap      Int?
+  genresSnap    Json?
+
+  reactions StreamingReviewReaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Eyni istifadəçi eyni filmi / serialı yalnız bir dəfə icmal edə bilir.
+  @@unique([userId, tmdbId, kind])
+  @@index([status, createdAt])
+  @@index([tmdbId, kind, status])
+  @@index([service, status])
+}
+
+model StreamingReviewReaction {
+  id       String @id @default(cuid())
+  reviewId String
+  review   StreamingReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// LIKE | DISLIKE
+  kind     String
+  createdAt DateTime @default(now())
+
+  @@unique([reviewId, userId])
+  @@index([reviewId])
+}
+
+/// Müştərinin TMDB film/serial üçün favorit listi. Admin StreamingTitle-dan asılı
+/// olmadığı üçün TMDB id + snapshot saxlanılır.
+model StreamingTitleFavorite {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tmdbId  Int
+  kind    String
+
+  // Snapshot
+  titleSnap     String
+  posterUrlSnap String?
+  yearSnap      Int?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, tmdbId, kind])
+  @@index([userId])
 }
 
 // ─── Testimonials (customer reviews on homepage) ──────────────────────────────
@@ -469,10 +629,35 @@ model FaqItem {
   answer    String
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
+  /// FAQ-ın göstəriləcəyi səhifə: HOME | PLAYSTATION | STREAMING_OVERVIEW |
+  /// STREAMING_HBO_MAX | STREAMING_GAIN | STREAMING_NETFLIX | STREAMING_YOUTUBE
+  scope     String   @default("HOME")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([isActive, sortOrder])
+  @@index([scope, isActive, sortOrder])
+}
+
+/// Platforma bələdçiləri — "Faydalı başlıqlar" sahələrində göstərilən qısa
+/// guide-lar (məs: "HBO Max-ı necə yükləmək olar"). Hər guide bir scope-a
+/// bağlanır və müvafiq səhifədə görünür.
+model PlatformGuide {
+  id        String   @id @default(cuid())
+  /// Public path-larda istifadə üçün unikal slug.
+  slug      String   @unique
+  title     String
+  /// Qısa təsvir — kart preview-da göstərilir.
+  summary   String?
+  /// Tam mətn — markdown yox, plain text saxlanılır (xətt sonu pre-line ilə render).
+  body      String
+  /// Scope: HOME | PLAYSTATION | STREAMING_HBO_MAX | STREAMING_GAIN | və s.
+  scope     String
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scope, isActive, sortOrder])
 }
 
 // ─── Referral cycles (monthly leaderboards + tier rewards) ────────────────────

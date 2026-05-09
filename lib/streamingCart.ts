@@ -11,12 +11,79 @@ export const STREAMING_SERVICE_LABELS: Record<string, string> = {
   HBO_MAX: "HBO Max",
   GAIN: "Gain",
   YOUTUBE_PREMIUM: "YouTube Premium",
+  NETFLIX: "Netflix",
 };
 
-export const STREAMING_SERVICES = ["HBO_MAX", "GAIN", "YOUTUBE_PREMIUM"] as const;
+export const STREAMING_SERVICES = ["HBO_MAX", "GAIN", "YOUTUBE_PREMIUM", "NETFLIX"] as const;
 export type StreamingService = (typeof STREAMING_SERVICES)[number];
 
 export const STREAMING_DURATIONS = [1, 2, 3, 6, 12] as const;
+
+/**
+ * Hər streaming xidmətinin URL slug-u və SEO/UI məlumatları.
+ * Yeni xidmət əlavə etdikdə: STREAMING_SERVICES + LABELS + bu obyekt yenilənməlidir
+ * və lazımdırsa StreamingClient-də SERVICE_THEME-yə də əlavə edilməlidir.
+ */
+export type StreamingServiceCategory = "STREAMING" | "MUSIC";
+
+export type StreamingServiceMeta = {
+  code: StreamingService;
+  slug: string;
+  label: string;
+  category: StreamingServiceCategory;
+  /** Bir cümlə — kart sub-mətni və meta description üçün. */
+  tagline: string;
+  /** Hero açıqlaması — service page-ində istifadə olunur. */
+  description: string;
+};
+
+export const STREAMING_SERVICE_META: Record<StreamingService, StreamingServiceMeta> = {
+  HBO_MAX: {
+    code: "HBO_MAX",
+    slug: "hbo-max",
+    label: "HBO Max",
+    category: "STREAMING",
+    tagline: "Premium serial və film abunəliyi",
+    description:
+      "HBO Max — Game of Thrones, House of the Dragon, The Last of Us və daha çox premium kontentə tam giriş. Aylıq və illik paketlər mövcuddur, ödənişdən sonra giriş məlumatları sənə email ilə göndərilir.",
+  },
+  GAIN: {
+    code: "GAIN",
+    slug: "gain",
+    label: "Gain",
+    category: "STREAMING",
+    tagline: "Türkiyənin yerli streaming platforması",
+    description:
+      "Gain — Türkiyə yerli streaming xidməti. Türk dizi və filmlərini, eksklüziv yerli istehsalları Azərbaycandan rahat izlə. 1, 3, 6 və 12 aylıq paketlər ən sərfəli qiymətə.",
+  },
+  YOUTUBE_PREMIUM: {
+    code: "YOUTUBE_PREMIUM",
+    slug: "youtube",
+    label: "YouTube Premium",
+    category: "MUSIC",
+    tagline: "Reklamsız video + YouTube Music",
+    description:
+      "YouTube Premium — reklamsız video izləmə, fonlu oxutma və YouTube Music daxil olmaqla tam paket. Sifariş zamanı Gmail ünvanını qeyd edirsən, abunəlik həmin hesaba qoşulur.",
+  },
+  NETFLIX: {
+    code: "NETFLIX",
+    slug: "netflix",
+    label: "Netflix",
+    category: "STREAMING",
+    tagline: "Dünyanın ən böyük streaming kataloqu",
+    description:
+      "Netflix — beynəlxalq orijinallar, filmlər və seriallar üçün dünyanın ən geniş streaming platforması. Aylıq və illik abunəlik paketləri ən sərfəli qiymətə.",
+  },
+};
+
+export function getStreamingServiceBySlug(slug: string): StreamingServiceMeta | null {
+  const all = Object.values(STREAMING_SERVICE_META);
+  return all.find((s) => s.slug === slug) ?? null;
+}
+
+export function listStreamingServiceSlugs(): string[] {
+  return Object.values(STREAMING_SERVICE_META).map((s) => s.slug);
+}
 
 /** Stok bazasında hər giriş üçün saxlanan struktur (ServiceCode.code-da JSON kimi). */
 export type StreamingStockEntry = {

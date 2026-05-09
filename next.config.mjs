@@ -7,6 +7,7 @@ const nextConfig = {
       { protocol: "https", hostname: "**.playstation.com" },
       { protocol: "https", hostname: "**.supabase.co" },
       { protocol: "https", hostname: "**.supabase.in" },
+      { protocol: "https", hostname: "image.tmdb.org" },
     ],
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24 * 30,

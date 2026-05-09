@@ -29,4 +29,12 @@ export function revalidateServices(): void {
 /** Banner-lər admin paneldən dəyişdirildikdə. */
 export function revalidateBanners(): void {
   revalidatePath("/");
+  revalidatePath("/playstation");
+}
+
+/** Streaming title və featured banner dəyişiklikləri. */
+export function revalidateStreaming(): void {
+  revalidatePath("/");
+  revalidatePath("/streaming");
+  revalidatePath("/streaming/[slug]", "page");
 }

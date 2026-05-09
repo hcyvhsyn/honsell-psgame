@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { isValidContentScope } from "@/lib/contentScopes";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,7 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     answer?: string;
     isActive?: boolean;
     sortOrder?: number;
+    scope?: string;
   } = {};
 
   if (typeof body.question === "string") data.question = body.question.trim();
@@ -21,6 +23,9 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   if (typeof body.isActive === "boolean") data.isActive = body.isActive;
   if (body.sortOrder != null && Number.isFinite(Number(body.sortOrder))) {
     data.sortOrder = Number(body.sortOrder);
+  }
+  if (typeof body.scope === "string" && isValidContentScope(body.scope)) {
+    data.scope = body.scope;
   }
 
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });

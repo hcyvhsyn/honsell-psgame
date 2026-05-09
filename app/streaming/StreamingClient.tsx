@@ -44,7 +44,7 @@ function isProductInStock(p: Product, meta: Meta): boolean {
   return true;
 }
 
-const SERVICE_ORDER = ["HBO_MAX", "GAIN", "YOUTUBE_PREMIUM"] as const;
+const SERVICE_ORDER = ["NETFLIX", "HBO_MAX", "GAIN", "YOUTUBE_PREMIUM"] as const;
 
 const SERVICE_THEME: Record<
   string,
@@ -67,6 +67,12 @@ const SERVICE_THEME: Record<
     ring: "border-red-500/25",
     accent: "text-red-200",
     chip: "bg-red-500/15 text-red-200 border-red-500/30",
+  },
+  NETFLIX: {
+    gradient: "from-red-700/20 via-zinc-900/40 to-zinc-950/60",
+    ring: "border-red-700/30",
+    accent: "text-red-300",
+    chip: "bg-red-700/15 text-red-300 border-red-700/30",
   },
 };
 
@@ -145,10 +151,17 @@ export default function StreamingClient({
   );
 }
 
+const SERVICE_ANCHORS: Record<string, string> = {
+  HBO_MAX: "hbo-max",
+  GAIN: "gain",
+  YOUTUBE_PREMIUM: "youtube",
+  NETFLIX: "netflix",
+};
+
 function ServiceSection({ service, items }: { service: string; items: Product[] }) {
   const theme = SERVICE_THEME[service] ?? SERVICE_THEME.HBO_MAX;
   return (
-    <section>
+    <section id={SERVICE_ANCHORS[service] ?? undefined} className="scroll-mt-24">
       <header className="mb-5 flex items-end justify-between gap-4">
         <div>
           <p className={`text-xs font-bold uppercase tracking-[0.2em] ${theme.accent}`}>

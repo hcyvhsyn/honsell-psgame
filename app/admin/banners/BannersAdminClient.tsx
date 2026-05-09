@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Loader2, Plus, Edit2, Trash2, Upload, X, GripVertical, Eye, EyeOff } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
+type BannerScope = "HOME" | "PLAYSTATION";
+
 type Banner = {
   id: string;
   title: string | null;
@@ -16,7 +18,13 @@ type Banner = {
   game?: { id: string; title: string; imageUrl: string | null } | null;
   isActive: boolean;
   sortOrder: number;
+  scope: BannerScope;
 };
+
+const SCOPE_OPTIONS: { key: BannerScope; label: string; description: string }[] = [
+  { key: "HOME", label: "Ana səhifə", description: "/ səhifəsində göstərilir" },
+  { key: "PLAYSTATION", label: "PlayStation", description: "/playstation səhifəsində göstərilir" },
+];
 
 type EditForm = {
   title: string;
@@ -33,6 +41,7 @@ type EditForm = {
   gameDiscountPct: number | null;
   isActive: boolean;
   sortOrder: string;
+  scope: BannerScope;
 };
 
 type GameOption = {
@@ -46,9 +55,10 @@ type GameOption = {
 
 export default function BannersAdminClient() {
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [activeScope, setActiveScope] = useState<BannerScope>("HOME");
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | "NEW" | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "LINK", gameId: "", gameLabel: "", gameImageUrl: null, gameFinalAzn: null, gameOriginalAzn: null, gameDiscountPct: null, isActive: true, sortOrder: "0" });
+  const [editForm, setEditForm] = useState<EditForm>({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "LINK", gameId: "", gameLabel: "", gameImageUrl: null, gameFinalAzn: null, gameOriginalAzn: null, gameDiscountPct: null, isActive: true, sortOrder: "0", scope: "HOME" });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState<"desktop" | "mobile" | null>(null);
@@ -100,17 +110,17 @@ export default function BannersAdminClient() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/admin/banners");
+    const res = await fetch(`/api/admin/banners?scope=${activeScope}`);
     if (res.ok) setBanners(await res.json());
     setLoading(false);
-  }, []);
+  }, [activeScope]);
 
   useEffect(() => { load(); }, [load]);
 
   function openNew() {
     setSaveError(null);
     setEditingId("NEW");
-    setEditForm({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "ADD_TO_CART", gameId: "", gameLabel: "", gameImageUrl: null, gameFinalAzn: null, gameOriginalAzn: null, gameDiscountPct: null, isActive: true, sortOrder: String(banners.length) });
+    setEditForm({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "ADD_TO_CART", gameId: "", gameLabel: "", gameImageUrl: null, gameFinalAzn: null, gameOriginalAzn: null, gameDiscountPct: null, isActive: true, sortOrder: String(banners.length), scope: activeScope });
     setGameQuery("");
     setGameOptions([]);
   }
@@ -133,6 +143,7 @@ export default function BannersAdminClient() {
       gameDiscountPct: null,
       isActive: b.isActive,
       sortOrder: String(b.sortOrder),
+      scope: b.scope ?? "HOME",
     });
     setGameQuery("");
     setGameOptions([]);
@@ -215,6 +226,7 @@ export default function BannersAdminClient() {
         gameId: editForm.gameId || null,
         isActive: editForm.isActive,
         sortOrder: Number(editForm.sortOrder || 0),
+        scope: editForm.scope,
       }),
     });
     if (!res.ok) {
@@ -258,11 +270,31 @@ export default function BannersAdminClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {SCOPE_OPTIONS.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setActiveScope(s.key)}
+              title={s.description}
+              className={`rounded-full px-4 py-2 text-sm transition ${
+                activeScope === s.key
+                  ? "bg-indigo-500 text-white"
+                  : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
         <button onClick={openNew} className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400">
           <Plus className="h-4 w-4" /> Yeni Banner
         </button>
       </div>
+      <p className="text-xs text-zinc-500">
+        {SCOPE_OPTIONS.find((s) => s.key === activeScope)?.description}
+      </p>
 
       {banners.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-16 text-center text-zinc-500">
@@ -321,6 +353,19 @@ export default function BannersAdminClient() {
             <h3 className="mb-6 text-lg font-bold">{editingId === "NEW" ? "Yeni Banner" : "Banneri Redaktə et"}</h3>
 
             <div className="space-y-4">
+              <label className="block text-sm text-zinc-300">
+                Bannerin yeri
+                <select
+                  value={editForm.scope}
+                  onChange={(e) => setEditForm({ ...editForm, scope: e.target.value as BannerScope })}
+                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                >
+                  {SCOPE_OPTIONS.map((s) => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </select>
+              </label>
+
               <label className="block text-sm text-zinc-300">
                 Klikləndikdə
                 <select

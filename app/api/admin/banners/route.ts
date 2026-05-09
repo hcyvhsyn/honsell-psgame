@@ -5,13 +5,20 @@ import { revalidateBanners } from "@/lib/revalidate";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+const VALID_SCOPES = new Set<string>(["HOME", "PLAYSTATION"]);
+
+export async function GET(req: Request) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    const url = new URL(req.url);
+    const scope = url.searchParams.get("scope");
+    const where = scope && VALID_SCOPES.has(scope) ? { scope } : {};
+
     const banners = await prisma.banner.findMany({
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      where,
+      orderBy: [{ scope: "asc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
       include: { game: { select: { id: true, title: true, imageUrl: true } } },
     });
     return NextResponse.json(banners);
@@ -29,7 +36,8 @@ export async function POST(req: Request) {
 
   try {
     if (action === "UPSERT") {
-      const { id, title, subtitle, imageUrl, mobileImageUrl, linkUrl, isActive, sortOrder, actionType, gameId } = body;
+      const { id, title, subtitle, imageUrl, mobileImageUrl, linkUrl, isActive, sortOrder, actionType, gameId, scope } = body;
+      const normalizedScope = scope && VALID_SCOPES.has(String(scope)) ? String(scope) : "HOME";
 
       const normalizedAction = actionType === "ADD_TO_CART" ? "ADD_TO_CART" : "LINK";
       if (normalizedAction === "ADD_TO_CART" && !gameId) {
@@ -60,6 +68,7 @@ export async function POST(req: Request) {
         gameId: normalizedAction === "ADD_TO_CART" ? String(gameId) : null,
         isActive: Boolean(isActive ?? true),
         sortOrder: Number(sortOrder || 0),
+        scope: normalizedScope,
       };
 
       const b = id

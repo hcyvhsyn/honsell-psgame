@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -22,6 +22,9 @@ import {
   ShieldCheck,
   Tv,
   MessageSquare,
+  Brain,
+  Briefcase,
+  ChevronRight,
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import LogoutButton from "@/components/LogoutButton";
@@ -48,13 +51,23 @@ type IconName =
   | "HelpCircle"
   | "LayoutGrid"
   | "Tv"
-  | "MessageSquare";
+  | "MessageSquare"
+  | "Brain"
+  | "Briefcase";
 
-type NavItem = {
+export type NavItemSpec = {
   href: string;
   label: string;
   iconName: IconName;
   badgeKey?: BadgeKey;
+};
+
+export type NavGroupSpec = {
+  label: string;
+  iconName: IconName;
+  /// True olduqda qrup boş ola bilər və "Tezliklə" badge-i göstərilir.
+  comingSoon?: boolean;
+  items: NavItemSpec[];
 };
 
 const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
@@ -73,26 +86,52 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   LayoutGrid,
   Tv,
   MessageSquare,
+  Brain,
+  Briefcase,
 };
 
 export default function AdminSidebar({
-  nav,
+  groups,
   badges,
   userEmail,
 }: {
-  nav: NavItem[];
+  groups: NavGroupSpec[];
   badges: Record<BadgeKey, number>;
   userEmail: string;
 }) {
   const pathname = usePathname() ?? "";
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Close drawer when route changes
+  // Cari path hansı qrupa aiddir? Həmin qrup default olaraq açıq olur,
+  // istifadəçi əl ilə başqa qrupları aça bilər.
+  const activeGroupLabel = useMemo(() => {
+    for (const g of groups) {
+      for (const it of g.items) {
+        if (pathname === it.href || (it.href !== "/admin" && pathname.startsWith(`${it.href}/`))) {
+          return g.label;
+        }
+      }
+    }
+    return null;
+  }, [groups, pathname]);
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // active groupu hər path dəyişikliyində auto-aç
+  useEffect(() => {
+    if (activeGroupLabel) {
+      setOpenGroups((prev) => ({ ...prev, [activeGroupLabel]: true }));
+    }
+  }, [activeGroupLabel]);
+
+  function toggleGroup(label: string) {
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  }
+
+  // Drawer bağlama tetikleyici
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
-  // Lock body scroll when drawer open
   useEffect(() => {
     if (!mobileOpen) return;
     const prev = document.body.style.overflow;
@@ -102,36 +141,89 @@ export default function AdminSidebar({
     };
   }, [mobileOpen]);
 
-  const navList = (
-    <nav className="px-3 py-4">
-      {nav.map(({ href, label, iconName, badgeKey }) => {
-        const Icon = ICONS[iconName];
-        const isActive =
-          pathname === href ||
-          (href !== "/admin" && (pathname === href || pathname.startsWith(`${href}/`)));
-        const count = badgeKey ? badges[badgeKey] : 0;
+  function isItemActive(href: string, allItems: string[]) {
+    if (pathname === href) return true;
+    if (href === "/admin") return false;
+    if (!pathname.startsWith(`${href}/`)) return false;
+    // Daha-spesifik route-u tapırıqsa, parent-i aktiv saymırıq.
+    const moreSpecific = allItems.some(
+      (h) => h !== href && h.startsWith(`${href}/`) && (pathname === h || pathname.startsWith(`${h}/`)),
+    );
+    return !moreSpecific;
+  }
 
+  const allHrefs = groups.flatMap((g) => g.items.map((i) => i.href));
+
+  const navList = (
+    <nav className="px-3 py-3" aria-label="Admin naviqasiya">
+      {groups.map((g) => {
+        const GroupIcon = ICONS[g.iconName];
+        const isOpen = activeGroupLabel === g.label || openGroups[g.label];
+        const hasItems = g.items.length > 0;
+        const empty = g.comingSoon && !hasItems;
         return (
-          <Link
-            key={href}
-            href={href}
-            className={[
-              "mb-1 flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm transition",
-              isActive
-                ? "bg-zinc-900 text-white ring-1 ring-indigo-500/30"
-                : "text-zinc-300 hover:bg-zinc-900 hover:text-white",
-            ].join(" ")}
-          >
-            <span className="flex items-center gap-3">
-              <Icon className={isActive ? "h-4 w-4 text-indigo-300" : "h-4 w-4 text-zinc-500"} />
-              {label}
-            </span>
-            {count > 0 && (
-              <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/40">
-                {count}
+          <div key={g.label} className="mb-1">
+            <button
+              type="button"
+              onClick={() => toggleGroup(g.label)}
+              className={`flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] transition ${
+                activeGroupLabel === g.label
+                  ? "text-zinc-200"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <GroupIcon className="h-3.5 w-3.5" />
+                {g.label}
+                {g.comingSoon && (
+                  <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-amber-200 ring-1 ring-amber-300/30">
+                    Tezliklə
+                  </span>
+                )}
               </span>
+              {hasItems && (
+                <ChevronRight
+                  className={`h-3.5 w-3.5 transition ${isOpen ? "rotate-90" : ""}`}
+                />
+              )}
+            </button>
+
+            {isOpen && hasItems && (
+              <div className="mt-1 grid gap-0.5 pl-1">
+                {g.items.map(({ href, label, iconName, badgeKey }) => {
+                  const Icon = ICONS[iconName];
+                  const active = isItemActive(href, allHrefs);
+                  const count = badgeKey ? badges[badgeKey] : 0;
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={[
+                        "flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm transition",
+                        active
+                          ? "bg-zinc-900 text-white ring-1 ring-indigo-500/30"
+                          : "text-zinc-300 hover:bg-zinc-900 hover:text-white",
+                      ].join(" ")}
+                    >
+                      <span className="flex items-center gap-3">
+                        <Icon className={active ? "h-4 w-4 text-indigo-300" : "h-4 w-4 text-zinc-500"} />
+                        {label}
+                      </span>
+                      {count > 0 && (
+                        <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/40">
+                          {count}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
             )}
-          </Link>
+
+            {isOpen && empty && (
+              <p className="px-3 py-1.5 text-[11px] text-zinc-600">Tezliklə əlavə olunacaq.</p>
+            )}
+          </div>
         );
       })}
     </nav>
@@ -198,8 +290,10 @@ export default function AdminSidebar({
       </div>
 
       {/* Desktop sidebar — visible md+ */}
-      <aside className="hidden w-60 shrink-0 border-r border-zinc-900 bg-zinc-950 md:block">
-        {sidebarBody}
+      <aside className="hidden w-64 shrink-0 border-r border-zinc-900 bg-zinc-950 md:block">
+        <div className="sticky top-0 max-h-screen overflow-y-auto">
+          {sidebarBody}
+        </div>
       </aside>
 
       {/* Mobile drawer overlay */}

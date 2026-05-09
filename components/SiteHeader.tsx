@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { User, Menu, X, LogIn, ChevronDown, Wallet, UserPlus } from "lucide-react";
 import CartIndicator from "./CartIndicator";
-import FavoriteIndicator from "./FavoriteIndicator";
 import Logo from "./Logo";
 import { useModals } from "@/lib/modals";
 
@@ -15,37 +14,66 @@ type NavLinkItem = {
   href: string;
   label: string;
   featured?: boolean;
+  comingSoon?: boolean;
 };
 
 type NavGroup = {
   label: string;
+  href?: string; // Group başlığını klikləməklə dropdown-un əsas səhifəsinə keçid.
   items: NavLinkItem[];
 };
 
-// Featured solo link sits on the bar before the dropdowns; "Endirimlər" is
-// time-sensitive and must always be one click away.
-const featuredLink: NavLinkItem = {
-  href: "/endirimler",
-  label: "Endirimlər",
-  featured: true,
-};
-
+// Yeni 6-kateqoriyalı naviqasiya. Hər kateqoriya dropdown-dur — çoxlu sub-link
+// saxlayır. PlayStation/Streaming/Music aktivdir; Work/AI/Other gələcək üçün
+// rezerv (comingSoon flag-ı UI-da kiçik badge ilə göstərilir).
 const playstationGroup: NavGroup = {
   label: "PlayStation",
+  href: "/playstation",
   items: [
     { href: "/oyunlar", label: "Oyunlar" },
-    { href: "/kolleksiyalar", label: "Kolleksiyalar" },
     { href: "/ps-plus", label: "PS Plus" },
     { href: "/hediyye-kartlari", label: "Hədiyyə Kartları" },
+    { href: "/hesab-acma", label: "Hesab Açma" },
+    { href: "/kolleksiyalar", label: "Kolleksiyalar" },
+    { href: "/endirimler", label: "Endirimlər", featured: true },
+    { href: "/reyler", label: "Rəylər" },
+    { href: "/profile/favorites", label: "Favoritlərim" },
   ],
 };
 
-// Streaming has only one route today; kept as a solo link rather than a
-// single-item dropdown.
-const streamingLink: NavLinkItem = { href: "/streaming", label: "Streaming" };
+const streamingGroup: NavGroup = {
+  label: "Yayım Platformaları",
+  href: "/streaming",
+  items: [
+    { href: "/streaming", label: "Bütün xidmətlər" },
+    { href: "/streaming/netflix", label: "Netflix" },
+    { href: "/streaming/hbo-max", label: "HBO Max" },
+    { href: "/streaming/gain", label: "Gain" },
+    { href: "/streaming/icmallar", label: "İcmallar" },
+    { href: "/streaming/izleme-listim", label: "İzləmə Listim" },
+  ],
+};
 
-// Public review hub — daha çox göz qabağında olsun deyə top-level link.
-const reviewsLink: NavLinkItem = { href: "/reyler", label: "Rəylər" };
+const musicGroup: NavGroup = {
+  label: "Musiqi Platformaları",
+  items: [
+    { href: "/streaming/youtube", label: "YouTube Premium" },
+  ],
+};
+
+const workGroup: NavGroup = {
+  label: "İş Platformaları",
+  items: [
+    { href: "/is-platformalari", label: "Tezliklə", comingSoon: true },
+  ],
+};
+
+const aiGroup: NavGroup = {
+  label: "Süni İntellekt",
+  items: [
+    { href: "/suni-intellekt", label: "Tezliklə", comingSoon: true },
+  ],
+};
 
 const otherGroup: NavGroup = {
   label: "Digər",
@@ -55,14 +83,20 @@ const otherGroup: NavGroup = {
   ],
 };
 
-// Mobile drawer flattens the groups but keeps section headings.
-const mobileSections: { heading?: string; items: NavLinkItem[] }[] = [
-  { items: [featuredLink] },
-  { heading: playstationGroup.label, items: playstationGroup.items },
-  { heading: "Streaming", items: [streamingLink] },
-  { heading: "Rəylər", items: [reviewsLink] },
-  { heading: otherGroup.label, items: otherGroup.items },
+const navGroups: NavGroup[] = [
+  playstationGroup,
+  streamingGroup,
+  musicGroup,
+  workGroup,
+  aiGroup,
+  otherGroup,
 ];
+
+// Mobile drawer flattens the groups but keeps section headings.
+const mobileSections: { heading?: string; items: NavLinkItem[] }[] = navGroups.map((g) => ({
+  heading: g.label,
+  items: g.items,
+}));
 
 export default function SiteHeader({
   user,
@@ -93,13 +127,9 @@ export default function SiteHeader({
 
           <nav className="hidden min-w-0 items-center justify-center xl:flex" aria-label="Əsas naviqasiya">
             <div className="flex min-w-0 items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1">
-              <NavDropdown group={playstationGroup} />
-              <HeaderNavLink href={streamingLink.href}>{streamingLink.label}</HeaderNavLink>
-              <HeaderNavLink href={reviewsLink.href}>{reviewsLink.label}</HeaderNavLink>
-              <HeaderNavLink href={featuredLink.href} featured>
-                {featuredLink.label}
-              </HeaderNavLink>
-              <NavDropdown group={otherGroup} />
+              {navGroups.map((g) => (
+                <NavDropdown key={g.label} group={g} />
+              ))}
             </div>
           </nav>
 
@@ -111,7 +141,6 @@ export default function SiteHeader({
               Aze <ChevronDown className="h-3.5 w-3.5 opacity-70" />
             </button>
 
-            <FavoriteIndicator />
             <CartIndicator />
 
             {user ? (
@@ -180,75 +209,103 @@ export default function SiteHeader({
 
       {/* Mobile Drawer */}
       {menuOpen && (
-        <div className="fixed inset-0 z-40 xl:hidden" onClick={() => setMenuOpen(false)}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <div className="fixed inset-0 z-40 xl:hidden" role="dialog" aria-modal="true" aria-label="Menyu">
+          <button
+            type="button"
+            aria-label="Menyunu bağla"
+            onClick={() => setMenuOpen(false)}
+            className="absolute inset-0 h-full w-full bg-black/70 backdrop-blur-sm"
+          />
           <div
-            className="absolute left-0 right-0 top-16 rounded-b-3xl border-b border-white/10 bg-[#09090C] px-4 pb-6 pt-4 shadow-2xl"
+            className="absolute inset-x-0 top-16 flex max-h-[calc(100dvh-4rem)] flex-col overflow-hidden rounded-b-3xl border-b border-white/10 bg-[#09090C] shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="grid gap-3">
-              {mobileSections.map((section, idx) => (
-                <div key={section.heading ?? `section-${idx}`} className="grid gap-2">
-                  {section.heading && (
-                    <p className="px-2 pt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                      {section.heading}
-                    </p>
-                  )}
-                  {section.items.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold transition hover:bg-white/[0.07] ${
-                        item.featured ? "text-rose-200" : "text-zinc-200"
-                      }`}
-                      onClick={() => setMenuOpen(false)}
+            <div
+              className="flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-4"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
+              <div className="grid gap-5">
+                {/* Account block — always at the top so primary action is reachable */}
+                {user ? (
+                  <Link
+                    href="/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.06] to-white/[0.02] p-3"
+                  >
+                    <span
+                      className="grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br text-white"
+                      style={{ backgroundImage: `linear-gradient(135deg, ${BRAND_PURPLE}, ${BRAND_PURPLE_DARK})` }}
                     >
-                      {item.label}
-                      <span className="text-zinc-500">→</span>
-                    </Link>
-                  ))}
-                </div>
-              ))}
+                      <User className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-white">
+                        {user.name ?? "Hesab"}
+                      </p>
+                      {user.walletBalance !== undefined && (
+                        <p className="truncate text-[11px] text-zinc-400">
+                          Cüzdan {(user.walletBalance / 100).toFixed(2)} ₼
+                          {typeof user.cashbackBalanceCents === "number" && user.cashbackBalanceCents > 0
+                            ? ` · CB ${(user.cashbackBalanceCents / 100).toFixed(2)} ₼`
+                            : ""}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-zinc-500">→</span>
+                  </Link>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setMenuOpen(false); open("login"); }}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-medium text-zinc-200 hover:bg-white/10"
+                    >
+                      <LogIn className="h-4 w-4" /> Daxil ol
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setMenuOpen(false); open("register"); }}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl px-3 py-3 text-sm font-semibold text-white shadow-[0_10px_30px_-16px_rgba(99,1,243,0.95)]"
+                      style={{ backgroundImage: `linear-gradient(90deg, ${BRAND_PURPLE}, ${BRAND_PURPLE_DARK})` }}
+                    >
+                      <UserPlus className="h-4 w-4" /> Qeydiyyat
+                    </button>
+                  </div>
+                )}
 
-              <div className="mt-2 h-px bg-white/10" />
-
-              {user ? (
-                <Link
-                  href="/profile"
-                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-zinc-200"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <User className="h-5 w-5 text-zinc-400" />
-                  <div>
-                    <p className="font-medium">{user.name ?? "Hesab"}</p>
-                    {user.walletBalance !== undefined && (
-                      <p className="text-xs text-zinc-500">
-                        Cüzdan {(user.walletBalance / 100).toFixed(2)} ₼
-                        {typeof user.cashbackBalanceCents === "number" && user.cashbackBalanceCents > 0
-                          ? ` · CB ${(user.cashbackBalanceCents / 100).toFixed(2)} ₼`
-                          : ""}
+                {/* Nav sections */}
+                {mobileSections.map((section, idx) => (
+                  <div key={section.heading ?? `section-${idx}`} className="grid gap-2">
+                    {section.heading && (
+                      <p className="px-1 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                        {section.heading}
                       </p>
                     )}
+                    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+                      {section.items.map((item, i) => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setMenuOpen(false)}
+                          className={`flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium transition active:bg-white/10 hover:bg-white/[0.05] ${
+                            i > 0 ? "border-t border-white/5" : ""
+                          } ${item.featured ? "text-rose-200" : "text-zinc-200"}`}
+                        >
+                          <span className="truncate">{item.label}</span>
+                          <span className="flex items-center gap-2">
+                            {item.comingSoon && (
+                              <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200 ring-1 ring-amber-300/30">
+                                Tezliklə
+                              </span>
+                            )}
+                            <span className="text-zinc-600">→</span>
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                </Link>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => { setMenuOpen(false); open("login"); }}
-                    className="flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-3 text-sm text-zinc-300 hover:bg-white/5"
-                  >
-                    <LogIn className="h-4 w-4" /> Daxil ol
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setMenuOpen(false); open("register"); }}
-                    className="rounded-2xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-400"
-                  >
-                    Qeydiyyatdan keç
-                  </button>
-                </>
-              )}
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -257,41 +314,26 @@ export default function SiteHeader({
   );
 }
 
-function HeaderNavLink({
-  href,
-  featured = false,
-  children,
-}: {
-  href: string;
-  featured?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition xl:px-4 ${
-        featured
-          ? "text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
-          : "text-zinc-300 hover:bg-white/[0.07] hover:text-white"
-      }`}
-    >
-      {children}
-    </Link>
-  );
-}
-
 function NavDropdown({ group }: { group: NavGroup }) {
+  // Dropdown title-i qrupun əsas səhifəsinə (varsa) link-ə çevrilir; əks halda
+  // sadəcə görsəl trigger düymədir. ChevronDown panelin açıldığını göstərir.
+  const triggerClass =
+    "inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.07] hover:text-white group-focus-within:bg-white/[0.07] group-focus-within:text-white xl:px-4";
+
   return (
     <div className="group relative">
-      <button
-        type="button"
-        className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.07] hover:text-white group-focus-within:bg-white/[0.07] group-focus-within:text-white xl:px-4"
-      >
-        {group.label} <ChevronDown className="h-3.5 w-3.5 opacity-70" />
-      </button>
+      {group.href ? (
+        <Link href={group.href} className={triggerClass}>
+          {group.label} <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+        </Link>
+      ) : (
+        <button type="button" className={triggerClass}>
+          {group.label} <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+        </button>
+      )}
       {/*
         Wrapper-in `pt-3`-ı vizual boşluğu (12px) saxlayır, amma boşluq özü
-        hover hədəfidir — kursor düymədən panelə keçəndə `group` hover-i
+        hover hədəfidir — kursor triggerdən panelə keçəndə group hover-i
         kəsilmir.
       */}
       <div className="invisible absolute left-1/2 top-full z-50 w-56 -translate-x-1/2 pt-3 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
@@ -300,9 +342,18 @@ function NavDropdown({ group }: { group: NavGroup }) {
             <Link
               key={item.href}
               href={item.href}
-              className="block rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.07] hover:text-white"
+              className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition hover:bg-white/[0.07] ${
+                item.featured
+                  ? "text-rose-300 hover:text-rose-200"
+                  : "text-zinc-300 hover:text-white"
+              }`}
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.comingSoon && (
+                <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200 ring-1 ring-amber-300/30">
+                  Tezliklə
+                </span>
+              )}
             </Link>
           ))}
         </div>

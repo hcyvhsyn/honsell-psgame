@@ -1,137 +1,111 @@
 import { prisma } from "@/lib/prisma";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
+import SiteFooter from "@/components/SiteFooter";
 import HomeBannerSlider from "@/components/HomeBannerSlider";
-import GameCard, { type GameCardData } from "@/components/GameCard";
-import Image from "next/image";
+import {
+  PlatformCard,
+  MarqueeHeader,
+  HeroMotionOverlay,
+} from "@/components/MarketingUI";
 import Link from "next/link";
 import {
-  Gift,
-  Crown,
-  UserPlus,
   Gamepad2,
   ShieldCheck,
   Zap,
   Clock,
-  Star,
   Sparkles,
   ArrowRight,
-  LayoutGrid,
   Tv,
+  Music,
+  Briefcase,
+  Brain,
+  Layers,
 } from "lucide-react";
 import FaqAccordion from "@/components/FaqAccordion";
-import PsPlusClient from "./ps-plus/PsPlusClient";
-import HediyyeKartlariClient from "./hediyye-kartlari/HediyyeKartlariClient";
-import StreamingClient from "./streaming/StreamingClient";
-import HesabAcmaHomeCategoryCard from "@/components/HesabAcmaHomeCategoryCard";
-import ReviewWriteButton from "@/components/ReviewWriteButton";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 
 export const revalidate = 1800;
 
-const HOMEPAGE_LIMIT = 4;
-const DEFAULT_TYPE = "GAME";
-
 export default async function HomePage() {
-  const [
-    settings,
-    games,
-    totalsArr,
-    banners,
-    testimonials,
-    psPlusProducts,
-    giftCardProducts,
-    accountCreationProduct,
-    streamingProducts,
-    featuredCollections,
-    faqs,
-  ] = await Promise.all([
-      getSettings(),
-      prisma.game.findMany({
-        where: { isActive: true, productType: DEFAULT_TYPE, isFeatured: true },
-        orderBy: { lastScrapedAt: "desc" },
-        take: HOMEPAGE_LIMIT,
-      }),
-      prisma.game.groupBy({ by: ["productType"], where: { isActive: true }, _count: { _all: true } }),
-      prisma.banner.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }], include: { game: true } }).catch(() => []),
-      prisma.testimonial.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }], take: 6 }).catch(() => []),
-      prisma.serviceProduct.findMany({
-        where: { isActive: true, type: "PS_PLUS" },
-        orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
-      }),
-      prisma.serviceProduct.findMany({
-        where: { isActive: true, type: "TRY_BALANCE" },
-        orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
-        take: 4,
-        include: { _count: { select: { codes: { where: { isUsed: false } } } } },
-      }),
-      prisma.serviceProduct.findFirst({
-        where: { isActive: true, type: "ACCOUNT_CREATION" },
-      }),
-      prisma.serviceProduct.findMany({
-        where: { isActive: true, type: "STREAMING" },
-        orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
-        include: { _count: { select: { codes: { where: { isUsed: false } } } } },
-      }),
-      prisma.collection
-        .findMany({
-          where: { isActive: true },
-          orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
-          take: 6,
-          include: {
-            _count: { select: { games: true } },
-            games: {
-              orderBy: { position: "asc" },
-              take: 1,
-              include: { game: { select: { imageUrl: true, heroImageUrl: true } } },
-            },
-          },
-        })
-        .catch(() => []),
-      prisma.faqItem
-        .findMany({
-          where: { isActive: true },
-          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-          select: { id: true, question: true, answer: true },
-        })
-        .catch(() => [] as { id: string; question: string; answer: string }[]),
-    ]);
+  const [settings, banners, faqs, totalsArr, streamingProducts, psPlusProducts, giftCardProducts] = await Promise.all([
+    getSettings(),
+    prisma.banner
+      .findMany({
+        where: { isActive: true, scope: "HOME" },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+        include: { game: true },
+      })
+      .catch(() => []),
+    prisma.faqItem
+      .findMany({
+        where: { isActive: true, scope: "HOME" },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        select: { id: true, question: true, answer: true },
+      })
+      .catch(() => [] as { id: string; question: string; answer: string }[]),
+    prisma.game.groupBy({ by: ["productType"], where: { isActive: true }, _count: { _all: true } }),
+    prisma.serviceProduct.findMany({
+      where: { isActive: true, type: "STREAMING" },
+      orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
+    }),
+    prisma.serviceProduct.findMany({
+      where: { isActive: true, type: "PS_PLUS" },
+      orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
+      take: 1,
+    }),
+    prisma.serviceProduct.findMany({
+      where: { isActive: true, type: "TRY_BALANCE" },
+      orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
+      take: 1,
+    }),
+  ]);
 
   const totals: Record<string, number> = { GAME: 0, ADDON: 0, CURRENCY: 0, OTHER: 0 };
   for (const row of totalsArr) totals[row.productType] = row._count._all;
 
-  const results: GameCardData[] = games.map((g) => {
-    const price = computeDisplayPrice(g, settings);
-    return { id: g.id, productId: g.productId, title: g.title, imageUrl: g.imageUrl, platform: g.platform, productType: g.productType, finalAzn: price.finalAzn, originalAzn: price.originalAzn, discountPct: price.discountPct, discountEndAt: g.discountTryCents != null && g.discountEndAt ? g.discountEndAt.toISOString() : null };
-  });
+  // Streaming-də ən populyar/ucuz xidmət şəklini götürmək üçün lookup
+  const streamingPosters = new Map<string, string | null>();
+  for (const p of streamingProducts) {
+    const meta = (p.metadata as { service?: string } | null) ?? null;
+    const service = (meta?.service ?? "").toUpperCase();
+    if (service && !streamingPosters.has(service) && p.imageUrl) {
+      streamingPosters.set(service, p.imageUrl);
+    }
+  }
+  const netflixImage = streamingPosters.get("NETFLIX") ?? null;
+  const youtubeImage = streamingPosters.get("YOUTUBE_PREMIUM") ?? null;
 
-  const bannerSlides = banners.map((b) => {
-    const price = b.game ? computeDisplayPrice(b.game, settings) : null;
-    return {
-      id: b.id,
-      title: b.title,
-      subtitle: b.subtitle,
-      imageUrl: b.imageUrl || b.game?.heroImageUrl || b.game?.imageUrl || "",
-      mobileImageUrl: b.mobileImageUrl ?? null,
-      linkUrl: b.linkUrl,
-      actionType: (b.actionType === "ADD_TO_CART" ? "ADD_TO_CART" : "LINK") as "LINK" | "ADD_TO_CART",
-      game: b.game && price
-        ? {
-            id: b.game.id,
-            productId: b.game.productId,
-            title: b.game.title,
-            imageUrl: b.game.imageUrl,
-            heroImageUrl: b.game.heroImageUrl,
-            platform: b.game.platform,
-            productType: b.game.productType,
-            finalAzn: price.finalAzn,
-            originalAzn: price.originalAzn,
-            discountPct: price.discountPct,
-            discountEndAt: b.game.discountTryCents != null && b.game.discountEndAt ? b.game.discountEndAt.toISOString() : null,
-          }
-        : null,
-    };
-  }).filter((b) => b.imageUrl);
+  const bannerSlides = banners
+    .map((b) => {
+      const price = b.game ? computeDisplayPrice(b.game, settings) : null;
+      return {
+        id: b.id,
+        title: b.title,
+        subtitle: b.subtitle,
+        imageUrl: b.imageUrl || b.game?.heroImageUrl || b.game?.imageUrl || "",
+        mobileImageUrl: b.mobileImageUrl ?? null,
+        linkUrl: b.linkUrl,
+        actionType: (b.actionType === "ADD_TO_CART" ? "ADD_TO_CART" : "LINK") as "LINK" | "ADD_TO_CART",
+        game:
+          b.game && price
+            ? {
+                id: b.game.id,
+                productId: b.game.productId,
+                title: b.game.title,
+                imageUrl: b.game.imageUrl,
+                heroImageUrl: b.game.heroImageUrl,
+                platform: b.game.platform,
+                productType: b.game.productType,
+                finalAzn: price.finalAzn,
+                originalAzn: price.originalAzn,
+                discountPct: price.discountPct,
+                discountEndAt: b.game.discountTryCents != null && b.game.discountEndAt ? b.game.discountEndAt.toISOString() : null,
+              }
+            : null,
+      };
+    })
+    .filter((b) => b.imageUrl);
 
   const websiteJsonLd = {
     "@context": "https://schema.org",
@@ -146,18 +120,6 @@ export default async function HomePage() {
       "query-input": "required name=search_term_string",
     },
   };
-
-  const faqJsonLd = faqs.length > 0
-    ? {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        mainEntity: faqs.map((f) => ({
-          "@type": "Question",
-          name: f.question,
-          acceptedAnswer: { "@type": "Answer", text: f.answer },
-        })),
-      }
-    : null;
 
   const organizationJsonLd = {
     "@context": "https://schema.org",
@@ -177,6 +139,18 @@ export default async function HomePage() {
     },
   };
 
+  const faqJsonLd = faqs.length > 0
+    ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: faqs.map((f) => ({
+          "@type": "Question",
+          name: f.question,
+          acceptedAnswer: { "@type": "Answer", text: f.answer },
+        })),
+      }
+    : null;
+
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <script
@@ -195,10 +169,9 @@ export default async function HomePage() {
       )}
       <SiteHeaderServer />
 
-      <h1 className="sr-only">
-        Honsell PS Store — Azərbaycanda PlayStation oyunları, PS Plus, hədiyyə kartları və PSN hesab açma
-      </h1>
+      <h1 className="sr-only">{SITE_NAME} — {SITE_DESCRIPTION}</h1>
 
+      {/* Hero banner (HOME scope) */}
       <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
         {bannerSlides.length > 0 ? (
           <HomeBannerSlider banners={bannerSlides} />
@@ -210,12 +183,12 @@ export default async function HomePage() {
               <div className="relative flex h-full flex-col items-start justify-center px-8 sm:px-14">
                 <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-200">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-400" />
-                  {totals.GAME.toLocaleString("az-AZ")} oyun · canlı kataloq
+                  Yeni rəqəmsal mağaza təcrübəsi
                 </span>
                 <p className="text-3xl font-black tracking-tight text-white sm:text-5xl">
-                  PlayStation oyunları
+                  Oyun, film, musiqi və digər
                   <br />
-                  ən sərfəli qiymətlə
+                  rəqəmsal məhsullar bir yerdə
                 </p>
               </div>
             </div>
@@ -224,331 +197,64 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section id="kateqoriyalar" className="py-16">
-        <MarqueeHeader text="KATEQORİYALAR" />
+      {/* Top-level platform navigator */}
+      <section id="platformalar" className="py-16">
+        <MarqueeHeader text="PLATFORMALAR" />
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <FancyCategoryCard
-              href="/oyunlar"
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <PlatformCard
+              href="/playstation"
               icon={<Gamepad2 className="h-5 w-5 text-white" />}
-              label="Oyunlar"
-              sub={`${totals.GAME}+ məhsul`}
-              imageUrl={results[0]?.imageUrl ?? bannerSlides[0]?.imageUrl ?? null}
-              accentClass="border-emerald-400/25 from-emerald-400/20 to-white/[0.03]"
+              label="PlayStation"
+              sub={`${totals.GAME.toLocaleString("az-AZ")}+ oyun · PS Plus · Hədiyyə kartları · Hesab açma`}
+              imageUrl={bannerSlides[0]?.imageUrl ?? psPlusProducts[0]?.imageUrl ?? giftCardProducts[0]?.imageUrl ?? null}
+              accentClass="border-indigo-400/30 from-indigo-400/25 to-fuchsia-400/15"
             />
-            <FancyCategoryCard
-              href="/kolleksiyalar"
-              icon={<LayoutGrid className="h-5 w-5 text-white" />}
-              label="Kolleksiyalar"
-              sub="Tematik oyun siyahıları"
-              imageUrl={
-                featuredCollections[0]?.imageUrl ??
-                featuredCollections[0]?.games[0]?.game.heroImageUrl ??
-                featuredCollections[0]?.games[0]?.game.imageUrl ??
-                null
-              }
-              accentClass="border-sky-400/25 from-sky-400/20 to-white/[0.03]"
-            />
-            <FancyCategoryCard
-              href="/hediyye-kartlari"
-              icon={<Gift className="h-5 w-5 text-white" />}
-              label="Hədiyyə Kartları"
-              sub="Anında e-pin kodlar"
-              imageUrl={giftCardProducts[0]?.imageUrl ?? null}
-              accentClass="border-rose-400/25 from-rose-400/20 to-white/[0.03]"
-            />
-            <FancyCategoryCard
-              href="/ps-plus"
-              icon={<Crown className="h-5 w-5 text-white" />}
-              label="PS Plus"
-              sub="Essential · Extra · Deluxe"
-              imageUrl={psPlusProducts[0]?.imageUrl ?? null}
-              accentClass="border-amber-300/25 from-amber-300/20 to-white/[0.03]"
-            />
-            <FancyCategoryCard
+            <PlatformCard
               href="/streaming"
               icon={<Tv className="h-5 w-5 text-white" />}
-              label="Streaming"
-              sub="HBO Max · Gain · YouTube"
-              imageUrl={streamingProducts[0]?.imageUrl ?? null}
-              accentClass="border-cyan-300/25 from-cyan-300/20 to-white/[0.03]"
+              label="Yayım Platformaları"
+              sub="Netflix · HBO Max · Gain — Azərbaycan yayımları və icmallar"
+              imageUrl={netflixImage}
+              accentClass="border-rose-400/30 from-rose-400/25 to-orange-400/15"
             />
-            <HesabAcmaHomeCategoryCard
-              product={
-                accountCreationProduct
-                  ? {
-                      id: accountCreationProduct.id,
-                      title: accountCreationProduct.title,
-                      imageUrl: accountCreationProduct.imageUrl,
-                      priceAznCents: accountCreationProduct.priceAznCents,
-                    }
-                  : null
-              }
-              icon={<UserPlus className="h-5 w-5 text-white" />}
-              label="Hesab Açma"
-              sub="Türkiyə PSN hesabı"
-              imageUrl={accountCreationProduct?.imageUrl ?? null}
-              accentClass="border-violet-300/25 from-violet-300/20 to-white/[0.03]"
+            <PlatformCard
+              href="/streaming/youtube"
+              icon={<Music className="h-5 w-5 text-white" />}
+              label="Musiqi Platformaları"
+              sub="YouTube Premium — reklamsız + YouTube Music"
+              imageUrl={youtubeImage}
+              accentClass="border-amber-400/30 from-amber-400/25 to-yellow-300/15"
+            />
+            <PlatformCard
+              href="/is-platformalari"
+              icon={<Briefcase className="h-5 w-5 text-white" />}
+              label="İş Platformaları"
+              sub="Tezliklə"
+              accentClass="border-emerald-400/30 from-emerald-400/25 to-teal-400/15"
+              badge="Tezliklə"
+            />
+            <PlatformCard
+              href="/suni-intellekt"
+              icon={<Brain className="h-5 w-5 text-white" />}
+              label="Süni İntellekt"
+              sub="Tezliklə"
+              accentClass="border-violet-400/30 from-violet-400/25 to-purple-400/15"
+              badge="Tezliklə"
+            />
+            <PlatformCard
+              href="/diger"
+              icon={<Layers className="h-5 w-5 text-white" />}
+              label="Digər"
+              sub="Bələdçilər, qazan və digər xidmətlər"
+              accentClass="border-zinc-400/30 from-zinc-400/25 to-zinc-500/10"
             />
           </div>
         </div>
       </section>
 
-      <section id="games" className="py-16">
-        <MarqueeHeader text="OYUNLAR" />
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-          <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {results.map((g, i) => (
-              <GameCard key={g.id} game={g} priority={i < 4} />
-            ))}
-          </ul>
-
-          <div className="mt-8 flex justify-center">
-            <Link
-              href="/oyunlar"
-              className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 hover:border-white/20"
-            >
-              Daha çox yüklə <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {featuredCollections.length > 0 && (
-        <section id="kolleksiyalar" className="py-16">
-          <MarqueeHeader text="KOLLEKSIYALAR" />
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {featuredCollections.map((c) => {
-                const cover =
-                  c.imageUrl ??
-                  c.games[0]?.game.heroImageUrl ??
-                  c.games[0]?.game.imageUrl ??
-                  null;
-                return (
-                  <Link
-                    key={c.id}
-                    href={`/kolleksiya/${c.slug}`}
-                    className="group relative aspect-[5/3] overflow-hidden rounded-3xl border border-white/10 bg-zinc-900 transition hover:-translate-y-1 hover:border-indigo-500/40"
-                  >
-                    {cover ? (
-                      <Image
-                        src={cover}
-                        alt={c.title}
-                        fill
-                        sizes="(max-width: 1024px) 100vw, 33vw"
-                        className="object-cover transition-transform duration-700 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-fuchsia-700/20" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-6">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300">Kolleksiya</p>
-                      <h3 className="mt-1 text-xl font-black text-white sm:text-2xl">{c.title}</h3>
-                      <p className="mt-1 text-sm text-zinc-300">{c._count.games} oyun</p>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-
-            <div className="mt-8 flex justify-center">
-              <Link
-                href="/kolleksiyalar"
-                className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 hover:border-white/20"
-              >
-                Bütün kolleksiyalar <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
-
-      <section id="ps-plus" className="py-16">
-        <MarqueeHeader text="PS PLUS" />
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-          <PsPlusClient
-            hideTierSelector={true}
-            flatMode={true}
-            plans={(() => {
-              const tierOrder = ["ESSENTIAL", "EXTRA", "DELUXE"] as const;
-              const oneMonthByTier = new Map<string, (typeof psPlusProducts)[number]>();
-              for (const p of psPlusProducts) {
-                const m = (p.metadata as Record<string, unknown> | null) ?? {};
-                const t = String(m.tier ?? "");
-                const dur = Number(m.durationMonths ?? 0);
-                if (dur === 1 && (t === "ESSENTIAL" || t === "EXTRA" || t === "DELUXE")) {
-                  if (!oneMonthByTier.has(t)) oneMonthByTier.set(t, p);
-                }
-              }
-              return tierOrder
-                .map((t) => oneMonthByTier.get(t))
-                .filter((p): p is (typeof psPlusProducts)[number] => Boolean(p))
-                .map((p) => ({
-                  id: p.id,
-                  title: p.title,
-                  imageUrl: p.imageUrl,
-                  priceAznCents: p.priceAznCents,
-                  metadata: (p.metadata as Record<string, unknown> | null) ?? null,
-                }));
-            })()}
-          />
-          <div className="flex justify-center mt-8">
-            <Link
-              href="/ps-plus"
-              className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 hover:border-white/20"
-            >
-              Daha çox yüklə <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {(() => {
-        // Ana səhifədə hər streaming xidməti üçün yalnız 1 aylıq paket göstərilir.
-        // Eyni xidmətdə həm 1, həm 2 nəfərlik 1-aylıq varsa, 1 nəfərlik üstün tutulur.
-        const oneMonthByService = new Map<string, (typeof streamingProducts)[number]>();
-        for (const p of streamingProducts) {
-          const m = (p.metadata as Record<string, unknown> | null) ?? {};
-          if (Number(m.durationMonths) !== 1) continue;
-          const service = String(m.service ?? "");
-          if (!service) continue;
-          const seats = Number(m.seats ?? 1);
-          const existing = oneMonthByService.get(service);
-          if (!existing) {
-            oneMonthByService.set(service, p);
-            continue;
-          }
-          const existingSeats = Number(
-            ((existing.metadata as Record<string, unknown> | null) ?? {}).seats ?? 1
-          );
-          if (seats < existingSeats) oneMonthByService.set(service, p);
-        }
-        const homepageStreamingProducts = Array.from(oneMonthByService.values());
-
-        if (homepageStreamingProducts.length === 0) return null;
-
-        return (
-          <section id="streaming" className="py-16">
-            <MarqueeHeader text="STREAMING" />
-            <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-              <StreamingClient
-                flat
-                products={homepageStreamingProducts.map((p) => ({
-                  id: p.id,
-                  title: p.title,
-                  description: p.description,
-                  imageUrl: p.imageUrl,
-                  priceAznCents: p.priceAznCents,
-                  metadata: (p.metadata as Record<string, unknown> | null) ?? null,
-                  availableStock: p._count.codes,
-                }))}
-              />
-              <div className="mt-8 flex justify-center">
-                <Link
-                  href="/streaming"
-                  className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 hover:border-white/20"
-                >
-                  Daha çox yüklə <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-                </Link>
-              </div>
-            </div>
-          </section>
-        );
-      })()}
-
-      <section id="gift-cards" className="py-16">
-        <MarqueeHeader text="HƏDİYYƏ KARTLARI" />
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-          <HediyyeKartlariClient
-            cards={giftCardProducts.map((c) => ({
-              id: c.id,
-              title: c.title,
-              imageUrl: c.imageUrl,
-              priceAznCents: c.priceAznCents,
-              metadata: (c.metadata as Record<string, unknown> | null) ?? null,
-              _count: c._count,
-            }))}
-          />
-          <div className="mt-8 flex justify-center">
-            <Link
-              href="/hediyye-kartlari"
-              className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 hover:border-white/20"
-            >
-              Daha çox yüklə <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="py-16">
-        <MarqueeHeader text="RƏYLƏR" />
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-          <div className="grid gap-x-6 gap-y-16 md:grid-cols-2 xl:grid-cols-3">
-            {(testimonials.length > 0
-              ? testimonials.map((t) => ({ id: t.id, name: t.name, text: t.text, rating: t.rating, avatarUrl: t.avatarUrl, platform: t.platform }))
-              : [
-                  { id: "d1", name: "Əli H.", text: "Çox sürətli xidmət! Sifarişim 30 dəqiqə ərzində tamamlandı.", rating: 5, avatarUrl: null, platform: "GAME" },
-                  { id: "d2", name: "Nigar M.", text: "TRY gift kartı aldım, kod anında gəldi. Qiymətlər çox sərfəlidir.", rating: 5, avatarUrl: null, platform: "GIFT_CARD" },
-                  { id: "d3", name: "Rauf S.", text: "PS Plus sifarişində dəstək çox peşəkar oldu. Tam məmnunam.", rating: 5, avatarUrl: null, platform: "PS_PLUS" },
-                  { id: "d4", name: "Leyla K.", text: "Hesab açılışı sifarişim gözlədiyimdən daha tez hazırlandı.", rating: 5, avatarUrl: null, platform: "ACCOUNT_CREATION" },
-                  { id: "d5", name: "Orxan T.", text: "Bir neçə dəfə alış etmişəm, hər dəfə problemsiz və sürətli.", rating: 5, avatarUrl: null, platform: "GAME" },
-                  { id: "d6", name: "Gülnar A.", text: "Wallet top-up və alış prosesi çox rahat qurulub.", rating: 5, avatarUrl: null, platform: "GIFT_CARD" },
-                ]).map((t) => (
-              <article
-                key={t.id}
-                className="relative mt-6 rounded-[24px] bg-[#150A21] p-6 pt-10 shadow-2xl"
-              >
-                <div className="absolute -top-8 left-6 h-16 w-16 overflow-hidden rounded-full border-4 border-[#0A0A0F] bg-[#150A21]">
-                  {t.avatarUrl ? (
-                    <Image src={t.avatarUrl} alt={t.name} fill className="object-cover" />
-                  ) : (
-                    <div className="grid h-full w-full place-items-center bg-white/10 text-xl font-bold text-white">
-                      {t.name.charAt(0)}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mb-5 flex items-center justify-between">
-                  <span className="rounded-full bg-[#6D28D9] px-4 py-1 text-xs font-semibold text-white">
-                    {t.platform === "PS_PLUS"
-                      ? "PS Plus"
-                      : t.platform === "GIFT_CARD"
-                        ? "Hədiyyə kartı"
-                        : t.platform === "ACCOUNT_CREATION"
-                          ? "Hesab açma"
-                          : "Oyun"}
-                  </span>
-                  <div className="flex gap-1">
-                    {Array.from({ length: 5 }).map((_, si) => (
-                      <Star
-                        key={si}
-                        className={`h-4 w-4 ${si < t.rating ? "fill-[#A78BFA] text-[#A78BFA]" : "fill-white/10 text-white/10"}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mb-3 flex items-start gap-2">
-                  <span className="text-4xl font-serif font-black text-white leading-none">“</span>
-                  <h3 className="mt-1 text-lg font-bold text-white">{t.name}</h3>
-                </div>
-
-                <p className="text-sm leading-relaxed text-[#9CA3AF]">
-                  {t.text}
-                </p>
-              </article>
-            ))}
-          </div>
-
-          <div className="mt-16 flex justify-center">
-            <ReviewWriteButton />
-          </div>
-        </div>
-      </section>
-
-      <section className="py-16">
+      {/* Niyə biz */}
+      <section id="niye-biz" className="py-16">
         <MarqueeHeader text="NİYƏ BİZ" />
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
@@ -570,14 +276,17 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="py-16">
-        <MarqueeHeader text="TEZ VERİLƏN SUALLAR" />
-        <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-          <FaqAccordion items={faqs} />
-        </div>
-      </section>
+      {/* General FAQ */}
+      {faqs.length > 0 && (
+        <section className="py-16">
+          <MarqueeHeader text="TEZ VERİLƏN SUALLAR" />
+          <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+            <FaqAccordion items={faqs} />
+          </div>
+        </section>
+      )}
 
-      {/* ─── Referral CTA strip ───────────────────────────────────────── */}
+      {/* Referral CTA */}
       <section className="relative overflow-hidden border-y border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-700/30 via-purple-700/20 to-fuchsia-700/30 py-12">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(232,121,249,0.25),transparent_60%)]" />
         <div className="relative mx-auto max-w-5xl px-6 text-center">
@@ -589,7 +298,7 @@ export default async function HomePage() {
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-fuchsia-50/80 sm:text-base">
             Kodunla qeydiyyatdan keçən hər dost üçün siz hər oyun, PS Plus və streaming
-            alışından komissiya qazanırsız. 5/10/25 uğurlu dəvət üçün bonus AZN.
+            alışından komissiya qazanırsız.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -598,283 +307,11 @@ export default async function HomePage() {
             >
               Necə qazanıram? <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link
-              href="/profile/referrals"
-              className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-            >
-              Mənim referal kabinetim
-            </Link>
           </div>
         </div>
       </section>
 
-      {/* ─── Footer ───────────────────────────────────────────────────── */}
-      <footer className="mt-0 border-t border-white/5 bg-[#0B0B0E]">
-        <div className="mx-auto max-w-[1200px] px-6 py-12">
-          
-          {/* Top row: Logo and Links */}
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between border-b border-white/5 pb-10">
-            <p className="text-3xl font-black tracking-tight text-white">HONSELL</p>
-            <nav className="flex flex-wrap items-center gap-6 text-sm text-zinc-300">
-              <Link href="/oyunlar" className="hover:text-white transition">PlayStation Oyunları</Link>
-              <Link href="/ps-plus" className="hover:text-white transition">PS Plus Üzvlüyü</Link>
-              <Link href="/streaming" className="hover:text-white transition">Streaming</Link>
-              <Link href="/hediyye-kartlari" className="hover:text-white transition">Hədiyyə Kartları</Link>
-              <Link href="/hesab-acma" className="hover:text-white transition">PSN Hesab Açma</Link>
-              <Link href="/qazan" className="text-fuchsia-300 hover:text-fuchsia-200 transition">Qazan (Referal)</Link>
-              <Link href="/bilmeli-olduglarin" className="hover:text-white transition">Bələdçilər</Link>
-              <Link href="/#reyler" className="hover:text-white transition">Rəylər</Link>
-            </nav>
-          </div>
-
-          {/* SEO link block — categories and popular searches */}
-          <div className="mt-10 grid gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 text-sm">
-            <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Kateqoriyalar</p>
-              <ul className="space-y-2 text-zinc-300">
-                <li><Link href="/oyunlar" className="hover:text-white transition">PS5 oyunları</Link></li>
-                <li><Link href="/oyunlar" className="hover:text-white transition">PS4 oyunları</Link></li>
-                <li><Link href="/endirimler" className="hover:text-white transition">Endirimli oyunlar</Link></li>
-                <li><Link href="/oyunlar" className="hover:text-white transition">Yeni çıxan oyunlar</Link></li>
-              </ul>
-            </div>
-            <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Xidmətlər</p>
-              <ul className="space-y-2 text-zinc-300">
-                <li><Link href="/ps-plus" className="hover:text-white transition">PS Plus Essential</Link></li>
-                <li><Link href="/ps-plus" className="hover:text-white transition">PS Plus Extra</Link></li>
-                <li><Link href="/ps-plus" className="hover:text-white transition">PS Plus Deluxe</Link></li>
-                <li><Link href="/hesab-acma" className="hover:text-white transition">Türkiyə PSN hesabı</Link></li>
-              </ul>
-            </div>
-            <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Hədiyyə Kartları</p>
-              <ul className="space-y-2 text-zinc-300">
-                <li><Link href="/hediyye-kartlari" className="hover:text-white transition">TRY Wallet kartları</Link></li>
-                <li><Link href="/hediyye-kartlari" className="hover:text-white transition">PSN top-up</Link></li>
-                <li><Link href="/hediyye-kartlari" className="hover:text-white transition">PlayStation gift card</Link></li>
-              </ul>
-            </div>
-            <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Bələdçilər</p>
-              <ul className="space-y-2 text-zinc-300">
-                <li><Link href="/bilmeli-olduglarin/ps-plus-essential-extra-deluxe-muqayisesi" className="hover:text-white transition">PS Plus müqayisəsi</Link></li>
-                <li><Link href="/bilmeli-olduglarin/azerbaycanda-ps-store-oyunu-nece-alinir" className="hover:text-white transition">PS Store oyunu necə alınır</Link></li>
-                <li><Link href="/bilmeli-olduglarin" className="hover:text-white transition">Bütün bələdçilər</Link></li>
-              </ul>
-            </div>
-            <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Şirkət</p>
-              <ul className="space-y-2 text-zinc-300">
-                <li><Link href="/#reyler" className="hover:text-white transition">Müştəri rəyləri</Link></li>
-                <li><Link href="/#niye-biz" className="hover:text-white transition">Niyə biz?</Link></li>
-                <li><Link href="/profile" className="hover:text-white transition">Hesabım</Link></li>
-                <li><Link href="/cart" className="hover:text-white transition">Səbətim</Link></li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Bottom row: Contact and Socials */}
-          <div className="mt-10 flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
-            <div className="flex flex-wrap gap-12 text-sm text-zinc-300">
-              <div>
-                <p className="mb-1 text-zinc-500">Telefon:</p>
-                <p className="font-semibold text-white">+994 70 256 05 09</p>
-              </div>
-              <div>
-                <p className="mb-1 text-zinc-500">Mail:</p>
-                <p className="font-semibold text-white">info@honsell.store</p>
-              </div>
-          
-            </div>
-
-            <div className="flex items-center gap-4">
-              <a href="#" aria-label="WhatsApp" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5a189a] text-white hover:bg-[#7b2cbf] transition">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.662-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
-              </a>
-              <a href="#" aria-label="Instagram" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5a189a] text-white hover:bg-[#7b2cbf] transition">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
-              </a>
-              <a href="#" aria-label="Telegram" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5a189a] text-white hover:bg-[#7b2cbf] transition">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.188-2.85 5.18-4.686c.223-.195-.054-.285-.346-.086l-6.4 4.024-2.76-.86c-.6-.185-.615-.6.125-.89l10.736-4.135c.498-.184.935.114.825.86z"/></svg>
-              </a>
-              <a href="#" aria-label="TikTok" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5a189a] text-white hover:bg-[#7b2cbf] transition">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93v7.2c0 1.2.15 2.43-.16 3.6-.33 1.25-1.08 2.4-2.07 3.23-1.04.88-2.4 1.41-3.8 1.48-1.52.07-3.05-.2-4.37-.99-1.28-.77-2.27-1.99-2.71-3.41-.45-1.42-.4-2.98.05-4.38.45-1.39 1.45-2.58 2.75-3.28 1.28-.68 2.78-1.01 4.24-.9v4.04c-.75-.02-1.52.12-2.18.52-.61.37-1.09.96-1.32 1.65-.24.7-.24 1.47 0 2.16.24.71.74 1.3 1.37 1.66.65.37 1.42.49 2.16.42.74-.08 1.44-.41 1.96-.94.52-.53.86-1.22 1-1.95.14-.72.16-1.47.16-2.2V.02z"/></svg>
-              </a>
-              <a href="#" aria-label="YouTube" className="flex h-10 w-10 items-center justify-center rounded-full bg-[#5a189a] text-white hover:bg-[#7b2cbf] transition">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-              </a>
-            </div>
-          </div>
-
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
-  );
-}
-
-// ─── Helper Components ────────────────────────────────────────────────────────
-
-function FancyCategoryCard({
-  href,
-  icon,
-  label,
-  sub,
-  imageUrl,
-  accentClass,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  sub: string;
-  imageUrl?: string | null;
-  accentClass: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group relative flex min-h-[210px] overflow-hidden rounded-[24px] border border-white/10 bg-[#150A21] p-5 shadow-2xl transition hover:-translate-y-1 hover:border-indigo-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A78BFA]/60"
-    >
-      {imageUrl ? (
-        <Image
-          src={imageUrl}
-          alt=""
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 16vw"
-          className="object-cover opacity-20 saturate-125 transition duration-700 group-hover:scale-105 group-hover:opacity-25"
-        />
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-[#201032] via-[#150A21] to-[#0A0A0F]" />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#150A21] via-[#150A21]/85 to-[#150A21]/35" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(167,139,250,0.20),transparent_34%)] opacity-80" />
-
-      <div className="relative z-10 flex flex-1 flex-col justify-between">
-        <div className="flex items-start justify-between gap-4">
-          <span className={`grid h-11 w-11 place-items-center rounded-2xl border bg-gradient-to-br backdrop-blur-sm ${accentClass}`}>
-            {icon}
-          </span>
-          <ArrowRight className="h-5 w-5 text-white/45 transition group-hover:translate-x-1 group-hover:text-white" />
-        </div>
-
-        <div>
-          <h3 className="text-lg font-black leading-tight text-white">{label}</h3>
-          <p className="mt-2 min-h-[42px] text-sm leading-relaxed text-zinc-300">{sub}</p>
-          <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-[#A78BFA] transition group-hover:text-white">
-            Keçid et <ArrowRight className="h-4 w-4" />
-          </span>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-function HeroMotionOverlay() {
-  const symbols: Array<{
-    shape: "triangle" | "circle" | "cross" | "square";
-    color: string;
-    className: string;
-    size: number;
-    rotate: number;
-    duration: number;
-    delay: number;
-  }> = [
-    { shape: "triangle", color: "#34d399", className: "left-[6%] top-8", size: 92, rotate: -8, duration: 7.5, delay: 0 },
-    { shape: "circle", color: "#f87171", className: "right-[8%] top-6", size: 80, rotate: 0, duration: 8.5, delay: 1.2 },
-    { shape: "cross", color: "#60a5fa", className: "left-[42%] top-2", size: 70, rotate: 12, duration: 6.5, delay: 0.6 },
-    { shape: "square", color: "#f472b6", className: "right-[28%] bottom-4", size: 64, rotate: -14, duration: 9, delay: 2 },
-  ];
-
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0">
-      {symbols.map((s, i) => (
-        <span
-          key={i}
-          className={`ps-float absolute hidden sm:block ${s.className}`}
-          style={
-            {
-              "--ps-rot": `${s.rotate}deg`,
-              "--ps-dur": `${s.duration}s`,
-              "--ps-delay": `${s.delay}s`,
-            } as React.CSSProperties
-          }
-        >
-          <PsGlyph shape={s.shape} color={s.color} size={s.size} />
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function PsGlyph({
-  shape,
-  color,
-  size,
-}: {
-  shape: "triangle" | "circle" | "cross" | "square";
-  color: string;
-  size: number;
-}) {
-  const stroke = Math.max(2, Math.round(size / 18));
-  const common = {
-    width: size,
-    height: size,
-    viewBox: "0 0 64 64",
-    fill: "none",
-    stroke: color,
-    strokeWidth: stroke,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-  };
-  if (shape === "triangle") {
-    return (
-      <svg {...common}>
-        <path d="M32 10 L54 50 H10 Z" />
-      </svg>
-    );
-  }
-  if (shape === "circle") {
-    return (
-      <svg {...common}>
-        <circle cx="32" cy="32" r="22" />
-      </svg>
-    );
-  }
-  if (shape === "cross") {
-    return (
-      <svg {...common}>
-        <path d="M14 14 L50 50 M50 14 L14 50" />
-      </svg>
-    );
-  }
-  return (
-    <svg {...common}>
-      <rect x="12" y="12" width="40" height="40" rx="2" />
-    </svg>
-  );
-}
-
-function MarqueeHeader({ text }: { text: string }) {
-  const content = Array.from({ length: 15 }).map((_, i) => (
-    <span key={i} className="mx-4 text-2xl font-bold tracking-[0.2em] text-white uppercase sm:text-4xl">
-      {text} <span className="mx-4 text-white/30">•</span>
-    </span>
-  ));
-
-  const duration = Math.max(text.length * 4, 30);
-
-  return (
-    <div className="relative flex w-full overflow-hidden border-y border-white/10 bg-[#12081C] py-5">
-      <div className="flex whitespace-nowrap" style={{ animation: `marquee ${duration}s linear infinite` }}>
-        <style>{`
-          @keyframes marquee {
-            0% { transform: translateX(0%); }
-            100% { transform: translateX(-50%); }
-          }
-        `}</style>
-        <div className="flex shrink-0">{content}</div>
-        <div className="flex shrink-0">{content}</div>
-      </div>
-    </div>
   );
 }
