@@ -1,9 +1,28 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Plus, Users, Info, X, Tv as TvIcon, AlertTriangle } from "lucide-react";
+import {
+  Check,
+  Plus,
+  Users,
+  Info,
+  X,
+  Tv as TvIcon,
+  AlertTriangle,
+  Monitor,
+  Smartphone,
+  Tablet,
+  ShieldAlert,
+} from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { validateStreamingDetails } from "@/lib/streamingCart";
+
+const DEVICE_META: Record<string, { label: string; Icon: typeof Monitor }> = {
+  computer: { label: "Kompüter", Icon: Monitor },
+  tv: { label: "Televizor", Icon: TvIcon },
+  phone: { label: "Telefon", Icon: Smartphone },
+  tablet: { label: "Planşet", Icon: Tablet },
+};
 
 /**
  * Per-service streaming plan picker. PS Store / Apple One stilində təmiz seqment-
@@ -29,11 +48,14 @@ type Meta = {
   deliveryMode: "CODE" | "GMAIL";
   originalPriceAznCents: number | null;
   inStock: boolean;
+  devices: string[];
+  vpnRequired: boolean;
 };
 
 function readMeta(p: PlanProduct): Meta {
   const m = p.metadata ?? {};
   const opc = Number(m.originalPriceAznCents);
+  const rawDevices = Array.isArray(m.devices) ? (m.devices as unknown[]) : [];
   return {
     service: String(m.service ?? ""),
     durationMonths: Number(m.durationMonths ?? 0),
@@ -41,12 +63,13 @@ function readMeta(p: PlanProduct): Meta {
     deliveryMode: String(m.deliveryMode ?? "CODE") === "GMAIL" ? "GMAIL" : "CODE",
     originalPriceAznCents: Number.isFinite(opc) && opc > 0 ? opc : null,
     inStock: m.inStock === undefined ? true : Boolean(m.inStock),
+    devices: rawDevices.filter((x): x is string => typeof x === "string"),
+    vpnRequired: Boolean(m.vpnRequired),
   };
 }
 
-function inStock(p: PlanProduct, m: Meta) {
-  if (!m.inStock) return false;
-  if (m.deliveryMode === "CODE") return p.availableStock > 0;
+function inStock(_p: PlanProduct, _m: Meta) {
+  // Stok sistemi ləğv edildi — sifariş PENDING yaranır, admin təsdiq edir.
   return true;
 }
 
@@ -337,6 +360,38 @@ function SelectedSummary({ product, meta }: { product: PlanProduct; meta: Meta }
           </span>
           <span className="text-sm font-semibold text-zinc-400">AZN</span>
         </div>
+
+        {(meta.devices.length > 0 || meta.vpnRequired) && (
+          <div className="mt-3 space-y-2">
+            {meta.devices.length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                  İzlənilə bilən cihazlar
+                </p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {meta.devices.map((d) => {
+                    const dm = DEVICE_META[d];
+                    if (!dm) return null;
+                    const Icon = dm.Icon;
+                    return (
+                      <span
+                        key={d}
+                        className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-zinc-200"
+                      >
+                        <Icon className="h-3 w-3 text-zinc-400" /> {dm.label}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {meta.vpnRequired && (
+              <p className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
+                <ShieldAlert className="h-3 w-3" /> VPN tələb olunur
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="mt-4">
           <button

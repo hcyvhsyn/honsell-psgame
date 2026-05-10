@@ -1,7 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Tv, Plus, Check, Users, AlertTriangle, Info, X } from "lucide-react";
+import {
+  Tv,
+  Plus,
+  Check,
+  Users,
+  AlertTriangle,
+  Info,
+  X,
+  Monitor,
+  Smartphone,
+  Tablet,
+  ShieldAlert,
+} from "lucide-react";
+
+const DEVICE_META: Record<string, { label: string; Icon: typeof Monitor }> = {
+  computer: { label: "Kompüter", Icon: Monitor },
+  tv: { label: "Televizor", Icon: Tv },
+  phone: { label: "Telefon", Icon: Smartphone },
+  tablet: { label: "Planşet", Icon: Tablet },
+};
 import { useCart } from "@/lib/cart";
 import { STREAMING_SERVICE_LABELS, validateStreamingDetails } from "@/lib/streamingCart";
 
@@ -22,11 +41,14 @@ type Meta = {
   deliveryMode: "CODE" | "GMAIL";
   originalPriceAznCents: number | null;
   inStock: boolean;
+  devices: string[];
+  vpnRequired: boolean;
 };
 
 function readMeta(p: Product): Meta {
   const m = p.metadata ?? {};
   const opc = Number(m.originalPriceAznCents);
+  const rawDevices = Array.isArray(m.devices) ? (m.devices as unknown[]) : [];
   return {
     service: String(m.service ?? ""),
     durationMonths: Number(m.durationMonths ?? 0),
@@ -34,12 +56,13 @@ function readMeta(p: Product): Meta {
     deliveryMode: String(m.deliveryMode ?? "CODE") === "GMAIL" ? "GMAIL" : "CODE",
     originalPriceAznCents: Number.isFinite(opc) && opc > 0 ? opc : null,
     inStock: m.inStock === undefined ? true : Boolean(m.inStock),
+    devices: rawDevices.filter((x): x is string => typeof x === "string"),
+    vpnRequired: Boolean(m.vpnRequired),
   };
 }
 
-function isProductInStock(p: Product, meta: Meta): boolean {
-  if (!meta.inStock) return false;
-  if (meta.deliveryMode === "CODE") return p.availableStock > 0;
+function isProductInStock(_p: Product, _meta: Meta): boolean {
+  // Stok sistemi ləğv edildi — sifariş yaradılır, admin əl ilə təsdiq edir.
   return true;
 }
 
@@ -287,19 +310,14 @@ function PlanCard({
             )}
           </div>
 
-          <div className="absolute right-3 top-3">
-            {inStock ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 backdrop-blur">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                Stokda var
+          {meta.vpnRequired && (
+            <div className="absolute right-3 top-3">
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-200 backdrop-blur">
+                <ShieldAlert className="h-3 w-3" />
+                VPN tələb olunur
               </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/40 bg-rose-500/15 px-2.5 py-1 text-[11px] font-semibold text-rose-300 backdrop-blur">
-                <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
-                Stokda yoxdur
-              </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-1 flex-col gap-3 p-4">
@@ -337,6 +355,24 @@ function PlanCard({
               </span>
             )}
           </div>
+
+          {meta.devices.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {meta.devices.map((d) => {
+                const dm = DEVICE_META[d];
+                if (!dm) return null;
+                const Icon = dm.Icon;
+                return (
+                  <span
+                    key={d}
+                    className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-medium text-zinc-300"
+                  >
+                    <Icon className="h-3 w-3 text-zinc-500" /> {dm.label}
+                  </span>
+                );
+              })}
+            </div>
+          )}
 
           <button
             type="button"

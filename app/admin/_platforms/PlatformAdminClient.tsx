@@ -33,7 +33,7 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/admin/platforms?category=${category}`);
+    const res = await fetch(`/api/admin/platforms?category=${category}`, { cache: "no-store" });
     if (res.ok) setProducts(await res.json());
     setLoading(false);
   }, [category]);

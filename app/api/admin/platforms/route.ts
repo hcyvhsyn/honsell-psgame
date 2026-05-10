@@ -8,6 +8,7 @@ import {
 } from "@/lib/platformSubscriptions";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function revalidatePlatform(category: PlatformCategory) {
   if (category === "MUSIC") revalidatePath("/music");

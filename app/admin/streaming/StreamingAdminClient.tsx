@@ -16,29 +16,45 @@ type ServiceProduct = {
   sortOrder: number;
 };
 
+const DURATIONS = [1, 2, 3, 6, 12];
+const SEATS = [1, 2];
+
 const SERVICES = [
   { value: "HBO_MAX", label: "HBO Max" },
   { value: "GAIN", label: "Gain" },
-  { value: "YOUTUBE_PREMIUM", label: "YouTube Premium" },
+  { value: "TABII", label: "Tabii" },
+  { value: "NETFLIX", label: "Netflix" },
+  { value: "PRIME_VIDEO", label: "Prime Video" },
+  { value: "DISNEY_PLUS", label: "Disney+" },
 ];
 
-const DURATIONS = [1, 2, 3, 6, 12];
-const SEATS = [1, 2];
+const DEVICES = [
+  { value: "computer", label: "Kompüter" },
+  { value: "tv", label: "Televizor" },
+  { value: "phone", label: "Telefon" },
+  { value: "tablet", label: "Planşet" },
+];
+
+function serviceLabel(s: string) {
+  return SERVICES.find((x) => x.value === s)?.label ?? s;
+}
+
+function deviceLabel(s: string) {
+  return DEVICES.find((d) => d.value === s)?.label ?? s;
+}
 
 function readMeta(p: ServiceProduct) {
   const m = p.metadata ?? {};
   const opc = Number(m.originalPriceAznCents);
+  const rawDevices = Array.isArray(m.devices) ? (m.devices as unknown[]) : [];
   return {
     service: String(m.service ?? ""),
     durationMonths: Number(m.durationMonths ?? 0),
     seats: Number(m.seats ?? 1),
-    deliveryMode: String(m.deliveryMode ?? "CODE"),
     originalPriceAznCents: Number.isFinite(opc) && opc > 0 ? opc : null,
+    devices: rawDevices.filter((x): x is string => typeof x === "string"),
+    vpnRequired: Boolean(m.vpnRequired),
   };
-}
-
-function serviceLabel(s: string) {
-  return SERVICES.find((x) => x.value === s)?.label ?? s;
 }
 
 export default function StreamingAdminClient() {
@@ -47,6 +63,13 @@ export default function StreamingAdminClient() {
 
   const [editingId, setEditingId] = useState<string | "NEW" | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string | number | boolean>>({});
+  const [editDevices, setEditDevices] = useState<string[]>([]);
+
+  function toggleDevice(value: string) {
+    setEditDevices((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  }
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -59,7 +82,7 @@ export default function StreamingAdminClient() {
 
   async function load() {
     setLoading(true);
-    const res = await fetch("/api/admin/streaming");
+    const res = await fetch("/api/admin/streaming", { cache: "no-store" });
     if (res.ok) setProducts(await res.json());
     setLoading(false);
   }
@@ -79,7 +102,9 @@ export default function StreamingAdminClient() {
       seats: m.seats || 1,
       priceAzn: (p.priceAznCents / 100).toFixed(2),
       originalPriceAzn: m.originalPriceAznCents != null ? (m.originalPriceAznCents / 100).toFixed(2) : "",
+      vpnRequired: m.vpnRequired,
     });
+    setEditDevices(m.devices);
   }
 
   function handleNew() {
@@ -96,7 +121,9 @@ export default function StreamingAdminClient() {
       seats: 1,
       priceAzn: "",
       originalPriceAzn: "",
+      vpnRequired: false,
     });
+    setEditDevices([]);
   }
 
   async function handleImageUpload(file: File) {
@@ -144,9 +171,13 @@ export default function StreamingAdminClient() {
         return;
       }
 
-      const service = String(editForm.service);
+      const service = String(editForm.service).trim();
+      if (!service) {
+        setSaveError("Xidmət adı tələb olunur!");
+        return;
+      }
       const durationMonths = Number(editForm.durationMonths);
-      const seats = service === "YOUTUBE_PREMIUM" ? 1 : Number(editForm.seats);
+      const seats = Number(editForm.seats);
       const autoTitle =
         String(editForm.title).trim() ||
         `${serviceLabel(service)} ${durationMonths} ay${seats > 1 ? ` · ${seats} nəfərlik` : ""}`;
@@ -170,6 +201,8 @@ export default function StreamingAdminClient() {
           seats,
           priceAzn,
           originalPriceAzn,
+          devices: editDevices,
+          vpnRequired: Boolean(editForm.vpnRequired),
         }),
       });
       if (!res.ok) {
@@ -200,9 +233,6 @@ export default function StreamingAdminClient() {
   }
 
   if (loading) return <div className="py-20 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" /></div>;
-
-  const service = String(editForm.service ?? "HBO_MAX");
-  const isYoutube = service === "YOUTUBE_PREMIUM";
 
   return (
     <div className="space-y-8">
@@ -284,7 +314,7 @@ export default function StreamingAdminClient() {
                   Xidmət
                   <select
                     className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
-                    value={String(editForm.service)}
+                    value={String(editForm.service ?? "HBO_MAX")}
                     onChange={(e) => setEditForm({ ...editForm, service: e.target.value })}
                   >
                     {SERVICES.map((s) => (
@@ -306,25 +336,56 @@ export default function StreamingAdminClient() {
                 </label>
               </div>
 
-              {!isYoutube && (
-                <label className="block text-sm">
-                  Nəfər sayı
-                  <select
-                    className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
-                    value={Number(editForm.seats)}
-                    onChange={(e) => setEditForm({ ...editForm, seats: Number(e.target.value) })}
-                  >
-                    {SEATS.map((s) => (
-                      <option key={s} value={s}>{s} nəfərlik</option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              {isYoutube && (
-                <p className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 px-3 py-2 text-xs text-fuchsia-200">
-                  YouTube Premium müştərinin Gmail ünvanı ilə təhvil verilir.
-                </p>
-              )}
+              <label className="block text-sm">
+                Nəfər sayı
+                <select
+                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
+                  value={Number(editForm.seats)}
+                  onChange={(e) => setEditForm({ ...editForm, seats: Number(e.target.value) })}
+                >
+                  {SEATS.map((s) => (
+                    <option key={s} value={s}>{s} nəfərlik</option>
+                  ))}
+                </select>
+              </label>
+
+              <fieldset className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
+                <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  İzlənilə bilən cihazlar
+                </legend>
+                <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {DEVICES.map((d) => {
+                    const checked = editDevices.includes(d.value);
+                    return (
+                      <label
+                        key={d.value}
+                        className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
+                          checked
+                            ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-200"
+                            : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleDevice(d.value)}
+                          className="h-4 w-4"
+                        />
+                        {d.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <label className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={Boolean(editForm.vpnRequired)}
+                  onChange={(e) => setEditForm({ ...editForm, vpnRequired: e.target.checked })}
+                />
+                VPN-ə ehtiyac var
+              </label>
 
               <label className="block text-sm">
                 Başlıq (boşdursa avtomatik olar)

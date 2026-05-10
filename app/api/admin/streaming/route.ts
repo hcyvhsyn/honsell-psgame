@@ -4,8 +4,8 @@ import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const VALID_SERVICES = new Set(["HBO_MAX", "GAIN", "YOUTUBE_PREMIUM"]);
 const VALID_DURATIONS = new Set([1, 2, 3, 6, 12]);
 const VALID_SEATS = new Set([1, 2]);
 
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   try {
     if (action === "UPSERT_PRODUCT") {
       const { id, title, description, imageUrl, isActive, sortOrder } = body;
-      const service = String(body.service ?? "");
+      const service = String(body.service ?? "").trim();
       const durationMonths = Number(body.durationMonths);
       const seats = Number(body.seats ?? 1);
       const priceAzn = Number(body.priceAzn);
@@ -45,9 +45,16 @@ export async function POST(req: Request) {
         originalPriceAznRaw === "" || originalPriceAznRaw == null
           ? null
           : Number(originalPriceAznRaw);
+      const ALLOWED_DEVICES = new Set(["computer", "tv", "phone", "tablet"]);
+      const devices: string[] = Array.isArray(body.devices)
+        ? (body.devices as unknown[])
+            .map((d) => String(d))
+            .filter((d: string) => ALLOWED_DEVICES.has(d))
+        : [];
+      const vpnRequired = Boolean(body.vpnRequired);
 
-      if (!VALID_SERVICES.has(service)) {
-        return NextResponse.json({ error: "Xidmət düzgün deyil." }, { status: 400 });
+      if (!service) {
+        return NextResponse.json({ error: "Xidmət adı tələb olunur." }, { status: 400 });
       }
       if (!VALID_DURATIONS.has(durationMonths)) {
         return NextResponse.json({ error: "Müddət 1/2/3/6/12 ay olmalıdır." }, { status: 400 });
@@ -70,8 +77,6 @@ export async function POST(req: Request) {
         }
       }
 
-      const deliveryMode = service === "YOUTUBE_PREMIUM" ? "GMAIL" : "CODE";
-
       const payload = {
         type: "STREAMING",
         title: String(title ?? "").trim() || `${service} ${durationMonths} ay`,
@@ -83,7 +88,9 @@ export async function POST(req: Request) {
           service,
           durationMonths,
           seats,
-          deliveryMode,
+          deliveryMode: "CODE",
+          devices,
+          vpnRequired,
           ...(originalPriceAzn != null
             ? { originalPriceAznCents: Math.round(originalPriceAzn * 100) }
             : {}),
