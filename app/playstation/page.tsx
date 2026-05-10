@@ -24,6 +24,7 @@ import {
   Heart,
 } from "lucide-react";
 import FaqAccordion from "@/components/FaqAccordion";
+import NewsSection from "@/components/NewsSection";
 import PsPlusClient from "../ps-plus/PsPlusClient";
 import HediyyeKartlariClient from "../hediyye-kartlari/HediyyeKartlariClient";
 import HesabAcmaHomeCategoryCard from "@/components/HesabAcmaHomeCategoryCard";
@@ -449,6 +450,13 @@ export default async function PlayStationPage() {
           />
         </div>
       </section>
+
+      {/* News — PlayStation scope */}
+      <NewsSection
+        scope="PLAYSTATION"
+        title="PlayStation xəbərləri"
+        subtitle="Yeni oyun anonsları, PS Plus təklifləri və PlayStation dünyasından son yeniliklər."
+      />
 
       {/* FAQ — for PlayStation */}
       {faqs.length > 0 && (

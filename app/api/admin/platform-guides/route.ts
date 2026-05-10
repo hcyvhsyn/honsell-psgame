@@ -42,7 +42,7 @@ export async function POST(req: Request) {
 
   try {
     if (action === "UPSERT") {
-      const { id, title, slug, summary, body: text, scope, isActive, sortOrder } = body;
+      const { id, title, slug, summary, body: text, scope, isActive, sortOrder, videoUrl } = body;
       if (!title || typeof title !== "string") {
         return NextResponse.json({ error: "Başlıq tələb olunur" }, { status: 400 });
       }
@@ -51,6 +51,12 @@ export async function POST(req: Request) {
       }
       if (!isValidContentScope(String(scope))) {
         return NextResponse.json({ error: "Düzgün scope seçin" }, { status: 400 });
+      }
+
+      const videoUrlClean =
+        typeof videoUrl === "string" && videoUrl.trim().length > 0 ? videoUrl.trim() : null;
+      if (videoUrlClean && !/^https?:\/\//i.test(videoUrlClean)) {
+        return NextResponse.json({ error: "Video linki http(s):// ilə başlamalıdır." }, { status: 400 });
       }
 
       let finalSlug = (slug && String(slug).trim()) || slugify(String(title));
@@ -65,6 +71,7 @@ export async function POST(req: Request) {
         title: String(title),
         summary: summary ? String(summary) : null,
         body: String(text),
+        videoUrl: videoUrlClean,
         scope: String(scope),
         isActive: Boolean(isActive ?? true),
         sortOrder: Number(sortOrder || 0),

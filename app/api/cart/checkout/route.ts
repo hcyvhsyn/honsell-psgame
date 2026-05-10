@@ -12,17 +12,7 @@ import {
   applyCashbackToBalance,
   getLifetimeSpendAznForLoyalty,
 } from "@/lib/loyaltyCashback";
-import { sendAdminOrderNotification, sendStreamingDeliveryEmail } from "@/lib/resend";
-import {
-  STREAMING_SERVICE_LABELS,
-  addMonths,
-  parseStreamingStock,
-} from "@/lib/streamingCart";
-import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
-import {
-  recordPurchaseSpend,
-  recordSuccessfulInvite,
-} from "@/lib/referralCycle";
+import { sendAdminOrderNotification } from "@/lib/resend";
 import {
   clearReviewAffiliateCookie,
   readReviewAffiliateCookie,
@@ -137,7 +127,7 @@ export async function POST(req: Request) {
       where: {
         id: { in: ids },
         isActive: true,
-        type: { in: ["PS_PLUS", "TRY_BALANCE", "ACCOUNT_CREATION", "STREAMING"] },
+        type: { in: ["PS_PLUS", "TRY_BALANCE", "ACCOUNT_CREATION", "STREAMING", "PLATFORM"] },
       },
     }),
   ]);
@@ -189,6 +179,14 @@ export async function POST(req: Request) {
         lineCents: number;
         deliveryMode: "CODE" | "GMAIL";
         gmail?: string;
+      }
+    | {
+        kind: "PLATFORM";
+        service: ServiceModel;
+        qty: number;
+        unitListCents: number;
+        unitCostCents: number;
+        lineCents: number;
       };
 
   if (games.length + services.length !== payloads.length) {
@@ -292,6 +290,18 @@ export async function POST(req: Request) {
       });
       continue;
     }
+
+    if (service.type === "PLATFORM") {
+      lines.push({
+        kind: "PLATFORM",
+        service,
+        qty: p.qty,
+        unitListCents: service.priceAznCents,
+        unitCostCents: service.priceAznCents,
+        lineCents: service.priceAznCents * p.qty,
+      });
+      continue;
+    }
   }
 
   const needsPsn = lines.some(
@@ -375,14 +385,6 @@ export async function POST(req: Request) {
       const purchaseIds: string[] = [];
       const serviceOrderIds: string[] = [];
       const referredByForTierCheck = new Set<string>();
-      const streamingDeliveries: Array<{
-        codeRaw: string;
-        productTitle: string;
-        service: string;
-        durationMonths: number;
-        priceAznCents: number;
-        startsAt: Date;
-      }> = [];
       const totalCommissionCents = 0;
       let cashbackCents = 0;
       let tryBalancePendingCount = 0;
@@ -508,110 +510,48 @@ export async function POST(req: Request) {
               },
             });
             serviceOrderIds.push(serviceOrder.id);
+          } else if (line.kind === "STREAMING") {
+            // STREAMING — bütün sifarişlər admin təsdiqini gözləyir.
+            // Stok məntiqi yoxdur; admin sifarişə əl ilə hesab məlumatları verir.
+            const serviceOrder = await tx.transaction.create({
+              data: {
+                userId: user.id,
+                type: "SERVICE_PURCHASE",
+                status: "PENDING",
+                amountAznCents: -line.unitListCents,
+                serviceProductId: line.service.id,
+                metadata: JSON.stringify({
+                  fromCart: true,
+                  kind: "STREAMING",
+                  deliveryMode: line.deliveryMode,
+                  paymentSource: payTag,
+                  orderCode,
+                  ...(line.deliveryMode === "GMAIL" && line.gmail ? { gmail: line.gmail } : {}),
+                }),
+              },
+            });
+            serviceOrderIds.push(serviceOrder.id);
           } else {
-            // STREAMING
-            if (line.deliveryMode === "CODE") {
-              const sc = await tx.serviceCode.findFirst({
-                where: { serviceProductId: line.service.id, isUsed: false },
-                orderBy: { createdAt: "asc" },
-              });
-              if (!sc) {
-                const serviceOrder = await tx.transaction.create({
-                  data: {
-                    userId: user.id,
-                    type: "SERVICE_PURCHASE",
-                    status: "PENDING",
-                    amountAznCents: -line.unitListCents,
-                    serviceProductId: line.service.id,
-                    metadata: JSON.stringify({
-                      fromCart: true,
-                      kind: "STREAMING",
-                      deliveryMode: "CODE",
-                      reason: "OUT_OF_STOCK",
-                      paymentSource: payTag,
-                      orderCode,
-                    }),
-                  },
-                });
-                serviceOrderIds.push(serviceOrder.id);
-              } else {
-                await tx.serviceCode.update({
-                  where: { id: sc.id },
-                  data: { isUsed: true },
-                });
-                const serviceOrder = await tx.transaction.create({
-                  data: {
-                    userId: user.id,
-                    type: "SERVICE_PURCHASE",
-                    status: "SUCCESS",
-                    amountAznCents: -line.unitListCents,
-                    serviceProductId: line.service.id,
-                    serviceCodeId: sc.id,
-                    metadata: JSON.stringify({
-                      fromCart: true,
-                      kind: "STREAMING",
-                      deliveryMode: "CODE",
-                      paymentSource: payTag,
-                      orderCode,
-                    }),
-                  },
-                });
-                serviceOrderIds.push(serviceOrder.id);
-                const meta = (line.service.metadata as Record<string, unknown> | null) ?? {};
-                streamingDeliveries.push({
-                  codeRaw: sc.code,
-                  productTitle: line.service.title,
-                  service: String(meta.service ?? ""),
-                  durationMonths: Number(meta.durationMonths ?? 0),
-                  priceAznCents: line.unitListCents,
-                  startsAt: serviceOrder.createdAt,
-                });
-                // Streaming üçün referal komissiyası
-                const cm = await awardStreamingReferralCommission(tx, {
-                  sourceTransactionId: serviceOrder.id,
-                  buyerUserId: user.id,
-                  serviceProductId: line.service.id,
-                  lineCents: line.unitListCents,
-                  streamingProfitSharePct: settings.referralStreamingProfitSharePct,
-                });
-                if (cm) {
-                  referredByForTierCheck.add(cm.referredById);
-                  // +10 pts to inviter on referee's first SUCCESS purchase.
-                  try {
-                    await recordSuccessfulInvite(tx, cm.referredById, user.id);
-                  } catch (err) {
-                    console.error("recordSuccessfulInvite failed", err);
-                  }
-                }
-                // Buyer earns 1 pt / AZN they themselves spent. Runs for
-                // every streaming auto-delivery, even when there's no inviter.
-                try {
-                  await recordPurchaseSpend(tx, user.id, line.unitListCents);
-                } catch (err) {
-                  console.error("recordPurchaseSpend failed", err);
-                }
-              }
-            } else {
-              // GMAIL — manual delivery
-              const serviceOrder = await tx.transaction.create({
-                data: {
-                  userId: user.id,
-                  type: "SERVICE_PURCHASE",
-                  status: "PENDING",
-                  amountAznCents: -line.unitListCents,
-                  serviceProductId: line.service.id,
-                  metadata: JSON.stringify({
-                    fromCart: true,
-                    kind: "STREAMING",
-                    deliveryMode: "GMAIL",
-                    paymentSource: payTag,
-                    orderCode,
-                    gmail: line.gmail,
-                  }),
-                },
-              });
-              serviceOrderIds.push(serviceOrder.id);
-            }
+            // PLATFORM (Musiqi / AI / İş Platformaları) — streaming ilə eyni axın.
+            const platformMeta =
+              (line.service.metadata as Record<string, unknown> | null) ?? {};
+            const serviceOrder = await tx.transaction.create({
+              data: {
+                userId: user.id,
+                type: "SERVICE_PURCHASE",
+                status: "PENDING",
+                amountAznCents: -line.unitListCents,
+                serviceProductId: line.service.id,
+                metadata: JSON.stringify({
+                  fromCart: true,
+                  kind: "PLATFORM",
+                  category: String(platformMeta.category ?? ""),
+                  paymentSource: payTag,
+                  orderCode,
+                }),
+              },
+            });
+            serviceOrderIds.push(serviceOrder.id);
           }
         }
       }
@@ -639,7 +579,6 @@ export async function POST(req: Request) {
         tryBalancePendingCount,
         tryBalanceDeliveredCount,
         orderCode,
-        streamingDeliveries,
         referredByForTierCheck: Array.from(referredByForTierCheck),
       };
     });
@@ -674,38 +613,6 @@ export async function POST(req: Request) {
   const hasTryBalance = lines.some((l) => l.kind === "TRY_BALANCE");
   const tryBalancePendingCount = Number(result.tryBalancePendingCount ?? 0);
   const hasStreaming = lines.some((l) => l.kind === "STREAMING");
-
-  // Cycle tier-ləri artıq tx daxilində streaming komissiya yazıldıqda
-  // qiymətləndirilir; burada ayrıca yoxlama lazım deyil.
-
-  if (Array.isArray(result.streamingDeliveries) && result.streamingDeliveries.length > 0) {
-    for (const d of result.streamingDeliveries) {
-      const entry = parseStreamingStock(d.codeRaw);
-      if (!entry) continue;
-      const startDate = d.startsAt;
-      const endDate = addMonths(startDate, d.durationMonths);
-      const fmt = (dt: Date) =>
-        dt.toLocaleDateString("az-AZ", { day: "2-digit", month: "2-digit", year: "numeric" });
-      try {
-        await sendStreamingDeliveryEmail({
-          email: user.email,
-          userName: user.name ?? "dost",
-          providerLabel: STREAMING_SERVICE_LABELS[d.service] ?? d.productTitle,
-          accountEmail: entry.accountEmail,
-          accountPassword: entry.accountPassword,
-          slotName: entry.slotName,
-          pinCode: entry.pinCode,
-          startDate: fmt(startDate),
-          endDate: fmt(endDate),
-          months: d.durationMonths,
-          paymentAznFormatted: (d.priceAznCents / 100).toFixed(2),
-          referralCode: user.referralCode,
-        });
-      } catch (err) {
-        console.error("streaming delivery email failed", err);
-      }
-    }
-  }
 
   try {
     await sendAdminOrderNotification({

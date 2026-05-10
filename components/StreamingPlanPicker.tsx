@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import { Check, Plus, Users, Info, X, Tv as TvIcon, AlertTriangle } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { validateStreamingDetails } from "@/lib/streamingCart";
@@ -305,12 +304,12 @@ function SelectedSummary({ product, meta }: { product: PlanProduct; meta: Meta }
     <div className="mt-6 grid gap-4 rounded-2xl border border-white/10 bg-zinc-950 p-4 sm:grid-cols-[140px_minmax(0,1fr)] sm:p-5">
       <div className="relative aspect-[16/10] w-32 overflow-hidden rounded-xl bg-zinc-900 sm:w-full">
         {product.imageUrl ? (
-          <Image
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
             src={product.imageUrl}
             alt={product.title}
-            fill
-            sizes="140px"
-            className={`object-cover ${stock ? "" : "grayscale"}`}
+            loading="lazy"
+            className={`absolute inset-0 h-full w-full object-cover ${stock ? "" : "grayscale"}`}
           />
         ) : (
           <div className="flex h-full items-center justify-center">

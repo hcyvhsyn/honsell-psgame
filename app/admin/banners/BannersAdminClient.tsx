@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Loader2, Plus, Edit2, Trash2, Upload, X, GripVertical, Eye, EyeOff } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { BANNER_SCOPES } from "@/lib/contentScopes";
 
-type BannerScope = "HOME" | "PLAYSTATION";
+type BannerScope = string;
 
 type Banner = {
   id: string;
@@ -21,10 +22,7 @@ type Banner = {
   scope: BannerScope;
 };
 
-const SCOPE_OPTIONS: { key: BannerScope; label: string; description: string }[] = [
-  { key: "HOME", label: "Ana səhifə", description: "/ səhifəsində göstərilir" },
-  { key: "PLAYSTATION", label: "PlayStation", description: "/playstation səhifəsində göstərilir" },
-];
+const SCOPE_OPTIONS = BANNER_SCOPES;
 
 type EditForm = {
   title: string;

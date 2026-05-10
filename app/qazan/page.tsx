@@ -22,34 +22,26 @@ import {
   getLastCycleLeaderboard,
 } from "@/lib/referralLeaderboard";
 import { getCurrentCycle } from "@/lib/referralCycle";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Qazan — Honsell referal proqramı",
   description:
-    "Dostunu Honsell-ə dəvət et, hər oyun, PS Plus və streaming alışından komissiya qazan. 5/10/25 uğurlu dəvət üçün bonus AZN.",
+    "Dostunu Honsell-ə dəvət et, hər oyun, PS Plus və streaming alışından komissiya qazan.",
   alternates: { canonical: "/qazan" },
 };
 
 export default async function QazanPage() {
-  const [user, settings, leaderboard, lastCycle, cycle, tiers] =
-    await Promise.all([
-      getCurrentUser(),
-      getSettings(),
-      getReferralLeaderboard(10).catch(() => ({} as never)).then(
-        (v) => (Array.isArray(v) ? v : [])
-      ),
-      getLastCycleLeaderboard(10).catch(() => ({ cycle: null, entries: [] })),
-      getCurrentCycle().catch(() => null),
-      prisma.referralTier
-        .findMany({
-          where: { isActive: true },
-          orderBy: [{ position: "asc" }, { thresholdPoints: "asc" }],
-        })
-        .catch(() => []),
-    ]);
+  const [user, settings, leaderboard, lastCycle, cycle] = await Promise.all([
+    getCurrentUser(),
+    getSettings(),
+    getReferralLeaderboard(10).catch(() => ({} as never)).then(
+      (v) => (Array.isArray(v) ? v : [])
+    ),
+    getLastCycleLeaderboard(10).catch(() => ({ cycle: null, entries: [] })),
+    getCurrentCycle().catch(() => null),
+  ]);
 
   // Game commission is `referralProfitSharePct` applied to PROFIT (final - cost),
   // not to the customer's price. Express it as the effective % of price so the
@@ -85,8 +77,8 @@ export default async function QazanPage() {
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-zinc-300 sm:text-lg">
             Honsell-də əsas qazanc kanalımız sizinlədir. Kodunla qoşulan hər
-            dostunun oyun, PS Plus və streaming alışlarından komissiya alırsan.
-            Bonus pillələri də unutma — 5/10/25 uğurlu dəvət üçün əlavə AZN.
+            dostunun oyun, PS Plus və streaming alışlarından avtomatik komissiya
+            qazanırsan — pillə yoxdur, bonus alış məbləğinə əsasən hesablanır.
           </p>
 
           {user ? (
@@ -175,51 +167,17 @@ export default async function QazanPage() {
         </div>
       </section>
 
-      {/* Tiers */}
-      <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
-        <div className="text-center">
-          <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-            Pilləli mükafatlar
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-zinc-400">
-            Hər ay yenilənir. <strong className="text-zinc-200">Hər 1 AZN öz xərcin = 1 bal</strong>,{" "}
-            <strong className="text-zinc-200">hər uğurlu dəvət = 10 bal</strong>. Pilləyə çatanda
-            bonus avtomatik referal balansına yazılır. Ay sonunda bu bölmə sıfırlanır.
-          </p>
-          {cycle ? <CycleCountdown endsAt={cycle.endsAt.toISOString()} /> : null}
-        </div>
-        {tiers.length === 0 ? (
-          <div className="mt-10 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-12 text-center text-sm text-zinc-500">
-            Hazırda aktiv pillə yoxdur. Admin pilləri əlavə etdikdən sonra burada görünəcək.
+      {/* Cycle countdown */}
+      {cycle ? (
+        <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center">
+            <p className="text-sm text-zinc-400">
+              Cari ay üçün leaderboard sayğacı
+            </p>
+            <CycleCountdown endsAt={cycle.endsAt.toISOString()} />
           </div>
-        ) : (
-          <ul
-            className={`mt-10 grid gap-5 ${
-              tiers.length >= 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"
-            }`}
-          >
-            {tiers.map((t) => (
-              <li
-                key={t.id}
-                className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/10 to-transparent p-6 text-center"
-              >
-                <p className="text-4xl">{t.emoji}</p>
-                <h3 className="mt-2 text-xl font-bold text-white">{t.label}</h3>
-                <p className="mt-1 text-xs text-zinc-400">
-                  {t.thresholdPoints} bal · {t.thresholdPoints} AZN xərc və ya{" "}
-                  {Math.ceil(t.thresholdPoints / 10)} dəvət
-                </p>
-                <p className="mt-4 text-2xl font-black tabular-nums text-amber-300">
-                  +{(t.bonusAznCents / 100).toFixed(0)} AZN
-                </p>
-                <p className="mt-1 text-[11px] uppercase tracking-wider text-zinc-500">
-                  ay ərzində
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        </section>
+      ) : null}
 
       {/* Leaderboard */}
       <section className="border-y border-white/5 bg-white/[0.02]">
@@ -356,10 +314,6 @@ export default async function QazanPage() {
             {
               q: "Referal balansını necə istifadə edə bilərəm?",
               a: "Səbətdə ödəniş zamanı 'Referal balansı ilə ödə' seçimini seçərək balansı tam və ya qismən sərf edə bilərsən.",
-            },
-            {
-              q: "Pilləli bonuslar necə işləyir?",
-              a: "5, 10 və 25 uğurlu dəvətə çatdıqda birdəfəlik bonus (5/15/50 AZN) referal balansına əlavə olunur. Eyni pillə üçün ikinci dəfə bonus verilmir.",
             },
             {
               q: "Uğurlu dəvət deyəndə nə nəzərdə tutulur?",

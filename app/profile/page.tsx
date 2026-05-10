@@ -153,49 +153,17 @@ export default async function ProfileOverviewPage() {
   // Cari ay üçün referral cycle məlumatları + admin tərəfindən idarə olunan
   // pillələr. Bal sistemi: 10 × dəvət + AZN xərc.
   const cycle = await getCurrentCycle().catch(() => null);
-  const [cycleResult, allTiers] = await Promise.all([
-    cycle
-      ? prisma.referralCycleResult
-          .findUnique({
-            where: { cycleId_userId: { cycleId: cycle.id, userId: user.id } },
-            select: { points: true, invites: true, spendCents: true },
-          })
-          .catch(() => null)
-      : Promise.resolve(null),
-    prisma.referralTier
-      .findMany({
-        where: { isActive: true },
-        orderBy: [{ thresholdPoints: "asc" }],
-      })
-      .catch(() => []),
-  ]);
+  const cycleResult = cycle
+    ? await prisma.referralCycleResult
+        .findUnique({
+          where: { cycleId_userId: { cycleId: cycle.id, userId: user.id } },
+          select: { points: true, invites: true, spendCents: true },
+        })
+        .catch(() => null)
+    : null;
   const userPoints = cycleResult?.points ?? 0;
   const userInvites = cycleResult?.invites ?? 0;
   const userCycleSpendAzn = (cycleResult?.spendCents ?? 0) / 100;
-
-  let currentTier: (typeof allTiers)[number] | null = null;
-  let nextTier: (typeof allTiers)[number] | null = null;
-  for (const t of allTiers) {
-    if (userPoints >= t.thresholdPoints) currentTier = t;
-    else {
-      nextTier = t;
-      break;
-    }
-  }
-  const tierProgressPct = nextTier
-    ? Math.min(
-        100,
-        Math.max(
-          0,
-          Math.round(
-            ((userPoints - (currentTier?.thresholdPoints ?? 0)) /
-              (nextTier.thresholdPoints - (currentTier?.thresholdPoints ?? 0))) *
-              100
-          )
-        )
-      )
-    : 100;
-  const pointsToNext = nextTier ? Math.max(0, nextTier.thresholdPoints - userPoints) : 0;
 
   const psnPct = Math.min(
     100,
@@ -346,7 +314,7 @@ export default async function ProfileOverviewPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Stat
               label="Toplam dəvət"
               value={refereeCount.toString()}
@@ -362,77 +330,13 @@ export default async function ProfileOverviewPage() {
               value={userPoints.toString()}
               icon={<Sparkles className="h-4 w-4 text-amber-300" />}
             />
-            <Stat
-              label="Bu ay tier"
-              value={currentTier ? `${currentTier.emoji} ${currentTier.label}` : "—"}
-              icon={<Crown className="h-4 w-4 text-amber-300" />}
-            />
           </div>
 
           <p className="text-[11px] text-zinc-500">
             Cari ay xərc: {userCycleSpendAzn.toFixed(0)} AZN · ümumi qazanc:{" "}
-            {commissionAzn.toFixed(2)} AZN
+            {commissionAzn.toFixed(2)} AZN. Hər referal alışından{" "}
+            avtomatik komissiya qazanırsan.
           </p>
-
-          {/* Tier progress */}
-          {nextTier ? (
-            <div>
-              <div className="mb-2 flex items-center justify-between text-xs text-zinc-300">
-                <span>
-                  Növbəti pillə:{" "}
-                  <span className="font-semibold text-white">
-                    {nextTier.emoji} {nextTier.label}
-                  </span>{" "}
-                  · {(nextTier.bonusAznCents / 100).toFixed(0)} AZN bonus
-                </span>
-                <span className="font-semibold text-fuchsia-300">
-                  {userPoints}/{nextTier.thresholdPoints} bal
-                </span>
-              </div>
-              <ProgressBar
-                value={tierProgressPct}
-                from="from-fuchsia-500"
-                to="to-amber-400"
-              />
-              <p className="mt-2 text-[11px] text-zinc-400">
-                Daha {pointsToNext} bal — öz xərcindən 1 bal/AZN, hər uğurlu dəvətdən +10 bal. Ay
-                sonunda bu hissə sıfırlanır.
-              </p>
-            </div>
-          ) : allTiers.length > 0 ? (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-              🎉 Bu ay bütün pillələri açmısan! Komissiya qazanmağa davam et.
-            </div>
-          ) : null}
-
-          {/* Tier tableau */}
-          {allTiers.length > 0 && (
-            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {allTiers.map((t) => {
-                const reached = userPoints >= t.thresholdPoints;
-                return (
-                  <li
-                    key={t.id}
-                    className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm ${
-                      reached
-                        ? "border-amber-500/40 bg-amber-500/10 text-amber-100"
-                        : "border-white/10 bg-white/[0.03] text-zinc-300"
-                    }`}
-                  >
-                    <span className="text-xl">{t.emoji}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">
-                        {t.label}
-                      </p>
-                      <p className="text-xs font-medium">
-                        {t.thresholdPoints} bal · +{(t.bonusAznCents / 100).toFixed(0)} AZN
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
         </div>
       </section>
 

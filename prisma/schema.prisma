@@ -63,7 +63,6 @@ model User {
   favorites      Favorite[]
 
   referralCycleResults ReferralCycleResult[]
-  referralCycleRewards ReferralCycleReward[]
 
   gameReviews     GameReview[]
   reviewReactions ReviewReaction[]
@@ -650,6 +649,9 @@ model PlatformGuide {
   summary   String?
   /// Tam mətn — markdown yox, plain text saxlanılır (xətt sonu pre-line ilə render).
   body      String
+  /// Opsional YouTube video linki — varsa, kartda &laquo;Videoya bax&raquo; düyməsi
+  /// göstərilir və klikdə yeni tab-da açılır.
+  videoUrl  String?
   /// Scope: HOME | PLAYSTATION | STREAMING_HBO_MAX | STREAMING_GAIN | və s.
   scope     String
   isActive  Boolean  @default(true)
@@ -660,29 +662,56 @@ model PlatformGuide {
   @@index([scope, isActive, sortOrder])
 }
 
-// ─── Referral cycles (monthly leaderboards + tier rewards) ────────────────────
+/// Xəbərlər — admin paneldən idarə olunan platforma-spesifik xəbər/elan/yenilik
+/// kartları. Hər xəbər bir scope-a bağlanır (HOME | PLAYSTATION | STREAMING_*),
+/// PlayStation, Streaming və Music səhifələrində uyğun scope-lu xəbərlər
+/// göstərilir. `isFeatured` true olduqda kart böyük "hero" formatında render
+/// olunur.
+model NewsArticle {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  title         String
+  /// Qısa anons mətni — kartlarda göstərilir.
+  excerpt       String?
+  /// Tam mətn — `whitespace-pre-line` ilə render olunur.
+  body          String
+  /// Cover şəkil URL-i (Cloudinary və ya hər hansı CDN).
+  coverImageUrl String?
+  /// Optional kategori etiketi: "Yenilik", "Endirim", "Müsahibə", "Bələdçi" və s.
+  category      String?
+  /// Scope: HOME | PLAYSTATION | STREAMING_OVERVIEW | STREAMING_HBO_MAX | STREAMING_NETFLIX | STREAMING_GAIN | STREAMING_YOUTUBE_PREMIUM
+  scope         String    @default("HOME")
+  isFeatured    Boolean   @default(false)
+  isPublished   Boolean   @default(true)
+  /// Ana səhifədə də göstərilirmi — admin paneldən manual seçilir.
+  showOnHome    Boolean   @default(false)
+  /// Public render üçün effective tarix — null olarsa createdAt istifadə edilir.
+  publishedAt   DateTime?
+  sortOrder     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([scope, isPublished, publishedAt])
+  @@index([scope, isFeatured, sortOrder])
+  @@index([showOnHome, isPublished, publishedAt])
+}
+
+// ─── Referral cycles (aylıq leaderboard tracking) ─────────────────────────────
 //
-// Each calendar month is a `ReferralCycle`. Inside the cycle, every referrer
-// has a `ReferralCycleResult` row that accumulates points:
-//   - +10 points per "successful invite" (referee's first SUCCESS purchase)
-//   - +1 point per AZN spent by referees in the cycle
-// Tiers (admin-configurable via `ReferralTier`) award `bonusAznCents` once a
-// user crosses the threshold IN THAT CYCLE; the award is recorded in
-// `ReferralCycleReward` (idempotent via the unique constraint) and the AZN
-// flows to `User.referralBalanceCents` (same destination as commission).
+// Hər təqvim ayı bir `ReferralCycle` təşkil edir. Cycle daxilində hər referrer
+// üçün `ReferralCycleResult` sətri xal yığır:
+//   - hər "uğurlu dəvət" üçün +10 xal (referee-nin ilk SUCCESS alışı)
+//   - referee-nin xərclədiyi hər AZN üçün +1 xal
+// Bonus referal komissiyası kimi məbləğə əsasən verilir (pillə sistemi yoxdur).
 
 model ReferralCycle {
   id        String   @id @default(cuid())
-  // Inclusive start of the calendar month (UTC midnight of day 1).
   startsAt  DateTime
-  // Exclusive end (UTC midnight of next month's day 1).
   endsAt    DateTime
-  // Set once `closeExpiredCycles()` snapshots final ranks.
   closedAt  DateTime?
   createdAt DateTime  @default(now())
 
   results ReferralCycleResult[]
-  rewards ReferralCycleReward[]
 
   @@unique([startsAt])
   @@index([endsAt])
@@ -695,11 +724,10 @@ model ReferralCycleResult {
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  invites    Int      @default(0) // count of "successful invites" inside this cycle
-  spendCents Int      @default(0) // referee spend (AZN cents) attributable to this user this cycle
-  points     Int      @default(0) // invites*10 + floor(spendCents/100)
+  invites    Int      @default(0)
+  spendCents Int      @default(0)
+  points     Int      @default(0)
 
-  // Final rank — only populated after the cycle closes.
   rank       Int?
 
   createdAt  DateTime @default(now())
@@ -707,42 +735,6 @@ model ReferralCycleResult {
 
   @@unique([cycleId, userId])
   @@index([cycleId, points])
-  @@index([userId])
-}
-
-model ReferralTier {
-  id              String   @id @default(cuid())
-  // Points required to unlock this tier inside a single cycle.
-  thresholdPoints Int      @unique
-  label           String
-  emoji           String
-  bonusAznCents   Int
-  // Sort order in admin UI (low → high).
-  position        Int      @default(0)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  awards          ReferralCycleReward[]
-
-  @@index([isActive, position])
-}
-
-model ReferralCycleReward {
-  id            String   @id @default(cuid())
-  cycleId       String
-  cycle         ReferralCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tierId        String
-  tier          ReferralTier @relation(fields: [tierId], references: [id])
-
-  // Snapshotted from `tier.bonusAznCents` at award time so subsequent admin
-  // edits to the tier don't rewrite history.
-  bonusAznCents Int
-  awardedAt     DateTime @default(now())
-
-  @@unique([cycleId, userId, tierId])
   @@index([userId])
 }
 

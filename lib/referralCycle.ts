@@ -7,9 +7,8 @@ import { prisma } from "@/lib/prisma";
  *   - +1 point per AZN that the user themselves spends on the platform
  *   - +10 points per friend they invite who reaches their first SUCCESS purchase
  *
- * Tier thresholds (configurable via `ReferralTier`) award `bonusAznCents` once
- * a user's per-cycle points cross them. Awards are idempotent
- * (`ReferralCycleReward.@@unique([cycleId, userId, tierId])`).
+ * Bonuses are paid as a percentage of each referee's purchase (commission
+ * model) — there is no tier/threshold awarding system.
  */
 
 export type CycleSummary = {
@@ -139,7 +138,6 @@ export async function recordPurchaseSpend(
       data: { points: pointsFor(fresh.invites, fresh.spendCents) },
     });
   }
-  await evaluateCycleTiers(db, cycle.id, buyerId);
 }
 
 /**
@@ -217,66 +215,6 @@ export async function recordSuccessfulInvite(
       where: { id: row.id },
       data: { points: pointsFor(fresh.invites, fresh.spendCents) },
     });
-  }
-  await evaluateCycleTiers(db, cycle.id, referrerId);
-}
-
-/**
- * Awards any tier rewards the user has just unlocked inside the given cycle.
- * Idempotent — duplicate awards are blocked by the unique constraint.
- */
-export async function evaluateCycleTiers(
-  db: Db,
-  cycleId: string,
-  userId: string
-): Promise<void> {
-  const tiers = await db.referralTier.findMany({
-    where: { isActive: true },
-    orderBy: { thresholdPoints: "asc" },
-  });
-  if (tiers.length === 0) return;
-
-  const result = await db.referralCycleResult.findUnique({
-    where: { cycleId_userId: { cycleId, userId } },
-    select: { points: true },
-  });
-  if (!result) return;
-
-  for (const tier of tiers) {
-    if (result.points < tier.thresholdPoints) break;
-    try {
-      await db.referralCycleReward.create({
-        data: {
-          cycleId,
-          userId,
-          tierId: tier.id,
-          bonusAznCents: tier.bonusAznCents,
-        },
-      });
-      await db.user.update({
-        where: { id: userId },
-        data: { referralBalanceCents: { increment: tier.bonusAznCents } },
-      });
-      await db.transaction.create({
-        data: {
-          userId,
-          beneficiaryId: userId,
-          type: "REFERRAL_TIER_BONUS",
-          status: "SUCCESS",
-          amountAznCents: tier.bonusAznCents,
-          metadata: JSON.stringify({
-            kind: "REFERRAL_TIER_BONUS",
-            cycleId,
-            tierId: tier.id,
-            tierLabel: tier.label,
-            thresholdPoints: tier.thresholdPoints,
-          }),
-        },
-      });
-    } catch {
-      // Unique constraint hit — already awarded for this cycle.
-      continue;
-    }
   }
 }
 

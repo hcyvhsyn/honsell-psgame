@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { User, Menu, X, LogIn, ChevronDown, Wallet, UserPlus } from "lucide-react";
 import CartIndicator from "./CartIndicator";
 import Logo from "./Logo";
+import NavSearch from "./NavSearch";
 import { useModals } from "@/lib/modals";
 
 const BRAND_PURPLE = "#6301F3";
@@ -134,12 +135,7 @@ export default function SiteHeader({
           </nav>
 
           <div className="flex min-w-0 items-center justify-end gap-2 sm:gap-3">
-            <button
-              className="hidden h-10 items-center gap-1.5 rounded-full border bg-white/[0.03] px-4 text-sm font-medium text-zinc-200 transition hover:bg-white/[0.07] xl:flex"
-              style={{ borderColor: `${BRAND_PURPLE}80` }}
-            >
-              Aze <ChevronDown className="h-3.5 w-3.5 opacity-70" />
-            </button>
+            <NavSearch />
 
             <CartIndicator />
 

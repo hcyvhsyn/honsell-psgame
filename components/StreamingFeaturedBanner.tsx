@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Image from "next/image";
 import { ChevronLeft, ChevronRight, Film, Tv as TvIcon, Play } from "lucide-react";
 import { STREAMING_SERVICE_LABELS } from "@/lib/streamingCart";
 import TrailerModal from "@/components/TrailerModal";
@@ -80,13 +79,12 @@ export default function StreamingFeaturedBanner({ slides }: { slides: FeaturedSl
               }`}
             >
               {src && (
-                <Image
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
                   src={src}
                   alt={s.title}
-                  fill
-                  sizes="(max-width: 1280px) 100vw, 1000px"
-                  className="object-cover object-center"
-                  priority={i === 0}
+                  loading={i === 0 ? "eager" : "lazy"}
+                  className="absolute inset-0 h-full w-full object-cover object-center"
                 />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent sm:bg-gradient-to-r sm:from-black/85 sm:via-black/35 sm:to-transparent" />
@@ -195,7 +193,8 @@ export default function StreamingFeaturedBanner({ slides }: { slides: FeaturedSl
                 >
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900">
                     {thumb && (
-                      <Image src={thumb} alt={s.title} fill sizes="56px" className="object-cover" />
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={thumb} alt={s.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
                     )}
                   </div>
                   <span

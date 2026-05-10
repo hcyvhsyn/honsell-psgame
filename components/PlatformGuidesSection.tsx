@@ -1,4 +1,4 @@
-import { BookOpen } from "lucide-react";
+import { BookOpen, PlayCircle } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -45,10 +45,20 @@ export default async function PlatformGuidesSection({ scope }: { scope: string }
                 +
               </span>
             </summary>
-            <div className="border-t border-white/5 px-5 py-4">
+            <div className="space-y-4 border-t border-white/5 px-5 py-4">
               <p className="whitespace-pre-line text-sm leading-relaxed text-zinc-200">
                 {g.body}
               </p>
+              {g.videoUrl && (
+                <a
+                  href={g.videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg bg-rose-500/15 px-4 py-2 text-sm font-semibold text-rose-200 ring-1 ring-rose-500/30 transition hover:bg-rose-500/25"
+                >
+                  <PlayCircle className="h-4 w-4" /> Videoya bax
+                </a>
+              )}
             </div>
           </details>
         ))}

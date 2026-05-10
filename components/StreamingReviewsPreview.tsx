@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Star, Film, Tv as TvIcon, BadgeCheck, ArrowRight, MessageSquare, Eye } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { STREAMING_SERVICE_LABELS } from "@/lib/streamingCart";
@@ -68,12 +67,12 @@ export default async function StreamingReviewsPreview({
                 <div className="grid gap-4 p-4 sm:grid-cols-[100px_minmax(0,1fr)] sm:gap-5 sm:p-5">
                   <div className="relative aspect-[2/3] w-24 overflow-hidden rounded-xl bg-zinc-900 sm:w-full">
                     {r.posterUrlSnap ? (
-                      <Image
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
                         src={r.posterUrlSnap}
                         alt={r.titleSnap}
-                        fill
-                        sizes="100px"
-                        className="object-cover"
+                        loading="lazy"
+                        className="absolute inset-0 h-full w-full object-cover"
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center">

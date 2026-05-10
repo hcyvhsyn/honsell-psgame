@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import { Tv, Plus, Check, Users, AlertTriangle, Info, X } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { STREAMING_SERVICE_LABELS, validateStreamingDetails } from "@/lib/streamingCart";
@@ -264,12 +263,12 @@ function PlanCard({
       >
         <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-950">
           {product.imageUrl ? (
-            <Image
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
               src={product.imageUrl}
               alt={product.title}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              className={`object-cover transition-transform duration-700 ${
+              loading="lazy"
+              className={`absolute inset-0 h-full w-full object-cover transition-transform duration-700 ${
                 inStock ? "group-hover:scale-105" : "grayscale"
               }`}
             />

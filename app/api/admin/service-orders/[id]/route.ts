@@ -7,7 +7,8 @@ import { createSubscriptionFromTransaction } from "@/lib/subscriptions";
 import {
   STREAMING_SERVICE_LABELS,
   addMonths,
-  parseStreamingStock,
+  serializeStreamingStock,
+  type StreamingStockEntry,
 } from "@/lib/streamingCart";
 import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
 import {
@@ -155,46 +156,41 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ ok: true });
   }
 
-  if (productType === "STREAMING") {
-    let deliveryMode: "CODE" | "GMAIL" = "CODE";
-    let metaObj: Record<string, unknown> = {};
-    try {
-      if (tx.metadata) {
-        metaObj = JSON.parse(tx.metadata) as Record<string, unknown>;
-        if (metaObj.deliveryMode === "GMAIL") deliveryMode = "GMAIL";
-      }
-    } catch {
-      /* ignore */
+  if (productType === "STREAMING" || productType === "PLATFORM") {
+    // Admin sifarişi təsdiq edərkən hesab kreditiyalarını body-də göndərir.
+    const accountEmail = String(body.accountEmail ?? "").trim();
+    const accountPassword = String(body.accountPassword ?? "");
+    const slotName = String(body.slotName ?? "").trim();
+    const pinCode = String(body.pinCode ?? "").trim();
+
+    if (!accountEmail || !accountPassword || !slotName) {
+      return NextResponse.json(
+        { error: "Hesab email, şifrə və profil adı tələb olunur." },
+        { status: 400 }
+      );
     }
 
-    let deliveredCodeRaw: string | null = null;
+    const entry: StreamingStockEntry = { accountEmail, accountPassword, slotName, pinCode };
+    const codeRaw = serializeStreamingStock(entry);
     const settings = await getSettings();
 
     const updated = await prisma.$transaction(async (ptx) => {
-      let serviceCodeId = tx.serviceCodeId;
-      let codeValue = tx.serviceCode?.code ?? null;
-
-      if (deliveryMode === "CODE" && !serviceCodeId) {
-        const sc = await ptx.serviceCode.findFirst({
-          where: { serviceProductId: tx.serviceProductId ?? "", isUsed: false },
-          orderBy: { createdAt: "asc" },
-        });
-        if (!sc) return { ok: false as const, reason: "OUT_OF_STOCK" as const };
-
-        await ptx.serviceCode.update({ where: { id: sc.id }, data: { isUsed: true } });
-        serviceCodeId = sc.id;
-        codeValue = sc.code;
-      }
+      const sc = await ptx.serviceCode.create({
+        data: {
+          serviceProductId: tx.serviceProductId ?? "",
+          code: codeRaw,
+          isUsed: true,
+        },
+      });
 
       await ptx.transaction.update({
         where: { id: tx.id },
         data: {
           status: "SUCCESS",
-          ...(serviceCodeId ? { serviceCodeId } : {}),
+          serviceCodeId: sc.id,
         },
       });
 
-      // Streaming referral commission (mənbə Transaction-a görə təkrarlanmır).
       const cm = await awardStreamingReferralCommission(ptx, {
         sourceTransactionId: tx.id,
         buyerUserId: tx.userId,
@@ -203,9 +199,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         streamingProfitSharePct: settings.referralStreamingProfitSharePct,
       });
 
-      // Cycle bookkeeping:
-      //   • buyer earns own-spend points regardless of whether they were invited
-      //   • inviter (if any) earns +10 pts on referee's first SUCCESS purchase
       try {
         await recordPurchaseSpend(ptx, tx.userId, Math.abs(tx.amountAznCents));
         if (cm?.referredById) {
@@ -215,24 +208,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         console.error("referral cycle bookkeeping failed", err);
       }
 
-      return {
-        ok: true as const,
-        code: codeValue,
-        commissionedReferrerId: cm?.referredById ?? null,
-      };
+      return { ok: true as const };
     });
 
     if (!updated.ok) {
-      return NextResponse.json(
-        { error: "Stokda streaming məlumatı yoxdur. Stok əlavə edib yenidən cəhd edin." },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: "Sifariş təsdiqlənmədi." }, { status: 500 });
     }
 
-    deliveredCodeRaw = updated.code;
-
-    if (deliveryMode === "CODE" && deliveredCodeRaw && tx.user?.email) {
-      const entry = parseStreamingStock(deliveredCodeRaw);
+    if (tx.user?.email) {
       const productMeta = (tx.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
       const months = Number(productMeta.durationMonths ?? 0);
       const serviceKey = String(productMeta.service ?? "");
@@ -240,30 +223,28 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       const endDate = addMonths(startDate, months);
       const fmt = (dt: Date) =>
         dt.toLocaleDateString("az-AZ", { day: "2-digit", month: "2-digit", year: "numeric" });
-      if (entry) {
-        try {
-          await sendStreamingDeliveryEmail({
-            email: tx.user.email,
-            userName: tx.user.name ?? "dost",
-            providerLabel: STREAMING_SERVICE_LABELS[serviceKey] ?? tx.serviceProduct?.title ?? "Streaming",
-            accountEmail: entry.accountEmail,
-            accountPassword: entry.accountPassword,
-            slotName: entry.slotName,
-            pinCode: entry.pinCode,
-            startDate: fmt(startDate),
-            endDate: fmt(endDate),
-            months,
-            paymentAznFormatted: (Math.abs(tx.amountAznCents) / 100).toFixed(2),
-            referralCode: tx.user.referralCode ?? null,
-          });
-        } catch (err) {
-          console.error("streaming delivery email failed", err);
-        }
+      try {
+        await sendStreamingDeliveryEmail({
+          email: tx.user.email,
+          userName: tx.user.name ?? "dost",
+          providerLabel: STREAMING_SERVICE_LABELS[serviceKey] ?? tx.serviceProduct?.title ?? "Streaming",
+          accountEmail: entry.accountEmail,
+          accountPassword: entry.accountPassword,
+          slotName: entry.slotName,
+          pinCode: entry.pinCode,
+          startDate: fmt(startDate),
+          endDate: fmt(endDate),
+          months,
+          paymentAznFormatted: (Math.abs(tx.amountAznCents) / 100).toFixed(2),
+          referralCode: tx.user.referralCode ?? null,
+        });
+      } catch (err) {
+        console.error("streaming delivery email failed", err);
       }
     }
 
     await maybeSendReviewInvite(tx);
-    return NextResponse.json({ ok: true, deliveryMode });
+    return NextResponse.json({ ok: true });
   }
 
   if (productType === "ACCOUNT_CREATION") {

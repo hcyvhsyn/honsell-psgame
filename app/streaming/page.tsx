@@ -8,6 +8,7 @@ import StreamingTitleCard from "@/components/StreamingTitleCard";
 import StreamingTopBar from "@/components/StreamingTopBar";
 import StreamingReviewsPreview from "@/components/StreamingReviewsPreview";
 import PlatformGuidesSection from "@/components/PlatformGuidesSection";
+import NewsSection from "@/components/NewsSection";
 import {
   STREAMING_SERVICE_LABELS,
   STREAMING_SERVICES,
@@ -216,6 +217,13 @@ export default async function StreamingPage() {
         </header>
         <StreamingReviewsPreview limit={3} />
       </section>
+
+      {/* News — STREAMING_OVERVIEW scope */}
+      <NewsSection
+        scope="STREAMING_OVERVIEW"
+        title="Streaming xəbərləri"
+        subtitle="Yeni serial və film anonsları, platforma yenilikləri və xüsusi endirimlər."
+      />
 
       {/* Platform guides — STREAMING_OVERVIEW scope */}
       <PlatformGuidesSection scope="STREAMING_OVERVIEW" />

@@ -24,6 +24,8 @@ import {
   MessageSquare,
   Brain,
   Briefcase,
+  Newspaper,
+  Music,
   ChevronRight,
 } from "lucide-react";
 import Logo from "@/components/Logo";
@@ -53,7 +55,9 @@ type IconName =
   | "Tv"
   | "MessageSquare"
   | "Brain"
-  | "Briefcase";
+  | "Briefcase"
+  | "Newspaper"
+  | "Music";
 
 export type NavItemSpec = {
   href: string;
@@ -88,6 +92,8 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   MessageSquare,
   Brain,
   Briefcase,
+  Newspaper,
+  Music,
 };
 
 export default function AdminSidebar({

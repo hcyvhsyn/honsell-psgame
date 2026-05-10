@@ -164,14 +164,14 @@ export default function AdminSettingsPage() {
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setSaveStatus("success");
-        setMessage("Settings saved.");
+        setMessage("Tənzimləmələr yadda saxlanıldı.");
       } else {
         setSaveStatus("error");
-        setMessage(data.error ?? `Save failed (HTTP ${res.status}).`);
+        setMessage(data.error ?? `Yadda saxlama alınmadı (HTTP ${res.status}).`);
       }
     } catch (err) {
       setSaveStatus("error");
-      setMessage(err instanceof Error ? err.message : "Save failed.");
+      setMessage(err instanceof Error ? err.message : "Yadda saxlama alınmadı.");
     } finally {
       setSaving(false);
       messageTimerRef.current = setTimeout(() => {
@@ -295,7 +295,7 @@ export default function AdminSettingsPage() {
 
   if (loading) {
     return (
-      <div className="text-sm text-zinc-300">Loading settings…</div>
+      <div className="text-sm text-zinc-300">Tənzimləmələr yüklənir…</div>
     );
   }
 
@@ -310,7 +310,7 @@ export default function AdminSettingsPage() {
     <div className="space-y-8">
       <header className="flex items-center gap-3">
         <SettingsIcon className="h-6 w-6 text-indigo-400" />
-        <h1 className="text-2xl font-semibold">Pricing Settings</h1>
+        <h1 className="text-2xl font-semibold">Tənzimləmələr</h1>
       </header>
 
       <form
@@ -318,51 +318,51 @@ export default function AdminSettingsPage() {
         className="space-y-6 rounded-xl border border-zinc-800 bg-zinc-900/40 p-6"
       >
         <Field
-          label="TRY → AZN Exchange Rate"
-          hint="Multiplier applied to scraped TRY prices (e.g. 0.053)."
+          label="TRY → AZN məzənnəsi"
+          hint="Scrape edilmiş TRY qiymətlərinə tətbiq olunan əmsal (məs: 0.053)."
           value={form.tryToAznRate}
           step={0.0001}
           onChange={(v) => setForm({ ...form, tryToAznRate: v })}
         />
         <Field
-          label="Profit Margin (Legacy, %)"
-          hint="Back-compat only. Use per-category margins below."
+          label="Mənfəət marjası (köhnə, %)"
+          hint="Yalnız geri-uyğunluq üçün. Aşağıdakı kateqoriya üzrə marjadan istifadə edin."
           value={form.profitMarginPct}
           step={0.5}
           onChange={(v) => setForm({ ...form, profitMarginPct: v })}
         />
         <div className="grid gap-4 sm:grid-cols-3">
           <Field
-            label="Games profit (%)"
-            hint="Applied to TRY→AZN for games."
+            label="Oyunlar üçün mənfəət (%)"
+            hint="TRY→AZN çevrilməsində oyunlara tətbiq olunur."
             value={form.profitMarginGamesPct}
             step={0.5}
             onChange={(v) => setForm({ ...form, profitMarginGamesPct: v })}
           />
           <Field
-            label="Gift cards profit (%)"
-            hint="Applied to TRY Gift Cards."
+            label="Hədiyyə kartları üçün mənfəət (%)"
+            hint="TRY hədiyyə kartlarına tətbiq olunur."
             value={form.profitMarginGiftCardsPct}
             step={0.5}
             onChange={(v) => setForm({ ...form, profitMarginGiftCardsPct: v })}
           />
           <Field
-            label="PS Plus profit (%)"
-            hint="Applied where PS Plus uses TRY-based pricing."
+            label="PS Plus üçün mənfəət (%)"
+            hint="PS Plus TRY əsaslı qiymətləndirmədə tətbiq olunur."
             value={form.profitMarginPsPlusPct}
             step={0.5}
             onChange={(v) => setForm({ ...form, profitMarginPsPlusPct: v })}
           />
         </div>
         <Field
-          label="Affiliate Commission (%)"
-          hint="Referrer earns this % of every referred user's purchase."
+          label="Affiliate komissiyası (%)"
+          hint="Dəvət edən şəxs hər referal alışından bu faizi qazanır."
           value={form.affiliateRatePct}
           step={0.5}
           onChange={(v) => setForm({ ...form, affiliateRatePct: v })}
         />
         <Field
-          label="Streaming referans komissiyası (%)"
+          label="Streaming referal komissiyası (%)"
           hint="Streaming abunəlikləri (HBO Max, Gain, YouTube) üçün referala verilən komissiya — final qiymət üzərindən faiz."
           value={form.referralStreamingProfitSharePct}
           step={0.5}
@@ -371,14 +371,14 @@ export default function AdminSettingsPage() {
 
         <div className="space-y-3 border-t border-zinc-800 pt-5">
           <h2 className="text-sm font-semibold text-zinc-200">
-            Deposit bank card
+            Ödəniş bank kartı
           </h2>
           <p className="text-xs text-zinc-500">
-            Customers see this card on the wallet page and copy it before
-            transferring funds. Leave blank to disable manual deposits.
+            Müştərilər cüzdan səhifəsində bu kartı görür və köçürmədən əvvəl
+            kopyalayır. Boş buraxsanız manual ödənişlər deaktiv olur.
           </p>
           <label className="block">
-            <span className="text-sm font-medium text-zinc-200">Card number</span>
+            <span className="text-sm font-medium text-zinc-200">Kart nömrəsi</span>
             <input
               type="text"
               value={form.depositCardNumber}
@@ -396,7 +396,7 @@ export default function AdminSettingsPage() {
           </label>
           <label className="block">
             <span className="text-sm font-medium text-zinc-200">
-              Cardholder name
+              Kart sahibinin adı
             </span>
             <input
               type="text"
@@ -432,12 +432,12 @@ export default function AdminSettingsPage() {
               <Save className="h-4 w-4" />
             )}
             {saving
-              ? "Saving…"
+              ? "Yadda saxlanılır…"
               : saveStatus === "success"
-              ? "Saved"
+              ? "Yadda saxlanıldı"
               : saveStatus === "error"
-              ? "Failed"
-              : "Save settings"}
+              ? "Alınmadı"
+              : "Tənzimləmələri yadda saxla"}
           </button>
 
           {message && (
@@ -459,9 +459,9 @@ export default function AdminSettingsPage() {
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">PS Store catalog scrape</h2>
+            <h2 className="text-lg font-semibold">PS Store kataloq yığımı</h2>
             <p className="text-sm text-zinc-400">
-              Pulls fresh games and prices from store.playstation.com.
+              store.playstation.com saytından oyun və qiymətləri yeniləyir.
             </p>
           </div>
           <button
@@ -471,20 +471,20 @@ export default function AdminSettingsPage() {
             className="inline-flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium hover:bg-zinc-800 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${scrape.running ? "animate-spin" : ""}`} />
-            {scrape.running ? "Scraping…" : "Run PS Store scrape"}
+            {scrape.running ? "Yığılır…" : "PS Store yığımını başlat"}
           </button>
         </header>
 
         {(scrape.running || scrape.finished || scrape.error) && (
           <div className="mt-6 space-y-4">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Stat label="Found so far" value={scrape.totalSoFar.toLocaleString()} />
+              <Stat label="İndiyə qədər tapılan" value={scrape.totalSoFar.toLocaleString()} />
               <Stat
-                label="Sources done"
+                label="Tamamlanan mənbələr"
                 value={`${scrape.sourcesDone} / ${scrape.totalSources || "—"}`}
               />
               <Stat
-                label="Saving"
+                label="Yadda saxlanılır"
                 value={
                   scrape.upsertTotal
                     ? `${scrape.upsertDone} / ${scrape.upsertTotal}`
@@ -492,19 +492,19 @@ export default function AdminSettingsPage() {
                 }
               />
               <Stat
-                label="Final"
+                label="Son nəticə"
                 value={scrape.finished ? scrape.upserts.toLocaleString() : "—"}
               />
             </div>
 
-            <Bar value={overallSourcesPct} label="Sources" />
+            <Bar value={overallSourcesPct} label="Mənbələr" />
             {scrape.upsertTotal > 0 && (
-              <Bar value={upsertPct} label="Database" tint="emerald" />
+              <Bar value={upsertPct} label="Verilənlər bazası" tint="emerald" />
             )}
 
             {scrape.currentLabel && !scrape.error && (
               <p className="text-sm text-zinc-400">
-                <span className="text-zinc-500">Current: </span>
+                <span className="text-zinc-500">Hazırda: </span>
                 {scrape.currentLabel}
               </p>
             )}
@@ -519,14 +519,14 @@ export default function AdminSettingsPage() {
             {scrape.finished && !scrape.error && (
               <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/30">
                 <CheckCircle2 className="h-4 w-4" />
-                Scrape complete · {scrape.upserts.toLocaleString()} games stored.
+                Yığım tamamlandı · {scrape.upserts.toLocaleString()} oyun yadda saxlandı.
               </div>
             )}
 
             {scrape.log.length > 0 && (
               <details className="rounded-md border border-zinc-800 bg-zinc-950">
                 <summary className="cursor-pointer px-3 py-2 text-xs uppercase tracking-wider text-zinc-500">
-                  Activity log ({scrape.log.length})
+                  Fəaliyyət jurnalı ({scrape.log.length})
                 </summary>
                 <ul className="max-h-60 overflow-auto px-3 pb-3 font-mono text-[11px] leading-relaxed text-zinc-400">
                   {scrape.log.map((line, i) => (
@@ -554,24 +554,24 @@ function ScrapeHistory({
   return (
     <div className="mt-6 border-t border-zinc-800 pt-5">
       <h3 className="mb-3 text-sm font-semibold text-zinc-200">
-        Recent scrapes
+        Son yığımlar
       </h3>
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Loading history…</p>
+        <p className="text-sm text-zinc-500">Tarixçə yüklənir…</p>
       ) : runs.length === 0 ? (
         <p className="text-sm text-zinc-500">
-          No scrapes recorded yet. Run one above to populate the catalog.
+          Hələ yığım qeydi yoxdur. Kataloqu doldurmaq üçün yuxarıdakı düyməni basın.
         </p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-zinc-800">
           <table className="w-full text-sm">
             <thead className="bg-zinc-900/60 text-left text-xs uppercase tracking-wider text-zinc-500">
               <tr>
-                <th className="px-3 py-2 font-medium">When</th>
+                <th className="px-3 py-2 font-medium">Vaxt</th>
                 <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium text-right">Games</th>
-                <th className="px-3 py-2 font-medium text-right">Duration</th>
+                <th className="px-3 py-2 font-medium text-right">Oyunlar</th>
+                <th className="px-3 py-2 font-medium text-right">Müddət</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800">
@@ -628,7 +628,7 @@ function StatusBadge({ status }: { status: string }) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300 ring-1 ring-emerald-500/30">
         <CheckCircle2 className="h-3 w-3" />
-        Success
+        Uğurlu
       </span>
     );
   }
@@ -636,14 +636,14 @@ function StatusBadge({ status }: { status: string }) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-300 ring-1 ring-rose-500/30">
         <XCircle className="h-3 w-3" />
-        Failed
+        Alınmadı
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-300 ring-1 ring-amber-500/30">
       <Clock className="h-3 w-3" />
-      Running
+      İşləyir
     </span>
   );
 }
@@ -661,13 +661,13 @@ function formatDateTime(d: Date): string {
 function relative(d: Date): string {
   const diff = Date.now() - d.getTime();
   const sec = Math.round(diff / 1000);
-  if (sec < 60) return `${sec}s ago`;
+  if (sec < 60) return `${sec}s əvvəl`;
   const min = Math.round(sec / 60);
-  if (min < 60) return `${min}m ago`;
+  if (min < 60) return `${min}d əvvəl`;
   const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr}h ago`;
+  if (hr < 24) return `${hr}saat əvvəl`;
   const day = Math.round(hr / 24);
-  return `${day}d ago`;
+  return `${day} gün əvvəl`;
 }
 
 function formatDuration(ms: number): string {

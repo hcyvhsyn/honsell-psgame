@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   Loader2, Plus, Search, ThumbsUp, ThumbsDown, X, Sparkles, Trash2,
   CheckCircle2, Clock, AlertCircle, Film, Tv as TvIcon, Star, Share2, EyeOff, Eye, Quote, BadgeCheck,
@@ -307,12 +306,12 @@ function ReviewCard({
         <div className="flex flex-col gap-3">
           <div className="group relative aspect-[2/3] w-full overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl shadow-black/60">
             {item.posterUrlSnap ? (
-              <Image
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
                 src={item.posterUrlSnap}
                 alt={item.titleSnap}
-                fill
-                sizes="(min-width: 1024px) 240px, (min-width: 768px) 220px, 60vw"
-                className="object-cover transition duration-700 group-hover:scale-105"
+                loading="lazy"
+                className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
               />
             ) : (
               <div className="grid h-full place-items-center">
@@ -438,12 +437,12 @@ function ReviewCard({
           <div className="flex items-center gap-3">
             {item.author.avatarUrl ? (
               <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full ring-2 ring-white/15">
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={item.author.avatarUrl}
                   alt={item.author.name}
-                  fill
-                  sizes="40px"
-                  className="object-cover"
+                  loading="lazy"
+                  className="absolute inset-0 h-full w-full object-cover"
                 />
               </div>
             ) : (

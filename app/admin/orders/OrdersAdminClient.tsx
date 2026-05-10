@@ -132,6 +132,68 @@ export default function OrdersAdminClient() {
   const [busyGameId, setBusyGameId] = useState<string | null>(null);
   const [expandedPsPlus, setExpandedPsPlus] = useState<Set<string>>(new Set());
 
+  type StreamingApprovalForm = {
+    accountEmail: string;
+    accountPassword: string;
+    slotName: string;
+    pinCode: string;
+  };
+  const emptyStreamingForm = (): StreamingApprovalForm => ({
+    accountEmail: "",
+    accountPassword: "",
+    slotName: "",
+    pinCode: "",
+  });
+  const [streamingApprovingId, setStreamingApprovingId] = useState<string | null>(null);
+  const [streamingForm, setStreamingForm] = useState<StreamingApprovalForm>(emptyStreamingForm());
+  const [streamingFormError, setStreamingFormError] = useState<string | null>(null);
+
+  function openStreamingApproval(id: string) {
+    setStreamingFormError(null);
+    setStreamingForm(emptyStreamingForm());
+    setStreamingApprovingId(id);
+  }
+
+  function submitStreamingApproval() {
+    const id = streamingApprovingId;
+    if (!id) return;
+    const accountEmail = streamingForm.accountEmail.trim();
+    const accountPassword = streamingForm.accountPassword;
+    const slotName = streamingForm.slotName.trim();
+    const pinCode = streamingForm.pinCode.trim();
+
+    if (!accountEmail || !accountPassword || !slotName) {
+      setStreamingFormError("Email, şifrə və profil adı tələb olunur.");
+      return;
+    }
+    setStreamingFormError(null);
+    startTransition(async () => {
+      const res = await fetch(`/api/admin/service-orders/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SUCCESS",
+          accountEmail,
+          accountPassword,
+          slotName,
+          pinCode,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setStreamingFormError(j.error ?? "Əməliyyat alınmadı");
+        return;
+      }
+      setData((prev) => {
+        if (!prev) return prev;
+        const list = prev.streamingOrders.filter((o) => o.id !== id);
+        return { ...prev, streamingOrders: list };
+      });
+      setStreamingApprovingId(null);
+      setStreamingForm(emptyStreamingForm());
+    });
+  }
+
   function toggleExpandGame(id: string) {
     setExpandedGame((prev) => {
       const next = new Set(prev);
@@ -397,16 +459,14 @@ export default function OrdersAdminClient() {
                       ? meta.gmail
                         ? `Gmail: ${meta.gmail}`
                         : "Gmail (məlumat yoxdur)"
-                      : meta.reason === "OUT_OF_STOCK"
-                        ? "Kod stokda bitib — manual çatdırılma"
-                        : "Kod (avto) — gözləmədə",
+                      : "Manual təsdiq — hesab məlumatlarını daxil et",
                   paymentSource: getPaymentSource(o.metadata),
                   amount: fmtAzn(o.amountAznCents),
                   date: fmtDate(o.createdAt),
                   actions: (
                     <RowActions
                       pending={pending}
-                      onApprove={() => actService(o.id, "SUCCESS", "streamingOrders")}
+                      onApprove={() => openStreamingApproval(o.id)}
                       onReject={() => actService(o.id, "FAILED", "streamingOrders")}
                     />
                   ),
@@ -432,6 +492,84 @@ export default function OrdersAdminClient() {
           Hesab açılışı
         </Link>
       </div>
+
+      {streamingApprovingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+            <h3 className="mb-2 text-lg font-bold">Hesab məlumatlarını ver</h3>
+            <p className="mb-5 text-sm text-zinc-400">
+              Bu məlumatlar müştərinin email ünvanına göndərilir və profil panelində görünür.
+            </p>
+
+            <div className="space-y-3">
+              <label className="block text-sm">
+                <span className="text-zinc-300">Hesab email</span>
+                <input
+                  type="email"
+                  value={streamingForm.accountEmail}
+                  onChange={(e) => setStreamingForm({ ...streamingForm, accountEmail: e.target.value })}
+                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white"
+                  placeholder="mail@example.com"
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="text-zinc-300">Şifrə</span>
+                <input
+                  type="text"
+                  value={streamingForm.accountPassword}
+                  onChange={(e) => setStreamingForm({ ...streamingForm, accountPassword: e.target.value })}
+                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-emerald-300"
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="text-zinc-300">Profil / kabinet adı</span>
+                <input
+                  type="text"
+                  value={streamingForm.slotName}
+                  onChange={(e) => setStreamingForm({ ...streamingForm, slotName: e.target.value })}
+                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="text-zinc-300">PIN (opsional)</span>
+                <input
+                  type="text"
+                  value={streamingForm.pinCode}
+                  onChange={(e) => setStreamingForm({ ...streamingForm, pinCode: e.target.value })}
+                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm text-amber-300"
+                />
+              </label>
+            </div>
+
+            {streamingFormError && (
+              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+                {streamingFormError}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setStreamingApprovingId(null);
+                  setStreamingFormError(null);
+                }}
+                className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-300"
+              >
+                İmtina
+              </button>
+              <button
+                type="button"
+                onClick={submitStreamingApproval}
+                disabled={pending}
+                className="rounded bg-emerald-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {pending ? "Göndərilir..." : "Təsdiq et və göndər"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

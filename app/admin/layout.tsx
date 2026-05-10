@@ -23,12 +23,10 @@ const NAV_GROUPS: NavGroupSpec[] = [
     items: [
       { href: "/admin", label: "Dashboard", iconName: "LayoutDashboard" },
       { href: "/admin/users", label: "İstifadəçilər", iconName: "Users" },
-      { href: "/admin/deposits", label: "Depozitlər", iconName: "Wallet", badgeKey: "pendingDeposits" },
+      { href: "/admin/deposits", label: "Ödəniş Tələbləri", iconName: "Wallet", badgeKey: "pendingDeposits" },
       { href: "/admin/transactions", label: "Tranzaksiyalar", iconName: "Receipt" },
-      { href: "/admin/orders", label: "Sifarişlər (hamısı)", iconName: "Receipt", badgeKey: "pendingAllOrders" },
-      { href: "/admin/subscriptions", label: "Abunəliklər", iconName: "Crown", badgeKey: "expiringSubs" },
-      { href: "/admin/referral-tiers", label: "Referal Pillələri", iconName: "Crown" },
-      { href: "/admin/settings", label: "Settings", iconName: "SettingsIcon" },
+      { href: "/admin/orders", label: "Sifarişlər", iconName: "Receipt", badgeKey: "pendingAllOrders" },
+      { href: "/admin/settings", label: "Tənzimləmələr", iconName: "SettingsIcon" },
     ],
   },
   {
@@ -36,6 +34,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
     iconName: "ImageIcon",
     items: [
       { href: "/admin/banners", label: "Bannerlər", iconName: "ImageIcon" },
+      { href: "/admin/news", label: "Xəbərlər", iconName: "Newspaper" },
       { href: "/admin/faq", label: "FAQ", iconName: "HelpCircle" },
       { href: "/admin/platform-guides", label: "Faydalı Başlıqlar", iconName: "ClipboardList" },
       { href: "/admin/reviews", label: "Oyun Rəyləri", iconName: "MessageSquare", badgeKey: "pendingReviews" },
@@ -50,6 +49,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
       { href: "/admin/ps-plus", label: "PS Plus", iconName: "Crown" },
       { href: "/admin/services", label: "Hədiyyə Kartları", iconName: "Gift" },
       { href: "/admin/account-creation", label: "Hesab Açılışı", iconName: "UserPlus" },
+      { href: "/admin/subscriptions", label: "Abunəliklər", iconName: "Crown", badgeKey: "expiringSubs" },
     ],
   },
   {
@@ -57,22 +57,30 @@ const NAV_GROUPS: NavGroupSpec[] = [
     iconName: "Tv",
     items: [
       { href: "/admin/streaming", label: "Abunəliklər", iconName: "Tv" },
-      { href: "/admin/streaming/titles", label: "Title-lər", iconName: "Tv" },
-      { href: "/admin/streaming/featured", label: "Banner", iconName: "ImageIcon" },
+      { href: "/admin/streaming/titles", label: "Posterlər", iconName: "Tv" },
       { href: "/admin/streaming-reviews", label: "İcmallar", iconName: "MessageSquare" },
+    ],
+  },
+  {
+    label: "Musiqi Platformaları",
+    iconName: "Music",
+    items: [
+      { href: "/admin/music", label: "Abunəliklər", iconName: "Music" },
+    ],
+  },
+  {
+    label: "Süni İntellekt",
+    iconName: "Brain",
+    items: [
+      { href: "/admin/ai", label: "Abunəliklər", iconName: "Brain" },
     ],
   },
   {
     label: "İş Platformaları",
     iconName: "Briefcase",
-    comingSoon: true,
-    items: [],
-  },
-  {
-    label: "Süni İntellekt",
-    iconName: "Brain",
-    comingSoon: true,
-    items: [],
+    items: [
+      { href: "/admin/work", label: "Abunəliklər", iconName: "Briefcase" },
+    ],
   },
 ];
 

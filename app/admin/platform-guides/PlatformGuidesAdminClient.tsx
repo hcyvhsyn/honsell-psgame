@@ -10,6 +10,7 @@ type Guide = {
   title: string;
   summary: string | null;
   body: string;
+  videoUrl: string | null;
   scope: string;
   isActive: boolean;
   sortOrder: number;
@@ -20,6 +21,7 @@ type EditForm = {
   slug: string;
   summary: string;
   body: string;
+  videoUrl: string;
   scope: string;
   isActive: boolean;
   sortOrder: string;
@@ -31,6 +33,7 @@ function emptyForm(scope: string): EditForm {
     slug: "",
     summary: "",
     body: "",
+    videoUrl: "",
     scope,
     isActive: true,
     sortOrder: "0",
@@ -74,6 +77,7 @@ export default function PlatformGuidesAdminClient() {
       slug: g.slug,
       summary: g.summary ?? "",
       body: g.body,
+      videoUrl: g.videoUrl ?? "",
       scope: g.scope,
       isActive: g.isActive,
       sortOrder: String(g.sortOrder),
@@ -95,6 +99,7 @@ export default function PlatformGuidesAdminClient() {
         slug: editForm.slug || undefined,
         summary: editForm.summary || null,
         body: editForm.body,
+        videoUrl: editForm.videoUrl.trim() || null,
         scope: editForm.scope,
         isActive: editForm.isActive,
         sortOrder: Number(editForm.sortOrder || 0),
@@ -264,6 +269,20 @@ export default function PlatformGuidesAdminClient() {
                   className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
                   placeholder="Tam mətn — paragraflar, addımlar..."
                 />
+              </label>
+
+              <label className="block text-sm text-zinc-300 sm:col-span-2">
+                YouTube video linki (opsional)
+                <input
+                  type="url"
+                  value={editForm.videoUrl}
+                  onChange={(e) => setEditForm({ ...editForm, videoUrl: e.target.value })}
+                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                />
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  Boş buraxsan video düyməsi göstərilmir. Linkə basanda yeni tab-da açılır.
+                </p>
               </label>
 
               <label className="block text-sm text-zinc-300">

@@ -10,6 +10,7 @@ import StreamingTitleCard from "@/components/StreamingTitleCard";
 import StreamingTopBar from "@/components/StreamingTopBar";
 import StreamingReviewsPreview from "@/components/StreamingReviewsPreview";
 import PlatformGuidesSection from "@/components/PlatformGuidesSection";
+import NewsSection from "@/components/NewsSection";
 import {
   getStreamingServiceBySlug,
   listStreamingServiceSlugs,
@@ -230,6 +231,13 @@ export default async function StreamingServicePage({
         </header>
         <StreamingReviewsPreview service={svc.code} limit={3} />
       </section>
+
+      {/* News — bu xidmətə spesifik xəbərlər */}
+      <NewsSection
+        scope={`STREAMING_${svc.code}`}
+        title={`${svc.label} xəbərləri`}
+        subtitle={`${svc.label} kataloqundan yeni anonslar, premyera tarixləri və xüsusi təkliflər.`}
+      />
 
       {/* Faydalı başlıqlar — bu xidmətə spesifik bələdçilər */}
       <PlatformGuidesSection scope={`STREAMING_${svc.code}`} />

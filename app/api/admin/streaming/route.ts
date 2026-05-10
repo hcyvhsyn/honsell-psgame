@@ -2,11 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import {
-  parseStreamingStock,
-  serializeStreamingStock,
-  type StreamingStockEntry,
-} from "@/lib/streamingCart";
 
 export const runtime = "nodejs";
 
@@ -19,36 +14,13 @@ function revalidateStreaming() {
   revalidatePath("/streaming");
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const url = new URL(req.url);
-  const codesFor = url.searchParams.get("codesFor");
-
-  if (codesFor) {
-    const codes = await prisma.serviceCode.findMany({
-      where: { serviceProductId: codesFor },
-      orderBy: [{ isUsed: "asc" }, { createdAt: "desc" }],
-      select: { id: true, code: true, isUsed: true, createdAt: true },
-    });
-    return NextResponse.json(
-      codes.map((c) => ({
-        id: c.id,
-        isUsed: c.isUsed,
-        createdAt: c.createdAt,
-        entry: parseStreamingStock(c.code),
-        raw: c.code,
-      }))
-    );
-  }
 
   const products = await prisma.serviceProduct.findMany({
     where: { type: "STREAMING" },
     orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
-    include: {
-      _count: { select: { codes: { where: { isUsed: false } } } },
-    },
   });
 
   return NextResponse.json(products);
@@ -62,39 +34,6 @@ export async function POST(req: Request) {
   const { action } = body;
 
   try {
-    if (action === "ADD_CODES") {
-      const { serviceProductId } = body;
-      if (!serviceProductId) {
-        return NextResponse.json({ error: "serviceProductId tələb olunur" }, { status: 400 });
-      }
-
-      const rawEntries = Array.isArray(body.entries) ? body.entries : [];
-      const entries: StreamingStockEntry[] = [];
-      for (const r of rawEntries) {
-        if (!r || typeof r !== "object") continue;
-        const accountEmail = String((r as Record<string, unknown>).accountEmail ?? "").trim();
-        const accountPassword = String((r as Record<string, unknown>).accountPassword ?? "");
-        const slotName = String((r as Record<string, unknown>).slotName ?? "").trim();
-        const pinCode = String((r as Record<string, unknown>).pinCode ?? "").trim();
-        if (!accountEmail || !accountPassword || !slotName) continue;
-        entries.push({ accountEmail, accountPassword, slotName, pinCode });
-      }
-
-      if (entries.length === 0) {
-        return NextResponse.json(
-          { error: "Hər sətirdə email, şifrə və profil adı tələb olunur." },
-          { status: 400 }
-        );
-      }
-
-      await prisma.serviceCode.createMany({
-        data: entries.map((e) => ({ serviceProductId, code: serializeStreamingStock(e) })),
-        skipDuplicates: true,
-      });
-      revalidateStreaming();
-      return NextResponse.json({ ok: true, count: entries.length });
-    }
-
     if (action === "UPSERT_PRODUCT") {
       const { id, title, description, imageUrl, isActive, sortOrder } = body;
       const service = String(body.service ?? "");
@@ -106,7 +45,6 @@ export async function POST(req: Request) {
         originalPriceAznRaw === "" || originalPriceAznRaw == null
           ? null
           : Number(originalPriceAznRaw);
-      const inStock = body.inStock === undefined ? true : Boolean(body.inStock);
 
       if (!VALID_SERVICES.has(service)) {
         return NextResponse.json({ error: "Xidmət düzgün deyil." }, { status: 400 });
@@ -149,7 +87,6 @@ export async function POST(req: Request) {
           ...(originalPriceAzn != null
             ? { originalPriceAznCents: Math.round(originalPriceAzn * 100) }
             : {}),
-          inStock,
         },
         sortOrder: Number(sortOrder || 0),
       };
@@ -159,21 +96,6 @@ export async function POST(req: Request) {
         : await prisma.serviceProduct.create({ data: payload });
       revalidateStreaming();
       return NextResponse.json(p);
-    }
-
-    if (action === "DELETE_CODE") {
-      const { codeId } = body;
-      if (!codeId) return NextResponse.json({ error: "codeId tələb olunur" }, { status: 400 });
-      const code = await prisma.serviceCode.findUnique({ where: { id: codeId } });
-      if (!code) return NextResponse.json({ error: "Kod tapılmadı" }, { status: 404 });
-      if (code.isUsed) {
-        return NextResponse.json(
-          { error: "İstifadə olunmuş kodu silmək olmaz" },
-          { status: 400 }
-        );
-      }
-      await prisma.serviceCode.delete({ where: { id: codeId } });
-      return NextResponse.json({ ok: true });
     }
 
     if (action === "DELETE_PRODUCT") {

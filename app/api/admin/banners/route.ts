@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { revalidateBanners } from "@/lib/revalidate";
+import { isValidBannerScope } from "@/lib/contentScopes";
 
 export const runtime = "nodejs";
-
-const VALID_SCOPES = new Set<string>(["HOME", "PLAYSTATION"]);
 
 export async function GET(req: Request) {
   const admin = await requireAdmin();
@@ -14,7 +13,7 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const scope = url.searchParams.get("scope");
-    const where = scope && VALID_SCOPES.has(scope) ? { scope } : {};
+    const where = scope && isValidBannerScope(scope) ? { scope } : {};
 
     const banners = await prisma.banner.findMany({
       where,
@@ -37,7 +36,7 @@ export async function POST(req: Request) {
   try {
     if (action === "UPSERT") {
       const { id, title, subtitle, imageUrl, mobileImageUrl, linkUrl, isActive, sortOrder, actionType, gameId, scope } = body;
-      const normalizedScope = scope && VALID_SCOPES.has(String(scope)) ? String(scope) : "HOME";
+      const normalizedScope = scope && isValidBannerScope(String(scope)) ? String(scope) : "HOME";
 
       const normalizedAction = actionType === "ADD_TO_CART" ? "ADD_TO_CART" : "LINK";
       if (normalizedAction === "ADD_TO_CART" && !gameId) {

@@ -81,7 +81,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const add = useCallback((item: Omit<CartItem, "qty">) => {
     setItems((prev) => {
-      if (item.productType === "ACCOUNT_CREATION" || item.productType === "STREAMING") {
+      if (
+        item.productType === "ACCOUNT_CREATION" ||
+        item.productType === "STREAMING" ||
+        item.productType === "PLATFORM"
+      ) {
         const rest = prev.filter((i) => i.id !== item.id);
         return [...rest, { ...item, qty: 1 }];
       }

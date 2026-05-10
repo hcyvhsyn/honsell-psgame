@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Heart, Film, Tv as TvIcon, ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -76,12 +75,12 @@ export default async function WatchlistPage() {
                   <div className="group relative w-full overflow-hidden rounded-xl border border-white/10 bg-zinc-900 transition hover:-translate-y-0.5 hover:border-indigo-500/40">
                     <div className="relative aspect-[2/3] w-full">
                       {it.posterUrlSnap ? (
-                        <Image
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
                           src={it.posterUrlSnap}
                           alt={it.titleSnap}
-                          fill
-                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
-                          className="object-cover transition duration-500 group-hover:scale-105"
+                          loading="lazy"
+                          className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900">
