@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Plus, Edit2, Upload, X, Trash2 } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
@@ -39,10 +39,6 @@ function serviceLabel(s: string) {
   return SERVICES.find((x) => x.value === s)?.label ?? s;
 }
 
-function deviceLabel(s: string) {
-  return DEVICES.find((d) => d.value === s)?.label ?? s;
-}
-
 function readMeta(p: ServiceProduct) {
   const m = p.metadata ?? {};
   const opc = Number(m.originalPriceAznCents);
@@ -63,18 +59,44 @@ export default function StreamingAdminClient() {
 
   const [editingId, setEditingId] = useState<string | "NEW" | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string | number | boolean>>({});
-  const [editDevices, setEditDevices] = useState<string[]>([]);
-
-  function toggleDevice(value: string) {
-    setEditDevices((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
-    );
-  }
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingServiceImage, setUploadingServiceImage] = useState<string | null>(null);
+  const [savingServiceAccess, setSavingServiceAccess] = useState<string | null>(null);
+  const serviceImageInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const serviceImageMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of products) {
+      const service = readMeta(p).service;
+      if (service && p.imageUrl && !map.has(service)) map.set(service, p.imageUrl);
+    }
+    return map;
+  }, [products]);
+
+  const serviceAccessMap = useMemo(() => {
+    const map = new Map<string, { devices: string[]; vpnRequired: boolean }>();
+    for (const p of products) {
+      const m = readMeta(p);
+      if (!m.service) continue;
+      const existing = map.get(m.service);
+      map.set(m.service, {
+        devices: existing?.devices.length ? existing.devices : m.devices,
+        vpnRequired: Boolean(existing?.vpnRequired || m.vpnRequired),
+      });
+    }
+    return map;
+  }, [products]);
+
+  const productCountByService = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of products) {
+      const service = readMeta(p).service;
+      if (service) map.set(service, (map.get(service) ?? 0) + 1);
+    }
+    return map;
+  }, [products]);
 
   useEffect(() => {
     load();
@@ -94,7 +116,6 @@ export default function StreamingAdminClient() {
     setEditForm({
       title: p.title,
       description: p.description ?? "",
-      imageUrl: p.imageUrl ?? "",
       isActive: p.isActive,
       sortOrder: p.sortOrder,
       service: m.service || "HBO_MAX",
@@ -102,9 +123,7 @@ export default function StreamingAdminClient() {
       seats: m.seats || 1,
       priceAzn: (p.priceAznCents / 100).toFixed(2),
       originalPriceAzn: m.originalPriceAznCents != null ? (m.originalPriceAznCents / 100).toFixed(2) : "",
-      vpnRequired: m.vpnRequired,
     });
-    setEditDevices(m.devices);
   }
 
   function handleNew() {
@@ -113,7 +132,6 @@ export default function StreamingAdminClient() {
     setEditForm({
       title: "",
       description: "",
-      imageUrl: "",
       isActive: true,
       sortOrder: 0,
       service: "HBO_MAX",
@@ -121,44 +139,121 @@ export default function StreamingAdminClient() {
       seats: 1,
       priceAzn: "",
       originalPriceAzn: "",
-      vpnRequired: false,
     });
-    setEditDevices([]);
   }
 
-  async function handleImageUpload(file: File) {
+  async function uploadImageFile(file: File): Promise<string | null> {
     if (!file.type.startsWith("image/")) {
       alert("Yalnız şəkil faylı yükləyə bilərsiniz");
-      return;
+      return null;
     }
     if (file.size > 5 * 1024 * 1024) {
       alert("Fayl çox böyükdür (max 5 MB)");
-      return;
+      return null;
     }
-    setUploadingImage(true);
+
+    const init = await fetch("/api/admin/services/image-upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contentType: file.type }),
+    });
+    const initData = await init.json();
+    if (!init.ok) {
+      alert(initData.error ?? "Upload hazırlanmadı");
+      return null;
+    }
+
+    const supabase = getSupabaseBrowser();
+    const { error: upErr } = await supabase.storage
+      .from(initData.bucket)
+      .uploadToSignedUrl(initData.path, initData.token, file);
+    if (upErr) {
+      alert(`Upload alınmadı: ${upErr.message}`);
+      return null;
+    }
+
+    return String(initData.publicUrl ?? "");
+  }
+
+  async function saveServiceImage(service: string, imageUrl: string) {
+    const res = await fetch("/api/admin/streaming", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "SET_SERVICE_IMAGE",
+        service,
+        imageUrl,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(`Şəkil yadda saxlanmadı: ${data.error ?? res.status}`);
+      return false;
+    }
+    await load();
+    return true;
+  }
+
+  async function handleServiceImageUpload(service: string, file: File) {
+    setUploadingServiceImage(service);
     try {
-      const init = await fetch("/api/admin/services/image-upload", {
+      const publicUrl = await uploadImageFile(file);
+      if (!publicUrl) return;
+      await saveServiceImage(service, publicUrl);
+    } finally {
+      setUploadingServiceImage(null);
+    }
+  }
+
+  async function clearServiceImage(service: string) {
+    if (!confirm(`${serviceLabel(service)} üçün platforma şəklini silmək istəyirsən?`)) return;
+    setUploadingServiceImage(service);
+    try {
+      await saveServiceImage(service, "");
+    } finally {
+      setUploadingServiceImage(null);
+    }
+  }
+
+  async function saveServiceAccess(
+    service: string,
+    access: { devices: string[]; vpnRequired: boolean },
+  ) {
+    setSavingServiceAccess(service);
+    try {
+      const res = await fetch("/api/admin/streaming", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentType: file.type }),
+        body: JSON.stringify({
+          action: "SET_SERVICE_ACCESS",
+          service,
+          devices: access.devices,
+          vpnRequired: access.vpnRequired,
+        }),
       });
-      const initData = await init.json();
-      if (!init.ok) {
-        alert(initData.error ?? "Upload hazırlanmadı");
-        return;
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(`Platforma məlumatı yadda saxlanmadı: ${data.error ?? res.status}`);
+        return false;
       }
-      const supabase = getSupabaseBrowser();
-      const { error: upErr } = await supabase.storage
-        .from(initData.bucket)
-        .uploadToSignedUrl(initData.path, initData.token, file);
-      if (upErr) {
-        alert(`Upload alınmadı: ${upErr.message}`);
-        return;
-      }
-      setEditForm((prev) => ({ ...prev, imageUrl: initData.publicUrl }));
+      await load();
+      return true;
     } finally {
-      setUploadingImage(false);
+      setSavingServiceAccess(null);
     }
+  }
+
+  async function toggleServiceDevice(service: string, device: string) {
+    const current = serviceAccessMap.get(service) ?? { devices: [], vpnRequired: false };
+    const devices = current.devices.includes(device)
+      ? current.devices.filter((d) => d !== device)
+      : [...current.devices, device];
+    await saveServiceAccess(service, { devices, vpnRequired: current.vpnRequired });
+  }
+
+  async function toggleServiceVpn(service: string, vpnRequired: boolean) {
+    const current = serviceAccessMap.get(service) ?? { devices: [], vpnRequired: false };
+    await saveServiceAccess(service, { devices: current.devices, vpnRequired });
   }
 
   async function saveProduct() {
@@ -193,7 +288,6 @@ export default function StreamingAdminClient() {
           id: editingId === "NEW" ? undefined : editingId,
           title: autoTitle,
           description: String(editForm.description ?? ""),
-          imageUrl: String(editForm.imageUrl ?? ""),
           isActive: editForm.isActive,
           sortOrder: Number(editForm.sortOrder || 0),
           service,
@@ -201,8 +295,6 @@ export default function StreamingAdminClient() {
           seats,
           priceAzn,
           originalPriceAzn,
-          devices: editDevices,
-          vpnRequired: Boolean(editForm.vpnRequired),
         }),
       });
       if (!res.ok) {
@@ -245,6 +337,148 @@ export default function StreamingAdminClient() {
           <Plus className="h-4 w-4" /> Yeni paket
         </button>
       </div>
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-base font-bold text-white">Platforma məlumatları</h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Şəkil, izlənilə bilən cihazlar və VPN tələbi platforma üzrə saxlanır, bütün ay və nəfər paketlərində eyni işləyir.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {SERVICES.map((svc) => {
+            const imageUrl = serviceImageMap.get(svc.value) ?? "";
+            const access = serviceAccessMap.get(svc.value) ?? { devices: [], vpnRequired: false };
+            const productCount = productCountByService.get(svc.value) ?? 0;
+            const imageBusy = uploadingServiceImage === svc.value;
+            const accessBusy = savingServiceAccess === svc.value;
+            const disabled = productCount === 0;
+            return (
+              <div
+                key={svc.value}
+                className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3"
+              >
+                <div className="flex gap-3">
+                  <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900">
+                    {imageUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={imageUrl} alt={svc.label} className="absolute inset-0 h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-xs text-zinc-600">
+                        Şəkil yoxdur
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-zinc-100">{svc.label}</p>
+                        <p className="mt-0.5 text-xs text-zinc-500">{productCount} paket</p>
+                      </div>
+                      {imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => clearServiceImage(svc.value)}
+                          disabled={imageBusy || disabled}
+                          className="rounded p-1 text-zinc-500 transition hover:text-rose-400 disabled:opacity-50"
+                          aria-label={`${svc.label} şəklini sil`}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    <input
+                      ref={(node) => {
+                        serviceImageInputRefs.current[svc.value] = node;
+                      }}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleServiceImageUpload(svc.value, f);
+                        e.target.value = "";
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={imageBusy || disabled}
+                      onClick={() => serviceImageInputRefs.current[svc.value]?.click()}
+                      className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-400 transition hover:border-indigo-500 hover:text-indigo-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {imageBusy ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" /> Yüklənir...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4" /> {imageUrl ? "Şəkli dəyiş" : "Şəkil yüklə"}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 border-t border-zinc-800/80 pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                      İzlənilə bilən cihazlar
+                    </p>
+                    {accessBusy && <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-400" />}
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {DEVICES.map((d) => {
+                      const checked = access.devices.includes(d.value);
+                      return (
+                        <label
+                          key={d.value}
+                          className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs transition ${
+                            checked
+                              ? "border-indigo-500/45 bg-indigo-500/10 text-indigo-200"
+                              : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700"
+                          } ${disabled || accessBusy ? "cursor-not-allowed opacity-60" : ""}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={disabled || accessBusy}
+                            onChange={() => toggleServiceDevice(svc.value, d.value)}
+                            className="h-3.5 w-3.5"
+                          />
+                          {d.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <label
+                    className={`mt-2 flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-300 ${
+                      disabled || accessBusy ? "cursor-not-allowed opacity-60" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={access.vpnRequired}
+                      disabled={disabled || accessBusy}
+                      onChange={(e) => toggleServiceVpn(svc.value, e.target.checked)}
+                      className="h-3.5 w-3.5"
+                    />
+                    VPN-ə ehtiyac var
+                  </label>
+                  {disabled && (
+                    <p className="mt-2 text-[11px] text-zinc-600">
+                      Əvvəlcə bu platforma üçün paket yarat.
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
         <table className="w-full text-left text-sm">
@@ -349,44 +583,6 @@ export default function StreamingAdminClient() {
                 </select>
               </label>
 
-              <fieldset className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-                <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                  İzlənilə bilən cihazlar
-                </legend>
-                <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {DEVICES.map((d) => {
-                    const checked = editDevices.includes(d.value);
-                    return (
-                      <label
-                        key={d.value}
-                        className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
-                          checked
-                            ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-200"
-                            : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleDevice(d.value)}
-                          className="h-4 w-4"
-                        />
-                        {d.label}
-                      </label>
-                    );
-                  })}
-                </div>
-              </fieldset>
-
-              <label className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={Boolean(editForm.vpnRequired)}
-                  onChange={(e) => setEditForm({ ...editForm, vpnRequired: e.target.checked })}
-                />
-                VPN-ə ehtiyac var
-              </label>
-
               <label className="block text-sm">
                 Başlıq (boşdursa avtomatik olar)
                 <input
@@ -406,48 +602,6 @@ export default function StreamingAdminClient() {
                   onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                 />
               </label>
-
-              <div className="block text-sm">
-                <span>Şəkil</span>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleImageUpload(f);
-                    e.target.value = "";
-                  }}
-                />
-                {editForm.imageUrl ? (
-                  <div className="mt-1 flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 p-2">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={String(editForm.imageUrl)} alt="" className="h-16 w-16 rounded object-cover" />
-                    <div className="flex-1 truncate text-xs text-zinc-400">{String(editForm.imageUrl)}</div>
-                    <button
-                      type="button"
-                      onClick={() => setEditForm({ ...editForm, imageUrl: "" })}
-                      className="rounded p-1 text-zinc-500 hover:text-rose-400"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={uploadingImage}
-                    onClick={() => fileInputRef.current?.click()}
-                    className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded border border-dashed border-zinc-700 bg-zinc-900 px-3 py-3 text-sm text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 disabled:opacity-50"
-                  >
-                    {uploadingImage ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" /> Yüklənir...</>
-                    ) : (
-                      <><Upload className="h-4 w-4" /> Şəkil seç (PNG/JPEG/WEBP, max 5 MB)</>
-                    )}
-                  </button>
-                )}
-              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <label className="block text-sm">

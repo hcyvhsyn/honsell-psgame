@@ -16,6 +16,7 @@ import {
   recordSuccessfulInvite,
 } from "@/lib/referralCycle";
 import { getSettings } from "@/lib/pricing";
+import { readReferralRateFromMeta } from "@/lib/referralCalculatorOptions";
 
 function reviewProductTypeFromService(type: string | undefined): ReviewProductType | null {
   switch (type) {
@@ -104,6 +105,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   // SUCCESS (approval) flow
   const productType = tx.serviceProduct?.type;
   if (productType === "TRY_BALANCE") {
+    const settings = await getSettings();
     // Allocate code on approval if not already allocated.
     const updated = await prisma.$transaction(async (ptx) => {
       let serviceCodeId = tx.serviceCodeId;
@@ -128,6 +130,24 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         where: { id: tx.id },
         data: { status: "SUCCESS", serviceCodeId },
       });
+
+      const cm = await awardStreamingReferralCommission(ptx, {
+        sourceTransactionId: tx.id,
+        buyerUserId: tx.userId,
+        serviceProductId: tx.serviceProductId,
+        lineCents: Math.abs(tx.amountAznCents),
+        streamingProfitSharePct: settings.referralGiftCardsPct,
+        kind: "TRY_BALANCE",
+      });
+
+      try {
+        await recordPurchaseSpend(ptx, tx.userId, Math.abs(tx.amountAznCents));
+        if (cm?.referredById) {
+          await recordSuccessfulInvite(ptx, cm.referredById, tx.userId);
+        }
+      } catch (err) {
+        console.error("referral cycle bookkeeping failed", err);
+      }
 
       return { ok: true as const, code: codeValue };
     });
@@ -172,7 +192,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     const entry: StreamingStockEntry = { accountEmail, accountPassword, slotName, pinCode };
     const codeRaw = serializeStreamingStock(entry);
-    const settings = await getSettings();
+    const productMeta = (tx.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
+    const referralPct = readReferralRateFromMeta(productMeta, 0);
 
     const updated = await prisma.$transaction(async (ptx) => {
       const sc = await ptx.serviceCode.create({
@@ -196,7 +217,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         buyerUserId: tx.userId,
         serviceProductId: tx.serviceProductId,
         lineCents: Math.abs(tx.amountAznCents),
-        streamingProfitSharePct: settings.referralStreamingProfitSharePct,
+        streamingProfitSharePct: referralPct,
+        kind: productType === "PLATFORM" ? "PLATFORM" : "STREAMING",
       });
 
       try {
@@ -216,7 +238,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
 
     if (tx.user?.email) {
-      const productMeta = (tx.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
       const months = Number(productMeta.durationMonths ?? 0);
       const serviceKey = String(productMeta.service ?? "");
       const startDate = tx.createdAt;
@@ -248,6 +269,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   if (productType === "ACCOUNT_CREATION") {
+    const settings = await getSettings();
     let meta: Record<string, unknown> = {};
     try {
       if (tx.metadata) meta = JSON.parse(tx.metadata) as Record<string, unknown>;
@@ -305,12 +327,31 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           ...(psnAccountId ? { psnAccountId } : {}),
         },
       });
+
+      const cm = await awardStreamingReferralCommission(ptx, {
+        sourceTransactionId: tx.id,
+        buyerUserId: tx.userId,
+        serviceProductId: tx.serviceProductId,
+        lineCents: Math.abs(tx.amountAznCents),
+        streamingProfitSharePct: settings.referralAccountCreationPct,
+        kind: "ACCOUNT_CREATION",
+      });
+
+      try {
+        await recordPurchaseSpend(ptx, tx.userId, Math.abs(tx.amountAznCents));
+        if (cm?.referredById) {
+          await recordSuccessfulInvite(ptx, cm.referredById, tx.userId);
+        }
+      } catch (err) {
+        console.error("referral cycle bookkeeping failed", err);
+      }
     });
 
     await maybeSendReviewInvite(tx);
     return NextResponse.json({ ok: true });
   }
 
+  const settings = await getSettings();
   await prisma.$transaction(async (ptx) => {
     await ptx.transaction.update({
       where: { id: tx.id },
@@ -326,6 +367,24 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         priceAznCents: tx.amountAznCents,
         serviceProductMetadata: tx.serviceProduct?.metadata,
       });
+
+      const cm = await awardStreamingReferralCommission(ptx, {
+        sourceTransactionId: tx.id,
+        buyerUserId: tx.userId,
+        serviceProductId: tx.serviceProductId,
+        lineCents: Math.abs(tx.amountAznCents),
+        streamingProfitSharePct: settings.referralPsPlusPct,
+        kind: "PS_PLUS",
+      });
+
+      try {
+        await recordPurchaseSpend(ptx, tx.userId, Math.abs(tx.amountAznCents));
+        if (cm?.referredById) {
+          await recordSuccessfulInvite(ptx, cm.referredById, tx.userId);
+        }
+      } catch (err) {
+        console.error("referral cycle bookkeeping failed", err);
+      }
     }
   });
 

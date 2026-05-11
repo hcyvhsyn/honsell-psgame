@@ -26,6 +26,7 @@ import {
   Briefcase,
   Newspaper,
   Music,
+  Percent,
   ChevronRight,
 } from "lucide-react";
 import Logo from "@/components/Logo";
@@ -57,7 +58,8 @@ type IconName =
   | "Brain"
   | "Briefcase"
   | "Newspaper"
-  | "Music";
+  | "Music"
+  | "Percent";
 
 export type NavItemSpec = {
   href: string;
@@ -94,6 +96,7 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   Briefcase,
   Newspaper,
   Music,
+  Percent,
 };
 
 export default function AdminSidebar({

@@ -10,6 +10,14 @@ export type PricingSettings = {
   affiliateRatePct: number;
   /** % of profit margin shared with the referrer per purchase. */
   referralProfitSharePct: number;
+  /** PS Store oyunları üçün final satış məbləği üzərindən referal faizi. */
+  referralGamesPct: number;
+  /** PS Plus üçün final satış məbləği üzərindən referal faizi. */
+  referralPsPlusPct: number;
+  /** TRY hədiyyə kartları üçün final satış məbləği üzərindən referal faizi. */
+  referralGiftCardsPct: number;
+  /** Hesab açma xidməti üçün final satış məbləği üzərindən referal faizi. */
+  referralAccountCreationPct: number;
   /** Streaming abunəliklər üçün ayrıca komissiya faizi (final qiymət üzərindən). */
   referralStreamingProfitSharePct: number;
   /** Rəy affiliate komissiya faizi (final qiymət üzərindən). */
@@ -25,6 +33,19 @@ export type DisplayPrice = {
   discountPct: number | null;
 };
 
+function roundPct(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.round(value * 10) / 10;
+}
+
+export function computeLegacyGameReferralRatePct(
+  referralProfitSharePct: number,
+  marginPct: number,
+) {
+  if (referralProfitSharePct <= 0 || marginPct <= 0) return 0;
+  return roundPct((referralProfitSharePct * marginPct) / (100 + marginPct));
+}
+
 /** Fetch the singleton settings row, creating it on first access. */
 export async function getSettings(): Promise<PricingSettings> {
   try {
@@ -33,6 +54,10 @@ export async function getSettings(): Promise<PricingSettings> {
       update: {},
       create: { id: "global" },
     });
+    const legacyGameReferralPct = computeLegacyGameReferralRatePct(
+      s.referralProfitSharePct,
+      s.profitMarginGamesPct ?? s.profitMarginPct,
+    );
     return {
       tryToAznRate: s.tryToAznRate,
       profitMarginPct: s.profitMarginPct,
@@ -41,6 +66,10 @@ export async function getSettings(): Promise<PricingSettings> {
       profitMarginPsPlusPct: s.profitMarginPsPlusPct ?? s.profitMarginPct,
       affiliateRatePct: s.affiliateRatePct,
       referralProfitSharePct: s.referralProfitSharePct,
+      referralGamesPct: s.referralGamesPct ?? legacyGameReferralPct,
+      referralPsPlusPct: s.referralPsPlusPct ?? 0,
+      referralGiftCardsPct: s.referralGiftCardsPct ?? 0,
+      referralAccountCreationPct: s.referralAccountCreationPct ?? 0,
       referralStreamingProfitSharePct: s.referralStreamingProfitSharePct ?? 10,
       reviewAffiliateRatePct: s.reviewAffiliateRatePct ?? 5,
     };
@@ -51,6 +80,10 @@ export async function getSettings(): Promise<PricingSettings> {
       msg.includes("profitMarginGamesPct") ||
       msg.includes("profitMarginGiftCardsPct") ||
       msg.includes("profitMarginPsPlusPct") ||
+      msg.includes("referralGamesPct") ||
+      msg.includes("referralPsPlusPct") ||
+      msg.includes("referralGiftCardsPct") ||
+      msg.includes("referralAccountCreationPct") ||
       msg.includes("referralStreamingProfitSharePct") ||
       msg.includes("reviewAffiliateRatePct");
     if (!missingNewColumns) throw err;
@@ -82,6 +115,13 @@ export async function getSettings(): Promise<PricingSettings> {
       profitMarginPsPlusPct: s.profitMarginPct,
       affiliateRatePct: s.affiliateRatePct,
       referralProfitSharePct: s.referralProfitSharePct,
+      referralGamesPct: computeLegacyGameReferralRatePct(
+        s.referralProfitSharePct,
+        s.profitMarginPct,
+      ),
+      referralPsPlusPct: 0,
+      referralGiftCardsPct: 0,
+      referralAccountCreationPct: 0,
       referralStreamingProfitSharePct: 10,
       reviewAffiliateRatePct: 5,
     };

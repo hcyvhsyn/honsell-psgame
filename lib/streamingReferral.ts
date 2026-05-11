@@ -30,8 +30,8 @@ type StreamingReferralDb = {
 
 /**
  * Streaming alışı uğurla bağlanan kimi referal komissiyasını hesablayıb yazır.
- * Streaming üçün cost izlənmir — komissiya **final qiymət üzərindən faiz** kimi
- * `Settings.referralStreamingProfitSharePct` dəyəri ilə hesablanır.
+ * Streaming/platform məhsullarında cost izlənmir — komissiya final qiymət
+ * üzərindən, həmin məhsul/platforma üçün aktiv olan faizlə hesablanır.
  *
  * Eyni mənbə Transaction ID üçün ikinci dəfə komissiya yaratmır.
  */
@@ -44,6 +44,7 @@ export async function awardStreamingReferralCommission(
     /** Pozitiv qəpik (AZN * 100) — alışın final məbləği. */
     lineCents: number;
     streamingProfitSharePct: number;
+    kind?: "STREAMING" | "PLATFORM" | "TRY_BALANCE" | "PS_PLUS" | "ACCOUNT_CREATION";
   }
 ) {
   const { sourceTransactionId, buyerUserId, lineCents, streamingProfitSharePct } = params;
@@ -78,7 +79,7 @@ export async function awardStreamingReferralCommission(
       serviceProductId: params.serviceProductId ?? null,
       metadata: JSON.stringify({
         sourcePurchaseId: sourceTransactionId,
-        kind: "STREAMING",
+        kind: params.kind ?? "STREAMING",
         lineCents,
         shareRate: streamingProfitSharePct,
       }),

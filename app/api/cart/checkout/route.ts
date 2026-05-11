@@ -17,6 +17,11 @@ import {
   clearReviewAffiliateCookie,
   readReviewAffiliateCookie,
 } from "@/lib/reviewAffiliate";
+import {
+  recordPurchaseSpend,
+  recordSuccessfulInvite,
+} from "@/lib/referralCycle";
+import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
 
 export const runtime = "nodejs";
 
@@ -385,7 +390,7 @@ export async function POST(req: Request) {
       const purchaseIds: string[] = [];
       const serviceOrderIds: string[] = [];
       const referredByForTierCheck = new Set<string>();
-      const totalCommissionCents = 0;
+      let totalCommissionCents = 0;
       let cashbackCents = 0;
       let tryBalancePendingCount = 0;
       let tryBalanceDeliveredCount = 0;
@@ -467,6 +472,28 @@ export async function POST(req: Request) {
               });
               serviceOrderIds.push(serviceOrder.id);
               tryBalanceDeliveredCount += 1;
+
+              const cm = await awardStreamingReferralCommission(tx, {
+                sourceTransactionId: serviceOrder.id,
+                buyerUserId: user.id,
+                serviceProductId: line.service.id,
+                lineCents: line.unitListCents,
+                streamingProfitSharePct: settings.referralGiftCardsPct,
+                kind: "TRY_BALANCE",
+              });
+              if (cm) {
+                totalCommissionCents += cm.commissionCents;
+                referredByForTierCheck.add(cm.referredById);
+              }
+
+              try {
+                await recordPurchaseSpend(tx, user.id, line.unitListCents);
+                if (cm?.referredById) {
+                  await recordSuccessfulInvite(tx, cm.referredById, user.id);
+                }
+              } catch (err) {
+                console.error("referral cycle bookkeeping failed", err);
+              }
             }
           } else if (line.kind === "PS_PLUS") {
             const serviceOrder = await tx.transaction.create({
@@ -546,6 +573,7 @@ export async function POST(req: Request) {
                   fromCart: true,
                   kind: "PLATFORM",
                   category: String(platformMeta.category ?? ""),
+                  durationMonths: Number(platformMeta.durationMonths) || null,
                   paymentSource: payTag,
                   orderCode,
                 }),

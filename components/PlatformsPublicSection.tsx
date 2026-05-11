@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ShoppingBag, Check } from "lucide-react";
+import { CalendarDays, ShoppingBag, Check } from "lucide-react";
 import { useCart } from "@/lib/cart";
 
 type Product = {
@@ -23,9 +23,12 @@ function readMeta(p: Product) {
       ? (p.metadata as Record<string, unknown>)
       : {};
   const opc = Number(m.originalPriceAznCents);
+  const durationMonths = Number(m.durationMonths);
   return {
     terms: typeof m.terms === "string" ? m.terms : null,
     originalPriceAznCents: Number.isFinite(opc) && opc > 0 ? opc : null,
+    durationMonths:
+      Number.isInteger(durationMonths) && durationMonths > 0 ? durationMonths : null,
   };
 }
 
@@ -79,6 +82,12 @@ export default function PlatformsPublicSection({ products }: Props) {
                 <p className="whitespace-pre-line text-sm leading-relaxed text-zinc-400">
                   {p.description}
                 </p>
+              )}
+              {m.durationMonths && (
+                <div className="inline-flex w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm font-semibold text-zinc-200">
+                  <CalendarDays className="h-4 w-4 text-violet-300" />
+                  {m.durationMonths} ay
+                </div>
               )}
               {m.terms && (
                 <details className="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2 text-xs">

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
+import { computeLegacyGameReferralRatePct } from "@/lib/pricing";
 
 export const runtime = "nodejs";
 
@@ -17,7 +19,11 @@ export async function GET() {
     const missingNewColumns =
       msg.includes("profitMarginGamesPct") ||
       msg.includes("profitMarginGiftCardsPct") ||
-      msg.includes("profitMarginPsPlusPct");
+      msg.includes("profitMarginPsPlusPct") ||
+      msg.includes("referralGamesPct") ||
+      msg.includes("referralPsPlusPct") ||
+      msg.includes("referralGiftCardsPct") ||
+      msg.includes("referralAccountCreationPct");
     if (!missingNewColumns) throw err;
 
     const rows = await prisma.$queryRaw<
@@ -46,11 +52,19 @@ export async function GET() {
         "updatedAt";
     `;
     const s = rows[0];
+    revalidatePath("/qazan");
     return NextResponse.json({
       ...s,
       profitMarginGamesPct: s.profitMarginPct,
       profitMarginGiftCardsPct: s.profitMarginPct,
       profitMarginPsPlusPct: s.profitMarginPct,
+      referralGamesPct: computeLegacyGameReferralRatePct(
+        s.referralProfitSharePct,
+        s.profitMarginPct,
+      ),
+      referralPsPlusPct: 0,
+      referralGiftCardsPct: 0,
+      referralAccountCreationPct: 0,
     });
   }
 }
@@ -69,12 +83,6 @@ export async function POST(req: Request) {
   const profitMarginGamesPct = Number(body.profitMarginGamesPct);
   const profitMarginGiftCardsPct = Number(body.profitMarginGiftCardsPct);
   const profitMarginPsPlusPct = Number(body.profitMarginPsPlusPct);
-  const affiliateRatePct = Number(body.affiliateRatePct);
-  const referralStreamingProfitSharePctRaw = body.referralStreamingProfitSharePct;
-  const referralStreamingProfitSharePct =
-    referralStreamingProfitSharePctRaw === undefined
-      ? null
-      : Number(referralStreamingProfitSharePctRaw);
 
   if (!Number.isFinite(tryToAznRate) || tryToAznRate <= 0) {
     return NextResponse.json({ error: "Invalid tryToAznRate" }, { status: 400 });
@@ -90,20 +98,6 @@ export async function POST(req: Request) {
   }
   if (!Number.isFinite(profitMarginPsPlusPct) || profitMarginPsPlusPct < 0) {
     return NextResponse.json({ error: "Invalid profitMarginPsPlusPct" }, { status: 400 });
-  }
-  if (!Number.isFinite(affiliateRatePct) || affiliateRatePct < 0) {
-    return NextResponse.json({ error: "Invalid affiliateRatePct" }, { status: 400 });
-  }
-  if (
-    referralStreamingProfitSharePct !== null &&
-    (!Number.isFinite(referralStreamingProfitSharePct) ||
-      referralStreamingProfitSharePct < 0 ||
-      referralStreamingProfitSharePct > 100)
-  ) {
-    return NextResponse.json(
-      { error: "Invalid referralStreamingProfitSharePct" },
-      { status: 400 }
-    );
   }
 
   const depositCardNumber =
@@ -122,25 +116,26 @@ export async function POST(req: Request) {
       profitMarginGamesPct,
       profitMarginGiftCardsPct,
       profitMarginPsPlusPct,
-      affiliateRatePct,
       depositCardNumber,
       depositCardHolder,
-      ...(referralStreamingProfitSharePct !== null
-        ? { referralStreamingProfitSharePct }
-        : {}),
     };
     const updated = await prisma.settings.upsert({
       where: { id: "global" },
       create: { id: "global", ...baseData },
       update: baseData,
     });
+    revalidatePath("/qazan");
     return NextResponse.json(updated);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     const missingNewColumns =
       msg.includes("profitMarginGamesPct") ||
       msg.includes("profitMarginGiftCardsPct") ||
-      msg.includes("profitMarginPsPlusPct");
+      msg.includes("profitMarginPsPlusPct") ||
+      msg.includes("referralGamesPct") ||
+      msg.includes("referralPsPlusPct") ||
+      msg.includes("referralGiftCardsPct") ||
+      msg.includes("referralAccountCreationPct");
     if (!missingNewColumns) throw err;
 
     const rows = await prisma.$queryRaw<
@@ -159,7 +154,6 @@ export async function POST(req: Request) {
         "id",
         "tryToAznRate",
         "profitMarginPct",
-        "affiliateRatePct",
         "depositCardNumber",
         "depositCardHolder",
         "updatedAt"
@@ -168,7 +162,6 @@ export async function POST(req: Request) {
         'global',
         ${tryToAznRate},
         ${profitMarginPct},
-        ${affiliateRatePct},
         ${depositCardNumber},
         ${depositCardHolder},
         NOW()
@@ -176,7 +169,6 @@ export async function POST(req: Request) {
       ON CONFLICT ("id") DO UPDATE SET
         "tryToAznRate" = EXCLUDED."tryToAznRate",
         "profitMarginPct" = EXCLUDED."profitMarginPct",
-        "affiliateRatePct" = EXCLUDED."affiliateRatePct",
         "depositCardNumber" = EXCLUDED."depositCardNumber",
         "depositCardHolder" = EXCLUDED."depositCardHolder",
         "updatedAt" = NOW()

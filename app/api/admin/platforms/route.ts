@@ -14,6 +14,21 @@ function revalidatePlatform(category: PlatformCategory) {
   if (category === "MUSIC") revalidatePath("/music");
   if (category === "AI") revalidatePath("/ai");
   if (category === "WORK") revalidatePath("/work");
+  revalidatePath("/qazan");
+}
+
+function metadataObject(metadata: unknown): Record<string, unknown> {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return {};
+  return metadata as Record<string, unknown>;
+}
+
+function readReferralSettings(metadata: unknown) {
+  const meta = metadataObject(metadata);
+  const pct = Number(meta.referralPct);
+  return {
+    referralEnabled: meta.referralEnabled !== false,
+    referralPct: Number.isFinite(pct) && pct >= 0 ? Math.min(100, pct) : 0,
+  };
 }
 
 export async function GET(req: Request) {
@@ -60,6 +75,19 @@ export async function POST(req: Request) {
         originalPriceAznRaw === "" || originalPriceAznRaw == null
           ? null
           : Number(originalPriceAznRaw);
+      const durationMonthsRaw = body.durationMonths;
+      const durationMonths =
+        durationMonthsRaw === "" || durationMonthsRaw == null
+          ? null
+          : Number(durationMonthsRaw);
+      const existing =
+        typeof id === "string"
+          ? await prisma.serviceProduct.findUnique({
+              where: { id },
+              select: { metadata: true },
+            })
+          : null;
+      const referral = readReferralSettings(existing?.metadata);
 
       if (!isValidPlatformCategory(category)) {
         return NextResponse.json({ error: "Kateqoriya düzgün deyil." }, { status: 400 });
@@ -81,7 +109,11 @@ export async function POST(req: Request) {
           );
         }
       }
-
+      if (durationMonths != null) {
+        if (!Number.isInteger(durationMonths) || durationMonths <= 0) {
+          return NextResponse.json({ error: "Müddət düzgün deyil." }, { status: 400 });
+        }
+      }
       const payload = {
         type: "PLATFORM",
         title: String(title).trim(),
@@ -97,6 +129,9 @@ export async function POST(req: Request) {
           ...(originalPriceAzn != null
             ? { originalPriceAznCents: Math.round(originalPriceAzn * 100) }
             : {}),
+          ...(durationMonths != null ? { durationMonths } : {}),
+          referralEnabled: referral.referralEnabled,
+          referralPct: referral.referralEnabled ? referral.referralPct : 0,
         },
         sortOrder: Number(sortOrder || 0),
       };

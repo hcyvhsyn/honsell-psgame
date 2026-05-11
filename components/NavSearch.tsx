@@ -184,11 +184,11 @@ export default function NavSearch() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Axtar"
-        className="group inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 text-sm text-zinc-400 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-zinc-200 sm:px-4"
+        className="group inline-flex h-11 w-full items-center gap-3 rounded-[20px] border border-violet-500/30 bg-[#090914]/85 px-4 text-left text-sm text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_28px_-22px_rgba(124,58,237,0.9)] transition hover:border-violet-400/50 hover:bg-[#101022] hover:text-zinc-200 md:h-12 xl:h-12"
       >
-        <SearchIcon className="h-4 w-4" />
-        <span className="hidden md:inline">Axtar...</span>
-        <span className="ml-1 hidden rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-mono text-zinc-500 md:inline">
+        <SearchIcon className="h-5 w-5 shrink-0 text-zinc-200" />
+        <span className="min-w-0 flex-1 truncate">GTA V, Netflix, PS Plus, Spotify axtar...</span>
+        <span className="hidden rounded-lg border border-white/10 bg-white/[0.07] px-2.5 py-1 text-xs font-semibold text-zinc-200 md:inline">
           ⌘K
         </span>
       </button>

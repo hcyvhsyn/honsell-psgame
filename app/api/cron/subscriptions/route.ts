@@ -8,6 +8,12 @@ import {
   sendSubscriptionRenewalFailedEmail,
   sendSubscriptionRenewedEmail,
 } from "@/lib/resend";
+import { getSettings } from "@/lib/pricing";
+import {
+  recordPurchaseSpend,
+  recordSuccessfulInvite,
+} from "@/lib/referralCycle";
+import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,6 +78,7 @@ export async function GET(req: Request) {
       serviceProduct: { select: { id: true, title: true, type: true, metadata: true, priceAznCents: true } },
     },
   });
+  const settings = await getSettings();
 
   for (const sub of renewCandidates) {
     try {
@@ -121,6 +128,24 @@ export async function GET(req: Request) {
             }),
           },
         });
+
+        const cm = await awardStreamingReferralCommission(ptx, {
+          sourceTransactionId: renewalTx.id,
+          buyerUserId: sub.userId,
+          serviceProductId: sub.serviceProductId,
+          lineCents: renewalCost,
+          streamingProfitSharePct: settings.referralPsPlusPct,
+          kind: "PS_PLUS",
+        });
+
+        try {
+          await recordPurchaseSpend(ptx, sub.userId, renewalCost);
+          if (cm?.referredById) {
+            await recordSuccessfulInvite(ptx, cm.referredById, sub.userId);
+          }
+        } catch (err) {
+          stats.errors.push(`referral-cycle ${sub.id}: ${err}`);
+        }
 
         await ptx.subscription.update({
           where: { id: sub.id },

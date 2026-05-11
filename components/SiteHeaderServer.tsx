@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getSettings } from "@/lib/pricing";
+import { getReferralCalculatorOptions } from "@/lib/referralCalculatorOptions";
 import SiteHeader from "./SiteHeader";
 import ReferralPromoBar from "./ReferralPromoBar";
 
@@ -16,14 +16,8 @@ export default async function SiteHeaderServer() {
     earnedAzn = (agg._sum.amountAznCents ?? 0) / 100;
   }
 
-  const settings = await getSettings();
-  // İstifadəçilərə göstəriləcək "təxmini %" — oyunlar üçün referralProfitSharePct
-  // (cost izlənir, profitin payı), streaming üçün referralStreamingProfitSharePct
-  // (final qiymətdən faiz). Promo bannerdə daha sadə görünür: streaming faizi
-  // çox vaxt daha yüksək göstərici verir, ona görə promo dəyəri kimi onu seçirik.
-  const promoPct = Math.round(
-    Math.max(settings.referralStreamingProfitSharePct ?? 0, settings.affiliateRatePct ?? 0)
-  );
+  const referralOptions = await getReferralCalculatorOptions();
+  const promoPct = Math.round(Math.max(0, ...referralOptions.map((option) => option.ratePct)));
 
   return (
     <>

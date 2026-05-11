@@ -61,7 +61,7 @@ function readMeta(p: Product): Meta {
   };
 }
 
-function isProductInStock(_p: Product, _meta: Meta): boolean {
+function isProductInStock(): boolean {
   // Stok sistemi ləğv edildi — sifariş yaradılır, admin əl ilə təsdiq edir.
   return true;
 }
@@ -225,7 +225,7 @@ function PlanCard({
   const meta = readMeta(product);
   const { add, has, hydrated, updateStreaming } = useCart();
   const inCart = hydrated && has(product.id);
-  const inStock = isProductInStock(product, meta);
+  const inStock = isProductInStock();
   const [showGmail, setShowGmail] = useState(false);
   const [showSeatInfo, setShowSeatInfo] = useState(false);
   const [gmail, setGmail] = useState("");

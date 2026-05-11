@@ -54,6 +54,7 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
       sortOrder: p.sortOrder,
       priceAzn: (p.priceAznCents / 100).toFixed(2),
       originalPriceAzn: m.originalPriceAznCents != null ? (m.originalPriceAznCents / 100).toFixed(2) : "",
+      durationMonths: m.durationMonths ?? "",
       terms: m.terms ?? "",
     });
   }
@@ -69,6 +70,7 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
       sortOrder: products.length,
       priceAzn: "",
       originalPriceAzn: "",
+      durationMonths: "",
       terms: "",
     });
   }
@@ -119,6 +121,8 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
       }
       const originalPriceAznRaw = String(editForm.originalPriceAzn ?? "").trim();
       const originalPriceAzn = originalPriceAznRaw === "" ? null : Number(originalPriceAznRaw);
+      const durationMonthsRaw = String(editForm.durationMonths ?? "").trim();
+      const durationMonths = durationMonthsRaw === "" ? null : Number(durationMonthsRaw);
 
       const res = await fetch("/api/admin/platforms", {
         method: "POST",
@@ -134,6 +138,7 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
           sortOrder: Number(editForm.sortOrder || 0),
           priceAzn,
           originalPriceAzn,
+          durationMonths,
           terms: String(editForm.terms ?? ""),
         }),
       });
@@ -189,12 +194,15 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
               <th className="px-5 py-4 font-medium">Şəkil</th>
               <th className="px-5 py-4 font-medium">Başlıq</th>
               <th className="px-5 py-4 font-medium">Qiymət</th>
+              <th className="px-5 py-4 font-medium">Müddət</th>
               <th className="px-5 py-4 font-medium">Status</th>
               <th className="px-5 py-4 font-medium text-right">Əməliyyat</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800/80">
-            {products.map((p) => (
+            {products.map((p) => {
+              const meta = readPlatformMeta(p.metadata);
+              return (
               <tr key={p.id} className="transition hover:bg-zinc-900">
                 <td className="px-5 py-4">
                   {p.imageUrl ? (
@@ -206,6 +214,11 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
                 </td>
                 <td className="px-5 py-4 font-medium text-zinc-200">{p.title}</td>
                 <td className="px-5 py-4 tabular-nums">{(p.priceAznCents / 100).toFixed(2)} AZN</td>
+                <td className="px-5 py-4 text-zinc-300">
+                  {meta.durationMonths
+                    ? `${meta.durationMonths} ay`
+                    : "—"}
+                </td>
                 <td className="px-5 py-4">
                   {p.isActive ? (
                     <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-300">Aktiv</span>
@@ -224,7 +237,8 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         {products.length === 0 && (
@@ -322,6 +336,19 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
                   />
                 </label>
               </div>
+
+              <label className="block text-sm">
+                Müddət (ay)
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="məs: 1"
+                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
+                  value={String(editForm.durationMonths ?? "")}
+                  onChange={(e) => setEditForm({ ...editForm, durationMonths: e.target.value })}
+                />
+              </label>
 
               <label className="block text-sm">
                 Şərtlər (opsional)

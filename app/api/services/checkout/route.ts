@@ -7,6 +7,12 @@ import {
   applyCashbackToBalance,
   getLifetimeSpendAznForLoyalty,
 } from "@/lib/loyaltyCashback";
+import { getSettings } from "@/lib/pricing";
+import {
+  recordPurchaseSpend,
+  recordSuccessfulInvite,
+} from "@/lib/referralCycle";
+import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
 
 export const runtime = "nodejs";
 
@@ -52,6 +58,7 @@ export async function POST(req: Request) {
   const loyaltyCashbackCents =
     loyalty.cashbackPct > 0 ? Math.round((price * loyalty.cashbackPct) / 100) : 0;
   const prevCashback = user.cashbackBalanceCents ?? 0;
+  const settings = await getSettings();
 
   // TRY_BALANCE -> instant fulfilment və ya gözləmə
   if (sp.type === "TRY_BALANCE") {
@@ -127,6 +134,24 @@ export async function POST(req: Request) {
             }),
           },
         });
+
+        const cm = await awardStreamingReferralCommission(tx, {
+          sourceTransactionId: svcRow.id,
+          buyerUserId: user.id,
+          serviceProductId: sp.id,
+          lineCents: price,
+          streamingProfitSharePct: settings.referralGiftCardsPct,
+          kind: "TRY_BALANCE",
+        });
+
+        try {
+          await recordPurchaseSpend(tx, user.id, price);
+          if (cm?.referredById) {
+            await recordSuccessfulInvite(tx, cm.referredById, user.id);
+          }
+        } catch (err) {
+          console.error("referral cycle bookkeeping failed", err);
+        }
 
         if (loyaltyCashbackCents > 0) {
           await applyCashbackToBalance(tx, {

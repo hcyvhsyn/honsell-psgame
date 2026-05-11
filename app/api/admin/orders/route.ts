@@ -72,7 +72,7 @@ export async function GET() {
         where: {
           type: "SERVICE_PURCHASE",
           status: "PENDING",
-          serviceProduct: { type: "STREAMING" },
+          serviceProduct: { type: { in: ["STREAMING", "PLATFORM"] } },
         },
         orderBy: { createdAt: "desc" },
         take: 200,
@@ -91,4 +91,3 @@ export async function GET() {
     streamingOrders,
   });
 }
-

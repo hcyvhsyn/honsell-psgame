@@ -9,12 +9,7 @@ export default async function ReferralsPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [settings, referees, commissionAgg] = await Promise.all([
-    prisma.settings.upsert({
-      where: { id: "global" },
-      update: {},
-      create: { id: "global" },
-    }),
+  const [referees, commissionAgg] = await Promise.all([
     prisma.user.findMany({
       where: { referredById: user.id },
       orderBy: { createdAt: "desc" },
@@ -46,8 +41,8 @@ export default async function ReferralsPage() {
       <header>
         <h2 className="text-lg font-semibold">Referallar</h2>
         <p className="text-sm text-zinc-400">
-          Kodunla qeydiyyatdan keçən hər istifadəçinin alışından
-          {" "}{settings.affiliateRatePct}% qazan.
+          Kodunla qeydiyyatdan keçən istifadəçilərin uğurlu alışlarından
+          məhsul və platformaya görə dəyişən komissiya qazanırsan.
         </p>
       </header>
 

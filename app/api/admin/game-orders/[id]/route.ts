@@ -94,11 +94,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
       if (
         referredById &&
-        settings.referralProfitSharePct > 0 &&
+        settings.referralGamesPct > 0 &&
         !existingCommission
       ) {
         const profitCents = Math.max(0, unitListCents - unitCostCents);
-        const commissionCents = Math.round((profitCents * settings.referralProfitSharePct) / 100);
+        const commissionCents = Math.round((unitListCents * settings.referralGamesPct) / 100);
         if (commissionCents > 0) {
           await ptx.user.update({
             where: { id: referredById },
@@ -114,8 +114,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
               gameId: gameRow.id,
               metadata: JSON.stringify({
                 sourcePurchaseId: row.id,
+                kind: "GAME",
+                lineCents: unitListCents,
                 profitCents,
-                shareRate: settings.referralProfitSharePct,
+                shareRate: settings.referralGamesPct,
               }),
             },
           });

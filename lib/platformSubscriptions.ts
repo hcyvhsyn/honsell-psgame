@@ -7,7 +7,8 @@
  * Verilənlər `ServiceProduct` cədvəlində saxlanılır:
  *   type     = "PLATFORM"
  *   metadata = { category: "MUSIC"|"AI"|"WORK", terms?: string,
- *                originalPriceAznCents?: number }
+ *                originalPriceAznCents?: number, durationMonths?: number,
+ *                referralPct?: number, referralEnabled?: boolean }
  */
 
 export type PlatformCategory = "MUSIC" | "AI" | "WORK";
@@ -34,6 +35,9 @@ export type PlatformProductMetadata = {
   category: PlatformCategory;
   terms?: string;
   originalPriceAznCents?: number;
+  durationMonths?: number;
+  referralPct?: number;
+  referralEnabled: boolean;
 };
 
 export function readPlatformMeta(
@@ -42,9 +46,16 @@ export function readPlatformMeta(
   const m = raw ?? {};
   const cat = String(m.category ?? "");
   const opc = Number(m.originalPriceAznCents);
+  const durationMonths = Number(m.durationMonths);
+  const referralPct = Number(m.referralPct);
   return {
     category: isValidPlatformCategory(cat) ? cat : "MUSIC",
     terms: typeof m.terms === "string" ? m.terms : undefined,
     originalPriceAznCents: Number.isFinite(opc) && opc > 0 ? opc : undefined,
+    durationMonths:
+      Number.isInteger(durationMonths) && durationMonths > 0 ? durationMonths : undefined,
+    referralPct:
+      Number.isFinite(referralPct) && referralPct >= 0 ? Math.min(100, referralPct) : undefined,
+    referralEnabled: m.referralEnabled !== false,
   };
 }

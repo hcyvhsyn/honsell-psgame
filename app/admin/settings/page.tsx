@@ -17,8 +17,6 @@ type Settings = {
   profitMarginGamesPct: number;
   profitMarginGiftCardsPct: number;
   profitMarginPsPlusPct: number;
-  affiliateRatePct: number;
-  referralStreamingProfitSharePct: number;
   depositCardNumber: string;
   depositCardHolder: string;
 };
@@ -89,8 +87,6 @@ export default function AdminSettingsPage() {
     profitMarginGamesPct: 20,
     profitMarginGiftCardsPct: 20,
     profitMarginPsPlusPct: 20,
-    affiliateRatePct: 5,
-    referralStreamingProfitSharePct: 10,
     depositCardNumber: "",
     depositCardHolder: "",
   });
@@ -117,8 +113,6 @@ export default function AdminSettingsPage() {
           profitMarginGamesPct: data.profitMarginGamesPct ?? data.profitMarginPct,
           profitMarginGiftCardsPct: data.profitMarginGiftCardsPct ?? data.profitMarginPct,
           profitMarginPsPlusPct: data.profitMarginPsPlusPct ?? data.profitMarginPct,
-          affiliateRatePct: data.affiliateRatePct,
-          referralStreamingProfitSharePct: data.referralStreamingProfitSharePct ?? 10,
           depositCardNumber: data.depositCardNumber ?? "",
           depositCardHolder: data.depositCardHolder ?? "",
         });
@@ -354,21 +348,6 @@ export default function AdminSettingsPage() {
             onChange={(v) => setForm({ ...form, profitMarginPsPlusPct: v })}
           />
         </div>
-        <Field
-          label="Affiliate komissiyası (%)"
-          hint="Dəvət edən şəxs hər referal alışından bu faizi qazanır."
-          value={form.affiliateRatePct}
-          step={0.5}
-          onChange={(v) => setForm({ ...form, affiliateRatePct: v })}
-        />
-        <Field
-          label="Streaming referal komissiyası (%)"
-          hint="Streaming abunəlikləri (HBO Max, Gain, YouTube) üçün referala verilən komissiya — final qiymət üzərindən faiz."
-          value={form.referralStreamingProfitSharePct}
-          step={0.5}
-          onChange={(v) => setForm({ ...form, referralStreamingProfitSharePct: v })}
-        />
-
         <div className="space-y-3 border-t border-zinc-800 pt-5">
           <h2 className="text-sm font-semibold text-zinc-200">
             Ödəniş bank kartı

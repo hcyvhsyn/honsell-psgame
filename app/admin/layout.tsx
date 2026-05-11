@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  *   • Məzmun — homepage və scope-lu məzmun (banner, FAQ, guide-lar, rəylər)
  *   • PlayStation — yalnız PS məhsulları
  *   • Yayım Platformaları — streaming xidmətləri və icmallar
- *   • İş Platformaları / Süni İntellekt — placeholder, tezliklə
+ *   • Musiqi / Süni İntellekt / İş Platformaları — admin məhsul paketləri
  *
  * Yeni admin səhifəsi əlavə olunduqda burada uyğun qrupa yazırsan — sidebar
  * avtomatik göstərir və active route məntiqi işləyir.
@@ -26,6 +26,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
       { href: "/admin/deposits", label: "Ödəniş Tələbləri", iconName: "Wallet", badgeKey: "pendingDeposits" },
       { href: "/admin/transactions", label: "Tranzaksiyalar", iconName: "Receipt" },
       { href: "/admin/orders", label: "Sifarişlər", iconName: "Receipt", badgeKey: "pendingAllOrders" },
+      { href: "/admin/referrals", label: "Referal faizləri", iconName: "Percent" },
       { href: "/admin/settings", label: "Tənzimləmələr", iconName: "SettingsIcon" },
     ],
   },

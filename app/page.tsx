@@ -227,20 +227,18 @@ export default async function HomePage() {
               accentClass="border-amber-400/30 from-amber-400/25 to-yellow-300/15"
             />
             <PlatformCard
-              href="/is-platformalari"
+              href="/work"
               icon={<Briefcase className="h-5 w-5 text-white" />}
               label="İş Platformaları"
-              sub="Tezliklə"
+              sub="LinkedIn Premium · Notion · Figma və digər iş alətləri"
               accentClass="border-emerald-400/30 from-emerald-400/25 to-teal-400/15"
-              badge="Tezliklə"
             />
             <PlatformCard
-              href="/suni-intellekt"
+              href="/ai"
               icon={<Brain className="h-5 w-5 text-white" />}
               label="Süni İntellekt"
-              sub="Tezliklə"
+              sub="ChatGPT Plus · Claude Plus və digər AI alətləri"
               accentClass="border-violet-400/30 from-violet-400/25 to-purple-400/15"
-              badge="Tezliklə"
             />
             <PlatformCard
               href="/diger"

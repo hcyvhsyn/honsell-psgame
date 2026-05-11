@@ -16,12 +16,12 @@ import ReferralCodeCopy from "@/components/ReferralCodeCopy";
 import CycleCountdown from "@/components/CycleCountdown";
 import QazanCalculatorClient from "./QazanCalculatorClient";
 import { getCurrentUser } from "@/lib/auth";
-import { getSettings } from "@/lib/pricing";
 import {
   getReferralLeaderboard,
   getLastCycleLeaderboard,
 } from "@/lib/referralLeaderboard";
 import { getCurrentCycle } from "@/lib/referralCycle";
+import { getReferralCalculatorOptions } from "@/lib/referralCalculatorOptions";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +33,9 @@ export const metadata: Metadata = {
 };
 
 export default async function QazanPage() {
-  const [user, settings, leaderboard, lastCycle, cycle] = await Promise.all([
+  const [user, calculatorOptions, leaderboard, lastCycle, cycle] = await Promise.all([
     getCurrentUser(),
-    getSettings(),
+    getReferralCalculatorOptions(),
     getReferralLeaderboard(10).catch(() => ({} as never)).then(
       (v) => (Array.isArray(v) ? v : [])
     ),
@@ -43,19 +43,11 @@ export default async function QazanPage() {
     getCurrentCycle().catch(() => null),
   ]);
 
-  // Game commission is `referralProfitSharePct` applied to PROFIT (final - cost),
-  // not to the customer's price. Express it as the effective % of price so the
-  // public-facing copy doesn't overpromise. Streaming is already a flat % of
-  // the final price, so it's used directly.
-  const gameMarginPct =
-    settings.profitMarginGamesPct ?? settings.profitMarginPct;
-  const gamePct = Math.max(
-    1,
-    Math.round(
-      (settings.referralProfitSharePct * gameMarginPct) / (100 + gameMarginPct)
-    )
-  );
-  const streamingPct = Math.round(settings.referralStreamingProfitSharePct);
+  const psStoreOptions = calculatorOptions.filter((o) => o.category === "PLAYSTATION");
+  const psStoreSummary = psStoreOptions.length
+    ? psStoreOptions.map((o) => `${o.platformLabel}: ${o.ratePct}%`).join(", ")
+    : "PS Store: 0%";
+  const maxPlatformPct = Math.max(0, ...calculatorOptions.map((o) => o.ratePct));
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -77,8 +69,8 @@ export default async function QazanPage() {
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-zinc-300 sm:text-lg">
             Honsell-də əsas qazanc kanalımız sizinlədir. Kodunla qoşulan hər
-            dostunun oyun, PS Plus və streaming alışlarından avtomatik komissiya
-            qazanırsan — pillə yoxdur, bonus alış məbləğinə əsasən hesablanır.
+            dostunun oyun, streaming, musiqi, AI və iş platforması alışlarından
+            platformaya görə dəyişən referal faizi ilə komissiya qazanırsan.
           </p>
 
           {user ? (
@@ -130,7 +122,7 @@ export default async function QazanPage() {
             {
               icon: <Coins className="h-6 w-6 text-amber-300" />,
               title: "2. Onlar alış edir",
-              body: `Sənin kodunla qoşulan dostun oyun və ya streaming alanda komissiya hesabına yazılır — oyunlardan ${gamePct}%, streamingdən ${streamingPct}%.`,
+              body: `Sənin kodunla qoşulan dostun alış etdikdə komissiya hesabına yazılır. Faiz platformadan asılıdır və hazırda 0%-dən ${maxPlatformPct}% aralığında ola bilər.`,
             },
             {
               icon: <Wallet className="h-6 w-6 text-emerald-300" />,
@@ -153,16 +145,28 @@ export default async function QazanPage() {
       </section>
 
       {/* Calculator */}
-      <section className="border-y border-white/5 bg-white/[0.02]">
-        <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
-          <h2 className="text-center text-3xl font-black tracking-tight text-white sm:text-4xl">
-            Qazanc kalkulyatoru
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-zinc-400">
-            Aylıq neçə dəvətin və orta alışları nə qədərdirsə — təxmini qazancını gör.
-          </p>
+      <section className="relative overflow-hidden border-y border-white/5 bg-[#050817]">
+        <div className="pointer-events-none absolute left-1/2 top-0 h-80 w-[70rem] -translate-x-1/2 rounded-full bg-violet-600/10 blur-3xl" />
+        <div className="pointer-events-none absolute left-[18%] top-24 h-1.5 w-1.5 rounded-full bg-violet-300 shadow-[0_0_18px_rgba(167,139,250,0.9)]" />
+        <div className="pointer-events-none absolute right-[9%] top-32 h-2 w-2 rounded-full bg-violet-400 shadow-[0_0_18px_rgba(167,139,250,0.9)]" />
+        <div className="relative mx-auto max-w-[1560px] px-4 py-16 sm:px-6 lg:py-20">
+          <div className="mb-8 text-center">
+            <span className="inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-violet-500/20 text-violet-200 ring-1 ring-violet-300/20">
+                H
+              </span>
+              Honsell Store
+            </span>
+            <h2 className="mt-5 text-4xl font-black tracking-tight text-white sm:text-6xl">
+              Qazanc kalkulyatoru
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-slate-300">
+              Kateqoriyaları, platformaları, orta aylıq xərci, referal sayını və dövrü
+              seçərək referal sistemimizdən nə qədər qazanc əldə edə biləcəyinizi təxmin edin.
+            </p>
+          </div>
           <div className="mt-8">
-            <QazanCalculatorClient gamePct={gamePct} streamingPct={streamingPct} />
+            <QazanCalculatorClient initialOptions={calculatorOptions} />
           </div>
         </div>
       </section>
@@ -309,7 +313,7 @@ export default async function QazanPage() {
             },
             {
               q: "Komissiya faizi nə qədərdir?",
-              a: `Hazırda hər oyun alışından son qiymətin ~${gamePct}%-i, streaming abunəliklərində isə final qiymətin ${streamingPct}%-i referal balansına yazılır. Tarif idarə tərəfindən dəyişə bilər.`,
+              a: `PS Store daxilində faizlər ayrıca idarə olunur (${psStoreSummary}). Streaming, musiqi, AI və iş platformalarında faiz hər platforma üçün admin paneldən ayrıca təyin olunur və kalkulyatorda platformanın yanında canlı göstərilir.`,
             },
             {
               q: "Referal balansını necə istifadə edə bilərəm?",
