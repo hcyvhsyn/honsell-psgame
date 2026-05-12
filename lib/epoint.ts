@@ -13,6 +13,7 @@ export type EpointPaymentRequest = {
   description?: string;
   success_redirect_url?: string;
   error_redirect_url?: string;
+  result_url?: string;
 };
 
 export type EpointCheckoutResponse = {
@@ -25,6 +26,7 @@ export type EpointCheckoutResponse = {
 };
 
 const EPOINT_REQUEST_URL = "https://epoint.az/api/1/request";
+const EPOINT_GET_STATUS_URL = "https://epoint.az/api/1/get-status";
 
 export function createEpointSignature(data: string, privateKey: string) {
   return createHash("sha1")
@@ -108,6 +110,33 @@ export async function createEpointCheckout(
   return parsed;
 }
 
+export async function fetchEpointStatus(
+  transactionId: string,
+  publicKey: string,
+  privateKey: string,
+): Promise<EpointResultData & { _raw: string; _signedData: string; _signature: string }> {
+  const payload = {
+    public_key: publicKey,
+    language: "az" as const,
+    transaction: transactionId,
+  };
+  const signed = createSignedEpointPayload(payload, privateKey);
+  const response = await fetch(EPOINT_GET_STATUS_URL, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(signed),
+    cache: "no-store",
+  });
+  const text = await response.text();
+  let parsed: EpointResultData = {};
+  try {
+    parsed = JSON.parse(text) as EpointResultData;
+  } catch {
+    parsed = { status: "error", message: text };
+  }
+  return { ...parsed, _raw: text, _signedData: signed.data, _signature: signed.signature };
+}
+
 export function epointResultIsSuccess(payload: EpointResultData) {
   const status = String(payload.status ?? "").toLowerCase();
   const code = String(payload.code ?? "").toLowerCase();
@@ -115,12 +144,7 @@ export function epointResultIsSuccess(payload: EpointResultData) {
 }
 
 export function readEpointOrderId(payload: EpointResultData) {
-  const value =
-    payload.order_id ??
-    payload.orderId ??
-    payload.order ??
-    payload.transaction_id ??
-    payload.transaction;
+  const value = payload.order_id ?? payload.orderId ?? payload.order;
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 

@@ -60,16 +60,26 @@ async function readPayload(req: Request): Promise<ResultPayload> {
         decoded = body as EpointResultData;
       }
     } else {
-      const form = await req.formData().catch(() => null);
-      data = typeof form?.get("data") === "string" ? String(form.get("data")) : data;
-      signature =
-        typeof form?.get("signature") === "string" ? String(form.get("signature")) : signature;
+      const raw = await req.text().catch(() => "");
+      if (raw) {
+        const params = new URLSearchParams(raw);
+        const d = params.get("data");
+        const s = params.get("signature");
+        if (d) data = d;
+        if (s) signature = s;
+      }
     }
   }
 
-  if (data) decoded = decodeEpointData(data);
+  if (data) {
+    try {
+      decoded = decodeEpointData(data);
+    } catch {
+      decoded = {};
+    }
+  }
 
-  const privateKey = process.env.EPOINT_PRIVATE_KEY ?? "";
+  const privateKey = (process.env.EPOINT_PRIVATE_KEY ?? "").trim();
   const verified =
     Boolean(privateKey) && Boolean(data) && Boolean(signature)
       ? verifyEpointSignature(data!, signature!, privateKey)
@@ -180,6 +190,18 @@ async function handleResult(req: Request) {
     const payload = await readPayload(req);
     const result = await applyResult(payload);
 
+    console.log("[epoint:/result]", {
+      method: req.method,
+      verified: payload.verified,
+      hasData: Boolean(payload.data),
+      hasSignature: Boolean(payload.signature),
+      decodedKeys: Object.keys(payload.decoded ?? {}),
+      decodedStatus: payload.decoded?.status,
+      decodedCode: payload.decoded?.code,
+      decodedOrderId: payload.decoded?.order_id,
+      result,
+    });
+
     if (result.reason === "SIGNATURE_INVALID") {
       return NextResponse.json({ ok: false, error: "Invalid signature" }, { status: 400 });
     }
@@ -191,6 +213,7 @@ async function handleResult(req: Request) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Epoint result failed";
+    console.error("[epoint:/result] error", message, err);
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

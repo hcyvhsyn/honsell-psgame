@@ -511,6 +511,7 @@ export async function POST(req: Request) {
           description: `Honsell sifariş ${orderCode}: ${(totalCents / 100).toFixed(2)} AZN`,
           success_redirect_url: `${origin}/success?order_id=${encodeURIComponent(payment.id)}&order_code=${encodeURIComponent(orderCode)}`,
           error_redirect_url: `${origin}/error?order_id=${encodeURIComponent(payment.id)}&order_code=${encodeURIComponent(orderCode)}`,
+          result_url: `${origin}/result`,
         },
         config.privateKey,
       );

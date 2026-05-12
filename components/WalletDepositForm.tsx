@@ -53,8 +53,8 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
   }
 
   async function startEpointDeposit() {
-    if (!Number.isFinite(amountNum) || amountNum < 1) {
-      setMessage({ ok: false, text: "Məbləğ ən azı 1 AZN olmalıdır." });
+    if (!Number.isFinite(amountNum) || amountNum < 0.01) {
+      setMessage({ ok: false, text: "Məbləğ ən azı 0.01 AZN olmalıdır." });
       return;
     }
 

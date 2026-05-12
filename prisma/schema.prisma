@@ -340,15 +340,22 @@ model ScrapeRun {
   id            String    @id @default(cuid())
   startedAt     DateTime  @default(now())
   finishedAt    DateTime?
-  // RUNNING | SUCCESS | FAILED
+  // RUNNING | SUCCESS | PARTIAL | FAILED
   status        String    @default("RUNNING")
+  // PS_STORE | STREAMING — ayırt etmek üçün, eyni cədvəldə hər iki növ run saxlanır.
+  kind          String    @default("PS_STORE")
   // Total unique products extracted from PS Store before persisting.
   scrapedCount  Int       @default(0)
   // Rows actually upserted into Game (== scrapedCount on success).
   upsertedCount Int       @default(0)
+  // Streaming run-larda platform breakdown — JSON: { netflix: { added, removed, updated, errors }, ... }
+  summary       Json?
   error         String?
 
+  changes ScrapeChange[]
+
   @@index([startedAt])
+  @@index([kind, startedAt])
 }
 
 // ─── Banners (homepage hero carousel) ────────────────────────────────────────
@@ -413,13 +420,15 @@ model StreamingTitle {
   // TMDB-dən orijinal dildə rəsmi trailer üstün, manual override mümkündür.
   trailerUrl        String?
 
-  featured StreamingFeatured[]
+  featured       StreamingFeatured[]
+  availabilities ContentAvailability[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([service, isActive, azAvailable])
   @@index([service, sortOrder])
+  @@index([externalId])
 }
 
 /// Streaming overview və ya konkret service səhifəsində göstərilən banner
@@ -827,4 +836,77 @@ model ReviewComment {
 
   @@index([reviewId, createdAt])
   @@index([userId])
+}
+
+// ─── Streaming Scraper: çoklu platform katalog/dil bilgisi ────────────────────
+
+/// Bir StreamingTitle-ın konkret platformdakı mövcudluğu. Eyni başlıq birdən
+/// çox platformda yayımlana bilər (məs. eyni film həm Netflix, həm Prime-da).
+/// Scraper hər run-da bu cədvəli AZ kataloqu ilə sinxronlaşdırır.
+model ContentAvailability {
+  id                 String         @id @default(cuid())
+  titleId            String
+  title              StreamingTitle @relation(fields: [titleId], references: [id], onDelete: Cascade)
+  // NETFLIX | HBOMAX | PRIME | GAIN
+  platform           String
+  // Platform daxilindəki ID/slug — deep link qurmaq üçün (məs. Netflix netflix_id,
+  // JustWatch jw_entity_id, Gain üçün URL slug-ı).
+  platformExternalId String
+  // Region — hazırda hər zaman "AZ", lakin gələcəkdə multi-region üçün saxlanır.
+  country            String         @default("AZ")
+  // Sonuncu scrape-də platformda görünübsə true. Silindikdə false + removedAt set olunur.
+  isAvailable        Boolean        @default(true)
+  firstSeenAt        DateTime       @default(now())
+  lastSeenAt         DateTime       @default(now())
+  removedAt          DateTime?
+  // Platform tərəfindəki deep link (məs. https://www.netflix.com/az/title/80100172).
+  deepLinkUrl        String?
+
+  languages ContentLanguage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([platform, platformExternalId, country])
+  @@index([titleId])
+  @@index([platform, isAvailable])
+}
+
+/// Bir availability üçün audio/subtitle dil siyahısı. Yalnız tr/ru/en saxlanır —
+/// digər dillər scraper-də süzülür (bax `lib/streamingLanguages.ts`).
+model ContentLanguage {
+  id             String              @id @default(cuid())
+  availabilityId String
+  availability   ContentAvailability @relation(fields: [availabilityId], references: [id], onDelete: Cascade)
+  // ISO 639-1: "tr" | "ru" | "en"
+  code           String
+  // AUDIO | SUBTITLE
+  kind           String
+
+  createdAt DateTime @default(now())
+
+  @@unique([availabilityId, code, kind])
+  @@index([availabilityId])
+}
+
+/// Bir scrape run-ında qeyd olunan dəyişiklik (yeni / silinmiş / yenilənmiş).
+/// Audit/diff üçün — UI-da "son 24 saatda nə dəyişib" göstərmək üçün istifadə olunur.
+model ScrapeChange {
+  id          String    @id @default(cuid())
+  scrapeRunId String
+  scrapeRun   ScrapeRun @relation(fields: [scrapeRunId], references: [id], onDelete: Cascade)
+  // NETFLIX | HBOMAX | PRIME | GAIN
+  platform    String
+  // ADDED | REMOVED | UPDATED
+  changeType  String
+  // Hələ DB-də olmayan REMOVED case üçün titleId null ola bilər.
+  titleId     String?
+  // Snapshot — başlıq, platformExternalId və dəyişən sahələr (yeni/köhnə audio/subtitle dilləri).
+  payload     Json
+
+  createdAt DateTime @default(now())
+
+  @@index([scrapeRunId])
+  @@index([platform, createdAt])
+  @@index([titleId])
 }

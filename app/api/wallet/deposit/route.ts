@@ -10,7 +10,7 @@ import {
 
 export const runtime = "nodejs";
 
-const MIN_DEPOSIT_CENTS = 100;
+const MIN_DEPOSIT_CENTS = 1;
 const MAX_DEPOSIT_CENTS = 1_000_000;
 
 function parseAznToCents(value: unknown) {
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
   const amountCents = parseAznToCents(body.amountAzn);
 
   if (amountCents == null || amountCents < MIN_DEPOSIT_CENTS) {
-    return NextResponse.json({ error: "Məbləğ ən azı 1 AZN olmalıdır." }, { status: 400 });
+    return NextResponse.json({ error: "Məbləğ ən azı 0.01 AZN olmalıdır." }, { status: 400 });
   }
   if (amountCents > MAX_DEPOSIT_CENTS) {
     return NextResponse.json({ error: "Məbləğ maksimum 10 000 AZN ola bilər." }, { status: 400 });
@@ -94,6 +94,7 @@ export async function POST(req: Request) {
         description: `Honsell cüzdan balansı: ${amountAzn.toFixed(2)} AZN`,
         success_redirect_url: `${origin}/success?order_id=${encodeURIComponent(tx.id)}`,
         error_redirect_url: `${origin}/error?order_id=${encodeURIComponent(tx.id)}`,
+        result_url: `${origin}/result`,
       },
       config.privateKey,
     );
