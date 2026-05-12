@@ -48,7 +48,7 @@ query GetPopularTitles(
           originalReleaseYear
           shortDescription
           fullPath
-          genres { translation }
+          genres { translation(language: "en") }
           externalIds { imdbId }
           posterUrl
         }

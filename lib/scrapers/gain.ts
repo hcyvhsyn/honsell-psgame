@@ -1,123 +1,117 @@
-import * as cheerio from "cheerio";
 import { SCRAPER_CONFIG } from "@/lib/scrapers/config";
 import { fetchWithRetry } from "@/lib/scrapers/fetchWithRetry";
-import { normalizeLanguageList } from "@/lib/scrapers/languageNormalize";
 import type { Scraper, ScraperResult, ScrapedTitle } from "@/lib/scrapers/types";
 
 /**
- * Gain.tv — birbaşa HTML scrape.
+ * gain.tv — daxili JSON API (login arxasında).
  *
- * Strategiya:
- *   1. /diziler və /filmler list səhifələrindən başlıq URL-lərini çıxar.
- *   2. Hər detay səhifəsini cheerio ilə parse edib dil/janr/il/ID al.
+ * Endpoint (DevTools reverse-engineering ilə tapılıb):
+ *   GET https://api.gain.tv/{tenant}/CALL/ProfileTitle/getPlaylistsByCategory/{profileId}
+ *       ?slug=/dizi|/film&__culture=tr-tr
  *
- * Notlar:
- *   - gain.tv Next.js-də qurulub. Server-side rendered HTML-də list mövcuddur,
- *     amma list bəzən infinite-scroll JSON endpoint ilə doldurulur. Bu kod ilkin
- *     HTML-i hədəfləyir; əgər boş gəlirsə `extractSlugsFromHtml` adaptasiya
- *     olunmalıdır (məs. embedded `__NEXT_DATA__` JSON-undan oxuma).
- *   - Dil informasiyası adətən detay səhifəsində "Dublyaj:" / "Altyazı:"
- *     etiketləri ilə gəlir; tapılmazsa boş massiv ötürülür.
- *   - robots.txt və TOS-a hörmət üçün User-Agent-də əlaqə məlumatı verilir və
- *     rate-limit 1 req/s saxlanır.
+ * Cavab `playlists[]` qaytarır — hər playlist `items[]`-i göstərir
+ * (Öne Çıkanlar, Gain Originals, Janr karusel-ləri və s.). Bütün playlist-lərin
+ * item-lərini flat edib uniq titleId-lər üzrə yığırıq. Bu, kataloğun tam
+ * snapshot-u deyil — yalnız hazırda surface olunan başlıqlar (təxminən 80-150
+ * arası). Tam katalog üçün hər titleId-dən `getSimilarTitles` ilə BFS etmək
+ * olar, lakin bu MVP-də atılır.
+ *
+ * Auth: `GAIN_COOKIE` env-dən tam Cookie header. Cookie 15-30 gün etibarlıdır;
+ * vaxtaşırı yeniləmək lazımdır.
+ * Profile ID: `GAIN_PROFILE_ID` env — URL path-ından çıxarılır
+ * (məs. "J2YHROODFJFHKVY4F0FIXE3E"). Sənin Gain hesabının profile ID-si.
+ *
+ * Dil: GAİN Türk platformudur — bütün başlıqlar TR audio + TR subtitle.
+ * Multi-language seçimi mövcud deyil, ona görə default olaraq `["tr"]` qoyulur.
  */
 
-const GAIN_BASE = "https://gain.tv";
-const LIST_PATHS = ["/diziler", "/filmler"];
-const USER_AGENT =
-  "Mozilla/5.0 (compatible; honsell-streaming-sync/1.0; +https://honsell.store/contact)";
+const GAIN_API_BASE = "https://api.gain.tv";
+const GAIN_TENANT = "2da7kf8jf";
+const SLUGS: ReadonlyArray<{ slug: "/dizi" | "/film"; kind: "SERIES" | "MOVIE" }> = [
+  { slug: "/dizi", kind: "SERIES" },
+  { slug: "/film", kind: "MOVIE" },
+];
 
-function abs(url: string): string {
-  if (url.startsWith("http")) return url;
-  if (url.startsWith("/")) return `${GAIN_BASE}${url}`;
-  return `${GAIN_BASE}/${url}`;
+interface GainImage {
+  useType?: string; // "thumbnail" | "coverPhoto"
+  ratio?: string; // "2:3" | "16:9"
+  imageUrl?: string;
 }
 
-function slugFromUrl(url: string): string {
-  const u = url.replace(GAIN_BASE, "").replace(/^\/+/, "").replace(/\/+$/, "");
-  return u || url;
+interface GainItem {
+  titleId?: string;
+  name?: string;
+  publishYear?: number;
+  imdbScore?: number;
+  shortDescription?: string;
+  contentType?: { id?: string; text?: string };
+  genres?: Array<{ id?: string; name?: string; text?: string }>;
+  imageInfo?: GainImage[];
+  isGainOriginal?: boolean;
 }
 
-/** List səhifə HTML-indən detay URL-lərini çıxarır. Bir neçə selector dener
- *  ki, qabıq dəyişikliklərinə davamlı olsun. */
-function extractSlugsFromHtml(html: string, kindHint: "MOVIE" | "SERIES"): string[] {
-  const $ = cheerio.load(html);
-  const urls = new Set<string>();
-
-  // Yaygın pattern-lər: <a href="/dizi/..."> və ya <a href="/film/...">
-  const prefix = kindHint === "SERIES" ? "/dizi/" : "/film/";
-  $(`a[href^="${prefix}"]`).each((_, el) => {
-    const href = $(el).attr("href");
-    if (href) urls.add(abs(href));
-  });
-
-  // Fallback: bütün card linkləri
-  if (urls.size === 0) {
-    $('a[href*="/dizi/"], a[href*="/film/"]').each((_, el) => {
-      const href = $(el).attr("href");
-      if (!href) return;
-      const wantsSeries = kindHint === "SERIES";
-      if (wantsSeries && href.includes("/dizi/")) urls.add(abs(href));
-      if (!wantsSeries && href.includes("/film/")) urls.add(abs(href));
-    });
-  }
-
-  return [...urls];
+interface GainPlaylist {
+  id?: string;
+  title?: string;
+  items?: GainItem[];
 }
 
-/** Detay HTML-indən başlıq metadatasını çıxarır. */
-function parseDetail(html: string, url: string, kind: "MOVIE" | "SERIES"): ScrapedTitle | null {
-  const $ = cheerio.load(html);
+interface GainPlaylistsResp {
+  playlists?: GainPlaylist[];
+}
 
-  const title =
-    $('h1').first().text().trim() ||
-    $('meta[property="og:title"]').attr("content")?.trim() ||
-    "";
-  if (!title) return null;
-
-  const description =
-    $('meta[property="og:description"]').attr("content")?.trim() ||
-    $('meta[name="description"]').attr("content")?.trim() ||
-    undefined;
-
-  const posterUrl = $('meta[property="og:image"]').attr("content")?.trim() || undefined;
-
-  // İl — başlıq yanında və ya ayrıca etiketdə.
-  let year: number | undefined;
-  const yearText = $('*:contains("Yıl"), *:contains("İl")').first().text();
-  const yearMatch = yearText.match(/\b(19|20)\d{2}\b/) ?? html.match(/\b(19|20)\d{2}\b/);
-  if (yearMatch) year = parseInt(yearMatch[0], 10);
-
-  // Janrlar
-  const genres: string[] = [];
-  $('a[href*="/tur/"], a[href*="/kategori/"]').each((_, el) => {
-    const t = $(el).text().trim();
-    if (t) genres.push(t);
-  });
-
-  // Dil etiketləri — "Dublyaj: Türkçe, Rusça" / "Altyazı: İngilizce" pattern-i.
-  const bodyText = $('main, body').text();
-  const audioMatch = bodyText.match(/Dublaj[^\n:]*:\s*([^\n]+)/i);
-  const subMatch = bodyText.match(/Altyaz[ıi][^\n:]*:\s*([^\n]+)/i);
-  const audioLanguages = normalizeLanguageList(
-    audioMatch ? audioMatch[1].split(/[,/]/).map((s) => s.trim()) : []
+function pickPoster(item: GainItem): string | undefined {
+  const info = item.imageInfo ?? [];
+  // Posterlər üçün 2:3 thumbnail/coverPhoto üstünlük verilir.
+  return (
+    info.find((i) => i.useType === "thumbnail" && i.ratio === "2:3")?.imageUrl ??
+    info.find((i) => i.useType === "coverPhoto" && i.ratio === "2:3")?.imageUrl ??
+    info.find((i) => i.ratio === "2:3")?.imageUrl ??
+    info[0]?.imageUrl
   );
-  const subtitleLanguages = normalizeLanguageList(
-    subMatch ? subMatch[1].split(/[,/]/).map((s) => s.trim()) : []
-  );
+}
+
+function mapItem(item: GainItem, defaultKind: "MOVIE" | "SERIES"): ScrapedTitle | null {
+  if (!item.titleId || !item.name) return null;
+
+  // contentType prioriteti: PROGRAM → atılır (film/dizi deyil).
+  const typeId = item.contentType?.id?.toUpperCase();
+  let kind: "MOVIE" | "SERIES";
+  if (typeId === "TV_SERIES") kind = "SERIES";
+  else if (typeId === "FILM") kind = "MOVIE";
+  else if (typeId === "PROGRAM") return null;
+  else kind = defaultKind;
 
   return {
-    platformExternalId: slugFromUrl(url),
-    deepLinkUrl: url,
-    title,
+    platformExternalId: item.titleId,
+    deepLinkUrl: `https://gain.tv/title/${item.titleId}`,
+    title: item.name,
     kind,
-    year,
-    genres: [...new Set(genres)],
-    posterUrl,
-    description,
-    audioLanguages,
-    subtitleLanguages,
+    year: item.publishYear,
+    genres: (item.genres ?? [])
+      .map((g) => g.text ?? g.name)
+      .filter((g): g is string => !!g),
+    posterUrl: pickPoster(item),
+    description: item.shortDescription,
+    // Türk platforması — bütün kontent tr audio/sub.
+    audioLanguages: ["tr"],
+    subtitleLanguages: ["tr"],
   };
+}
+
+function readEnv(): { profileId: string; cookie: string } | { error: string } {
+  const profileId = process.env.GAIN_PROFILE_ID;
+  const cookie = process.env.GAIN_COOKIE;
+  if (!profileId) {
+    return { error: "GAIN_PROFILE_ID .env-də təyin olunmayıb. DevTools URL-indən kopyala." };
+  }
+  if (!cookie) {
+    return {
+      error:
+        "GAIN_COOKIE .env-də təyin olunmayıb. DevTools → Network → bir API sorğusu → Headers → Cookie sətrini kopyala.",
+    };
+  }
+  return { profileId, cookie };
 }
 
 export const gainScraper: Scraper = {
@@ -128,59 +122,68 @@ export const gainScraper: Scraper = {
     const titlesById = new Map<string, ScrapedTitle>();
     let requestCount = 0;
 
-    // 1) List səhifələrini paginate edib URL-ləri topla
-    const slugUrls = new Set<string>();
-    for (const path of LIST_PATHS) {
-      const kindHint: "MOVIE" | "SERIES" = path.includes("dizi") ? "SERIES" : "MOVIE";
-      for (let page = 1; page <= SCRAPER_CONFIG.maxPagesPerPlatform; page++) {
-        const url = page === 1 ? `${GAIN_BASE}${path}` : `${GAIN_BASE}${path}?page=${page}`;
-        try {
-          const res = await fetchWithRetry(url, {
-            headers: { "user-agent": USER_AGENT, accept: "text/html,*/*" },
-            pacingMs: SCRAPER_CONFIG.rateLimitMs.GAIN,
-          });
-          requestCount++;
-          const html = await res.text();
-          const found = extractSlugsFromHtml(html, kindHint);
-          if (found.length === 0) break;
-          const before = slugUrls.size;
-          for (const u of found) slugUrls.add(`${u}::${kindHint}`);
-          // Yeni URL əlavə olunmadısa — pagination bitib.
-          if (slugUrls.size === before) break;
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          warnings.push(`gain.tv list ${url} failed: ${msg}`);
-          if (page === 1 && slugUrls.size === 0) {
-            return {
-              platform: "GAIN",
-              titles: [],
-              warnings,
-              fatalError: `gain.tv list səhifəsi əlçatan deyil: ${msg}`,
-              stats: { requestCount, durationMs: Date.now() - startedAt },
-            };
-          }
-          break;
-        }
-      }
+    const env = readEnv();
+    if ("error" in env) {
+      return {
+        platform: "GAIN",
+        titles: [],
+        warnings: [],
+        fatalError: env.error,
+      };
     }
 
-    // 2) Hər detay səhifəsini çək
-    for (const entry of slugUrls) {
-      const [url, kindHint] = entry.split("::") as [string, "MOVIE" | "SERIES"];
+    const headers = {
+      accept: "application/json",
+      cookie: env.cookie,
+      // Bəzi backend-lər real Origin/Referer tələb edir — Cloudflare bot
+      // protection üçün də faydalıdır.
+      origin: "https://gain.tv",
+      referer: "https://gain.tv/",
+      "user-agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+    };
+
+    for (const { slug, kind: defaultKind } of SLUGS) {
+      const params = new URLSearchParams({
+        slug,
+        __culture: "tr-tr",
+      });
+      const url = `${GAIN_API_BASE}/${GAIN_TENANT}/CALL/ProfileTitle/getPlaylistsByCategory/${env.profileId}?${params.toString()}`;
+
       try {
         const res = await fetchWithRetry(url, {
-          headers: { "user-agent": USER_AGENT, accept: "text/html,*/*" },
+          headers,
           pacingMs: SCRAPER_CONFIG.rateLimitMs.GAIN,
         });
         requestCount++;
-        const html = await res.text();
-        const mapped = parseDetail(html, url, kindHint);
-        if (mapped && !titlesById.has(mapped.platformExternalId)) {
-          titlesById.set(mapped.platformExternalId, mapped);
+        const data = (await res.json()) as GainPlaylistsResp;
+        const playlists = data.playlists ?? [];
+
+        if (playlists.length === 0) {
+          warnings.push(`gain.tv ${slug}: playlists boş gəldi`);
+          continue;
+        }
+
+        for (const pl of playlists) {
+          for (const item of pl.items ?? []) {
+            const mapped = mapItem(item, defaultKind);
+            if (mapped && !titlesById.has(mapped.platformExternalId)) {
+              titlesById.set(mapped.platformExternalId, mapped);
+            }
+          }
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        warnings.push(`gain.tv detail ${url} failed: ${msg}`);
+        if (titlesById.size === 0) {
+          return {
+            platform: "GAIN",
+            titles: [],
+            warnings,
+            fatalError: `gain.tv ${slug} əlçatan deyil: ${msg}`,
+            stats: { requestCount, durationMs: Date.now() - startedAt },
+          };
+        }
+        warnings.push(`gain.tv ${slug} failed: ${msg}`);
       }
     }
 

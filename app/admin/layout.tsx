@@ -59,6 +59,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
     items: [
       { href: "/admin/streaming", label: "Abunəliklər", iconName: "Tv" },
       { href: "/admin/streaming/titles", label: "Posterlər", iconName: "Tv" },
+      { href: "/admin/streaming/scrape", label: "Kataloq Yığımı", iconName: "RefreshCw" },
       { href: "/admin/streaming-reviews", label: "İcmallar", iconName: "MessageSquare" },
     ],
   },

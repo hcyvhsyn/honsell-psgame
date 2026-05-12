@@ -5,19 +5,16 @@ import type { Scraper, ScraperResult, ScrapedTitle } from "@/lib/scrapers/types"
 
 /**
  * uNoGS (https://rapidapi.com/unogs/api/unogs) — RapidAPI üzərindən
- * Netflix kataloqu. AZ ölkəsi `countrylist=91`.
+ * Netflix kataloqu.
  *
- * Strategiya:
- *   1. `/aaapi.cgi?q=get:new!...&t=ns&cl=91` — AZ kataloqunda olan başlıqlar
- *      (paginated, hər səhifədə 100). Hər başlıq üçün netflix_id, title,
- *      year, genre və dillər gəlir.
- *   2. Audio/subtitle dilləri response-da bəzən "audio"/"subtitle" sahələrində
- *      gəlir; gəlmədiyi başlıqlar üçün boş massiv ötürülür (orchestrator
- *      bunu warning kimi log edir).
+ * Müasir v3 endpoint-i: `GET /search/titles?country_list=AZ&order_by=date&limit=100&offset=...`
+ * (ISO iki-hərfli ölkə kodu). Köhnə v1 endpoint-i (`/aaapi.cgi`) hələ də
+ * mövcud ola bilər amma yeni RapidAPI plan-larında v3-ə yönləndirilib.
  *
- * uNoGS-də periodik schema dəyişiklikləri olur — bu kod son public sənədə
- * əsasən yazılıb; cavab strukturu fərqlənirsə `mapItem` funksiyası adaptasiya
- * olunmalıdır.
+ * Cavab forması (kanonik):
+ *   { results: [ { netflix_id, title, title_type, ... } ], total: number }
+ *
+ * uNoGS schema-sı dəyişərsə `mapItem` adaptasiya olunmalıdır.
  */
 
 const UNOGS_HOST = "unogs-unogs-v1.p.rapidapi.com";
@@ -116,20 +113,15 @@ export const netflixScraper: Scraper = {
 
     const pageSize = 100;
     for (let page = 1; page <= SCRAPER_CONFIG.maxPagesPerPlatform; page++) {
-      // uNoGS-də "new arrivals" sorğu formatı:
-      //   q=get:new<days>:<country>  və ya  q=-!<year_from>,<year_to>!...
-      // Daha geniş katalog üçün `q=-!1900,2030!0,5!0,10!0!Any!Any!Any!gt100`
-      // pattern istifadə olunur. Burada AZ kataloqundakı bütün başlıqları istəyirik.
+      const offset = (page - 1) * pageSize;
+      // Müasir uNoGS v3 endpoint-i — ISO ölkə kodu, ofset əsaslı pagination.
       const params = new URLSearchParams({
-        q: `-!1900,2030!0,5!0,10!0!Any!Any!Any!gt100!{downloadable}`,
-        t: "ns",
-        cl: String(SCRAPER_CONFIG.unogsCountryId),
-        st: "adv",
-        ob: "Relevance",
-        p: String(page),
-        sa: "and",
+        country_list: SCRAPER_CONFIG.country, // "AZ"
+        order_by: "date",
+        limit: String(pageSize),
+        offset: String(offset),
       });
-      const url = `${UNOGS_BASE}/api.cgi?${params.toString()}`;
+      const url = `${UNOGS_BASE}/search/titles?${params.toString()}`;
 
       try {
         const res = await fetchWithRetry(url, {

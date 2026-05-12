@@ -20,7 +20,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let platforms: Platform[] | undefined;
+  // Default: Gain skip (login arxasında, ayrı tələb olduqda body-də verilir).
+  let platforms: Platform[] | undefined = ["NETFLIX", "HBOMAX", "PRIME"];
   try {
     const raw = req.headers.get("content-type")?.includes("application/json")
       ? await req.json().catch(() => ({}))
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
       if (valid.length > 0) platforms = valid;
     }
   } catch {
-    // body parse uğursuz olsa — bütün platformları qaçır
+    // body parse uğursuz olsa — default-a düşür
   }
 
   const result = await runStreamingScrape({ platforms });

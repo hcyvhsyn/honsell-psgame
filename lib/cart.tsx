@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -33,6 +34,11 @@ export type CartItem = {
   streaming?: StreamingCartDetails;
 };
 
+/** Qiymət dəyişikliyi / artıq mövcud olmayan məhsul bildirişi. */
+export type CartPriceChange =
+  | { kind: "price"; id: string; title: string; oldAzn: number; newAzn: number }
+  | { kind: "removed"; id: string; title: string };
+
 type CartContextValue = {
   items: CartItem[];
   count: number;
@@ -45,6 +51,10 @@ type CartContextValue = {
   clear: () => void;
   has: (id: string) => boolean;
   hydrated: boolean;
+  /** Qiymət/mövcudluq bildirişləri (səbəti freshlenmiş qiymətlərlə yenilədikdən sonra). */
+  priceNotices: CartPriceChange[];
+  dismissPriceNotices: () => void;
+  refreshPrices: () => Promise<void>;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -53,6 +63,7 @@ const STORAGE_KEY = "honsell.cart.v1";
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [priceNotices, setPriceNotices] = useState<CartPriceChange[]>([]);
 
   // Hydrate from localStorage after mount to avoid SSR/client mismatch.
   useEffect(() => {
@@ -67,6 +78,79 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
     setHydrated(true);
   }, []);
+
+  const refreshPrices = useCallback(async () => {
+    const snapshot = items;
+    if (snapshot.length === 0) return;
+    const ids = snapshot.map((i) => i.id);
+    let data: { prices?: { id: string; finalAzn: number }[]; missing?: string[] } | null = null;
+    try {
+      const res = await fetch("/api/cart/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) return;
+      data = await res.json();
+    } catch {
+      return;
+    }
+    if (!data) return;
+
+    const priceMap = new Map<string, number>();
+    for (const p of data.prices ?? []) {
+      if (typeof p?.id === "string" && typeof p?.finalAzn === "number") {
+        priceMap.set(p.id, p.finalAzn);
+      }
+    }
+    const missing = new Set<string>(data.missing ?? []);
+    const notices: CartPriceChange[] = [];
+
+    setItems((prev) => {
+      const next: CartItem[] = [];
+      for (const it of prev) {
+        if (missing.has(it.id)) {
+          notices.push({ kind: "removed", id: it.id, title: it.title });
+          continue;
+        }
+        const fresh = priceMap.get(it.id);
+        if (typeof fresh === "number" && Math.abs(fresh - it.finalAzn) > 0.0049) {
+          notices.push({
+            kind: "price",
+            id: it.id,
+            title: it.title,
+            oldAzn: it.finalAzn,
+            newAzn: fresh,
+          });
+          next.push({ ...it, finalAzn: fresh });
+        } else {
+          next.push(it);
+        }
+      }
+      return next;
+    });
+
+    if (notices.length > 0) {
+      setPriceNotices((prev) => {
+        const byId = new Map(prev.map((n) => [`${n.kind}:${n.id}`, n]));
+        for (const n of notices) byId.set(`${n.kind}:${n.id}`, n);
+        return Array.from(byId.values());
+      });
+    }
+  }, [items]);
+
+  // Səbət hydrate olduqda bir dəfə fresh qiymətləri serverdən gətir.
+  // Endirim bitsə də səbətdə köhnə finalAzn qalmasın deyə.
+  const didInitialRefresh = useRef(false);
+  useEffect(() => {
+    if (!hydrated) return;
+    if (didInitialRefresh.current) return;
+    if (items.length === 0) return;
+    didInitialRefresh.current = true;
+    void refreshPrices();
+  }, [hydrated, items, refreshPrices]);
+
+  const dismissPriceNotices = useCallback(() => setPriceNotices([]), []);
 
   // Persist on every change, but only after we've hydrated (otherwise we
   // overwrite the saved cart with the empty initial state).
@@ -151,8 +235,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       clear,
       has,
       hydrated,
+      priceNotices,
+      dismissPriceNotices,
+      refreshPrices,
     };
-  }, [items, add, setQty, updateAccountCreation, updateStreaming, remove, clear, has, hydrated]);
+  }, [
+    items,
+    add,
+    setQty,
+    updateAccountCreation,
+    updateStreaming,
+    remove,
+    clear,
+    has,
+    hydrated,
+    priceNotices,
+    dismissPriceNotices,
+    refreshPrices,
+  ]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

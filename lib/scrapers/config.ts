@@ -13,9 +13,8 @@ export const SCRAPER_CONFIG = {
   /** Hədəf ölkə — ISO 3166-1 alpha-2. JustWatch və uNoGS bu kodu istifadə edir. */
   country: "AZ" as const,
 
-  /** uNoGS country ID — Netflix katalogu üçün uNoGS-də "AZ" daxili 91-dir.
-   *  (https://rapidapi.com/unogs/api/unogs/details — country list endpoint).
-   *  Əgər uNoGS sənədləri dəyişərsə bu dəyəri yenilə. */
+  /** uNoGS köhnə v1 sorğularda istifadə olunan rəqəm ID — saxlanılır legacy üçün
+   *  (lazım gələrsə). Müasir v3 ISO kod istifadə edir — bax `country` sahəsi. */
   unogsCountryId: 91,
 
   /** Hər platform üçün maksimum səhifə — limitsiz qoymuruq ki, run vaxtı

@@ -57,7 +57,26 @@ export default function CartView({
   /** Fired when the user clicks any internal Link inside the cart (used to close the modal). */
   onNavigate?: () => void;
 }) {
-  const { items, totalAzn, setQty, remove, clear, hydrated } = useCart();
+  const {
+    items,
+    totalAzn,
+    setQty,
+    remove,
+    clear,
+    hydrated,
+    priceNotices,
+    dismissPriceNotices,
+    refreshPrices,
+  } = useCart();
+
+  // Səbət səhifəsi açıldıqda fresh qiymətləri yenidən gətir
+  // (Provider hydration-da artıq edir, amma uzun session-larda
+  // istifadəçi səhifəyə qayıtdıqda da freshliyi təmin edirik).
+  useEffect(() => {
+    if (!hydrated) return;
+    void refreshPrices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
   const cashbackAzn = (totalAzn * loyaltyCashbackPct) / 100;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{
@@ -400,6 +419,41 @@ export default function CartView({
 
   return (
     <>
+      {priceNotices.length > 0 ? (
+        <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+            <div className="flex-1">
+              <p className="font-semibold text-amber-200">Səbətdə qiymət yeniləndi</p>
+              <ul className="mt-2 space-y-1 text-xs text-amber-100/90">
+                {priceNotices.map((n) =>
+                  n.kind === "price" ? (
+                    <li key={`price-${n.id}`} className="leading-snug">
+                      <span className="font-medium">{n.title}</span>:{" "}
+                      <span className="text-zinc-400 line-through tabular-nums">
+                        {n.oldAzn.toFixed(2)} AZN
+                      </span>{" "}
+                      → <span className="font-semibold tabular-nums">{n.newAzn.toFixed(2)} AZN</span>
+                    </li>
+                  ) : (
+                    <li key={`removed-${n.id}`} className="leading-snug">
+                      <span className="font-medium">{n.title}</span>{" "}
+                      <span className="text-zinc-400">— artıq mövcud deyil, səbətdən silindi.</span>
+                    </li>
+                  ),
+                )}
+              </ul>
+              <button
+                type="button"
+                onClick={dismissPriceNotices}
+                className="mt-3 text-xs font-medium text-amber-300 underline-offset-2 hover:underline"
+              >
+                Bağla
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <ul className="space-y-3">
         {items.map((item) => (
