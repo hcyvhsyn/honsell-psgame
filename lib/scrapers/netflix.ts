@@ -116,7 +116,6 @@ export const netflixScraper: Scraper = {
 
     const pageSize = 100;
     for (let page = 1; page <= SCRAPER_CONFIG.maxPagesPerPlatform; page++) {
-      const offset = (page - 1) * pageSize;
       // uNoGS-də "new arrivals" sorğu formatı:
       //   q=get:new<days>:<country>  və ya  q=-!<year_from>,<year_to>!...
       // Daha geniş katalog üçün `q=-!1900,2030!0,5!0,10!0!Any!Any!Any!gt100`
