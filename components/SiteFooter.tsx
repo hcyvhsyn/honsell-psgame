@@ -13,6 +13,8 @@ export default function SiteFooter() {
             <Link href="/playstation" className="hover:text-white transition">PlayStation</Link>
             <Link href="/streaming" className="hover:text-white transition">Streaming</Link>
             <Link href="/qazan" className="text-fuchsia-300 hover:text-fuchsia-200 transition">Qazan (Referal)</Link>
+            <Link href="/haqqimizda" className="hover:text-white transition">Haqqımızda</Link>
+            <Link href="/mexfilik-siyaseti" className="hover:text-white transition">Məxfilik siyasəti</Link>
             <Link href="/bilmeli-olduglarin" className="hover:text-white transition">Bələdçilər</Link>
             <Link href="/reyler" className="hover:text-white transition">Rəylər</Link>
           </nav>
@@ -58,6 +60,8 @@ export default function SiteFooter() {
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Şirkət</p>
             <ul className="space-y-2 text-zinc-300">
+              <li><Link href="/haqqimizda" className="hover:text-white transition">Haqqımızda</Link></li>
+              <li><Link href="/mexfilik-siyaseti" className="hover:text-white transition">Məxfilik siyasəti</Link></li>
               <li><Link href="/reyler" className="hover:text-white transition">Müştəri rəyləri</Link></li>
               <li><Link href="/#niye-biz" className="hover:text-white transition">Niyə biz?</Link></li>
               <li><Link href="/profile" className="hover:text-white transition">Hesabım</Link></li>

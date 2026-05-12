@@ -136,7 +136,6 @@ function CartModalBody({
           isAuthed={data.isAuthed}
           walletBalanceAzn={data.walletBalanceAzn}
           cashbackBalanceAzn={data.cashbackBalanceAzn}
-          referralBalanceAzn={data.referralBalanceAzn}
           psnAccounts={data.psnAccounts}
           loyaltyCashbackPct={data.loyaltyCashbackPct}
           referralCode={data.referralCode}

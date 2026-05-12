@@ -17,8 +17,6 @@ type Settings = {
   profitMarginGamesPct: number;
   profitMarginGiftCardsPct: number;
   profitMarginPsPlusPct: number;
-  depositCardNumber: string;
-  depositCardHolder: string;
 };
 
 type ScrapeRun = {
@@ -87,8 +85,6 @@ export default function AdminSettingsPage() {
     profitMarginGamesPct: 20,
     profitMarginGiftCardsPct: 20,
     profitMarginPsPlusPct: 20,
-    depositCardNumber: "",
-    depositCardHolder: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -113,8 +109,6 @@ export default function AdminSettingsPage() {
           profitMarginGamesPct: data.profitMarginGamesPct ?? data.profitMarginPct,
           profitMarginGiftCardsPct: data.profitMarginGiftCardsPct ?? data.profitMarginPct,
           profitMarginPsPlusPct: data.profitMarginPsPlusPct ?? data.profitMarginPct,
-          depositCardNumber: data.depositCardNumber ?? "",
-          depositCardHolder: data.depositCardHolder ?? "",
         });
       })
       .finally(() => setLoading(false));
@@ -348,47 +342,6 @@ export default function AdminSettingsPage() {
             onChange={(v) => setForm({ ...form, profitMarginPsPlusPct: v })}
           />
         </div>
-        <div className="space-y-3 border-t border-zinc-800 pt-5">
-          <h2 className="text-sm font-semibold text-zinc-200">
-            Ödəniş bank kartı
-          </h2>
-          <p className="text-xs text-zinc-500">
-            Müştərilər cüzdan səhifəsində bu kartı görür və köçürmədən əvvəl
-            kopyalayır. Boş buraxsanız manual ödənişlər deaktiv olur.
-          </p>
-          <label className="block">
-            <span className="text-sm font-medium text-zinc-200">Kart nömrəsi</span>
-            <input
-              type="text"
-              value={form.depositCardNumber}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  depositCardNumber: e.target.value
-                    .replace(/\s+/g, "")
-                    .slice(0, 19),
-                })
-              }
-              placeholder="4169 7388 1234 5678"
-              className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono tracking-widest text-zinc-100 focus:border-indigo-500 focus:outline-none"
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium text-zinc-200">
-              Kart sahibinin adı
-            </span>
-            <input
-              type="text"
-              value={form.depositCardHolder}
-              onChange={(e) =>
-                setForm({ ...form, depositCardHolder: e.target.value })
-              }
-              placeholder="HUSEYN HAJIYEV"
-              className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 focus:border-indigo-500 focus:outline-none"
-            />
-          </label>
-        </div>
-
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"

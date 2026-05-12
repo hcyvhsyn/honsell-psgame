@@ -95,7 +95,7 @@ export default async function AdminLayout({
   if (user.role !== "ADMIN") redirect("/");
 
   const pendingDeposits = await prisma.transaction.count({
-    where: { type: "DEPOSIT", status: "PENDING" },
+    where: { type: "DEPOSIT", status: "PENDING", receiptUrl: { not: null } },
   });
 
   const pendingGameOrders = await prisma.transaction.count({

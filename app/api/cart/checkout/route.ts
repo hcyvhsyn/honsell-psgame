@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { SITE_URL } from "@/lib/site";
 import {
   computeDisplayPrice,
   getSettings,
@@ -22,6 +23,16 @@ import {
   recordSuccessfulInvite,
 } from "@/lib/referralCycle";
 import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
+import {
+  EPOINT_CART_PAYMENT_TYPE,
+  type EpointCartLineSnapshot,
+  type EpointCartPaymentMetadata,
+} from "@/lib/epointCartCheckout";
+import {
+  createEpointCheckout,
+  getEpointConfig,
+  type EpointCheckoutResponse,
+} from "@/lib/epoint";
 
 export const runtime = "nodejs";
 
@@ -83,6 +94,26 @@ function parseAccountCreationBody(raw: unknown):
   }
   if (password.length < 8) return { ok: false, error: "Şifrə ən azı 8 simvol olmalıdır." };
   return { ok: true, value: { fullName, birthDate, email, password } };
+}
+
+function requestOrigin(req: Request) {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const host = forwardedHost ?? req.headers.get("host");
+  if (host) return `${forwardedProto ?? "https"}://${host}`.replace(/\/$/, "");
+
+  return SITE_URL;
+}
+
+function checkoutSucceeded(response: EpointCheckoutResponse) {
+  return (
+    String(response.status ?? "").toLowerCase() === "success" &&
+    typeof response.redirect_url === "string" &&
+    response.redirect_url.length > 0
+  );
 }
 
 /**
@@ -349,6 +380,187 @@ export async function POST(req: Request) {
 
   const spentAzn = await getLifetimeSpendAznForLoyalty(prisma, user.id);
   const loyalty = getLoyaltyTier(spentAzn);
+
+  if (body.paymentMethod === "epoint") {
+    const config = getEpointConfig();
+    if (!config) {
+      return NextResponse.json(
+        { error: "Epoint açarları qurulmayıb: EPOINT_PUBLIC_KEY və EPOINT_PRIVATE_KEY lazımdır." },
+        { status: 503 },
+      );
+    }
+
+    const orderCode = `HON-${randomBytes(3).toString("hex").toUpperCase()}`;
+    const createdAt = new Date().toISOString();
+    const snapshotLines: EpointCartLineSnapshot[] = lines.map((line) => {
+      if (line.kind === "GAME") {
+        return {
+          kind: "GAME",
+          title: line.game.title,
+          qty: line.qty,
+          gameId: line.game.id,
+          unitListCents: line.unitListCents,
+          unitSavingsCents: line.unitSavingsCents,
+          psnAccountId: psnAccount!.id,
+          reviewAffiliateId,
+        };
+      }
+
+      if (line.kind === "TRY_BALANCE") {
+        return {
+          kind: "TRY_BALANCE",
+          title: line.service.title,
+          qty: line.qty,
+          serviceProductId: line.service.id,
+          unitListCents: line.unitListCents,
+          psnAccountId: psnAccount!.id,
+        };
+      }
+
+      if (line.kind === "PS_PLUS") {
+        return {
+          kind: "PS_PLUS",
+          title: line.service.title,
+          qty: line.qty,
+          serviceProductId: line.service.id,
+          unitListCents: line.unitListCents,
+          psnAccountId: psnAccount?.id ?? null,
+        };
+      }
+
+      if (line.kind === "ACCOUNT_CREATION") {
+        const names = splitFullName(line.detail.fullName);
+        return {
+          kind: "ACCOUNT_CREATION",
+          title: line.service.title,
+          qty: line.qty,
+          serviceProductId: line.service.id,
+          unitListCents: line.unitListCents,
+          psnAccountId: psnAccount?.id ?? null,
+          detail: {
+            firstName: names.firstName,
+            lastName: names.lastName,
+            birthDate: line.detail.birthDate,
+            email: line.detail.email,
+            password: line.detail.password,
+          },
+        };
+      }
+
+      if (line.kind === "STREAMING") {
+        return {
+          kind: "STREAMING",
+          title: line.service.title,
+          qty: line.qty,
+          serviceProductId: line.service.id,
+          unitListCents: line.unitListCents,
+          deliveryMode: line.deliveryMode,
+          gmail: line.gmail,
+        };
+      }
+
+      const platformMeta = (line.service.metadata as Record<string, unknown> | null) ?? {};
+      return {
+        kind: "PLATFORM",
+        title: line.service.title,
+        qty: line.qty,
+        serviceProductId: line.service.id,
+        unitListCents: line.unitListCents,
+        category: String(platformMeta.category ?? ""),
+        durationMonths: Number(platformMeta.durationMonths) || null,
+      };
+    });
+
+    const metadata: EpointCartPaymentMetadata = {
+      gateway: "epoint",
+      flow: "cart-checkout",
+      orderCode,
+      createdAt,
+      checkout: {
+        totalCents,
+        loyalty: {
+          label: loyalty.label,
+          cashbackPct: loyalty.cashbackPct,
+        },
+        lines: snapshotLines,
+      },
+    };
+
+    const payment = await prisma.transaction.create({
+      data: {
+        userId: user.id,
+        type: EPOINT_CART_PAYMENT_TYPE,
+        status: "PENDING",
+        amountAznCents: totalCents,
+        metadata: JSON.stringify(metadata),
+      },
+      select: { id: true },
+    });
+
+    const origin = requestOrigin(req);
+    let checkout: EpointCheckoutResponse;
+
+    try {
+      checkout = await createEpointCheckout(
+        {
+          public_key: config.publicKey,
+          amount: Number((totalCents / 100).toFixed(2)),
+          currency: "AZN",
+          language: "az",
+          order_id: payment.id,
+          description: `Honsell sifariş ${orderCode}: ${(totalCents / 100).toFixed(2)} AZN`,
+          success_redirect_url: `${origin}/success?order_id=${encodeURIComponent(payment.id)}&order_code=${encodeURIComponent(orderCode)}`,
+          error_redirect_url: `${origin}/error?order_id=${encodeURIComponent(payment.id)}&order_code=${encodeURIComponent(orderCode)}`,
+        },
+        config.privateKey,
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Epoint sorğusu alınmadı.";
+      await prisma.transaction.update({
+        where: { id: payment.id },
+        data: {
+          status: "FAILED",
+          metadata: JSON.stringify({ ...metadata, error: message }),
+        },
+      });
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+
+    if (!checkoutSucceeded(checkout)) {
+      await prisma.transaction.update({
+        where: { id: payment.id },
+        data: {
+          status: "FAILED",
+          metadata: JSON.stringify({ ...metadata, epoint: checkout }),
+        },
+      });
+      return NextResponse.json(
+        { error: checkout.message ?? "Epoint ödəniş linki yaratmadı.", epoint: checkout },
+        { status: 502 },
+      );
+    }
+
+    await prisma.transaction.update({
+      where: { id: payment.id },
+      data: {
+        metadata: JSON.stringify({
+          ...metadata,
+          epoint: {
+            transaction: checkout.transaction ?? null,
+            status: checkout.status ?? null,
+          },
+        }),
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      paymentMethod: "epoint",
+      orderId: payment.id,
+      orderCode,
+      redirectUrl: checkout.redirect_url,
+    });
+  }
 
   if (paymentSource === "referral") {
     if (user.referralBalanceCents < totalCents) {

@@ -21,12 +21,13 @@ export default async function AdminDepositsPage({
 
   const where = {
     type: "DEPOSIT",
+    receiptUrl: { not: null },
     ...(status !== "ALL" ? { status } : {}),
   };
 
   const [pendingCount, total, deposits] = await Promise.all([
     prisma.transaction.count({
-      where: { type: "DEPOSIT", status: "PENDING" },
+      where: { type: "DEPOSIT", status: "PENDING", receiptUrl: { not: null } },
     }),
     prisma.transaction.count({ where }),
     prisma.transaction.findMany({

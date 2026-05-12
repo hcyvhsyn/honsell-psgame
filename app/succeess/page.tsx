@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CheckCircle2, Home, WalletCards } from "lucide-react";
+import ClearCartOnMount from "./ClearCartOnMount";
 
 export const metadata: Metadata = {
   title: "Ödəniş uğurlu oldu",
@@ -10,12 +11,14 @@ export const metadata: Metadata = {
 export default function EpointSuccessPage({
   searchParams,
 }: {
-  searchParams?: { order_id?: string; transaction?: string };
+  searchParams?: { order_id?: string; transaction?: string; order_code?: string };
 }) {
   const orderId = searchParams?.order_id ?? searchParams?.transaction ?? null;
+  const orderCode = searchParams?.order_code ?? null;
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-16 text-zinc-100">
+      <ClearCartOnMount active={Boolean(orderCode)} />
       <section className="w-full max-w-lg rounded-2xl border border-emerald-500/25 bg-zinc-950/80 p-8 text-center shadow-2xl shadow-emerald-950/20">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
           <CheckCircle2 className="h-8 w-8" />
@@ -30,6 +33,11 @@ export default function EpointSuccessPage({
         {orderId && (
           <p className="mt-4 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-xs text-zinc-400">
             Sifariş: {orderId}
+          </p>
+        )}
+        {orderCode && (
+          <p className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 font-mono text-xs text-emerald-200">
+            Kod: {orderCode}
           </p>
         )}
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">

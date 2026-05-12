@@ -37,7 +37,6 @@ export default function CartView({
   isAuthed,
   walletBalanceAzn,
   cashbackBalanceAzn = 0,
-  referralBalanceAzn = 0,
   psnAccounts,
   loyaltyCashbackPct = 0,
   referralCode = null,
@@ -48,7 +47,6 @@ export default function CartView({
   walletBalanceAzn: number;
   /** Loyalty tərəfindən toplanmış cashback balansı (deposit cüzdandan ayrı). */
   cashbackBalanceAzn?: number;
-  referralBalanceAzn?: number;
   psnAccounts: PsnOption[];
   /** Cashback % the buyer will earn after this purchase. 0 = none. */
   loyaltyCashbackPct?: number;
@@ -72,8 +70,6 @@ export default function CartView({
   } | null>(null);
 
   const [accountEdit, setAccountEdit] = useState<{ itemId: string; key: number } | null>(null);
-  const [paymentSource, setPaymentSource] = useState<"wallet" | "referral">("wallet");
-
   // Default to the user's flagged-default PSN account; fall back to the first.
   const defaultId = psnAccounts.find((a) => a.isDefault)?.id ?? psnAccounts[0]?.id ?? "";
   const [psnAccountId, setPsnAccountId] = useState<string>(defaultId);
@@ -81,12 +77,6 @@ export default function CartView({
   useEffect(() => {
     setPsnAccountId(defaultId);
   }, [defaultId]);
-
-  useEffect(() => {
-    if (referralBalanceAzn <= 0 && paymentSource === "referral") {
-      setPaymentSource("wallet");
-    }
-  }, [referralBalanceAzn, paymentSource]);
 
   useEffect(() => {
     if (accountEdit && !items.some((i) => i.id === accountEdit.itemId)) {
@@ -256,10 +246,7 @@ export default function CartView({
     );
   }
 
-  const insufficientWallet =
-    isAuthed && paymentSource === "wallet" && walletBalanceAzn < totalAzn;
-  const insufficientReferral =
-    isAuthed && paymentSource === "referral" && referralBalanceAzn < totalAzn;
+  const insufficientWallet = isAuthed && walletBalanceAzn < totalAzn;
 
   function checkoutBalanceSuffix(d: Record<string, unknown>): string {
     const nw = d.newWalletBalanceAzn;
@@ -273,7 +260,7 @@ export default function CartView({
     return "";
   }
 
-  async function checkout() {
+  async function checkout(paymentMethod: "wallet" | "epoint") {
     if (!isAuthed || blockedNoPsn) return;
     if (
       items.some(
@@ -317,11 +304,17 @@ export default function CartView({
               : {}),
           })),
           psnAccountId: deliveryNeedsPsn ? psnAccountId : null,
-          paymentSource,
+          paymentSource: "wallet",
+          paymentMethod,
         }),
       });
       const data = await res.json();
       if (res.ok) {
+        if (paymentMethod === "epoint" && typeof data.redirectUrl === "string") {
+          window.location.href = data.redirectUrl;
+          return;
+        }
+
         clear();
         const target = data.deliveredTo?.label ?? "hesabına";
         let text = "";
@@ -528,67 +521,35 @@ export default function CartView({
             </div>
           ) : (
             <div className="space-y-3">
-              <div
-                className="space-y-2 rounded-xl border border-zinc-800/70 bg-zinc-950/50 p-3"
-                role="radiogroup"
-                aria-label="Ödəniş mənbəyi"
-              >
+              <div className="space-y-2 rounded-xl border border-zinc-800/70 bg-zinc-950/50 p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                  Ödəniş mənbəyi
+                  Ödəniş növləri
                 </p>
 
-                <label
-                  className={`flex cursor-pointer items-start gap-2.5 rounded-lg p-2 transition ${
-                    paymentSource === "wallet"
-                      ? "bg-indigo-500/15 ring-1 ring-indigo-500/40"
-                      : "hover:bg-zinc-800/40"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="cartPaymentSource"
-                    className="mt-1 shrink-0"
-                    checked={paymentSource === "wallet"}
-                    onChange={() => setPaymentSource("wallet")}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-zinc-200">Öz balansım</span>
-                    <span className="text-xs text-zinc-500">Depozit / əsas cüzdan (ödəniş üçün)</span>
-                    <span
-                      className={`mt-0.5 block text-xs font-semibold tabular-nums ${
-                        insufficientWallet ? "text-red-400" : "text-emerald-400"
-                      }`}
-                    >
-                      {walletBalanceAzn.toFixed(2)} AZN
-                    </span>
+                <div className="rounded-lg bg-indigo-500/10 p-3 ring-1 ring-indigo-500/25">
+                  <span className="block text-sm font-medium text-zinc-200">
+                    1. Balansla ödə
                   </span>
-                </label>
+                  <span className="text-xs text-zinc-500">
+                    Əvvəl balans artır, sonra cüzdanla alışı tamamla.
+                  </span>
+                  <span
+                    className={`mt-1 block text-xs font-semibold tabular-nums ${
+                      insufficientWallet ? "text-red-400" : "text-emerald-400"
+                    }`}
+                  >
+                    Cüzdan: {walletBalanceAzn.toFixed(2)} AZN
+                  </span>
+                </div>
 
-                <label
-                  className={`flex items-start gap-2.5 rounded-lg p-2 transition ${
-                    referralBalanceAzn <= 0 ? "cursor-not-allowed opacity-45" : "cursor-pointer"
-                  } ${paymentSource === "referral" ? "bg-fuchsia-500/15 ring-1 ring-fuchsia-500/35" : "hover:bg-zinc-800/40"}`}
-                >
-                  <input
-                    type="radio"
-                    name="cartPaymentSource"
-                    className="mt-1 shrink-0 disabled:opacity-40"
-                    disabled={referralBalanceAzn <= 0}
-                    checked={paymentSource === "referral"}
-                    onChange={() => setPaymentSource("referral")}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-zinc-200">Referal balansım</span>
-                    <span className="text-xs text-zinc-500">Referal komissiya balansından</span>
-                    <span
-                      className={`mt-0.5 block text-xs font-semibold tabular-nums ${
-                        insufficientReferral ? "text-red-400" : "text-fuchsia-300"
-                      }`}
-                    >
-                      {referralBalanceAzn.toFixed(2)} AZN
-                    </span>
+                <div className="rounded-lg bg-emerald-500/10 p-3 ring-1 ring-emerald-500/25">
+                  <span className="block text-sm font-medium text-zinc-200">
+                    2. Kartla birbaşa ödə
                   </span>
-                </label>
+                  <span className="text-xs text-zinc-500">
+                    Bu sifarişi balans yükləmədən Epoint kart ödənişi ilə tamamla.
+                  </span>
+                </div>
               </div>
 
               <p className="text-[10px] leading-relaxed text-zinc-500">
@@ -606,28 +567,25 @@ export default function CartView({
                     {(totalAzn - walletBalanceAzn).toFixed(2)} AZN çatmır
                   </span>
                 </Link>
-              ) : insufficientReferral ? (
-                <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs leading-relaxed text-amber-200/90">
-                  Referal balansında {(totalAzn - referralBalanceAzn).toFixed(2)} AZN çatmır. Əlavə komissiya üçün
-                  dəvətlər göndərin və ya seçimi öz balansına dəyişin.{" "}
-                  <Link
-                    href="/profile/referrals"
-                    onClick={onNavigate}
-                    className="font-semibold text-amber-300 underline underline-offset-2"
-                  >
-                    Referallarım
-                  </Link>
-                </div>
               ) : (
                 <button
                   type="button"
-                  onClick={checkout}
+                  onClick={() => checkout("wallet")}
                   disabled={busy}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98] disabled:opacity-50"
                 >
-                  {busy ? "İşlənir…" : paymentSource === "referral" ? "Referal ilə ödə" : "Cüzdanla ödə"}
+                  {busy ? "İşlənir..." : "Cüzdanla ödə"}
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={() => checkout("epoint")}
+                disabled={busy}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400 active:scale-[0.98] disabled:opacity-50"
+              >
+                {busy ? "İşlənir..." : "Kartla birbaşa ödə"}
+              </button>
             </div>
           )}
         </div>

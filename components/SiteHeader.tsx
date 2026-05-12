@@ -110,6 +110,8 @@ const otherGroup: NavGroup = {
   items: [
     { href: "/qazan", label: "Qazan" },
     { href: "/bilmeli-olduglarin", label: "Bələdçilər" },
+    { href: "/haqqimizda", label: "Haqqımızda" },
+    { href: "/mexfilik-siyaseti", label: "Məxfilik siyasəti" },
   ],
 };
 

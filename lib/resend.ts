@@ -222,7 +222,7 @@ export async function sendAdminOrderNotification(params: {
   userEmail: string;
   userName: string | null;
   totalAzn: number;
-  paymentSource: "wallet" | "referral";
+  paymentSource: "wallet" | "referral" | "epoint";
   items: Array<{ kind: string; title: string; qty: number; lineAzn: number }>;
 }) {
   const { orderCode, userEmail, userName, totalAzn, paymentSource, items } = params;
@@ -245,7 +245,7 @@ export async function sendAdminOrderNotification(params: {
     <table cellpadding="6" style="border-collapse:collapse">
       <tr><td><b>Müştəri</b></td><td>${escapeHtml(userName ?? "—")}</td></tr>
       <tr><td><b>E-poçt</b></td><td>${escapeHtml(userEmail)}</td></tr>
-      <tr><td><b>Ödəniş mənbəyi</b></td><td>${paymentSource === "referral" ? "Referal balansı" : "Cüzdan"}</td></tr>
+      <tr><td><b>Ödəniş mənbəyi</b></td><td>${paymentSource === "referral" ? "Referal balansı" : paymentSource === "epoint" ? "Epoint" : "Cüzdan"}</td></tr>
       <tr><td><b>Cəm</b></td><td><b>${fmtAzn(totalAzn)}</b></td></tr>
     </table>
     <h3>Sətirlər</h3>

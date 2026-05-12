@@ -100,12 +100,13 @@ function parseStreamingMeta(metadata?: string | null): {
   }
 }
 
-function getPaymentSource(metadata?: string | null): "WALLET" | "REFERRAL" | "UNKNOWN" {
+function getPaymentSource(metadata?: string | null): "WALLET" | "REFERRAL" | "EPOINT" | "UNKNOWN" {
   if (!metadata) return "UNKNOWN";
   try {
     const m = JSON.parse(metadata) as { paymentSource?: string };
     if (m.paymentSource === "REFERRAL") return "REFERRAL";
     if (m.paymentSource === "WALLET") return "WALLET";
+    if (m.paymentSource === "EPOINT") return "EPOINT";
     return "UNKNOWN";
   } catch {
     return "UNKNOWN";
@@ -992,4 +993,3 @@ function Td({
 }) {
   return <td className={`px-5 py-3 align-top ${className}`}>{children}</td>;
 }
-

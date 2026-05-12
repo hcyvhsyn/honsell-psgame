@@ -42,7 +42,6 @@ export default async function CartPage() {
           isAuthed={!!user}
           walletBalanceAzn={user ? user.walletBalance / 100 : 0}
           cashbackBalanceAzn={user ? (user.cashbackBalanceCents ?? 0) / 100 : 0}
-          referralBalanceAzn={user ? user.referralBalanceCents / 100 : 0}
           psnAccounts={psnAccounts}
           loyaltyCashbackPct={loyaltyCashbackPct}
           referralCode={user?.referralCode ?? null}

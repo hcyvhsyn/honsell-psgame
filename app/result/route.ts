@@ -3,10 +3,15 @@ import { prisma } from "@/lib/prisma";
 import {
   decodeEpointData,
   epointResultIsSuccess,
+  readEpointAmountCents,
   readEpointOrderId,
   verifyEpointSignature,
   type EpointResultData,
 } from "@/lib/epoint";
+import {
+  EPOINT_CART_PAYMENT_TYPE,
+  finalizeEpointCartCheckout,
+} from "@/lib/epointCartCheckout";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +22,27 @@ type ResultPayload = {
   decoded: EpointResultData;
   verified: boolean;
 };
+
+function readMetadata(value: string | null) {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function buildResultMetadata(txMetadata: string | null, payload: EpointResultData) {
+  return JSON.stringify({
+    ...readMetadata(txMetadata),
+    gateway: "epoint",
+    result: payload,
+    resultReceivedAt: new Date().toISOString(),
+  });
+}
 
 async function readPayload(req: Request): Promise<ResultPayload> {
   const url = new URL(req.url);
@@ -68,7 +94,7 @@ async function applyResult(payload: ResultPayload) {
   const tx = await prisma.transaction.findUnique({ where: { id: orderId } });
   if (!tx) return { orderId, updated: false, reason: "ORDER_NOT_FOUND" };
 
-  if (tx.type !== "DEPOSIT") {
+  if (tx.type !== "DEPOSIT" && tx.type !== EPOINT_CART_PAYMENT_TYPE) {
     return { orderId, updated: false, reason: "UNSUPPORTED_TRANSACTION_TYPE" };
   }
 
@@ -76,34 +102,74 @@ async function applyResult(payload: ResultPayload) {
     return { orderId, updated: false, reason: `ALREADY_${tx.status}` };
   }
 
-  if (status === "SUCCESS") {
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: tx.userId },
-        data: { walletBalance: { increment: tx.amountAznCents } },
-      }),
-      prisma.transaction.update({
-        where: { id: tx.id },
-        data: {
-          status,
-          metadata: JSON.stringify({
-            gateway: "epoint",
-            result: payload.decoded,
-          }),
-        },
-      }),
-    ]);
-  } else {
+  const amountCents = readEpointAmountCents(payload.decoded);
+  if (status === "SUCCESS" && amountCents != null && amountCents !== tx.amountAznCents) {
     await prisma.transaction.update({
       where: { id: tx.id },
       data: {
-        status,
+        status: "FAILED",
         metadata: JSON.stringify({
+          ...readMetadata(tx.metadata),
           gateway: "epoint",
           result: payload.decoded,
+          resultReceivedAt: new Date().toISOString(),
+          error: "AMOUNT_MISMATCH",
+          expectedAmountAznCents: tx.amountAznCents,
+          receivedAmountAznCents: amountCents,
         }),
       },
     });
+
+    return { orderId, updated: false, reason: "AMOUNT_MISMATCH" };
+  }
+
+  const metadata = buildResultMetadata(tx.metadata, payload.decoded);
+
+  if (tx.type === EPOINT_CART_PAYMENT_TYPE) {
+    if (status === "SUCCESS") {
+      const checkoutResult = await finalizeEpointCartCheckout(tx, payload.decoded);
+      return {
+        orderId,
+        updated: checkoutResult.ok,
+        status,
+        reason: checkoutResult.ok ? undefined : checkoutResult.reason,
+        orderCode: checkoutResult.ok ? checkoutResult.orderCode : undefined,
+      };
+    }
+
+    const result = await prisma.transaction.updateMany({
+      where: { id: tx.id, status: "PENDING" },
+      data: { status, metadata },
+    });
+    if (result.count !== 1) return { orderId, updated: false, reason: "ALREADY_PROCESSED" };
+
+    return { orderId, updated: true, status };
+  }
+
+  if (status === "SUCCESS") {
+    const updated = await prisma.$transaction(async (db) => {
+      const result = await db.transaction.updateMany({
+        where: { id: tx.id, status: "PENDING" },
+        data: { status, metadata },
+      });
+      if (result.count !== 1) return false;
+
+      await db.user.update({
+        where: { id: tx.userId },
+        data: { walletBalance: { increment: tx.amountAznCents } },
+      });
+
+      return true;
+    });
+
+    if (!updated) return { orderId, updated: false, reason: "ALREADY_PROCESSED" };
+  } else {
+    const result = await prisma.transaction.updateMany({
+      where: { id: tx.id, status: "PENDING" },
+      data: { status, metadata },
+    });
+
+    if (result.count !== 1) return { orderId, updated: false, reason: "ALREADY_PROCESSED" };
   }
 
   return { orderId, updated: true, status };

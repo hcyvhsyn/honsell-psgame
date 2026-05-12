@@ -35,3 +35,21 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 # honsell-psgame
+
+## Epoint payment setup
+
+Set these environment variables before enabling card payments:
+
+```bash
+NEXT_PUBLIC_APP_URL=https://honsell.store
+EPOINT_PUBLIC_KEY=...
+EPOINT_PRIVATE_KEY=...
+```
+
+In the Epoint merchant cabinet, configure:
+
+```text
+success_url: https://honsell.store/success
+error_url:   https://honsell.store/error
+result_url:  https://honsell.store/result
+```

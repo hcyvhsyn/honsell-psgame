@@ -1,14 +1,44 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { SITE_URL } from "@/lib/site";
+import {
+  createEpointCheckout,
+  getEpointConfig,
+  type EpointCheckoutResponse,
+} from "@/lib/epoint";
 
 export const runtime = "nodejs";
 
-/**
- * Mock Epoint deposit. In production this would create a payment intent with
- * Epoint and only credit the wallet on the success webhook. For the skeleton
- * we validate the input shape and credit the wallet immediately.
- */
+const MIN_DEPOSIT_CENTS = 100;
+const MAX_DEPOSIT_CENTS = 1_000_000;
+
+function parseAznToCents(value: unknown) {
+  const amount = typeof value === "string" ? Number(value.replace(",", ".")) : Number(value);
+  if (!Number.isFinite(amount)) return null;
+  return Math.round(amount * 100);
+}
+
+function requestOrigin(req: Request) {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const host = forwardedHost ?? req.headers.get("host");
+  if (host) return `${forwardedProto ?? "https"}://${host}`.replace(/\/$/, "");
+
+  return SITE_URL;
+}
+
+function checkoutSucceeded(response: EpointCheckoutResponse) {
+  return (
+    String(response.status ?? "").toLowerCase() === "success" &&
+    typeof response.redirect_url === "string" &&
+    response.redirect_url.length > 0
+  );
+}
+
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) {
@@ -16,37 +46,113 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const amountAzn = Number(body.amountAzn);
-  const cardLast4 = String(body.cardNumber ?? "").replace(/\D/g, "").slice(-4);
+  const amountCents = parseAznToCents(body.amountAzn);
 
-  if (!Number.isFinite(amountAzn) || amountAzn <= 0) {
-    return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+  if (amountCents == null || amountCents < MIN_DEPOSIT_CENTS) {
+    return NextResponse.json({ error: "Məbləğ ən azı 1 AZN olmalıdır." }, { status: 400 });
   }
-  if (cardLast4.length !== 4) {
-    return NextResponse.json({ error: "Invalid card details" }, { status: 400 });
+  if (amountCents > MAX_DEPOSIT_CENTS) {
+    return NextResponse.json({ error: "Məbləğ maksimum 10 000 AZN ola bilər." }, { status: 400 });
   }
 
-  const amountCents = Math.round(amountAzn * 100);
+  const config = getEpointConfig();
+  if (!config) {
+    return NextResponse.json(
+      { error: "Epoint açarları qurulmayıb: EPOINT_PUBLIC_KEY və EPOINT_PRIVATE_KEY lazımdır." },
+      { status: 503 },
+    );
+  }
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const u = await tx.user.update({
-      where: { id: user.id },
-      data: { walletBalance: { increment: amountCents } },
-    });
-    await tx.transaction.create({
+  const amountAzn = Number((amountCents / 100).toFixed(2));
+  const origin = requestOrigin(req);
+  const createdAt = new Date().toISOString();
+
+  const tx = await prisma.transaction.create({
+    data: {
+      userId: user.id,
+      type: "DEPOSIT",
+      status: "PENDING",
+      amountAznCents: amountCents,
+      metadata: JSON.stringify({
+        gateway: "epoint",
+        flow: "wallet-deposit",
+        createdAt,
+      }),
+    },
+    select: { id: true },
+  });
+
+  let checkout: EpointCheckoutResponse;
+  try {
+    checkout = await createEpointCheckout(
+      {
+        public_key: config.publicKey,
+        amount: amountAzn,
+        currency: "AZN",
+        language: "az",
+        order_id: tx.id,
+        description: `Honsell cüzdan balansı: ${amountAzn.toFixed(2)} AZN`,
+        success_redirect_url: `${origin}/success?order_id=${encodeURIComponent(tx.id)}`,
+        error_redirect_url: `${origin}/error?order_id=${encodeURIComponent(tx.id)}`,
+      },
+      config.privateKey,
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Epoint sorğusu alınmadı.";
+    await prisma.transaction.update({
+      where: { id: tx.id },
       data: {
-        userId: user.id,
-        type: "DEPOSIT",
-        status: "SUCCESS",
-        amountAznCents: amountCents,
-        metadata: JSON.stringify({ gateway: "epoint-mock", cardLast4 }),
+        status: "FAILED",
+        metadata: JSON.stringify({
+          gateway: "epoint",
+          flow: "wallet-deposit",
+          createdAt,
+          error: message,
+        }),
       },
     });
-    return u;
+
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
+
+  if (!checkoutSucceeded(checkout)) {
+    await prisma.transaction.update({
+      where: { id: tx.id },
+      data: {
+        status: "FAILED",
+        metadata: JSON.stringify({
+          gateway: "epoint",
+          flow: "wallet-deposit",
+          createdAt,
+          epoint: checkout,
+        }),
+      },
+    });
+
+    return NextResponse.json(
+      { error: checkout.message ?? "Epoint ödəniş linki yaratmadı.", epoint: checkout },
+      { status: 502 },
+    );
+  }
+
+  await prisma.transaction.update({
+    where: { id: tx.id },
+    data: {
+      metadata: JSON.stringify({
+        gateway: "epoint",
+        flow: "wallet-deposit",
+        createdAt,
+        epoint: {
+          transaction: checkout.transaction ?? null,
+          status: checkout.status ?? null,
+        },
+      }),
+    },
   });
 
   return NextResponse.json({
     ok: true,
-    walletBalance: updated.walletBalance / 100,
+    orderId: tx.id,
+    redirectUrl: checkout.redirect_url,
   });
 }

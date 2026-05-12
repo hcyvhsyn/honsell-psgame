@@ -1,0 +1,423 @@
+import { prisma } from "@/lib/prisma";
+import { applyCashbackToBalance } from "@/lib/loyaltyCashback";
+import { getSettings } from "@/lib/pricing";
+import { recordPurchaseSpend, recordSuccessfulInvite } from "@/lib/referralCycle";
+import { sendAdminOrderNotification } from "@/lib/resend";
+import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
+import type { EpointResultData } from "@/lib/epoint";
+
+export const EPOINT_CART_PAYMENT_TYPE = "CHECKOUT_PAYMENT";
+
+export type EpointCartLineSnapshot =
+  | {
+      kind: "GAME";
+      title: string;
+      qty: number;
+      gameId: string;
+      unitListCents: number;
+      unitSavingsCents: number;
+      psnAccountId: string;
+      reviewAffiliateId?: string | null;
+    }
+  | {
+      kind: "TRY_BALANCE";
+      title: string;
+      qty: number;
+      serviceProductId: string;
+      unitListCents: number;
+      psnAccountId: string;
+    }
+  | {
+      kind: "PS_PLUS";
+      title: string;
+      qty: number;
+      serviceProductId: string;
+      unitListCents: number;
+      psnAccountId: string | null;
+    }
+  | {
+      kind: "ACCOUNT_CREATION";
+      title: string;
+      qty: number;
+      serviceProductId: string;
+      unitListCents: number;
+      psnAccountId: string | null;
+      detail: {
+        firstName: string;
+        lastName: string;
+        birthDate: string;
+        email: string;
+        password: string;
+      };
+    }
+  | {
+      kind: "STREAMING";
+      title: string;
+      qty: number;
+      serviceProductId: string;
+      unitListCents: number;
+      deliveryMode: "CODE" | "GMAIL";
+      gmail?: string;
+    }
+  | {
+      kind: "PLATFORM";
+      title: string;
+      qty: number;
+      serviceProductId: string;
+      unitListCents: number;
+      category: string;
+      durationMonths: number | null;
+    };
+
+export type EpointCartPaymentMetadata = {
+  gateway: "epoint";
+  flow: "cart-checkout";
+  orderCode: string;
+  createdAt: string;
+  checkout: {
+    totalCents: number;
+    loyalty: {
+      label: string;
+      cashbackPct: number;
+    };
+    lines: EpointCartLineSnapshot[];
+  };
+  epoint?: Record<string, unknown>;
+  result?: EpointResultData;
+  resultReceivedAt?: string;
+};
+
+type PaymentTransaction = {
+  id: string;
+  userId: string;
+  type: string;
+  status: string;
+  amountAznCents: number;
+  metadata: string | null;
+};
+
+function parseMetadata(value: string | null): EpointCartPaymentMetadata | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<EpointCartPaymentMetadata>;
+    if (
+      parsed.gateway !== "epoint" ||
+      parsed.flow !== "cart-checkout" ||
+      typeof parsed.orderCode !== "string" ||
+      !parsed.checkout ||
+      !Array.isArray(parsed.checkout.lines)
+    ) {
+      return null;
+    }
+    return parsed as EpointCartPaymentMetadata;
+  } catch {
+    return null;
+  }
+}
+
+function metadataWithResult(meta: EpointCartPaymentMetadata, result: EpointResultData) {
+  return JSON.stringify({
+    ...meta,
+    result,
+    resultReceivedAt: new Date().toISOString(),
+  });
+}
+
+export async function finalizeEpointCartCheckout(
+  payment: PaymentTransaction,
+  resultPayload: EpointResultData,
+) {
+  const meta = parseMetadata(payment.metadata);
+  if (!meta) return { ok: false, reason: "CART_METADATA_INVALID" };
+  if (payment.type !== EPOINT_CART_PAYMENT_TYPE) {
+    return { ok: false, reason: "UNSUPPORTED_TRANSACTION_TYPE" };
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: payment.userId } });
+  if (!user) return { ok: false, reason: "USER_NOT_FOUND" };
+
+  const settings = await getSettings();
+  type CompletionSummary = {
+    purchaseIds: string[];
+    serviceOrderIds: string[];
+    cashbackCents: number;
+    totalCommissionCents: number;
+    tryBalancePendingCount: number;
+    orderCode: string;
+  };
+
+  const summary = await prisma.$transaction(async (tx): Promise<CompletionSummary | null> => {
+    const paymentUpdate = await tx.transaction.updateMany({
+      where: { id: payment.id, status: "PENDING" },
+      data: {
+        status: "SUCCESS",
+        metadata: metadataWithResult(meta, resultPayload),
+      },
+    });
+    if (paymentUpdate.count !== 1) return null;
+
+    const purchaseIds: string[] = [];
+    const serviceOrderIds: string[] = [];
+    let totalCommissionCents = 0;
+    let tryBalancePendingCount = 0;
+
+    for (const line of meta.checkout.lines) {
+      for (let n = 0; n < line.qty; n++) {
+        if (line.kind === "GAME") {
+          const purchase = await tx.transaction.create({
+            data: {
+              userId: payment.userId,
+              type: "PURCHASE",
+              status: "PENDING",
+              amountAznCents: -line.unitListCents,
+              savingsAznCents: line.unitSavingsCents,
+              gameId: line.gameId,
+              psnAccountId: line.psnAccountId,
+              metadata: JSON.stringify({
+                paymentSource: "EPOINT",
+                fromCart: true,
+                manualDelivery: true,
+                fulfillmentStage: "NEW",
+                orderCode: meta.orderCode,
+                epointPaymentId: payment.id,
+                ...(line.reviewAffiliateId
+                  ? {
+                      reviewAffiliateId: line.reviewAffiliateId,
+                      reviewAffiliateLineCents: line.unitListCents,
+                    }
+                  : {}),
+              }),
+            },
+          });
+          purchaseIds.push(purchase.id);
+          continue;
+        }
+
+        if (line.kind === "TRY_BALANCE") {
+          const sc = await tx.serviceCode.findFirst({
+            where: { serviceProductId: line.serviceProductId, isUsed: false },
+            orderBy: { createdAt: "asc" },
+          });
+
+          if (!sc) {
+            const serviceOrder = await tx.transaction.create({
+              data: {
+                userId: payment.userId,
+                type: "SERVICE_PURCHASE",
+                status: "PENDING",
+                amountAznCents: -line.unitListCents,
+                serviceProductId: line.serviceProductId,
+                psnAccountId: line.psnAccountId,
+                metadata: JSON.stringify({
+                  fromCart: true,
+                  kind: "TRY_BALANCE",
+                  reason: "OUT_OF_STOCK",
+                  paymentSource: "EPOINT",
+                  orderCode: meta.orderCode,
+                  epointPaymentId: payment.id,
+                }),
+              },
+            });
+            serviceOrderIds.push(serviceOrder.id);
+            tryBalancePendingCount += 1;
+            continue;
+          }
+
+          await tx.serviceCode.update({
+            where: { id: sc.id },
+            data: { isUsed: true },
+          });
+
+          const serviceOrder = await tx.transaction.create({
+            data: {
+              userId: payment.userId,
+              type: "SERVICE_PURCHASE",
+              status: "SUCCESS",
+              amountAznCents: -line.unitListCents,
+              serviceProductId: line.serviceProductId,
+              serviceCodeId: sc.id,
+              psnAccountId: line.psnAccountId,
+              metadata: JSON.stringify({
+                fromCart: true,
+                kind: "TRY_BALANCE",
+                paymentSource: "EPOINT",
+                orderCode: meta.orderCode,
+                epointPaymentId: payment.id,
+              }),
+            },
+          });
+          serviceOrderIds.push(serviceOrder.id);
+
+          const cm = await awardStreamingReferralCommission(tx, {
+            sourceTransactionId: serviceOrder.id,
+            buyerUserId: payment.userId,
+            serviceProductId: line.serviceProductId,
+            lineCents: line.unitListCents,
+            streamingProfitSharePct: settings.referralGiftCardsPct,
+            kind: "TRY_BALANCE",
+          });
+          if (cm) {
+            totalCommissionCents += cm.commissionCents;
+          }
+
+          try {
+            await recordPurchaseSpend(tx, payment.userId, line.unitListCents);
+            if (cm?.referredById) {
+              await recordSuccessfulInvite(tx, cm.referredById, payment.userId);
+            }
+          } catch (err) {
+            console.error("referral cycle bookkeeping failed", err);
+          }
+          continue;
+        }
+
+        if (line.kind === "PS_PLUS") {
+          const serviceOrder = await tx.transaction.create({
+            data: {
+              userId: payment.userId,
+              type: "SERVICE_PURCHASE",
+              status: "PENDING",
+              amountAznCents: -line.unitListCents,
+              serviceProductId: line.serviceProductId,
+              psnAccountId: line.psnAccountId,
+              metadata: JSON.stringify({
+                fromCart: true,
+                kind: "PS_PLUS",
+                paymentSource: "EPOINT",
+                orderCode: meta.orderCode,
+                epointPaymentId: payment.id,
+              }),
+            },
+          });
+          serviceOrderIds.push(serviceOrder.id);
+          continue;
+        }
+
+        if (line.kind === "ACCOUNT_CREATION") {
+          const serviceOrder = await tx.transaction.create({
+            data: {
+              userId: payment.userId,
+              type: "SERVICE_PURCHASE",
+              status: "PENDING",
+              amountAznCents: -line.unitListCents,
+              serviceProductId: line.serviceProductId,
+              psnAccountId: line.psnAccountId,
+              metadata: JSON.stringify({
+                fromCart: true,
+                kind: "ACCOUNT_CREATION",
+                paymentSource: "EPOINT",
+                orderCode: meta.orderCode,
+                epointPaymentId: payment.id,
+                firstName: line.detail.firstName,
+                lastName: line.detail.lastName,
+                birthDate: line.detail.birthDate,
+                email: line.detail.email,
+                password: line.detail.password,
+              }),
+            },
+          });
+          serviceOrderIds.push(serviceOrder.id);
+          continue;
+        }
+
+        if (line.kind === "STREAMING") {
+          const serviceOrder = await tx.transaction.create({
+            data: {
+              userId: payment.userId,
+              type: "SERVICE_PURCHASE",
+              status: "PENDING",
+              amountAznCents: -line.unitListCents,
+              serviceProductId: line.serviceProductId,
+              metadata: JSON.stringify({
+                fromCart: true,
+                kind: "STREAMING",
+                deliveryMode: line.deliveryMode,
+                paymentSource: "EPOINT",
+                orderCode: meta.orderCode,
+                epointPaymentId: payment.id,
+                ...(line.deliveryMode === "GMAIL" && line.gmail ? { gmail: line.gmail } : {}),
+              }),
+            },
+          });
+          serviceOrderIds.push(serviceOrder.id);
+          continue;
+        }
+
+        const serviceOrder = await tx.transaction.create({
+          data: {
+            userId: payment.userId,
+            type: "SERVICE_PURCHASE",
+            status: "PENDING",
+            amountAznCents: -line.unitListCents,
+            serviceProductId: line.serviceProductId,
+            metadata: JSON.stringify({
+              fromCart: true,
+              kind: "PLATFORM",
+              category: line.category,
+              durationMonths: line.durationMonths,
+              paymentSource: "EPOINT",
+              orderCode: meta.orderCode,
+              epointPaymentId: payment.id,
+            }),
+          },
+        });
+        serviceOrderIds.push(serviceOrder.id);
+      }
+    }
+
+    const cashbackCents =
+      meta.checkout.loyalty.cashbackPct > 0
+        ? Math.round((meta.checkout.totalCents * meta.checkout.loyalty.cashbackPct) / 100)
+        : 0;
+
+    if (cashbackCents > 0) {
+      await applyCashbackToBalance(tx, {
+        userId: payment.userId,
+        cashbackCents,
+        tierLabel: meta.checkout.loyalty.label,
+        cashbackPct: meta.checkout.loyalty.cashbackPct,
+        sourcePurchaseIds: purchaseIds,
+        sourceServiceOrderIds: serviceOrderIds,
+        orderCode: meta.orderCode,
+      });
+    }
+
+    return {
+      purchaseIds,
+      serviceOrderIds,
+      cashbackCents,
+      totalCommissionCents,
+      tryBalancePendingCount,
+      orderCode: meta.orderCode,
+    };
+  });
+
+  if (!summary) return { ok: false, reason: "ALREADY_PROCESSED" };
+
+  try {
+    await sendAdminOrderNotification({
+      orderCode: meta.orderCode,
+      userEmail: user.email,
+      userName: user.name,
+      totalAzn: meta.checkout.totalCents / 100,
+      paymentSource: "epoint",
+      items: meta.checkout.lines.map((line) => ({
+        kind: line.kind,
+        title: line.title,
+        qty: line.qty,
+        lineAzn: (line.unitListCents * line.qty) / 100,
+      })),
+    });
+  } catch (notifyErr) {
+    console.error("admin order notify failed", notifyErr);
+  }
+
+  return {
+    ok: true,
+    orderCode: meta.orderCode,
+    purchaseCount: summary.purchaseIds.length + summary.serviceOrderIds.length,
+    cashbackAzn: summary.cashbackCents / 100,
+    commissionPaidAzn: summary.totalCommissionCents / 100,
+    tryBalancePendingCount: summary.tryBalancePendingCount,
+  };
+}

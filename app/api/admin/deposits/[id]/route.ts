@@ -32,6 +32,12 @@ export async function POST(
       { status: 409 }
     );
   }
+  if (!deposit.receiptUrl) {
+    return NextResponse.json(
+      { error: "Only manual receipt deposits can be reviewed here" },
+      { status: 400 }
+    );
+  }
 
   if (action === "reject") {
     await prisma.transaction.update({
