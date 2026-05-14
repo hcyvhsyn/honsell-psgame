@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { addMonthsClamped, readPsPlusMeta } from "@/lib/subscriptions";
+import { addMonthsClamped, readRenewalMonths } from "@/lib/subscriptions";
+import { readReferralRateFromMeta } from "@/lib/referralCalculatorOptions";
 import {
   sendAdminSubscriptionDigest,
   sendSubscriptionExpiringIn3DaysEmail,
@@ -82,9 +83,26 @@ export async function GET(req: Request) {
 
   for (const sub of renewCandidates) {
     try {
-      const meta = readPsPlusMeta(sub.serviceProduct.metadata);
-      const durationMonths = meta?.durationMonths ?? sub.durationMonths;
+      const productType = sub.serviceProduct.type;
+      const isPlatform = productType === "PLATFORM";
+      const isEaPlay = productType === "EA_PLAY";
+      const durationMonths = readRenewalMonths(
+        productType,
+        sub.serviceProduct.metadata,
+        sub.durationMonths
+      );
       const renewalCost = sub.serviceProduct.priceAznCents ?? sub.priceAznCents;
+      const referralPct = isPlatform
+        ? readReferralRateFromMeta(
+            (sub.serviceProduct.metadata as Record<string, unknown> | null) ?? {},
+            0
+          )
+        : settings.referralPsPlusPct;
+      const commissionKind: "PS_PLUS" | "PLATFORM" | "EA_PLAY" = isPlatform
+        ? "PLATFORM"
+        : isEaPlay
+          ? "EA_PLAY"
+          : "PS_PLUS";
 
       if (sub.user.walletBalance < renewalCost) {
         // Insufficient balance — fail the renewal and notify.
@@ -122,7 +140,7 @@ export async function GET(req: Request) {
             serviceProductId: sub.serviceProductId,
             psnAccountId: sub.psnAccountId,
             metadata: JSON.stringify({
-              kind: "PS_PLUS",
+              kind: commissionKind,
               autoRenew: true,
               subscriptionId: sub.id,
             }),
@@ -134,8 +152,8 @@ export async function GET(req: Request) {
           buyerUserId: sub.userId,
           serviceProductId: sub.serviceProductId,
           lineCents: renewalCost,
-          streamingProfitSharePct: settings.referralPsPlusPct,
-          kind: "PS_PLUS",
+          streamingProfitSharePct: referralPct,
+          kind: commissionKind,
         });
 
         try {

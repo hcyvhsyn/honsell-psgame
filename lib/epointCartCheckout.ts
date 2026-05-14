@@ -2,9 +2,18 @@ import { prisma } from "@/lib/prisma";
 import { applyCashbackToBalance } from "@/lib/loyaltyCashback";
 import { getSettings } from "@/lib/pricing";
 import { recordPurchaseSpend, recordSuccessfulInvite } from "@/lib/referralCycle";
-import { sendAdminOrderNotification } from "@/lib/resend";
+import {
+  sendAdminOrderNotification,
+  sendHonsellGiftCardEmail,
+} from "@/lib/resend";
 import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
 import type { EpointResultData } from "@/lib/epoint";
+import {
+  HONSELL_GIFT_CARD_VALIDITY_DAYS,
+  formatHonsellGiftCardCode,
+  generateUniqueHonsellGiftCardCode,
+} from "@/lib/honsellGiftCard";
+import { SITE_URL } from "@/lib/site";
 
 export const EPOINT_CART_PAYMENT_TYPE = "CHECKOUT_PAYMENT";
 
@@ -29,6 +38,14 @@ export type EpointCartLineSnapshot =
     }
   | {
       kind: "PS_PLUS";
+      title: string;
+      qty: number;
+      serviceProductId: string;
+      unitListCents: number;
+      psnAccountId: string | null;
+    }
+  | {
+      kind: "EA_PLAY";
       title: string;
       qty: number;
       serviceProductId: string;
@@ -67,6 +84,13 @@ export type EpointCartLineSnapshot =
       unitListCents: number;
       category: string;
       durationMonths: number | null;
+    }
+  | {
+      kind: "HONSELL_GIFT_CARD";
+      title: string;
+      qty: number;
+      serviceProductId: string;
+      unitListCents: number;
     };
 
 export type EpointCartPaymentMetadata = {
@@ -137,6 +161,11 @@ export async function finalizeEpointCartCheckout(
   if (!user) return { ok: false, reason: "USER_NOT_FOUND" };
 
   const settings = await getSettings();
+  type IssuedHonsellGiftCard = {
+    code: string;
+    amountAznCents: number;
+    expiresAt: Date;
+  };
   type CompletionSummary = {
     purchaseIds: string[];
     serviceOrderIds: string[];
@@ -144,6 +173,7 @@ export async function finalizeEpointCartCheckout(
     totalCommissionCents: number;
     tryBalancePendingCount: number;
     orderCode: string;
+    honsellGiftCards: IssuedHonsellGiftCard[];
   };
 
   const summary = await prisma.$transaction(async (tx): Promise<CompletionSummary | null> => {
@@ -158,6 +188,7 @@ export async function finalizeEpointCartCheckout(
 
     const purchaseIds: string[] = [];
     const serviceOrderIds: string[] = [];
+    const honsellGiftCards: IssuedHonsellGiftCard[] = [];
     let totalCommissionCents = 0;
     let tryBalancePendingCount = 0;
 
@@ -293,6 +324,28 @@ export async function finalizeEpointCartCheckout(
           continue;
         }
 
+        if (line.kind === "EA_PLAY") {
+          const serviceOrder = await tx.transaction.create({
+            data: {
+              userId: payment.userId,
+              type: "SERVICE_PURCHASE",
+              status: "PENDING",
+              amountAznCents: -line.unitListCents,
+              serviceProductId: line.serviceProductId,
+              psnAccountId: line.psnAccountId,
+              metadata: JSON.stringify({
+                fromCart: true,
+                kind: "EA_PLAY",
+                paymentSource: "EPOINT",
+                orderCode: meta.orderCode,
+                epointPaymentId: payment.id,
+              }),
+            },
+          });
+          serviceOrderIds.push(serviceOrder.id);
+          continue;
+        }
+
         if (line.kind === "ACCOUNT_CREATION") {
           const serviceOrder = await tx.transaction.create({
             data: {
@@ -343,6 +396,45 @@ export async function finalizeEpointCartCheckout(
           continue;
         }
 
+        if (line.kind === "HONSELL_GIFT_CARD") {
+          const code = await generateUniqueHonsellGiftCardCode();
+          const expiresAt = new Date(
+            Date.now() + HONSELL_GIFT_CARD_VALIDITY_DAYS * 24 * 60 * 60 * 1000,
+          );
+          const serviceOrder = await tx.transaction.create({
+            data: {
+              userId: payment.userId,
+              type: "SERVICE_PURCHASE",
+              status: "SUCCESS",
+              amountAznCents: -line.unitListCents,
+              serviceProductId: line.serviceProductId,
+              metadata: JSON.stringify({
+                fromCart: true,
+                kind: "HONSELL_GIFT_CARD",
+                paymentSource: "EPOINT",
+                orderCode: meta.orderCode,
+                epointPaymentId: payment.id,
+                honsellGiftCardCode: code,
+                honsellGiftCardAmountAznCents: line.unitListCents,
+                honsellGiftCardExpiresAt: expiresAt.toISOString(),
+              }),
+            },
+          });
+          await tx.honsellGiftCard.create({
+            data: {
+              code,
+              amountAznCents: line.unitListCents,
+              status: "ACTIVE",
+              purchasedById: payment.userId,
+              purchaseTransactionId: serviceOrder.id,
+              expiresAt,
+            },
+          });
+          serviceOrderIds.push(serviceOrder.id);
+          honsellGiftCards.push({ code, amountAznCents: line.unitListCents, expiresAt });
+          continue;
+        }
+
         const serviceOrder = await tx.transaction.create({
           data: {
             userId: payment.userId,
@@ -389,10 +481,32 @@ export async function finalizeEpointCartCheckout(
       totalCommissionCents,
       tryBalancePendingCount,
       orderCode: meta.orderCode,
+      honsellGiftCards,
     };
   });
 
   if (!summary) return { ok: false, reason: "ALREADY_PROCESSED" };
+
+  if (summary.honsellGiftCards.length > 0) {
+    const redeemUrl = `${SITE_URL.replace(/\/$/, "")}/profile/hediyye-kart`;
+    const dateFmt = new Intl.DateTimeFormat("az-AZ", { dateStyle: "long" });
+    for (const card of summary.honsellGiftCards) {
+      try {
+        await sendHonsellGiftCardEmail({
+          email: user.email,
+          userName: user.name ?? user.email,
+          amountAznFormatted: `${(card.amountAznCents / 100).toFixed(2)} AZN`,
+          code: card.code,
+          formattedCode: formatHonsellGiftCardCode(card.code),
+          expiresAtFormatted: dateFmt.format(card.expiresAt),
+          redeemUrl,
+          referralCode: user.referralCode,
+        });
+      } catch (emailErr) {
+        console.error("honsell gift card email failed", emailErr);
+      }
+    }
+  }
 
   try {
     await sendAdminOrderNotification({

@@ -4,6 +4,8 @@ import OtpEmail from "@/emails/OtpEmail";
 import ResetPasswordEmail from "@/emails/ResetPasswordEmail";
 import SetPasswordEmail from "@/emails/SetPasswordEmail";
 import GiftCardEmail from "@/emails/GiftCardEmail";
+import HonsellGiftCardEmail from "@/emails/HonsellGiftCardEmail";
+import HonsellGiftCardRedeemedEmail from "@/emails/HonsellGiftCardRedeemedEmail";
 import StreamingDeliveryEmail from "@/emails/StreamingDeliveryEmail";
 import ReviewInviteEmail from "@/emails/ReviewInviteEmail";
 
@@ -613,6 +615,62 @@ export async function sendGiftCardCodeEmail(params: {
     throw new Error(`Resend failed to send gift-card email: ${error.message}`);
   }
 
+  return data;
+}
+
+export async function sendHonsellGiftCardEmail(params: {
+  email: string;
+  userName: string;
+  amountAznFormatted: string;
+  code: string;
+  formattedCode: string;
+  expiresAtFormatted: string;
+  redeemUrl: string;
+  referralCode?: string | null;
+}) {
+  const { email, userName, amountAznFormatted, code, formattedCode, expiresAtFormatted, redeemUrl, referralCode } = params;
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: email,
+    subject: `Honsell hədiyyə kartınız (${amountAznFormatted})`,
+    react: HonsellGiftCardEmail({
+      userName,
+      amountAznFormatted,
+      code,
+      formattedCode,
+      expiresAtFormatted,
+      redeemUrl,
+      referralCode,
+    }),
+  });
+  if (error) {
+    throw new Error(`Resend failed to send honsell gift-card email: ${error.message}`);
+  }
+  return data;
+}
+
+export async function sendHonsellGiftCardRedeemedEmail(params: {
+  email: string;
+  userName: string;
+  amountAznFormatted: string;
+  newWalletBalanceFormatted: string;
+  referralCode?: string | null;
+}) {
+  const { email, userName, amountAznFormatted, newWalletBalanceFormatted, referralCode } = params;
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: email,
+    subject: `Hədiyyə kartınız aktivləşdirildi`,
+    react: HonsellGiftCardRedeemedEmail({
+      userName,
+      amountAznFormatted,
+      newWalletBalanceFormatted,
+      referralCode,
+    }),
+  });
+  if (error) {
+    throw new Error(`Resend failed to send honsell gift-card redeemed email: ${error.message}`);
+  }
   return data;
 }
 

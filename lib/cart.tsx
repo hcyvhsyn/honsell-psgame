@@ -176,7 +176,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
         // Cash cards / addons can be bought in multiples; full games stay at 1.
-        if (item.productType === "GAME" || item.productType === "PS_PLUS") return prev;
+        if (item.productType === "GAME" || item.productType === "PS_PLUS" || item.productType === "EA_PLAY") return prev;
         return prev.map((i) =>
           i.id === item.id ? { ...i, qty: i.qty + 1 } : i
         );

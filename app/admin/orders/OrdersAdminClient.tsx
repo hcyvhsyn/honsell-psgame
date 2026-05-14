@@ -51,6 +51,11 @@ type OrdersPayload = {
     serviceProduct: { id: string; title: string; type: string; metadata: unknown } | null;
     psnAccount: PsnAccountSummary | null;
   })[];
+  eaPlayOrders: (AnyOrder & {
+    user: { id: string; email: string; name: string | null; phone: string | null };
+    serviceProduct: { id: string; title: string; type: string; metadata: unknown } | null;
+    psnAccount: PsnAccountSummary | null;
+  })[];
   giftCardOrders: (AnyOrder & {
     user: { id: string; email: string; name: string | null };
     serviceProduct: { id: string; title: string; type: string } | null;
@@ -64,7 +69,21 @@ type OrdersPayload = {
     user: { id: string; email: string; name: string | null; phone: string | null };
     serviceProduct: { id: string; title: string; type: string; metadata: unknown } | null;
   })[];
+  aiOrders: (AnyOrder & {
+    user: { id: string; email: string; name: string | null; phone: string | null };
+    serviceProduct: { id: string; title: string; type: string; metadata: unknown } | null;
+  })[];
+  musicOrders: (AnyOrder & {
+    user: { id: string; email: string; name: string | null; phone: string | null };
+    serviceProduct: { id: string; title: string; type: string; metadata: unknown } | null;
+  })[];
+  workOrders: (AnyOrder & {
+    user: { id: string; email: string; name: string | null; phone: string | null };
+    serviceProduct: { id: string; title: string; type: string; metadata: unknown } | null;
+  })[];
 };
+
+type PlatformOrder = OrdersPayload["aiOrders"][number];
 
 function fmtAzn(cents: number) {
   return `${(Math.abs(cents) / 100).toFixed(2)} AZN`;
@@ -116,9 +135,13 @@ function getPaymentSource(metadata?: string | null): "WALLET" | "REFERRAL" | "EP
 const TABS = [
   { id: "game", label: "Oyun çatdırılması" },
   { id: "psplus", label: "PS Plus" },
+  { id: "eaplay", label: "EA Play" },
   { id: "gift", label: "Hədiyyə kart (TRY)" },
   { id: "account", label: "Hesab açma" },
   { id: "streaming", label: "Streaming" },
+  { id: "ai", label: "Süni İntellekt" },
+  { id: "music", label: "Musiqi" },
+  { id: "work", label: "İş Platformaları" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -246,9 +269,13 @@ export default function OrdersAdminClient() {
     return {
       game: data?.gameOrders.length ?? 0,
       psplus: data?.psPlusOrders.length ?? 0,
+      eaplay: data?.eaPlayOrders?.length ?? 0,
       gift: data?.giftCardOrders.length ?? 0,
       account: data?.accountCreationOrders.length ?? 0,
       streaming: data?.streamingOrders?.length ?? 0,
+      ai: data?.aiOrders?.length ?? 0,
+      music: data?.musicOrders?.length ?? 0,
+      work: data?.workOrders?.length ?? 0,
     };
   }, [data]);
 
@@ -274,7 +301,15 @@ export default function OrdersAdminClient() {
   async function actService(
     id: string,
     action: "SUCCESS" | "FAILED",
-    listKey: "psPlusOrders" | "giftCardOrders" | "accountCreationOrders" | "streamingOrders"
+    listKey:
+      | "psPlusOrders"
+      | "eaPlayOrders"
+      | "giftCardOrders"
+      | "accountCreationOrders"
+      | "streamingOrders"
+      | "aiOrders"
+      | "musicOrders"
+      | "workOrders"
   ) {
     if (!confirm(action === "SUCCESS" ? "Sifarişi tamamla?" : "Sifarişi rədd et?")) return;
     setError(null);
@@ -366,6 +401,29 @@ export default function OrdersAdminClient() {
                     toggleExpand={() => toggleExpandGame(o.id)}
                     busy={busyGameId === o.id}
                     onAction={(body) => patchGameOrder(o.id, body)}
+                    paymentSource={getPaymentSource(o.metadata)}
+                  />
+                ))}
+              </ul>
+            )
+          )}
+
+          {tab === "eaplay" && (
+            (data.eaPlayOrders ?? []).length === 0 ? (
+              <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-12 text-center text-sm text-zinc-500">
+                Gözləyən EA Play sifarişi yoxdur.
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {(data.eaPlayOrders ?? []).map((o) => (
+                  <PsPlusOrderCard
+                    key={o.id}
+                    o={o}
+                    expanded={expandedPsPlus.has(o.id)}
+                    toggleExpand={() => toggleExpandPsPlus(o.id)}
+                    busy={pending}
+                    onApprove={() => actService(o.id, "SUCCESS", "eaPlayOrders")}
+                    onReject={() => actService(o.id, "FAILED", "eaPlayOrders")}
                     paymentSource={getPaymentSource(o.metadata)}
                   />
                 ))}
@@ -473,6 +531,36 @@ export default function OrdersAdminClient() {
                   ),
                 };
               })}
+            />
+          )}
+
+          {tab === "ai" && (
+            <PlatformOrdersTable
+              orders={data.aiOrders ?? []}
+              empty="Gözləyən süni intellekt sifarişi yoxdur."
+              pending={pending}
+              onApprove={(id) => actService(id, "SUCCESS", "aiOrders")}
+              onReject={(id) => actService(id, "FAILED", "aiOrders")}
+            />
+          )}
+
+          {tab === "music" && (
+            <PlatformOrdersTable
+              orders={data.musicOrders ?? []}
+              empty="Gözləyən musiqi sifarişi yoxdur."
+              pending={pending}
+              onApprove={(id) => actService(id, "SUCCESS", "musicOrders")}
+              onReject={(id) => actService(id, "FAILED", "musicOrders")}
+            />
+          )}
+
+          {tab === "work" && (
+            <PlatformOrdersTable
+              orders={data.workOrders ?? []}
+              empty="Gözləyən iş platforması sifarişi yoxdur."
+              pending={pending}
+              onApprove={(id) => actService(id, "SUCCESS", "workOrders")}
+              onReject={(id) => actService(id, "FAILED", "workOrders")}
             />
           )}
         </>
@@ -992,4 +1080,49 @@ function Td({
   className?: string;
 }) {
   return <td className={`px-5 py-3 align-top ${className}`}>{children}</td>;
+}
+
+function platformDurationLabel(o: PlatformOrder): string {
+  const meta = (o.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
+  const months = Number(meta.durationMonths);
+  if (Number.isInteger(months) && months > 0) return `${months} ay`;
+  return "Müddət göstərilməyib";
+}
+
+function PlatformOrdersTable({
+  orders,
+  empty,
+  pending,
+  onApprove,
+  onReject,
+}: {
+  orders: PlatformOrder[];
+  empty: string;
+  pending: boolean;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+}) {
+  return (
+    <OrdersTable
+      empty={empty}
+      rows={orders.map((o) => ({
+        id: o.id,
+        userId: o.user.id,
+        userLabel: o.user.name ?? o.user.email,
+        userSub: o.user.email,
+        item: o.serviceProduct?.title ?? "Platform",
+        itemSub: platformDurationLabel(o),
+        paymentSource: getPaymentSource(o.metadata),
+        amount: fmtAzn(o.amountAznCents),
+        date: fmtDate(o.createdAt),
+        actions: (
+          <RowActions
+            pending={pending}
+            onApprove={() => onApprove(o.id)}
+            onReject={() => onReject(o.id)}
+          />
+        ),
+      }))}
+    />
+  );
 }

@@ -21,6 +21,7 @@ export function revalidateCollections(): void {
 export function revalidateServices(): void {
   revalidatePath("/");
   revalidatePath("/ps-plus");
+  revalidatePath("/ea-play");
   revalidatePath("/hediyye-kartlari");
   revalidatePath("/hesab-acma");
   revalidatePath("/streaming");

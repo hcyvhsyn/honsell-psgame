@@ -27,6 +27,23 @@ export type EpointCheckoutResponse = {
 
 const EPOINT_REQUEST_URL = "https://epoint.az/api/1/request";
 const EPOINT_GET_STATUS_URL = "https://epoint.az/api/1/get-status";
+const EPOINT_WIDGET_URL = "https://epoint.az/api/1/token/widget";
+
+export type EpointWidgetRequest = {
+  public_key: string;
+  amount: number;
+  order_id: string;
+  description: string;
+  currency?: "AZN";
+};
+
+export type EpointWidgetResponse = {
+  status?: string;
+  widget_url?: string;
+  message?: string;
+  code?: string;
+  [key: string]: unknown;
+};
 
 export function createEpointSignature(data: string, privateKey: string) {
   return createHash("sha1")
@@ -92,6 +109,41 @@ export async function createEpointCheckout(
 
   try {
     parsed = JSON.parse(text) as EpointCheckoutResponse;
+  } catch {
+    parsed = {
+      status: "error",
+      message: text || `Epoint HTTP ${response.status}`,
+    };
+  }
+
+  if (!response.ok) {
+    return {
+      ...parsed,
+      status: parsed.status ?? "error",
+      message: parsed.message ?? `Epoint HTTP ${response.status}`,
+    };
+  }
+
+  return parsed;
+}
+
+export async function createEpointWidget(
+  payload: EpointWidgetRequest,
+  privateKey: string,
+): Promise<EpointWidgetResponse> {
+  const signed = createSignedEpointPayload(payload, privateKey);
+  const response = await fetch(EPOINT_WIDGET_URL, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(signed),
+    cache: "no-store",
+  });
+
+  const text = await response.text();
+  let parsed: EpointWidgetResponse;
+
+  try {
+    parsed = JSON.parse(text) as EpointWidgetResponse;
   } catch {
     parsed = {
       status: "error",

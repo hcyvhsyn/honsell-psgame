@@ -8,6 +8,7 @@ const SIZE_CLASSES = {
   sm: "max-w-sm",
   md: "max-w-md",
   lg: "max-w-2xl",
+  auth: "max-w-2xl",
   xl: "max-w-5xl",
 } as const;
 
@@ -69,9 +70,9 @@ export default function Modal({
           type="button"
           onClick={onClose}
           aria-label="Bağla"
-          className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-900 hover:text-zinc-200"
+          className="absolute right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-[12px] border border-white/10 bg-white/[0.04] text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:border-violet-300/30 hover:bg-white/[0.08] hover:text-zinc-100"
         >
-          <X className="h-5 w-5" />
+          <X className="h-6 w-6" />
         </button>
         {children}
       </div>

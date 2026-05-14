@@ -364,6 +364,9 @@ export default function ServicesAdminClient() {
                     )}
                   </button>
                 )}
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  Tövsiyə olunan ölçü: <b className="text-zinc-300">1200×900px</b> (4:3 aspekt) — hədiyyə kart kartları public-də 4:3 nisbətdə göstərilir.
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <label className="block text-sm">

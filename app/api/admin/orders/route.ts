@@ -11,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [gameOrders, psPlusOrders, giftCardOrders, accountCreationOrders, streamingOrders] =
+  const [gameOrders, psPlusOrders, eaPlayOrders, giftCardOrders, accountCreationOrders, streamingPlatformOrders] =
     await Promise.all([
       prisma.transaction.findMany({
         where: { type: "PURCHASE", status: "PENDING", gameId: { not: null } },
@@ -30,6 +30,22 @@ export async function GET() {
           type: "SERVICE_PURCHASE",
           status: "PENDING",
           serviceProduct: { type: "PS_PLUS" },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        include: {
+          user: { select: { id: true, email: true, name: true, phone: true } },
+          serviceProduct: { select: { id: true, title: true, metadata: true, type: true } },
+          psnAccount: {
+            select: { id: true, label: true, psnEmail: true, psnPassword: true, psModel: true },
+          },
+        },
+      }),
+      prisma.transaction.findMany({
+        where: {
+          type: "SERVICE_PURCHASE",
+          status: "PENDING",
+          serviceProduct: { type: "EA_PLAY" },
         },
         orderBy: { createdAt: "desc" },
         take: 200,
@@ -83,11 +99,34 @@ export async function GET() {
       }),
     ]);
 
+  const streamingOrders = streamingPlatformOrders.filter(
+    (o) => o.serviceProduct?.type === "STREAMING",
+  );
+
+  function platformCategory(o: (typeof streamingPlatformOrders)[number]): string {
+    const meta = (o.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
+    return String(meta.category ?? "");
+  }
+
+  const aiOrders = streamingPlatformOrders.filter(
+    (o) => o.serviceProduct?.type === "PLATFORM" && platformCategory(o) === "AI",
+  );
+  const musicOrders = streamingPlatformOrders.filter(
+    (o) => o.serviceProduct?.type === "PLATFORM" && platformCategory(o) === "MUSIC",
+  );
+  const workOrders = streamingPlatformOrders.filter(
+    (o) => o.serviceProduct?.type === "PLATFORM" && platformCategory(o) === "WORK",
+  );
+
   return NextResponse.json({
     gameOrders,
     psPlusOrders,
+    eaPlayOrders,
     giftCardOrders,
     accountCreationOrders,
     streamingOrders,
+    aiOrders,
+    musicOrders,
+    workOrders,
   });
 }

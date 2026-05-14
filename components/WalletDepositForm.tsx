@@ -9,8 +9,18 @@ import {
   CreditCard,
   Receipt as ReceiptIcon,
   ShieldCheck,
+  Smartphone,
   XCircle,
 } from "lucide-react";
+import EpointWidgetModal from "./EpointWidgetModal";
+
+/**
+ * Apple Pay / Google Pay düyməsinin görünməsi.
+ * Epoint hesabımızda `/api/1/token/widget` endpoint-inə icazə verildikdən sonra
+ * `NEXT_PUBLIC_EPOINT_WIDGET_ENABLED=1` qoyun.
+ */
+const EPOINT_WIDGET_ENABLED =
+  process.env.NEXT_PUBLIC_EPOINT_WIDGET_ENABLED === "1";
 
 type DepositRequest = {
   id: string;
@@ -29,6 +39,11 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
   const amountNum = Number(amount.replace(",", "."));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [widget, setWidget] = useState<{
+    url: string;
+    successUrl: string;
+    errorUrl: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!authed) return;
@@ -78,6 +93,46 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
       window.location.href = data.redirectUrl;
     } catch {
       setMessage({ ok: false, text: "Epoint ödənişi başlamadı." });
+      setBusy(false);
+    }
+  }
+
+  async function startWidgetDeposit() {
+    if (!Number.isFinite(amountNum) || amountNum < 0.01) {
+      setMessage({ ok: false, text: "Məbləğ ən azı 0.01 AZN olmalıdır." });
+      return;
+    }
+
+    setBusy(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch("/api/wallet/deposit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amountAzn: amountNum, mode: "widget" }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (
+        !res.ok ||
+        typeof data.widgetUrl !== "string" ||
+        typeof data.successUrl !== "string" ||
+        typeof data.errorUrl !== "string"
+      ) {
+        setMessage({ ok: false, text: data.error ?? "Apple Pay / Google Pay açıla bilmədi." });
+        setBusy(false);
+        return;
+      }
+
+      setWidget({
+        url: data.widgetUrl,
+        successUrl: data.successUrl,
+        errorUrl: data.errorUrl,
+      });
+    } catch {
+      setMessage({ ok: false, text: "Apple Pay / Google Pay açıla bilmədi." });
+    } finally {
       setBusy(false);
     }
   }
@@ -139,6 +194,18 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
             : `${Number.isFinite(amountNum) && amountNum > 0 ? amountNum.toFixed(2) : "0.00"} AZN balans artır`}
         </button>
 
+        {EPOINT_WIDGET_ENABLED ? (
+          <button
+            type="button"
+            onClick={startWidgetDeposit}
+            disabled={busy}
+            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
+          >
+            <Smartphone className="h-4 w-4" />
+            {busy ? "Açılır..." : "Apple Pay / Google Pay ilə artır"}
+          </button>
+        ) : null}
+
         {message && (
           <p
             className={`mt-4 rounded-md px-3 py-2 text-sm ${
@@ -153,6 +220,16 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
       </section>
 
       {info ? <DepositHistory requests={info.requests} /> : null}
+
+      {widget ? (
+        <EpointWidgetModal
+          widgetUrl={widget.url}
+          successUrl={widget.successUrl}
+          errorUrl={widget.errorUrl}
+          title="Apple Pay / Google Pay"
+          onClose={() => setWidget(null)}
+        />
+      ) : null}
     </div>
   );
 }

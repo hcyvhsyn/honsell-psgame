@@ -53,6 +53,7 @@ const playstationGroup: NavGroup = {
   items: [
     { href: "/oyunlar", label: "Oyunlar" },
     { href: "/ps-plus", label: "PS Plus" },
+    { href: "/ea-play", label: "EA Play" },
     { href: "/hediyye-kartlari", label: "Hədiyyə Kartları" },
     { href: "/hesab-acma", label: "Hesab Açma" },
     { href: "/kolleksiyalar", label: "Kolleksiyalar" },
@@ -153,7 +154,7 @@ export default function SiteHeader({
   return (
     <>
       <header className="sticky top-0 z-50 bg-[#03030A]/85 px-4 py-3 backdrop-blur-xl sm:px-6">
-        <div className="honsell-navbar-shell mx-auto flex max-w-7xl flex-col rounded-[26px]">
+        <div className="honsell-navbar-shell mx-auto flex max-w-[1536px] flex-col rounded-[24px]">
           <div className="grid min-h-[66px] grid-cols-[auto_1fr] items-center gap-3 px-4 py-3 md:grid-cols-[150px_minmax(220px,1fr)_auto] md:px-5 xl:grid-cols-[170px_minmax(260px,1fr)_auto] xl:gap-4 xl:px-6">
             <div className="flex min-w-0 items-center">
               <Logo href="/" height={28} priority className="h-6 w-auto xl:h-7" />

@@ -30,6 +30,10 @@ model User {
   emailVerified Boolean   @default(false)
   otpCode       String?
   otpExpiresAt  DateTime?
+  // Brute-force qoruması: səhv OTP girişləri sayılır, müəyyən həddən sonra
+  // otpLockedUntil tarixinə qədər verify-otp endpoint-i 429 qaytarır.
+  otpAttempts   Int       @default(0)
+  otpLockedUntil DateTime?
 
   // Set when an admin manually creates the account. The user receives an email
   // with a one-time link → /set-password?token=… that lets them choose a
@@ -78,6 +82,10 @@ model User {
   streamingReviews         StreamingReview[]
   streamingReviewReactions StreamingReviewReaction[]
   streamingTitleFavorites  StreamingTitleFavorite[]
+
+  // Honsell hədiyyə kartları — istifadəçinin aldığı və aktivləşdirdiyi kartlar.
+  honsellGiftCardsPurchased HonsellGiftCard[] @relation("HonsellGiftCardPurchases")
+  honsellGiftCardsRedeemed  HonsellGiftCard[] @relation("HonsellGiftCardRedemptions")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -236,6 +244,46 @@ model ServiceCode {
   createdAt DateTime @default(now())
 
   @@index([serviceProductId, isUsed])
+}
+
+// ─── Honsell Gift Cards (öz markamızın hədiyyə kartları) ─────────────────────
+//
+// Müştəri 5/10/20/50/100/200/500/1000 AZN nominalında kart alır, sistem 11
+// simvollu unikal kod generasiya edir və alıcıya email ilə göndərilir.
+// İstənilən başqa istifadəçi həmin kodu "/profile/hediyye-kart" səhifəsində
+// daxil edərək cüzdan balansına məbləği köçürə bilər. Kodlar 1 il etibarlıdır.
+
+model HonsellGiftCard {
+  id             String @id @default(cuid())
+  // 11 simvollu unikal kod — alıcıya verilir, aktivləşdirmə üçün lazımdır.
+  code           String @unique
+  // Kartın AZN qəpiklə nominalı (5 AZN → 500).
+  amountAznCents Int
+  // ACTIVE | REDEEMED — bir kart yalnız bir dəfə istifadə oluna bilər.
+  status         String @default("ACTIVE")
+
+  // Alıcı (system-də qeydiyyatlı istifadəçi olmalıdır).
+  purchasedById         String?
+  purchasedBy           User?    @relation("HonsellGiftCardPurchases", fields: [purchasedById], references: [id])
+  // Alış üçün yaradılmış SERVICE_PURCHASE tranzaksiyasının id-si (audit).
+  purchaseTransactionId String?
+  purchasedAt           DateTime @default(now())
+
+  // Aktivləşdirən istifadəçi (özü ola bilər, başqası da). NULL qaldıqca ACTIVE.
+  redeemedById        String?
+  redeemedBy          User?     @relation("HonsellGiftCardRedemptions", fields: [redeemedById], references: [id])
+  redeemTransactionId String?
+  redeemedAt          DateTime?
+
+  // Bitmə tarixi — alışdan 1 il sonra. Bu tarixdən sonra aktivləşdirmə bloklanır.
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, expiresAt])
+  @@index([purchasedById])
+  @@index([redeemedById])
 }
 
 // ─── Transactions (deposits, purchases, commissions) ──────────────────────────
@@ -605,6 +653,24 @@ model Settings {
   updatedAt DateTime @updatedAt
 }
 
+// ─── Search Suggestions ──────────────────────────────────────────────────────
+// Header axtarış modalında "Populyar axtarışlar" pillərini admin idarə edir.
+// Hər sətir: bir mətn (label) + lucide-react ikonu (iconKey enum-undan biri).
+
+model SearchSuggestion {
+  id        String   @id @default(cuid())
+  label     String
+  // Bax: components/NavSearch.tsx-də iconKey → komponent map-i.
+  // GAMEPAD | GIFT | TV | FILM | SPARKLES | SEARCH | TROPHY | CROWN | MUSIC | BRAIN
+  iconKey   String   @default("SEARCH")
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
 // ─── Favorites (wishlist + sale notifications) ───────────────────────────────
 
 model Favorite {
@@ -909,4 +975,22 @@ model ScrapeChange {
   @@index([scrapeRunId])
   @@index([platform, createdAt])
   @@index([titleId])
+}
+
+// ─── Rate limiting / abuse defence ────────────────────────────────────────────
+//
+// Hər auth-yönlü cəhd (register, resend-otp, forgot-password) burada qeyd
+// olunur. Sürüşən pəncərə (sliding window) ilə son N saniyədəki sətirlər
+// sayılaraq limit yoxlanılır. `identifier` ikinci ölçü üçündür — məs: eyni
+// IP-dən gələn 5 dəq ərzindəki fərqli telefon nömrələrinin sayını saymaq.
+model RateLimitEvent {
+  id         String   @id @default(cuid())
+  key        String // məs: "register:ip:1.2.3.4" və ya "verify-otp:user:abc"
+  scope      String // "register" | "resend-otp" | "forgot-password" | "verify-otp"
+  identifier String? // optional ikinci dəyər (phone, email) distinct-count üçün
+  success    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([key, createdAt])
+  @@index([scope, createdAt])
 }

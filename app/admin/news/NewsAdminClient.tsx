@@ -502,6 +502,9 @@ export default function NewsAdminClient() {
               {/* Cover şəkil — fayl upload */}
               <div className="text-sm text-zinc-300 sm:col-span-2">
                 <span className="mb-1 block">Cover şəkil</span>
+                <p className="mb-2 text-[11px] text-zinc-500">
+                  Tövsiyə olunan ölçü: <b className="text-zinc-300">1920×1080px</b> (16:9 aspekt) — featured xəbər kartında 21:9, normal kartda 16:9 nisbətdə kropuna alır.
+                </p>
                 {editForm.coverImageUrl ? (
                   <div className="relative overflow-hidden rounded-lg border border-zinc-800">
                     {/* eslint-disable-next-line @next/next/no-img-element */}

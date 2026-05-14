@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   parseGameOrderMeta,
 } from "@/lib/gameOrderFulfillment";
+import { formatHonsellGiftCardCode } from "@/lib/honsellGiftCard";
 
 export const dynamic = "force-dynamic";
 
@@ -153,6 +154,37 @@ export default async function OrdersPage() {
                     <span className="select-all font-mono font-bold tracking-widest text-emerald-400">{r.serviceCode.code}</span>
                   </div>
                 )}
+                {(() => {
+                  if (r.type !== "SERVICE_PURCHASE") return null;
+                  let rawMeta: Record<string, unknown> | null = null;
+                  try {
+                    rawMeta = r.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : null;
+                  } catch {
+                    rawMeta = null;
+                  }
+                  const code = typeof rawMeta?.honsellGiftCardCode === "string"
+                    ? (rawMeta.honsellGiftCardCode as string)
+                    : null;
+                  if (!code) return null;
+                  return (
+                    <div className="mt-2 rounded-lg border border-violet-500/30 bg-violet-500/10 p-2 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] uppercase tracking-wider text-violet-300/80">
+                          Honsell hədiyyə kart kodu
+                        </span>
+                        <Link
+                          href="/profile/hediyye-kart"
+                          className="text-[11px] text-violet-200 hover:underline"
+                        >
+                          Aktivləşdir →
+                        </Link>
+                      </div>
+                      <div className="mt-1 select-all font-mono text-lg font-bold tracking-widest text-violet-200">
+                        {formatHonsellGiftCardCode(code)}
+                      </div>
+                    </div>
+                  );
+                })()}
                 {r.type === "SERVICE_PURCHASE" && !r.serviceCode && (
                   <div className="mt-1 text-xs text-zinc-400">
                     {r.status === "PENDING" && "Admin tərəfindən icra edilir..."}

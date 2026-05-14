@@ -28,13 +28,14 @@ const TYPE = "GAME";
 const getOyunlarPageData = unstable_cache(
   async (page: number) => {
     const offset = (page - 1) * PAGE_SIZE;
-    const [games, typeAllCount, typeOnSaleCount, totalsArr] = await Promise.all([
+    const [games, popularCount, typeAllCount, typeOnSaleCount, totalsArr] = await Promise.all([
       prisma.game.findMany({
-        where: { isActive: true, productType: TYPE },
-        orderBy: { lastScrapedAt: "desc" },
+        where: { isActive: true, productType: TYPE, isFeatured: true },
+        orderBy: [{ lastScrapedAt: "desc" }, { title: "asc" }],
         take: PAGE_SIZE,
         skip: offset,
       }),
+      prisma.game.count({ where: { isActive: true, productType: TYPE, isFeatured: true } }),
       prisma.game.count({ where: { isActive: true, productType: TYPE } }),
       prisma.game.count({
         where: { isActive: true, productType: TYPE, discountTryCents: { not: null } },
@@ -45,9 +46,9 @@ const getOyunlarPageData = unstable_cache(
         _count: { _all: true },
       }),
     ]);
-    return { games, typeAllCount, typeOnSaleCount, totalsArr };
+    return { games, popularCount, typeAllCount, typeOnSaleCount, totalsArr };
   },
-  ["oyunlar-page"],
+  ["oyunlar-page-v2"],
   { revalidate: 600, tags: ["games"] }
 );
 
@@ -60,7 +61,7 @@ export default async function OyunlarPage({
   const pageRaw = Array.isArray(sp.page) ? sp.page[0] : sp.page;
   const page = Math.max(1, Number(pageRaw) || 1);
 
-  const [settings, { games, typeAllCount, typeOnSaleCount, totalsArr }] = await Promise.all([
+  const [settings, { games, popularCount, typeAllCount, typeOnSaleCount, totalsArr }] = await Promise.all([
     getSettings(),
     getOyunlarPageData(page),
   ]);
@@ -85,7 +86,7 @@ export default async function OyunlarPage({
   });
 
   const initial = {
-    total: typeAllCount,
+    total: popularCount,
     totalAll: typeAllCount,
     totalOnSale: typeOnSaleCount,
     totals,
@@ -93,7 +94,7 @@ export default async function OyunlarPage({
     results,
     page,
     pageSize: PAGE_SIZE,
-    totalPages: Math.max(1, Math.ceil(typeAllCount / PAGE_SIZE)),
+    totalPages: Math.max(1, Math.ceil(popularCount / PAGE_SIZE)),
   };
 
   return (

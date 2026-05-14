@@ -1,20 +1,47 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
+  Brain,
   Check,
+  Crown,
+  Eraser,
   Film,
   Gamepad2,
   Gift,
   Loader2,
+  Music,
   Plus,
   Search as SearchIcon,
   Sparkles,
+  Trophy,
   Tv,
   X,
 } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import {
+  DEFAULT_SEARCH_SUGGESTIONS,
+  type SearchSuggestionDto,
+  type SearchSuggestionIconKey,
+} from "@/lib/searchSuggestions";
+
+const SUGGESTION_ICONS: Record<
+  SearchSuggestionIconKey,
+  React.ComponentType<{ className?: string }>
+> = {
+  SEARCH: SearchIcon,
+  GAMEPAD: Gamepad2,
+  GIFT: Gift,
+  TV: Tv,
+  FILM: Film,
+  SPARKLES: Sparkles,
+  TROPHY: Trophy,
+  CROWN: Crown,
+  MUSIC: Music,
+  BRAIN: Brain,
+};
 
 type CartPayload = {
   id: string;
@@ -84,12 +111,48 @@ export default function NavSearch() {
   const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<Tab>("ALL");
+  const [mounted, setMounted] = useState(false);
+  const [suggestions, setSuggestions] =
+    useState<SearchSuggestionDto[]>(DEFAULT_SEARCH_SUGGESTIONS);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Modal ilk dəfə açılanda populyar axtarışları admin paneldəki konfiqurasiyadan çək.
+  // Default siyahı API-dən cavab gəlməyincə (və ya boş gələndə) qalır.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch("/api/search/suggestions")
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return;
+        if (Array.isArray(d?.suggestions) && d.suggestions.length > 0) {
+          setSuggestions(d.suggestions as SearchSuggestionDto[]);
+        }
+      })
+      .catch(() => {
+        /* fallback default-da qalır */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  // Trigger görünməyəndə (alternativ breakpoint instansiyası) Cmd+K bu modalı açmasın —
+  // əks halda portala görə görünməz parent-də olan instans da modal yaradır.
+  function isTriggerVisible() {
+    return triggerRef.current?.offsetParent != null;
+  }
 
   // Cmd/Ctrl + K — global shortcut
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        if (!isTriggerVisible()) return;
         e.preventDefault();
         setOpen(true);
       }
@@ -181,6 +244,7 @@ export default function NavSearch() {
     <>
       {/* Trigger button */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Axtar"
@@ -193,34 +257,61 @@ export default function NavSearch() {
         </span>
       </button>
 
-      {/* Modal */}
-      {open && (
+      {/* Modal — render to body so the header's backdrop-filter doesn't trap fixed positioning */}
+      {open && mounted && createPortal(
         <div
-          className="fixed inset-0 z-[60] flex items-start justify-center bg-black/80 p-3 backdrop-blur-md sm:p-6 sm:pt-[8vh]"
+          className="fixed inset-0 z-[100] flex items-start justify-center bg-black/85 p-3 backdrop-blur-xl sm:p-6 sm:pt-[10vh]"
           role="dialog"
           aria-modal="true"
           onClick={close}
         >
+          {/* Decorative glow behind modal */}
           <div
-            className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#0c0e16] to-[#070910] shadow-[0_40px_120px_-30px_rgba(0,0,0,0.95)]"
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-[8vh] h-[420px] w-[640px] -translate-x-1/2 rounded-full bg-gradient-to-br from-violet-600/30 via-fuchsia-500/15 to-transparent blur-3xl"
+          />
+
+          <div
+            className="relative flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0a0a14]/95 shadow-[0_50px_140px_-20px_rgba(99,1,243,0.45),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-2xl"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Top gradient accent line */}
+            <div
+              aria-hidden
+              className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/60 to-transparent"
+            />
+
             {/* Search input */}
-            <div className="flex items-center gap-3 border-b border-white/5 px-4 py-3.5 sm:px-5">
-              <SearchIcon className="h-5 w-5 shrink-0 text-zinc-500" />
+            <div className="relative flex items-center gap-3 px-5 py-5 sm:px-6 sm:py-6">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-500/25 to-fuchsia-500/10 ring-1 ring-inset ring-violet-400/30">
+                <SearchIcon className="h-5 w-5 text-violet-200" />
+              </div>
               <input
                 ref={inputRef}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Oyun, hədiyyə kartı, film və ya serial axtar..."
-                className="flex-1 bg-transparent text-base text-white placeholder:text-zinc-600 focus:outline-none sm:text-lg"
+                className="flex-1 bg-transparent text-lg font-medium text-white placeholder:text-zinc-500 focus:outline-none sm:text-xl"
               />
-              {loading && <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />}
+              {loading && <Loader2 className="h-5 w-5 animate-spin text-violet-300" />}
+              {q && !loading && (
+                <button
+                  type="button"
+                  onClick={() => setQ("")}
+                  aria-label="Mətni təmizlə"
+                  title="Mətni təmizlə"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white/[0.05] px-3 text-[11px] font-semibold text-zinc-400 ring-1 ring-inset ring-white/[0.07] transition hover:bg-white/[0.1] hover:text-white"
+                >
+                  <Eraser className="h-3.5 w-3.5" />
+                  Sil
+                </button>
+              )}
               <button
                 type="button"
                 onClick={close}
-                aria-label="Bağla"
-                className="grid h-8 w-8 place-items-center rounded-full bg-white/[0.04] text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                aria-label="Modalı bağla"
+                title="Bağla (Esc)"
+                className="grid h-9 w-9 place-items-center rounded-xl border border-rose-400/30 bg-rose-500/10 text-rose-200 transition hover:border-rose-400/60 hover:bg-rose-500/20 hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -228,52 +319,58 @@ export default function NavSearch() {
 
             {/* Tabs */}
             {results && hasAny && (
-              <div className="flex gap-1 overflow-x-auto border-b border-white/5 px-3 py-2 sm:px-4">
-                {(
-                  [
-                    { key: "ALL", label: "Hamısı" },
-                    { key: "GAMES", label: "Oyunlar" },
-                    { key: "SERVICES", label: "Servislər" },
-                    { key: "STREAMING", label: "Streaming" },
-                  ] as { key: Tab; label: string }[]
-                ).map((t) => (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => setTab(t.key)}
-                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                      tab === t.key
-                        ? "bg-white text-zinc-900"
-                        : "bg-white/[0.03] text-zinc-300 hover:bg-white/[0.07]"
-                    }`}
-                  >
-                    {t.label}
-                    {counts[t.key] > 0 && (
-                      <span
-                        className={`rounded-full px-1.5 text-[10px] font-bold ${
-                          tab === t.key ? "bg-zinc-900/10 text-zinc-700" : "bg-white/10 text-zinc-400"
+              <div className="border-b border-white/[0.06] px-5 pb-4 sm:px-6">
+                <div className="inline-flex items-center gap-1 rounded-2xl border border-white/[0.08] bg-black/40 p-1">
+                  {(
+                    [
+                      { key: "ALL", label: "Hamısı" },
+                      { key: "GAMES", label: "Oyunlar" },
+                      { key: "SERVICES", label: "Servislər" },
+                      { key: "STREAMING", label: "Streaming" },
+                    ] as { key: Tab; label: string }[]
+                  ).map((t) => {
+                    const active = tab === t.key;
+                    const c = counts[t.key];
+                    return (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => setTab(t.key)}
+                        className={`relative inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+                          active
+                            ? "bg-gradient-to-b from-violet-500 to-violet-600 text-white shadow-[0_4px_16px_-4px_rgba(124,58,237,0.7)]"
+                            : "text-zinc-400 hover:text-white"
                         }`}
                       >
-                        {counts[t.key]}
-                      </span>
-                    )}
-                  </button>
-                ))}
+                        {t.label}
+                        {c > 0 && (
+                          <span
+                            className={`grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold tabular-nums ${
+                              active ? "bg-white/25 text-white" : "bg-white/[0.08] text-zinc-300"
+                            }`}
+                          >
+                            {c}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto overscroll-contain">
               {!debounced || debounced.length < 2 ? (
-                <EmptyState />
+                <EmptyState onPick={setQ} suggestions={suggestions} />
               ) : loading && !results ? (
-                <div className="grid place-items-center py-20">
-                  <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+                <div className="grid place-items-center py-24">
+                  <Loader2 className="h-7 w-7 animate-spin text-violet-400" />
                 </div>
               ) : !hasAny ? (
                 <NoResults q={debounced} />
               ) : (
-                <div className="px-3 pb-4 pt-2 sm:px-4">
+                <div className="px-3 pb-5 pt-3 sm:px-5">
                   {(tab === "ALL" || tab === "GAMES") && results!.games.length > 0 && (
                     <Group title="Oyunlar" icon={<Gamepad2 className="h-3.5 w-3.5" />}>
                       {results!.games.map((g) => (
@@ -310,21 +407,29 @@ export default function NavSearch() {
             </div>
 
             {/* Footer hint */}
-            <div className="border-t border-white/5 bg-black/30 px-4 py-2 text-[11px] text-zinc-500">
-              <span className="hidden sm:inline">
-                <kbd className="rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px]">
-                  ↵
-                </kbd>{" "}
-                Aç ·{" "}
-                <kbd className="rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px]">
-                  Esc
-                </kbd>{" "}
-                Bağla
+            <div className="flex items-center justify-between gap-3 border-t border-white/[0.06] bg-black/40 px-5 py-3 text-[11px] text-zinc-500 sm:px-6">
+              <div className="flex items-center gap-4">
+                <span className="hidden items-center gap-1.5 sm:inline-flex">
+                  <kbd className="grid h-5 min-w-5 place-items-center rounded-md border border-white/10 bg-white/[0.05] px-1.5 font-mono text-[10px] font-semibold text-zinc-300">
+                    ↵
+                  </kbd>
+                  <span>Aç</span>
+                </span>
+                <span className="hidden items-center gap-1.5 sm:inline-flex">
+                  <kbd className="grid h-5 min-w-5 place-items-center rounded-md border border-white/10 bg-white/[0.05] px-1.5 font-mono text-[10px] font-semibold text-zinc-300">
+                    Esc
+                  </kbd>
+                  <span>Bağla</span>
+                </span>
+                <span className="sm:hidden">Ən az 2 simvol yaz</span>
+              </div>
+              <span className="hidden items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-zinc-600 sm:inline-flex">
+                <Sparkles className="h-3 w-3 text-violet-400/70" /> Honsell Search
               </span>
-              <span className="sm:hidden">Axtarış üçün ən az 2 simvol</span>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
@@ -332,46 +437,60 @@ export default function NavSearch() {
 
 /* ─── Subcomponents ────────────────────────────────────────── */
 
-function EmptyState() {
-  const suggestions = [
-    "Spider-Man",
-    "PS Plus",
-    "Netflix",
-    "FIFA",
-    "Hogwarts",
-    "Stranger Things",
-  ];
+function EmptyState({
+  onPick,
+  suggestions,
+}: {
+  onPick: (q: string) => void;
+  suggestions: SearchSuggestionDto[];
+}) {
   return (
-    <div className="px-5 py-10 text-center">
-      <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-white/[0.03]">
-        <Sparkles className="h-5 w-5 text-amber-300" />
+    <div className="px-5 py-12 text-center">
+      <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/10 ring-1 ring-inset ring-violet-400/25">
+        <Sparkles className="h-6 w-6 text-violet-200" />
       </div>
-      <p className="text-sm font-semibold text-zinc-200">Hər şeyi axtar</p>
-      <p className="mx-auto mt-1 max-w-sm text-xs text-zinc-500">
+      <p className="text-base font-bold text-white">Hər şeyi axtar</p>
+      <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-zinc-500">
         PS oyunları, hədiyyə kartları, hesab açma, streaming film və serialları —
         hamısı bir yerdə.
       </p>
-      <div className="mt-5 flex flex-wrap justify-center gap-2">
-        {suggestions.map((s) => (
-          <span
-            key={s}
-            className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-zinc-400"
+      {suggestions.length > 0 && (
+        <>
+      <p className="mt-6 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600">
+        Populyar axtarışlar
+      </p>
+      <div className="mx-auto mt-3 flex max-w-md flex-wrap justify-center gap-2">
+        {suggestions.map((s) => {
+          const Icon = SUGGESTION_ICONS[s.iconKey] ?? SearchIcon;
+          return (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => onPick(s.label)}
+            className="group inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium text-zinc-300 transition hover:border-violet-400/40 hover:bg-violet-500/10 hover:text-white"
           >
-            {s}
-          </span>
-        ))}
+            <Icon className="h-3 w-3 text-zinc-500 transition group-hover:text-violet-300" />
+            {s.label}
+          </button>
+          );
+        })}
       </div>
+        </>
+      )}
     </div>
   );
 }
 
 function NoResults({ q }: { q: string }) {
   return (
-    <div className="px-5 py-12 text-center">
-      <p className="text-sm font-semibold text-zinc-200">
+    <div className="px-5 py-14 text-center">
+      <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl border border-white/[0.08] bg-white/[0.03]">
+        <SearchIcon className="h-5 w-5 text-zinc-500" />
+      </div>
+      <p className="text-sm font-bold text-white">
         &quot;{q}&quot; üçün heç nə tapılmadı
       </p>
-      <p className="mt-1 text-xs text-zinc-500">
+      <p className="mx-auto mt-1.5 max-w-sm text-xs text-zinc-500">
         Başqa sözlə cəhd et və ya yazılışı yoxla.
       </p>
     </div>
@@ -388,8 +507,8 @@ function Group({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-4">
-      <p className="mb-2 flex items-center gap-1.5 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+    <div className="mb-5 last:mb-0">
+      <p className="mb-2 flex items-center gap-1.5 px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-violet-300/70">
         {icon} {title}
       </p>
       <div className="space-y-1">{children}</div>
@@ -418,16 +537,16 @@ function ProductRow({
     <Link
       href={item.href}
       onClick={onPick}
-      className="group flex items-center gap-3 rounded-xl border border-transparent p-2 transition hover:border-white/10 hover:bg-white/[0.04]"
+      className="group flex items-center gap-3 rounded-2xl border border-transparent p-2.5 transition hover:border-violet-400/20 hover:bg-gradient-to-r hover:from-violet-500/[0.08] hover:to-transparent"
     >
-      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900 ring-1 ring-white/10">
+      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-900 ring-1 ring-white/10 transition group-hover:ring-violet-400/40">
         {item.imageUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={item.imageUrl}
             alt={item.title}
             loading="lazy"
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105"
           />
         ) : (
           <div className="grid h-full w-full place-items-center text-zinc-700">
@@ -442,7 +561,7 @@ function ProductRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-white">{item.title}</p>
         <p className="truncate text-[11px] text-zinc-500">{item.subtitle}</p>
-        <div className="mt-0.5 flex items-baseline gap-2">
+        <div className="mt-1 flex items-baseline gap-2">
           <span className="text-sm font-bold text-amber-300 tabular-nums">
             {item.finalAzn.toFixed(2)} ₼
           </span>
@@ -457,10 +576,10 @@ function ProductRow({
         type="button"
         onClick={handleAdd}
         disabled={inCart}
-        className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition ${
+        className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition ${
           inCart
-            ? "bg-emerald-400/15 text-emerald-300"
-            : "bg-white text-zinc-900 hover:bg-amber-300"
+            ? "bg-emerald-400/15 text-emerald-300 ring-1 ring-inset ring-emerald-400/30"
+            : "bg-white text-zinc-900 shadow-[0_4px_14px_-4px_rgba(255,255,255,0.4)] hover:bg-amber-300 hover:shadow-[0_4px_14px_-4px_rgba(252,211,77,0.6)]"
         }`}
       >
         {inCart ? (
@@ -488,16 +607,16 @@ function LinkRow({
     <Link
       href={item.href}
       onClick={onPick}
-      className="group flex items-center gap-3 rounded-xl border border-transparent p-2 transition hover:border-white/10 hover:bg-white/[0.04]"
+      className="group flex items-center gap-3 rounded-2xl border border-transparent p-2.5 transition hover:border-violet-400/20 hover:bg-gradient-to-r hover:from-violet-500/[0.08] hover:to-transparent"
     >
-      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900 ring-1 ring-white/10">
+      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-900 ring-1 ring-white/10 transition group-hover:ring-violet-400/40">
         {item.imageUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={item.imageUrl}
             alt={item.title}
             loading="lazy"
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105"
           />
         ) : (
           <div className="grid h-full w-full place-items-center text-zinc-700">
@@ -513,7 +632,7 @@ function LinkRow({
         <p className="truncate text-sm font-semibold text-white">{item.title}</p>
         <p className="truncate text-[11px] text-zinc-500">{item.subtitle}</p>
       </div>
-      <span className="shrink-0 rounded-full border border-white/10 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 transition group-hover:border-white/30 group-hover:text-white">
+      <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[11px] font-semibold text-zinc-300 transition group-hover:border-violet-400/40 group-hover:bg-violet-500/10 group-hover:text-white">
         Bax →
       </span>
     </Link>

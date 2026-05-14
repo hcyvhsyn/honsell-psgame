@@ -5,8 +5,8 @@ import Link from "next/link";
  */
 export default function SiteFooter() {
   return (
-    <footer className="mt-0 border-t border-white/5 bg-[#0B0B0E]">
-      <div className="mx-auto max-w-[1200px] px-6 py-12">
+    <footer className="mt-0 border-t border-white/5 bg-[#0B0B0E] px-4 sm:px-6">
+      <div className="mx-auto max-w-[1536px] px-4 py-12 md:px-5 xl:px-6">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between border-b border-white/5 pb-10">
           <p className="text-3xl font-black tracking-tight text-white">HONSELL</p>
           <nav className="flex flex-wrap items-center gap-6 text-sm text-zinc-300">
@@ -36,6 +36,7 @@ export default function SiteFooter() {
               <li><Link href="/ps-plus" className="hover:text-white transition">PS Plus Essential</Link></li>
               <li><Link href="/ps-plus" className="hover:text-white transition">PS Plus Extra</Link></li>
               <li><Link href="/ps-plus" className="hover:text-white transition">PS Plus Deluxe</Link></li>
+              <li><Link href="/ea-play" className="hover:text-white transition">EA Play</Link></li>
               <li><Link href="/hesab-acma" className="hover:text-white transition">Türkiyə PSN hesabı</Link></li>
             </ul>
           </div>
@@ -55,6 +56,8 @@ export default function SiteFooter() {
               <li><Link href="/hediyye-kartlari" className="hover:text-white transition">TRY Wallet kartları</Link></li>
               <li><Link href="/hediyye-kartlari" className="hover:text-white transition">PSN top-up</Link></li>
               <li><Link href="/hediyye-kartlari" className="hover:text-white transition">PlayStation gift card</Link></li>
+              <li><Link href="/hediyye-kartlari/honsell" className="hover:text-white transition">Honsell hədiyyə kartı</Link></li>
+              <li><Link href="/profile/hediyye-kart" className="hover:text-white transition">Hədiyyə kart aktivləşdir</Link></li>
             </ul>
           </div>
           <div>

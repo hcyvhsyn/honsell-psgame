@@ -39,6 +39,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
       { href: "/admin/faq", label: "FAQ", iconName: "HelpCircle" },
       { href: "/admin/platform-guides", label: "Faydalı Başlıqlar", iconName: "ClipboardList" },
       { href: "/admin/reviews", label: "Oyun Rəyləri", iconName: "MessageSquare", badgeKey: "pendingReviews" },
+      { href: "/admin/search-suggestions", label: "Populyar axtarışlar", iconName: "Search" },
     ],
   },
   {
@@ -48,7 +49,9 @@ const NAV_GROUPS: NavGroupSpec[] = [
       { href: "/admin/games", label: "Oyunlar", iconName: "Gamepad2" },
       { href: "/admin/collections", label: "Kolleksiyalar", iconName: "LayoutGrid" },
       { href: "/admin/ps-plus", label: "PS Plus", iconName: "Crown" },
+      { href: "/admin/ea-play", label: "EA Play", iconName: "Gamepad2" },
       { href: "/admin/services", label: "Hədiyyə Kartları", iconName: "Gift" },
+      { href: "/admin/honsell-gift-cards", label: "Honsell Hədiyyə Kartı", iconName: "Gift" },
       { href: "/admin/account-creation", label: "Hesab Açılışı", iconName: "UserPlus" },
       { href: "/admin/subscriptions", label: "Abunəliklər", iconName: "Crown", badgeKey: "expiringSubs" },
     ],

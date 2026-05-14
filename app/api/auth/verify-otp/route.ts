@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE_NAME } from "@/lib/auth";
 import { sendAdminNewUserNotification, sendWelcomeEmail } from "@/lib/resend";
+import { rateLimitMessage } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
+
+const MAX_OTP_ATTEMPTS = 5;
+const OTP_LOCK_MINUTES = 15;
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
@@ -25,6 +29,18 @@ export async function POST(req: Request) {
     );
   }
 
+  // ── Lockout aktivdirsə dərhal 429 ──────────────────────────────────────────
+  if (user.otpLockedUntil && user.otpLockedUntil.getTime() > Date.now()) {
+    const retryAfterSeconds = Math.ceil(
+      (user.otpLockedUntil.getTime() - Date.now()) / 1000
+    );
+    const retryAfterMinutes = Math.ceil(retryAfterSeconds / 60);
+    return NextResponse.json(
+      { error: rateLimitMessage(retryAfterMinutes, retryAfterSeconds) },
+      { status: 429 }
+    );
+  }
+
   if (user.otpExpiresAt.getTime() < Date.now()) {
     return NextResponse.json(
       { error: "Kodun müddəti bitib. Yeni kod tələb et." },
@@ -33,7 +49,36 @@ export async function POST(req: Request) {
   }
 
   if (user.otpCode !== code) {
-    return NextResponse.json({ error: "Kod səhvdir" }, { status: 401 });
+    // ── Səhv kod: counter artır, limitə çatdıqda kilidlə ─────────────────────
+    const nextAttempts = (user.otpAttempts ?? 0) + 1;
+    if (nextAttempts >= MAX_OTP_ATTEMPTS) {
+      const lockUntil = new Date(Date.now() + OTP_LOCK_MINUTES * 60_000);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          otpAttempts: nextAttempts,
+          otpLockedUntil: lockUntil,
+          // Kodu sıfırla — istifadəçi yenidən tələb etməlidir.
+          otpCode: null,
+          otpExpiresAt: null,
+        },
+      });
+      return NextResponse.json(
+        {
+          error: rateLimitMessage(OTP_LOCK_MINUTES, OTP_LOCK_MINUTES * 60),
+        },
+        { status: 429 }
+      );
+    }
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { otpAttempts: nextAttempts },
+    });
+    const remaining = MAX_OTP_ATTEMPTS - nextAttempts;
+    return NextResponse.json(
+      { error: `Kod səhvdir. ${remaining} cəhd qaldı.` },
+      { status: 401 }
+    );
   }
 
   await prisma.user.update({
@@ -42,16 +87,13 @@ export async function POST(req: Request) {
       emailVerified: true,
       otpCode: null,
       otpExpiresAt: null,
+      otpAttempts: 0,
+      otpLockedUntil: null,
     },
   });
 
-  // Best-effort welcome email — don't fail verification if Resend hiccups.
   try {
-    await sendWelcomeEmail(
-      email,
-      user.name ?? email.split("@")[0],
-      user.referralCode
-    );
+    await sendWelcomeEmail(email, user.name ?? email.split("@")[0], user.referralCode);
   } catch (err) {
     console.error("welcome email failed", err);
   }

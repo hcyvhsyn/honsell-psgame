@@ -4,8 +4,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { SITE_URL } from "@/lib/site";
 import {
   createEpointCheckout,
+  createEpointWidget,
   getEpointConfig,
   type EpointCheckoutResponse,
+  type EpointWidgetResponse,
 } from "@/lib/epoint";
 
 export const runtime = "nodejs";
@@ -47,6 +49,7 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const amountCents = parseAznToCents(body.amountAzn);
+  const useWidget = body.mode === "widget";
 
   if (amountCents == null || amountCents < MIN_DEPOSIT_CENTS) {
     return NextResponse.json({ error: "Məbləğ ən azı 0.01 AZN olmalıdır." }, { status: 400 });
@@ -82,6 +85,88 @@ export async function POST(req: Request) {
     select: { id: true },
   });
 
+  const description = `Honsell cüzdan balansı: ${amountAzn.toFixed(2)} AZN`;
+  const successUrl = `${origin}/success?order_id=${encodeURIComponent(tx.id)}`;
+  const errorUrl = `${origin}/error?order_id=${encodeURIComponent(tx.id)}`;
+
+  if (useWidget) {
+    let widget: EpointWidgetResponse;
+    try {
+      widget = await createEpointWidget(
+        {
+          public_key: config.publicKey,
+          amount: amountAzn,
+          order_id: tx.id,
+          description,
+          currency: "AZN",
+        },
+        config.privateKey,
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Epoint widget sorğusu alınmadı.";
+      await prisma.transaction.update({
+        where: { id: tx.id },
+        data: {
+          status: "FAILED",
+          metadata: JSON.stringify({
+            gateway: "epoint",
+            flow: "wallet-deposit",
+            channel: "widget",
+            createdAt,
+            error: message,
+          }),
+        },
+      });
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+
+    const widgetOk =
+      String(widget.status ?? "").toLowerCase() === "success" &&
+      typeof widget.widget_url === "string" &&
+      widget.widget_url.length > 0;
+
+    if (!widgetOk) {
+      await prisma.transaction.update({
+        where: { id: tx.id },
+        data: {
+          status: "FAILED",
+          metadata: JSON.stringify({
+            gateway: "epoint",
+            flow: "wallet-deposit",
+            channel: "widget",
+            createdAt,
+            epoint: widget,
+          }),
+        },
+      });
+      return NextResponse.json(
+        { error: widget.message ?? "Epoint widget yaratmadı.", epoint: widget },
+        { status: 502 },
+      );
+    }
+
+    await prisma.transaction.update({
+      where: { id: tx.id },
+      data: {
+        metadata: JSON.stringify({
+          gateway: "epoint",
+          flow: "wallet-deposit",
+          channel: "widget",
+          createdAt,
+          epoint: { widget_status: widget.status ?? null },
+        }),
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      orderId: tx.id,
+      widgetUrl: widget.widget_url,
+      successUrl,
+      errorUrl,
+    });
+  }
+
   let checkout: EpointCheckoutResponse;
   try {
     checkout = await createEpointCheckout(
@@ -91,9 +176,9 @@ export async function POST(req: Request) {
         currency: "AZN",
         language: "az",
         order_id: tx.id,
-        description: `Honsell cüzdan balansı: ${amountAzn.toFixed(2)} AZN`,
-        success_redirect_url: `${origin}/success?order_id=${encodeURIComponent(tx.id)}`,
-        error_redirect_url: `${origin}/error?order_id=${encodeURIComponent(tx.id)}`,
+        description,
+        success_redirect_url: successUrl,
+        error_redirect_url: errorUrl,
         result_url: `${origin}/result`,
       },
       config.privateKey,

@@ -49,8 +49,8 @@ function useCountdown(iso: string | null) {
   const minutes = Math.floor((totalSec % 3600) / 60);
   const seconds = totalSec % 60;
 
-  const hms = `${pad(hours)}.${pad(minutes)}.${pad(seconds)}`;
-  const text = days > 0 ? `${days} g ${hms}` : hms;
+  const hms = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  const text = days > 0 ? `${days} gün ${hms}` : hms;
   return { expired: false, text };
 }
 
@@ -109,7 +109,7 @@ export default function GameCard({ game, priority = false }: { game: GameCardDat
         )}
 
         {game.discountPct != null && (
-          <span className="pointer-events-none absolute -right-1 -top-1 grid h-16 w-16 place-items-center rounded-full bg-[#6D28D9] text-sm font-bold text-white shadow-[0_8px_24px_-6px_rgba(109,40,217,0.6)] ring-4 ring-[#0A0A0A]">
+          <span className="pointer-events-none absolute -right-1 -top-1 z-20 grid h-16 w-16 place-items-center rounded-full bg-[#6D28D9] text-sm font-bold text-white shadow-[0_8px_24px_-6px_rgba(109,40,217,0.6)] ring-4 ring-[#0A0A0A]">
             -{game.discountPct}%
           </span>
         )}
@@ -131,11 +131,11 @@ export default function GameCard({ game, priority = false }: { game: GameCardDat
 
         <div className="mt-3 flex items-baseline justify-center gap-3">
           {game.originalAzn != null && (
-            <span className="relative text-base font-medium text-zinc-500">
+            <span className="relative text-base font-medium text-zinc-300">
               {game.originalAzn.toFixed(2)}₼
               <span
                 aria-hidden
-                className="pointer-events-none absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 -rotate-6 bg-rose-500"
+                className="pointer-events-none absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-rose-400/90"
               />
             </span>
           )}

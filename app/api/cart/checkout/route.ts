@@ -30,9 +30,18 @@ import {
 } from "@/lib/epointCartCheckout";
 import {
   createEpointCheckout,
+  createEpointWidget,
   getEpointConfig,
   type EpointCheckoutResponse,
+  type EpointWidgetResponse,
 } from "@/lib/epoint";
+import {
+  HONSELL_GIFT_CARD_SERVICE_TYPE,
+  HONSELL_GIFT_CARD_VALIDITY_DAYS,
+  formatHonsellGiftCardCode,
+  generateUniqueHonsellGiftCardCode,
+} from "@/lib/honsellGiftCard";
+import { sendHonsellGiftCardEmail } from "@/lib/resend";
 
 export const runtime = "nodejs";
 
@@ -163,7 +172,17 @@ export async function POST(req: Request) {
       where: {
         id: { in: ids },
         isActive: true,
-        type: { in: ["PS_PLUS", "TRY_BALANCE", "ACCOUNT_CREATION", "STREAMING", "PLATFORM"] },
+        type: {
+          in: [
+            "PS_PLUS",
+            "EA_PLAY",
+            "TRY_BALANCE",
+            "ACCOUNT_CREATION",
+            "STREAMING",
+            "PLATFORM",
+            HONSELL_GIFT_CARD_SERVICE_TYPE,
+          ],
+        },
       },
     }),
   ]);
@@ -198,6 +217,14 @@ export async function POST(req: Request) {
         lineCents: number;
       }
     | {
+        kind: "EA_PLAY";
+        service: ServiceModel;
+        qty: number;
+        unitListCents: number;
+        unitCostCents: number;
+        lineCents: number;
+      }
+    | {
         kind: "ACCOUNT_CREATION";
         service: ServiceModel;
         qty: number;
@@ -218,6 +245,14 @@ export async function POST(req: Request) {
       }
     | {
         kind: "PLATFORM";
+        service: ServiceModel;
+        qty: number;
+        unitListCents: number;
+        unitCostCents: number;
+        lineCents: number;
+      }
+    | {
+        kind: "HONSELL_GIFT_CARD";
         service: ServiceModel;
         qty: number;
         unitListCents: number;
@@ -286,6 +321,18 @@ export async function POST(req: Request) {
       continue;
     }
 
+    if (service.type === "EA_PLAY") {
+      lines.push({
+        kind: "EA_PLAY",
+        service,
+        qty: p.qty,
+        unitListCents: service.priceAznCents,
+        unitCostCents: service.priceAznCents,
+        lineCents: service.priceAznCents * p.qty,
+      });
+      continue;
+    }
+
     if (service.type === "ACCOUNT_CREATION") {
       const parsed = parseAccountCreationBody(p.accountCreation);
       if (!parsed.ok) {
@@ -338,10 +385,26 @@ export async function POST(req: Request) {
       });
       continue;
     }
+
+    if (service.type === HONSELL_GIFT_CARD_SERVICE_TYPE) {
+      lines.push({
+        kind: "HONSELL_GIFT_CARD",
+        service,
+        qty: p.qty,
+        unitListCents: service.priceAznCents,
+        unitCostCents: service.priceAznCents,
+        lineCents: service.priceAznCents * p.qty,
+      });
+      continue;
+    }
   }
 
   const needsPsn = lines.some(
-    (l) => l.kind === "GAME" || l.kind === "PS_PLUS" || l.kind === "TRY_BALANCE"
+    (l) =>
+      l.kind === "GAME" ||
+      l.kind === "PS_PLUS" ||
+      l.kind === "EA_PLAY" ||
+      l.kind === "TRY_BALANCE"
   );
 
   const requestedAccountId =
@@ -381,7 +444,8 @@ export async function POST(req: Request) {
   const spentAzn = await getLifetimeSpendAznForLoyalty(prisma, user.id);
   const loyalty = getLoyaltyTier(spentAzn);
 
-  if (body.paymentMethod === "epoint") {
+  if (body.paymentMethod === "epoint" || body.paymentMethod === "epoint-widget") {
+    const useWidget = body.paymentMethod === "epoint-widget";
     const config = getEpointConfig();
     if (!config) {
       return NextResponse.json(
@@ -428,6 +492,17 @@ export async function POST(req: Request) {
         };
       }
 
+      if (line.kind === "EA_PLAY") {
+        return {
+          kind: "EA_PLAY",
+          title: line.service.title,
+          qty: line.qty,
+          serviceProductId: line.service.id,
+          unitListCents: line.unitListCents,
+          psnAccountId: psnAccount?.id ?? null,
+        };
+      }
+
       if (line.kind === "ACCOUNT_CREATION") {
         const names = splitFullName(line.detail.fullName);
         return {
@@ -456,6 +531,16 @@ export async function POST(req: Request) {
           unitListCents: line.unitListCents,
           deliveryMode: line.deliveryMode,
           gmail: line.gmail,
+        };
+      }
+
+      if (line.kind === "HONSELL_GIFT_CARD") {
+        return {
+          kind: "HONSELL_GIFT_CARD",
+          title: line.service.title,
+          qty: line.qty,
+          serviceProductId: line.service.id,
+          unitListCents: line.unitListCents,
         };
       }
 
@@ -498,19 +583,89 @@ export async function POST(req: Request) {
     });
 
     const origin = requestOrigin(req);
+    const amountAzn = Number((totalCents / 100).toFixed(2));
+    const description = `Honsell sifariş ${orderCode}: ${amountAzn.toFixed(2)} AZN`;
+    const successUrl = `${origin}/success?order_id=${encodeURIComponent(payment.id)}&order_code=${encodeURIComponent(orderCode)}`;
+    const errorUrl = `${origin}/error?order_id=${encodeURIComponent(payment.id)}&order_code=${encodeURIComponent(orderCode)}`;
+
+    if (useWidget) {
+      let widget: EpointWidgetResponse;
+      try {
+        widget = await createEpointWidget(
+          {
+            public_key: config.publicKey,
+            amount: amountAzn,
+            order_id: payment.id,
+            description,
+            currency: "AZN",
+          },
+          config.privateKey,
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Epoint widget sorğusu alınmadı.";
+        await prisma.transaction.update({
+          where: { id: payment.id },
+          data: {
+            status: "FAILED",
+            metadata: JSON.stringify({ ...metadata, error: message }),
+          },
+        });
+        return NextResponse.json({ error: message }, { status: 502 });
+      }
+
+      const widgetOk =
+        String(widget.status ?? "").toLowerCase() === "success" &&
+        typeof widget.widget_url === "string" &&
+        widget.widget_url.length > 0;
+
+      if (!widgetOk) {
+        await prisma.transaction.update({
+          where: { id: payment.id },
+          data: {
+            status: "FAILED",
+            metadata: JSON.stringify({ ...metadata, epoint: widget }),
+          },
+        });
+        return NextResponse.json(
+          { error: widget.message ?? "Epoint widget yaratmadı.", epoint: widget },
+          { status: 502 },
+        );
+      }
+
+      await prisma.transaction.update({
+        where: { id: payment.id },
+        data: {
+          metadata: JSON.stringify({
+            ...metadata,
+            epoint: { widget_status: widget.status ?? null, channel: "widget" },
+          }),
+        },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        paymentMethod: "epoint-widget",
+        orderId: payment.id,
+        orderCode,
+        widgetUrl: widget.widget_url,
+        successUrl,
+        errorUrl,
+      });
+    }
+
     let checkout: EpointCheckoutResponse;
 
     try {
       checkout = await createEpointCheckout(
         {
           public_key: config.publicKey,
-          amount: Number((totalCents / 100).toFixed(2)),
+          amount: amountAzn,
           currency: "AZN",
           language: "az",
           order_id: payment.id,
-          description: `Honsell sifariş ${orderCode}: ${(totalCents / 100).toFixed(2)} AZN`,
-          success_redirect_url: `${origin}/success?order_id=${encodeURIComponent(payment.id)}&order_code=${encodeURIComponent(orderCode)}`,
-          error_redirect_url: `${origin}/error?order_id=${encodeURIComponent(payment.id)}&order_code=${encodeURIComponent(orderCode)}`,
+          description,
+          success_redirect_url: successUrl,
+          error_redirect_url: errorUrl,
           result_url: `${origin}/result`,
         },
         config.privateKey,
@@ -607,6 +762,12 @@ export async function POST(req: Request) {
       let cashbackCents = 0;
       let tryBalancePendingCount = 0;
       let tryBalanceDeliveredCount = 0;
+      const honsellGiftCardsIssued: {
+        code: string;
+        amountAznCents: number;
+        expiresAt: Date;
+        transactionId: string;
+      }[] = [];
 
       const attachPsn = psnAccount?.id ?? null;
 
@@ -726,6 +887,24 @@ export async function POST(req: Request) {
               },
             });
             serviceOrderIds.push(serviceOrder.id);
+          } else if (line.kind === "EA_PLAY") {
+            const serviceOrder = await tx.transaction.create({
+              data: {
+                userId: user.id,
+                type: "SERVICE_PURCHASE",
+                status: "PENDING",
+                amountAznCents: -line.unitListCents,
+                serviceProductId: line.service.id,
+                psnAccountId: attachPsn,
+                metadata: JSON.stringify({
+                  fromCart: true,
+                  kind: "EA_PLAY",
+                  paymentSource: payTag,
+                  orderCode,
+                }),
+              },
+            });
+            serviceOrderIds.push(serviceOrder.id);
           } else if (line.kind === "ACCOUNT_CREATION") {
             const names = splitFullName(line.detail.fullName);
             const serviceOrder = await tx.transaction.create({
@@ -771,6 +950,49 @@ export async function POST(req: Request) {
               },
             });
             serviceOrderIds.push(serviceOrder.id);
+          } else if (line.kind === "HONSELL_GIFT_CARD") {
+            // Honsell hədiyyə kartı — hər ədəd üçün unikal kod generasiya edib
+            // HonsellGiftCard sətri yaradırıq. Status ACTIVE; başqa istifadəçi
+            // /profile/hediyye-kart səhifəsindən aktivləşdirə bilər.
+            const code = await generateUniqueHonsellGiftCardCode();
+            const expiresAt = new Date(
+              Date.now() + HONSELL_GIFT_CARD_VALIDITY_DAYS * 24 * 60 * 60 * 1000,
+            );
+            const serviceOrder = await tx.transaction.create({
+              data: {
+                userId: user.id,
+                type: "SERVICE_PURCHASE",
+                status: "SUCCESS",
+                amountAznCents: -line.unitListCents,
+                serviceProductId: line.service.id,
+                metadata: JSON.stringify({
+                  fromCart: true,
+                  kind: "HONSELL_GIFT_CARD",
+                  paymentSource: payTag,
+                  orderCode,
+                  honsellGiftCardCode: code,
+                  honsellGiftCardAmountAznCents: line.unitListCents,
+                  honsellGiftCardExpiresAt: expiresAt.toISOString(),
+                }),
+              },
+            });
+            await tx.honsellGiftCard.create({
+              data: {
+                code,
+                amountAznCents: line.unitListCents,
+                status: "ACTIVE",
+                purchasedById: user.id,
+                purchaseTransactionId: serviceOrder.id,
+                expiresAt,
+              },
+            });
+            serviceOrderIds.push(serviceOrder.id);
+            honsellGiftCardsIssued.push({
+              code,
+              amountAznCents: line.unitListCents,
+              expiresAt,
+              transactionId: serviceOrder.id,
+            });
           } else {
             // PLATFORM (Musiqi / AI / İş Platformaları) — streaming ilə eyni axın.
             const platformMeta =
@@ -821,6 +1043,7 @@ export async function POST(req: Request) {
         tryBalanceDeliveredCount,
         orderCode,
         referredByForTierCheck: Array.from(referredByForTierCheck),
+        honsellGiftCardsIssued,
       };
     });
   } catch (e: unknown) {
@@ -873,6 +1096,28 @@ export async function POST(req: Request) {
     console.error("admin order notify failed", notifyErr);
   }
 
+  const honsellGiftCards = result.honsellGiftCardsIssued ?? [];
+  if (honsellGiftCards.length > 0) {
+    const redeemUrl = `${requestOrigin(req)}/profile/hediyye-kart`;
+    const dateFmt = new Intl.DateTimeFormat("az-AZ", { dateStyle: "long" });
+    for (const card of honsellGiftCards) {
+      try {
+        await sendHonsellGiftCardEmail({
+          email: user.email,
+          userName: user.name ?? user.email,
+          amountAznFormatted: `${(card.amountAznCents / 100).toFixed(2)} AZN`,
+          code: card.code,
+          formattedCode: formatHonsellGiftCardCode(card.code),
+          expiresAtFormatted: dateFmt.format(card.expiresAt),
+          redeemUrl,
+          referralCode: user.referralCode,
+        });
+      } catch (emailErr) {
+        console.error("honsell gift card email failed", emailErr);
+      }
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     orderCode: result.orderCode as string,
@@ -894,6 +1139,12 @@ export async function POST(req: Request) {
       (n, l) => n + (l.kind === "GAME" ? l.qty : 0),
       0
     ),
+    honsellGiftCards: honsellGiftCards.map((c) => ({
+      code: c.code,
+      formattedCode: formatHonsellGiftCardCode(c.code),
+      amountAzn: c.amountAznCents / 100,
+      expiresAt: c.expiresAt.toISOString(),
+    })),
     deliveredTo: psnAccount
       ? {
           id: psnAccount.id,

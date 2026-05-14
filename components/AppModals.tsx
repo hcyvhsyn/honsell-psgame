@@ -22,7 +22,7 @@ export default function AppModals() {
 
   return (
     <>
-      <Modal open={active === "login"} onClose={close} size="md">
+      <Modal open={active === "login"} onClose={close} size="auth">
         <LoginForm
           onSuccess={handleAuthSuccess}
           onSwitchToRegister={() => open("register")}
@@ -30,14 +30,14 @@ export default function AppModals() {
         />
       </Modal>
 
-      <Modal open={active === "register"} onClose={close} size="md">
+      <Modal open={active === "register"} onClose={close} size="auth">
         <RegisterForm
           onSuccess={handleAuthSuccess}
           onSwitchToLogin={() => open("login")}
         />
       </Modal>
 
-      <Modal open={active === "forgot"} onClose={close} size="md">
+      <Modal open={active === "forgot"} onClose={close} size="auth">
         <ForgotPasswordForm
           onSuccess={() => open("login")}
           onSwitchToLogin={() => open("login")}

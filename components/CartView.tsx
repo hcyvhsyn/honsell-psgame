@@ -16,14 +16,24 @@ import {
   ChevronDown,
   Check,
   Pencil,
+  Smartphone,
 } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 import AccountCreationCartEditModal from "@/components/AccountCreationCartEditModal";
+import EpointWidgetModal from "@/components/EpointWidgetModal";
 import ReferralShareButtons from "@/components/ReferralShareButtons";
 import { Share2 } from "lucide-react";
 
 /** Dəstək xətti — WhatsApp (ulduzlu format, + prefiksi olmadan). */
 const SUPPORT_WHATSAPP_MSISDN = "994702560509";
+
+/**
+ * Apple Pay / Google Pay düyməsinin görünməsi.
+ * Epoint hesabımızda `/api/1/token/widget` endpoint-inə icazə verildikdən sonra
+ * `NEXT_PUBLIC_EPOINT_WIDGET_ENABLED=1` qoyun.
+ */
+const EPOINT_WIDGET_ENABLED =
+  process.env.NEXT_PUBLIC_EPOINT_WIDGET_ENABLED === "1";
 
 export type PsnOption = {
   id: string;
@@ -79,6 +89,11 @@ export default function CartView({
   }, [hydrated]);
   const cashbackAzn = (totalAzn * loyaltyCashbackPct) / 100;
   const [busy, setBusy] = useState(false);
+  const [widget, setWidget] = useState<{
+    url: string;
+    successUrl: string;
+    errorUrl: string;
+  } | null>(null);
   const [message, setMessage] = useState<{
     kind: "ok" | "error";
     text: string;
@@ -121,7 +136,7 @@ export default function CartView({
 
   /** Oyun / PS Plus / TRY üçün PSN seçimi və hesab yükləmə mütləqdir. Hesab-açılışı və streaming PSN tələb etmir. */
   const deliveryNeedsPsn = items.some((i) =>
-    ["GAME", "PS_PLUS", "TRY_BALANCE"].includes(i.productType)
+    ["GAME", "PS_PLUS", "EA_PLAY", "TRY_BALANCE"].includes(i.productType)
   );
   const blockedNoPsn = isAuthed && deliveryNeedsPsn && psnAccounts.length === 0;
 
@@ -279,7 +294,7 @@ export default function CartView({
     return "";
   }
 
-  async function checkout(paymentMethod: "wallet" | "epoint") {
+  async function checkout(paymentMethod: "wallet" | "epoint" | "epoint-widget") {
     if (!isAuthed || blockedNoPsn) return;
     if (
       items.some(
@@ -334,6 +349,20 @@ export default function CartView({
           return;
         }
 
+        if (
+          paymentMethod === "epoint-widget" &&
+          typeof data.widgetUrl === "string" &&
+          typeof data.successUrl === "string" &&
+          typeof data.errorUrl === "string"
+        ) {
+          setWidget({
+            url: data.widgetUrl,
+            successUrl: data.successUrl,
+            errorUrl: data.errorUrl,
+          });
+          return;
+        }
+
         clear();
         const target = data.deliveredTo?.label ?? "hesabına";
         let text = "";
@@ -379,6 +408,14 @@ export default function CartView({
           } else {
             text = `Hədiyyə kartınız sisteminizə yükləndi. Kodunuzu Sifarişlər bölməsindən görə bilərsiniz.${tryBalanceSuffix}`;
           }
+          if (gameFulfillmentSentence) {
+            text = `${text.trim()} ${gameFulfillmentSentence}`;
+          }
+        }
+        if (Array.isArray(data.honsellGiftCards) && data.honsellGiftCards.length > 0) {
+          const hglSuffix = pendingGameQty > 0 ? "" : checkoutBalanceSuffix(data);
+          const cnt = data.honsellGiftCards.length;
+          text = `Honsell hədiyyə kartınız hazırdır — ${cnt > 1 ? `${cnt} kod` : "kod"} email ilə göndərildi və Sifarişlər bölməsində görünür. Aktivləşdirmək üçün Profil → Hədiyyə kart səhifəsinə daxil olun.${hglSuffix}`;
           if (gameFulfillmentSentence) {
             text = `${text.trim()} ${gameFulfillmentSentence}`;
           }
@@ -640,6 +677,18 @@ export default function CartView({
               >
                 {busy ? "İşlənir..." : "Kartla birbaşa ödə"}
               </button>
+
+              {EPOINT_WIDGET_ENABLED ? (
+                <button
+                  type="button"
+                  onClick={() => checkout("epoint-widget")}
+                  disabled={busy}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition hover:border-zinc-500 hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-50"
+                >
+                  <Smartphone className="h-4 w-4" />
+                  {busy ? "İşlənir..." : "Apple Pay / Google Pay"}
+                </button>
+              ) : null}
             </div>
           )}
         </div>
@@ -681,6 +730,16 @@ export default function CartView({
           onClose={() => setAccountEdit(null)}
         />
       ) : null}
+
+      {widget ? (
+        <EpointWidgetModal
+          widgetUrl={widget.url}
+          successUrl={widget.successUrl}
+          errorUrl={widget.errorUrl}
+          title="Apple Pay / Google Pay"
+          onClose={() => setWidget(null)}
+        />
+      ) : null}
     </>
   );
 }
@@ -701,6 +760,7 @@ function CartLine({
   const isSingleLicense =
     item.productType === "GAME" ||
     item.productType === "PS_PLUS" ||
+    item.productType === "EA_PLAY" ||
     item.productType === "ACCOUNT_CREATION" ||
     item.productType === "STREAMING";
   return (
@@ -825,8 +885,12 @@ function labelForType(t: string) {
       return "Pul kartı";
     case "PS_PLUS":
       return "PS Plus";
+    case "EA_PLAY":
+      return "EA Play";
     case "TRY_BALANCE":
       return "Hədiyyə Kartı";
+    case "HONSELL_GIFT_CARD":
+      return "Honsell Hədiyyə Kartı";
     case "ACCOUNT_CREATION":
       return "PSN Hesab Açılışı";
     case "STREAMING":

@@ -420,6 +420,9 @@ export default function StreamingAdminClient() {
                         </>
                       )}
                     </button>
+                    <p className="mt-1 text-[11px] text-zinc-500">
+                      Tövsiyə olunan ölçü: <b className="text-zinc-300">1200×900px</b> (4:3 aspekt) — streaming xidməti kartları public-də 4:3 nisbətdə render olunur.
+                    </p>
                   </div>
                 </div>
 

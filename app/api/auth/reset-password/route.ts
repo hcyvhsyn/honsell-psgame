@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
+import { rateLimitMessage } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
+
+const MAX_OTP_ATTEMPTS = 5;
+const OTP_LOCK_MINUTES = 15;
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
@@ -24,22 +28,54 @@ export async function POST(req: Request) {
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (
-    !user ||
-    !user.otpCode ||
-    !user.otpExpiresAt
-  ) {
+  if (!user || !user.otpCode || !user.otpExpiresAt) {
     return NextResponse.json(
       { error: "Kod yanlış və ya müddəti bitib" },
       { status: 400 }
     );
   }
-  if (user.otpCode !== code) {
-    return NextResponse.json({ error: "Kod yanlışdır" }, { status: 400 });
-  }
-  if (user.otpExpiresAt < new Date()) {
+
+  // Lockout aktivdirsə dərhal 429
+  if (user.otpLockedUntil && user.otpLockedUntil.getTime() > Date.now()) {
+    const retryAfterSeconds = Math.ceil(
+      (user.otpLockedUntil.getTime() - Date.now()) / 1000
+    );
+    const retryAfterMinutes = Math.ceil(retryAfterSeconds / 60);
     return NextResponse.json(
-      { error: "Kodun müddəti bitib" },
+      { error: rateLimitMessage(retryAfterMinutes, retryAfterSeconds) },
+      { status: 429 }
+    );
+  }
+
+  if (user.otpExpiresAt < new Date()) {
+    return NextResponse.json({ error: "Kodun müddəti bitib" }, { status: 400 });
+  }
+
+  if (user.otpCode !== code) {
+    const nextAttempts = (user.otpAttempts ?? 0) + 1;
+    if (nextAttempts >= MAX_OTP_ATTEMPTS) {
+      const lockUntil = new Date(Date.now() + OTP_LOCK_MINUTES * 60_000);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          otpAttempts: nextAttempts,
+          otpLockedUntil: lockUntil,
+          otpCode: null,
+          otpExpiresAt: null,
+        },
+      });
+      return NextResponse.json(
+        { error: rateLimitMessage(OTP_LOCK_MINUTES, OTP_LOCK_MINUTES * 60) },
+        { status: 429 }
+      );
+    }
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { otpAttempts: nextAttempts },
+    });
+    const remaining = MAX_OTP_ATTEMPTS - nextAttempts;
+    return NextResponse.json(
+      { error: `Kod yanlışdır. ${remaining} cəhd qaldı.` },
       { status: 400 }
     );
   }
@@ -55,6 +91,8 @@ export async function POST(req: Request) {
       emailVerified: true,
       otpCode: null,
       otpExpiresAt: null,
+      otpAttempts: 0,
+      otpLockedUntil: null,
       setPasswordToken: null,
       setPasswordTokenExpiresAt: null,
     },

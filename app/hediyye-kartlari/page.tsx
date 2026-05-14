@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Gift } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Gift, Sparkles } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import HediyyeKartlariClient from "./HediyyeKartlariClient";
@@ -40,6 +41,26 @@ export default async function HediyyeKartlariPage() {
             Türkiyə PSN hesabınız üçün hədiyyə kartları və wallet top-up kodları. Məbləği seç, ödənişi et və kodu anında əldə et.
           </p>
         </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 pb-4 sm:px-6">
+        <Link
+          href="/hediyye-kartlari/honsell"
+          className="group flex items-center justify-between gap-4 rounded-2xl border border-violet-400/30 bg-gradient-to-r from-violet-700/20 via-fuchsia-700/15 to-zinc-900/40 p-4 transition hover:border-violet-300/50 hover:from-violet-700/30"
+        >
+          <div className="flex items-start gap-3">
+            <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-200 ring-1 ring-violet-400/30">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-white">Honsell Hədiyyə Kartı — Yeni!</div>
+              <p className="mt-0.5 text-xs text-zinc-300">
+                Honsell Store balansı hədiyyə et. 5/10/20/50/100/200/500/1000 AZN nominalında, 11 simvollu unikal kod ilə.
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="h-5 w-5 shrink-0 text-violet-200 transition group-hover:translate-x-1" />
+        </Link>
       </section>
 
       <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6">

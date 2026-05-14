@@ -44,7 +44,7 @@ export async function awardStreamingReferralCommission(
     /** Pozitiv qəpik (AZN * 100) — alışın final məbləği. */
     lineCents: number;
     streamingProfitSharePct: number;
-    kind?: "STREAMING" | "PLATFORM" | "TRY_BALANCE" | "PS_PLUS" | "ACCOUNT_CREATION";
+    kind?: "STREAMING" | "PLATFORM" | "TRY_BALANCE" | "PS_PLUS" | "EA_PLAY" | "ACCOUNT_CREATION";
   }
 ) {
   const { sourceTransactionId, buyerUserId, lineCents, streamingProfitSharePct } = params;

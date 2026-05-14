@@ -79,27 +79,44 @@ export default function FavoriteButton({
 
   // "card" variant — floating top-left
   return (
-    <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5">
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={busy}
-        aria-pressed={fav}
-        aria-label={tooltip}
-        title={tooltip}
-        className={`grid h-9 w-9 place-items-center rounded-full border backdrop-blur-md transition ${
-          fav
-            ? "border-rose-400/60 bg-rose-500/30 text-rose-100 shadow-[0_4px_12px_-4px_rgba(244,63,94,0.6)]"
-            : "border-white/30 bg-black/40 text-white hover:bg-black/60"
-        } ${busy ? "opacity-60" : ""}`}
-      >
-        <Heart
-          className={`h-4 w-4 transition ${
-            fav ? "fill-rose-300 text-rose-300" : ""
-          }`}
-        />
-      </button>
-      <FavTip open={tipOpen} setOpen={setTipOpen} placement="right" />
+    <div className="absolute left-3 top-3 z-10">
+      <div className="relative">
+        <button
+          type="button"
+          onClick={onClick}
+          onMouseEnter={() => setTipOpen(true)}
+          onMouseLeave={() => setTipOpen(false)}
+          onFocus={() => setTipOpen(true)}
+          onBlur={() => setTipOpen(false)}
+          disabled={busy}
+          aria-pressed={fav}
+          aria-label={tooltip}
+          className={`grid h-9 w-9 place-items-center rounded-full border backdrop-blur-md transition ${
+            fav
+              ? "border-rose-400/60 bg-rose-500/30 text-rose-100 shadow-[0_4px_12px_-4px_rgba(244,63,94,0.6)]"
+              : "border-white/30 bg-black/40 text-white hover:bg-black/60"
+          } ${busy ? "opacity-60" : ""}`}
+        >
+          <Heart
+            className={`h-4 w-4 transition ${
+              fav ? "fill-rose-300 text-rose-300" : ""
+            }`}
+          />
+        </button>
+        {tipOpen && (
+          <div
+            role="tooltip"
+            className="pointer-events-none absolute left-0 top-full z-30 mt-2 w-64 rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-xs leading-relaxed text-zinc-300 shadow-2xl"
+          >
+            <p className="font-semibold text-white">Favorilər niyə var?</p>
+            <p className="mt-1 text-zinc-400">
+              Oyunu favorilərə əlavə edəndə həmin oyun yenidən endirimə düşəndə
+              sənə email göndəririk — bütün favorilər profilindəki{" "}
+              <i>Favorilər</i> bölməsində toplanır.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

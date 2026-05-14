@@ -19,22 +19,20 @@ function Inner() {
   const initialEmail = search.get("email") ?? "";
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 py-10 text-zinc-100">
-      <div className="w-full max-w-md">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_50%_-10%,rgba(124,58,237,0.22),transparent_34%),linear-gradient(180deg,#050612,#090913)] px-4 py-8 text-zinc-100 sm:px-6">
+      <div className="mx-auto w-full max-w-2xl">
         <div className="mb-8 flex justify-center">
           <Logo href="/" height={36} />
         </div>
 
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 shadow-xl shadow-black/30">
-          <ForgotPasswordForm initialEmail={initialEmail} />
-        </div>
+        <ForgotPasswordForm initialEmail={initialEmail} />
 
         <p className="mt-6 text-center text-sm text-zinc-400">
-          <Link href="/login" className="text-indigo-400 hover:text-indigo-300">
+          <Link href="/login" className="font-bold text-violet-300 hover:text-violet-200">
             Daxil ol
           </Link>{" "}
           ·{" "}
-          <Link href="/register" className="text-indigo-400 hover:text-indigo-300">
+          <Link href="/register" className="font-bold text-violet-300 hover:text-violet-200">
             Qeydiyyatdan keç
           </Link>
         </p>

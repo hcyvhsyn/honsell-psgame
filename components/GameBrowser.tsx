@@ -35,7 +35,7 @@ type Sort = "newest" | "popular" | "priceAsc" | "priceDesc" | "discount" | "alph
 type Platform = "ALL" | "PS4" | "PS5";
 type ProductType = "GAME" | "ADDON" | "CURRENCY" | "OTHER";
 
-const DEFAULT_SORT: Sort = "newest";
+const DEFAULT_SORT: Sort = "popular";
 const DEFAULT_PLATFORM: Platform = "ALL";
 const DEFAULT_TYPE: ProductType = "GAME";
 const DEFAULT_PAGE_SIZE = 24;

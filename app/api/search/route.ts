@@ -76,8 +76,8 @@ export async function GET(req: Request) {
         imageUrl: true,
         priceAznCents: true,
       },
-      orderBy: { sortOrder: "asc" },
-      take: 6,
+      orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
+      take: 20,
     }),
     prisma.streamingTitle.findMany({
       where: {
@@ -133,7 +133,9 @@ export async function GET(req: Request) {
           ? "TRY balans"
           : s.type === "PS_PLUS"
             ? "PS Plus abunəliyi"
-            : "Servis məhsulu";
+            : s.type === "EA_PLAY"
+              ? "EA Play abunəliyi"
+              : "Servis məhsulu";
     return {
       kind: "SERVICE" as const,
       id: s.id,
@@ -145,7 +147,9 @@ export async function GET(req: Request) {
           ? "/hesab-acma"
           : s.type === "PS_PLUS"
             ? "/ps-plus"
-            : "/hediyye-kartlari",
+            : s.type === "EA_PLAY"
+              ? "/ea-play"
+              : "/hediyye-kartlari",
       finalAzn,
       originalAzn: null as number | null,
       cartPayload: {

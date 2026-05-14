@@ -469,6 +469,9 @@ export default function BannersAdminClient() {
                   Desktop şəkli {editForm.actionType === "LINK" ? <span className="text-rose-400">*</span> : <span className="text-xs text-zinc-500">(opsional — boş buraxılarsa, oyunun şəkli istifadə olunacaq)</span>}
                   <span className="ml-2 text-xs text-zinc-500">(geniş, 21:7 və ya 16:8)</span>
                 </p>
+                <p className="mb-2 text-[11px] text-zinc-500">
+                  Tövsiyə olunan ölçü: <b className="text-zinc-300">1920×820px</b> (21:9 aspekt) — ana səhifə bannerinin desktop görünüşü 21:9 nisbətdə kropuna alır.
+                </p>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -515,6 +518,9 @@ export default function BannersAdminClient() {
                 </p>
                 <p className="mb-2 text-xs text-zinc-500">
                   Boş buraxılarsa, telefonda da desktop şəkli istifadə olunacaq.
+                </p>
+                <p className="mb-2 text-[11px] text-zinc-500">
+                  Tövsiyə olunan ölçü: <b className="text-zinc-300">1080×1350px</b> (4:5 aspekt) — telefon ekranında 4:5 nisbətdə render olunur.
                 </p>
                 <input
                   ref={mobileFileInputRef}

@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { Crown, Calendar, AlertTriangle, Wallet, Gamepad2, Tv, Users } from "lucide-react";
+import { Crown, Calendar, AlertTriangle, Wallet, Gamepad2, Tv, Users, Brain } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { fmtAzn } from "@/lib/format";
 import { STREAMING_SERVICE_LABELS, addMonths } from "@/lib/streamingCart";
+import { backfillPlatformSubscriptionsForUser } from "@/lib/subscriptions";
+import { readPlatformMeta } from "@/lib/platformSubscriptions";
 import AutoRenewToggle from "./AutoRenewToggle";
 
 export const dynamic = "force-dynamic";
@@ -31,12 +33,16 @@ export default async function ProfileSubscriptionsPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [subscriptions, streamingPurchases] = await Promise.all([
+  // Backfill missing Subscription rows for legacy AI/PLATFORM purchases so that
+  // auto-renew toggle is available on still-active old subscriptions.
+  await backfillPlatformSubscriptionsForUser(user.id);
+
+  const [subscriptions, streamingPurchases, aiPurchases] = await Promise.all([
     prisma.subscription.findMany({
       where: { userId: user.id },
       orderBy: [{ status: "asc" }, { expiresAt: "asc" }],
       include: {
-        serviceProduct: { select: { title: true } },
+        serviceProduct: { select: { title: true, type: true, metadata: true } },
         psnAccount: { select: { label: true, psnEmail: true, psModel: true } },
       },
     }),
@@ -52,10 +58,61 @@ export default async function ProfileSubscriptionsPage() {
         serviceProduct: { select: { id: true, title: true, metadata: true, type: true } },
       },
     }),
+    prisma.transaction.findMany({
+      where: {
+        userId: user.id,
+        type: "SERVICE_PURCHASE",
+        status: "SUCCESS",
+        serviceProduct: { type: "PLATFORM" },
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        serviceProduct: { select: { id: true, title: true, metadata: true, type: true } },
+      },
+    }),
   ]);
 
-  const active = subscriptions.filter((s) => s.status === "ACTIVE");
-  const past = subscriptions.filter((s) => s.status !== "ACTIVE");
+  const psPlusSubs = subscriptions.filter(
+    (s) => s.serviceProduct.type === "PS_PLUS" || s.serviceProduct.type === "EA_PLAY"
+  );
+  const aiSubs = subscriptions.filter(
+    (s) => s.serviceProduct.type === "PLATFORM" && s.tier === "AI"
+  );
+  const active = psPlusSubs.filter((s) => s.status === "ACTIVE");
+  const past = psPlusSubs.filter((s) => s.status !== "ACTIVE");
+  const activeAi = aiSubs.filter((s) => s.status === "ACTIVE");
+  const pastAi = aiSubs.filter((s) => s.status !== "ACTIVE");
+  const aiSubTxIds = new Set(aiSubs.map((s) => s.lastRenewalTxId).filter((v): v is string => !!v));
+
+  // Legacy AI Transactions that never made it into a Subscription row (already
+  // expired purchases — backfill only creates rows for still-active ones).
+  type LegacyAi = {
+    id: string;
+    title: string;
+    durationMonths: number;
+    startsAt: Date;
+    expiresAt: Date;
+    priceAznCents: number;
+  };
+  const legacyAi: LegacyAi[] = aiPurchases
+    .filter((p) => {
+      const m = (p.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
+      return String(m.category ?? "") === "AI" && !aiSubTxIds.has(p.id);
+    })
+    .map((p) => {
+      const meta = readPlatformMeta(p.serviceProduct?.metadata as Record<string, unknown> | null);
+      const months = meta.durationMonths ?? 0;
+      const startsAt = p.createdAt;
+      const expiresAt = months > 0 ? addMonths(startsAt, months) : startsAt;
+      return {
+        id: p.id,
+        title: p.serviceProduct?.title ?? "AI abunəlik",
+        durationMonths: months,
+        startsAt,
+        expiresAt,
+        priceAznCents: Math.abs(p.amountAznCents),
+      };
+    });
   const walletAzn = user.walletBalance / 100;
 
   type StreamingSub = {
@@ -158,7 +215,9 @@ export default async function ProfileSubscriptionsPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/40">
                         <Crown className="h-3.5 w-3.5" />
-                        PS Plus {TIER_LABEL[s.tier] ?? s.tier}
+                        {s.serviceProduct.type === "EA_PLAY"
+                          ? "EA Play"
+                          : `PS Plus ${TIER_LABEL[s.tier] ?? s.tier}`}
                       </span>
                       <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium text-zinc-300 ring-1 ring-white/10">
                         {s.durationMonths} ay
@@ -396,6 +455,179 @@ export default async function ProfileSubscriptionsPage() {
                     </div>
                     <div className="text-xs text-zinc-500">
                       {fmtDateAz(s.startsAt)} → {fmtDateAz(s.expiresAt)}
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-400 ring-1 ring-zinc-700">
+                    EXPIRED
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </section>
+
+      <section className="space-y-6">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+              <Brain className="h-5 w-5 text-fuchsia-300" />
+              Süni intellekt abunəlikləri
+            </h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              ChatGPT Plus, Claude Plus və digər AI alətləri. Avtomatik yenilənmə üçün
+              toggle-ı aktiv et — bitiş günü cüzdandan tutulacaq.
+            </p>
+          </div>
+          <Link
+            href="/ai"
+            className="rounded-full bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-fuchsia-500"
+          >
+            Yeni AI abunəliyi al
+          </Link>
+        </header>
+
+        {activeAi.length === 0 && legacyAi.length === 0 ? (
+          <div className="rounded-[24px] border border-white/5 bg-[#111116] p-8 text-center">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-fuchsia-500/10 ring-1 ring-fuchsia-500/30">
+              <Brain className="h-7 w-7 text-fuchsia-300" />
+            </div>
+            <p className="mt-4 text-base font-semibold text-white">
+              Hələ aktiv AI abunəliyi yoxdur
+            </p>
+            <p className="mt-1 text-sm text-zinc-400">
+              ChatGPT Plus və ya Claude Plus alıb burada izlə.
+            </p>
+            <Link
+              href="/ai"
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-fuchsia-500"
+            >
+              AI paketləri
+            </Link>
+          </div>
+        ) : (
+          <ul className="space-y-4">
+            {activeAi.map((s) => {
+              const days = daysUntil(s.expiresAt);
+              const expiringSoon = days <= 3;
+              const lowBalance = user.walletBalance < s.priceAznCents;
+              const showLowBalanceWarning = s.autoRenew && expiringSoon && lowBalance;
+
+              return (
+                <li
+                  key={s.id}
+                  className="overflow-hidden rounded-[24px] border border-white/5 bg-[#111116] shadow-xl"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-fuchsia-500/15 px-2.5 py-1 text-xs font-semibold text-fuchsia-200 ring-1 ring-fuchsia-500/40">
+                          <Brain className="h-3.5 w-3.5" />
+                          AI abunəlik
+                        </span>
+                        <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium text-zinc-300 ring-1 ring-white/10">
+                          {s.durationMonths} ay
+                        </span>
+                        {expiringSoon && (
+                          <span className="rounded-full bg-rose-500/15 px-2.5 py-1 text-[11px] font-semibold text-rose-300 ring-1 ring-rose-500/40">
+                            {days <= 0
+                              ? "Bu gün bitir"
+                              : days === 1
+                                ? "Sabah bitir"
+                                : `${days} gün qaldı`}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="mt-2 text-lg font-bold text-white">
+                        {s.serviceProduct.title}
+                      </h3>
+                      <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                        <div className="flex items-center gap-2 text-zinc-300">
+                          <Calendar className="h-4 w-4 text-zinc-500" />
+                          <span>
+                            Bitir:{" "}
+                            <span className="font-semibold text-white">
+                              {fmtDateAz(s.expiresAt)}
+                            </span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-zinc-300">
+                          <Wallet className="h-4 w-4 text-zinc-500" />
+                          <span>
+                            Yenilənmə qiyməti:{" "}
+                            <span className="font-semibold text-white">
+                              {fmtAzn(s.priceAznCents)}
+                            </span>
+                          </span>
+                        </div>
+                      </dl>
+                    </div>
+
+                    <AutoRenewToggle subscriptionId={s.id} initial={s.autoRenew} />
+                  </div>
+
+                  {showLowBalanceWarning && (
+                    <div className="flex flex-wrap items-start gap-3 border-t border-rose-500/20 bg-rose-500/5 px-5 py-3 sm:px-6">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
+                      <div className="flex-1 text-sm text-rose-100">
+                        <p className="font-semibold">Balans kifayət etmir</p>
+                        <p className="mt-1 text-xs text-rose-200/80">
+                          Cari balans {fmtAzn(user.walletBalance)} — yenilənmə üçün{" "}
+                          {fmtAzn(s.priceAznCents)} lazımdır. Balansı artır ki,
+                          abunəlik avtomatik yenilənsin.
+                        </p>
+                      </div>
+                      <Link
+                        href="/profile/wallet"
+                        className="rounded-full bg-rose-500/20 px-3 py-1.5 text-xs font-semibold text-rose-100 ring-1 ring-rose-500/40 transition hover:bg-rose-500/30"
+                      >
+                        Balansı artır
+                      </Link>
+                    </div>
+                  )}
+                  {s.autoRenew && !showLowBalanceWarning && (
+                    <div className="border-t border-white/5 bg-emerald-500/5 px-5 py-2.5 text-xs text-emerald-200/80 sm:px-6">
+                      Bitiş günü cüzdandan {fmtAzn(s.priceAznCents)} qopadılaraq
+                      abunəlik {s.durationMonths} ay uzadılacaq.
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {(pastAi.length > 0 || legacyAi.length > 0) && (
+          <section className="overflow-hidden rounded-[24px] border border-white/5 bg-[#0F0F13]">
+            <header className="border-b border-white/5 px-5 py-3">
+              <h3 className="text-sm font-semibold text-zinc-300">Bitmiş AI abunəlikləri</h3>
+            </header>
+            <ul className="divide-y divide-white/5">
+              {pastAi.map((s) => (
+                <li
+                  key={s.id}
+                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-zinc-200">{s.serviceProduct.title}</div>
+                    <div className="text-xs text-zinc-500">
+                      {fmtDateAz(s.startsAt)} → {fmtDateAz(s.expiresAt)}
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-400 ring-1 ring-zinc-700">
+                    {s.status}
+                  </span>
+                </li>
+              ))}
+              {legacyAi.map((l) => (
+                <li
+                  key={l.id}
+                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-zinc-200">{l.title}</div>
+                    <div className="text-xs text-zinc-500">
+                      {fmtDateAz(l.startsAt)} → {fmtDateAz(l.expiresAt)}
                     </div>
                   </div>
                   <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-400 ring-1 ring-zinc-700">

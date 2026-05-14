@@ -12,12 +12,14 @@ import {
   Wallet,
   Crown,
   Heart,
+  Gift,
 } from "lucide-react";
 
 const ITEMS = [
   { href: "/profile", label: "Ümumi baxış", icon: LayoutDashboard },
   { href: "/profile/settings", label: "Hesab məlumatları", icon: UserRound },
   { href: "/profile/wallet", label: "Balans", icon: Wallet },
+  { href: "/profile/hediyye-kart", label: "Hədiyyə kart", icon: Gift },
   { href: "/profile/accounts", label: "PSN hesabları", icon: Gamepad2 },
   { href: "/profile/favorites", label: "Favorilər", icon: Heart },
   { href: "/profile/subscriptions", label: "Aktiv abunəliklər", icon: Crown },
@@ -34,10 +36,9 @@ export default function ProfileSidebar() {
   }
 
   return (
-    <aside className="lg:sticky lg:top-24 lg:self-start">
-      {/* Mobile: responsive grid nav */}
-      <nav className="lg:hidden mb-6">
-        <ul className="grid grid-cols-2 gap-2 rounded-2xl border border-white/5 bg-[#0F0F13] p-2 sm:grid-cols-3">
+    <aside className="lg:sticky lg:top-36 lg:self-start">
+      <nav className="mb-5 lg:hidden">
+        <ul className="grid grid-cols-2 gap-2 rounded-[16px] border border-violet-300/20 bg-[#0b0c18]/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:grid-cols-3">
           {ITEMS.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
@@ -45,13 +46,13 @@ export default function ProfileSidebar() {
               <li key={item.href} className="min-w-0">
                 <Link
                   href={item.href}
-                  className={`flex w-full min-w-0 items-center gap-2 rounded-xl px-3 py-2.5 text-xs sm:text-sm transition ${
+                  className={`flex h-10 w-full min-w-0 items-center gap-2 rounded-[12px] px-3 text-xs font-semibold transition sm:text-sm ${
                     active
-                      ? "bg-[#5B21B6] text-white shadow-lg shadow-[#5B21B6]/20"
-                      : "text-zinc-400 hover:text-white"
+                      ? "bg-gradient-to-r from-violet-700 to-purple-900 text-white shadow-lg shadow-violet-950/30"
+                      : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4 shrink-0" />
                   <span className="truncate">{item.label}</span>
                 </Link>
               </li>
@@ -60,10 +61,9 @@ export default function ProfileSidebar() {
         </ul>
       </nav>
 
-      {/* Desktop: vertical sidebar */}
-      <div className="hidden lg:block w-[280px]">
-        <nav className="rounded-[24px] border border-[#5B21B6]/20 bg-[#0F0F13] p-3 shadow-2xl">
-          <ul className="space-y-1.5 flex flex-col">
+      <div className="hidden w-[260px] lg:block">
+        <nav className="rounded-[16px] border border-violet-300/20 bg-[linear-gradient(180deg,rgba(15,16,31,0.98),rgba(9,10,22,0.98))] p-2.5 shadow-[0_30px_80px_-54px_rgba(124,58,237,0.85),inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <ul className="flex flex-col space-y-1.5">
             {ITEMS.map((item) => {
               const active = isActive(pathname, item.href);
               const Icon = item.icon;
@@ -71,29 +71,31 @@ export default function ProfileSidebar() {
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className={`group flex items-center gap-3.5 rounded-[16px] px-4 py-3.5 text-sm transition ${
+                    className={`group flex h-[54px] items-center gap-3.5 rounded-[12px] px-4 text-[15px] transition ${
                       active
-                        ? "bg-[#5B21B6] text-white shadow-[0_4px_20px_-4px_rgba(91,33,182,0.5)]"
-                        : "text-zinc-400 hover:bg-white/5 hover:text-white"
+                        ? "bg-gradient-to-r from-violet-700 via-purple-800 to-violet-950 text-white shadow-[0_18px_42px_-24px_rgba(168,85,247,0.95),inset_0_1px_0_rgba(255,255,255,0.12)]"
+                        : "text-zinc-400 hover:bg-white/[0.055] hover:text-white"
                     }`}
                   >
-                    <Icon className={`h-4 w-4 ${active ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`} />
-                    <span className="font-medium tracking-wide">{item.label}</span>
+                    <Icon
+                      className={`h-5 w-5 shrink-0 ${active ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
+                    />
+                    <span className="font-medium">{item.label}</span>
                   </Link>
                 </li>
               );
             })}
 
-            <div className="my-2 h-px w-full bg-white/5" />
+            <div className="mx-4 my-3 h-px bg-white/10" />
 
             <li>
               <button
                 type="button"
                 onClick={logout}
-                className="group flex w-full items-center gap-3.5 rounded-[16px] px-4 py-3.5 text-sm text-zinc-400 transition hover:bg-white/5 hover:text-white"
+                className="group flex h-[54px] w-full items-center gap-3.5 rounded-[12px] px-4 text-[15px] text-zinc-400 transition hover:bg-white/[0.055] hover:text-white"
               >
-                <LogOut className="h-4 w-4 opacity-70 group-hover:opacity-100" />
-                <span className="font-medium tracking-wide">Çıxış</span>
+                <LogOut className="h-5 w-5 opacity-70 group-hover:opacity-100" />
+                <span className="font-medium">Çıxış</span>
               </button>
             </li>
           </ul>

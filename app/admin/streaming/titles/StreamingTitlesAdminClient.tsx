@@ -621,6 +621,9 @@ export default function StreamingTitlesAdminClient() {
               {/* Poster */}
               <div>
                 <p className="mb-1 text-sm text-zinc-300">Poster (şaquli, 2:3)</p>
+                <p className="mb-2 text-[11px] text-zinc-500">
+                  Tövsiyə olunan ölçü: <b className="text-zinc-300">800×1200px</b> (2:3 aspekt) — poster public-də 2:3 nisbətdə render olunur.
+                </p>
                 <input
                   ref={posterInputRef}
                   type="file"
@@ -655,6 +658,9 @@ export default function StreamingTitlesAdminClient() {
               {/* Backdrop */}
               <div>
                 <p className="mb-1 text-sm text-zinc-300">Backdrop (üfüqi, 16:9)</p>
+                <p className="mb-2 text-[11px] text-zinc-500">
+                  Tövsiyə olunan ölçü: <b className="text-zinc-300">1920×1080px</b> (16:9), featured banner üçün <b className="text-zinc-300">1920×820px</b> (21:9) kropuna uyğunlaşacaq.
+                </p>
                 <input
                   ref={backdropInputRef}
                   type="file"

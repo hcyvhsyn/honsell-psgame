@@ -3,7 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { sendGiftCardCodeEmail, sendStreamingDeliveryEmail } from "@/lib/resend";
 import { issueReviewInvite, type ReviewProductType } from "@/lib/reviewInvite";
-import { createSubscriptionFromTransaction } from "@/lib/subscriptions";
+import {
+  createEaPlaySubscriptionFromTransaction,
+  createPlatformSubscriptionFromTransaction,
+  createSubscriptionFromTransaction,
+} from "@/lib/subscriptions";
 import {
   STREAMING_SERVICE_LABELS,
   addMonths,
@@ -21,6 +25,8 @@ import { readReferralRateFromMeta } from "@/lib/referralCalculatorOptions";
 function reviewProductTypeFromService(type: string | undefined): ReviewProductType | null {
   switch (type) {
     case "PS_PLUS":
+      return "PS_PLUS";
+    case "EA_PLAY":
       return "PS_PLUS";
     case "TRY_BALANCE":
       return "GIFT_CARD";
@@ -176,7 +182,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ ok: true });
   }
 
-  if (productType === "STREAMING" || productType === "PLATFORM") {
+  if (productType === "STREAMING") {
     // Admin sifarişi təsdiq edərkən hesab kreditiyalarını body-də göndərir.
     const accountEmail = String(body.accountEmail ?? "").trim();
     const accountPassword = String(body.accountPassword ?? "");
@@ -218,7 +224,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         serviceProductId: tx.serviceProductId,
         lineCents: Math.abs(tx.amountAznCents),
         streamingProfitSharePct: referralPct,
-        kind: productType === "PLATFORM" ? "PLATFORM" : "STREAMING",
+        kind: "STREAMING",
       });
 
       try {
@@ -263,6 +269,51 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         console.error("streaming delivery email failed", err);
       }
     }
+
+    await maybeSendReviewInvite(tx);
+    return NextResponse.json({ ok: true });
+  }
+
+  if (productType === "PLATFORM") {
+    // PLATFORM (AI, Musiqi, İş) — admin əl ilə kreditiya daxil etmir.
+    // Məhsul hazır olanda sadəcə "Təsdiq" düyməsinə basır, abunə yaradılır.
+    const productMeta = (tx.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
+    const referralPct = readReferralRateFromMeta(productMeta, 0);
+
+    await prisma.$transaction(async (ptx) => {
+      await ptx.transaction.update({
+        where: { id: tx.id },
+        data: { status: "SUCCESS" },
+      });
+
+      if (tx.serviceProductId) {
+        await createPlatformSubscriptionFromTransaction(ptx, {
+          transactionId: tx.id,
+          userId: tx.userId,
+          serviceProductId: tx.serviceProductId,
+          priceAznCents: tx.amountAznCents,
+          serviceProductMetadata: tx.serviceProduct?.metadata,
+        });
+      }
+
+      const cm = await awardStreamingReferralCommission(ptx, {
+        sourceTransactionId: tx.id,
+        buyerUserId: tx.userId,
+        serviceProductId: tx.serviceProductId,
+        lineCents: Math.abs(tx.amountAznCents),
+        streamingProfitSharePct: referralPct,
+        kind: "PLATFORM",
+      });
+
+      try {
+        await recordPurchaseSpend(ptx, tx.userId, Math.abs(tx.amountAznCents));
+        if (cm?.referredById) {
+          await recordSuccessfulInvite(ptx, cm.referredById, tx.userId);
+        }
+      } catch (err) {
+        console.error("referral cycle bookkeeping failed", err);
+      }
+    });
 
     await maybeSendReviewInvite(tx);
     return NextResponse.json({ ok: true });
@@ -375,6 +426,35 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         lineCents: Math.abs(tx.amountAznCents),
         streamingProfitSharePct: settings.referralPsPlusPct,
         kind: "PS_PLUS",
+      });
+
+      try {
+        await recordPurchaseSpend(ptx, tx.userId, Math.abs(tx.amountAznCents));
+        if (cm?.referredById) {
+          await recordSuccessfulInvite(ptx, cm.referredById, tx.userId);
+        }
+      } catch (err) {
+        console.error("referral cycle bookkeeping failed", err);
+      }
+    }
+
+    if (productType === "EA_PLAY" && tx.serviceProductId) {
+      await createEaPlaySubscriptionFromTransaction(ptx, {
+        transactionId: tx.id,
+        userId: tx.userId,
+        serviceProductId: tx.serviceProductId,
+        psnAccountId: tx.psnAccountId,
+        priceAznCents: tx.amountAznCents,
+        serviceProductMetadata: tx.serviceProduct?.metadata,
+      });
+
+      const cm = await awardStreamingReferralCommission(ptx, {
+        sourceTransactionId: tx.id,
+        buyerUserId: tx.userId,
+        serviceProductId: tx.serviceProductId,
+        lineCents: Math.abs(tx.amountAznCents),
+        streamingProfitSharePct: settings.referralPsPlusPct,
+        kind: "EA_PLAY",
       });
 
       try {
