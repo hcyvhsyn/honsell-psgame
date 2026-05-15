@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import {
   BriefcaseBusiness,
   ChevronDown,
   Flame,
   Gamepad2,
   Gem,
+  Gift,
   Grid2X2,
   Heart,
   LogIn,
@@ -102,6 +103,8 @@ const aiGroup: NavGroup = {
   href: "/ai",
   items: [
     { href: "/ai", label: "Süni intellekt paketləri" },
+    { href: "/ai/claude", label: "Claude" },
+    { href: "/ai/chatgpt", label: "ChatGPT" },
   ],
 };
 
@@ -143,6 +146,8 @@ export default function SiteHeader({
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
   const { open } = useModals();
+  const headerRef = useRef<HTMLElement | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
 
   // Prevent body scroll when menu is open
   useEffect(() => {
@@ -151,9 +156,26 @@ export default function SiteHeader({
     return () => { document.body.style.overflow = ""; };
   }, [menuOpen]);
 
+  // Mobil header bar-ın hündürlüyü dəyişkəndir (axtarış sətri ayrı sətirə düşür,
+  // simulyatorda safe-area da əlavə olunur). Drawer-i həmin hündürlüyə kilidlə­yi­
+  // rik ki, üst tərəfi header-in altında kəsilməsin.
+  useLayoutEffect(() => {
+    const node = headerRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const update = () => setHeaderHeight(node.offsetHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(node);
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
   return (
     <>
-      <header className="sticky top-0 z-50 bg-[#03030A]/85 px-4 py-3 backdrop-blur-xl sm:px-6">
+      <header ref={headerRef} className="sticky top-0 z-50 bg-[#03030A]/85 px-4 py-3 backdrop-blur-xl sm:px-6">
         <div className="honsell-navbar-shell mx-auto flex max-w-[1536px] flex-col rounded-[24px]">
           <div className="grid min-h-[66px] grid-cols-[auto_1fr] items-center gap-3 px-4 py-3 md:grid-cols-[150px_minmax(220px,1fr)_auto] md:px-5 xl:grid-cols-[170px_minmax(260px,1fr)_auto] xl:gap-4 xl:px-6">
             <div className="flex min-w-0 items-center">
@@ -245,6 +267,13 @@ export default function SiteHeader({
 
             <div className="flex shrink-0 items-center gap-5">
               <Link
+                href="/hediyye-kartlari/honsell"
+                className="honsell-gift-btn inline-flex h-11 items-center gap-2 px-4 text-sm font-bold text-white transition hover:brightness-110"
+              >
+                <Gift className="h-5 w-5 text-white" />
+                Honsell hədiyyə kartları
+              </Link>
+              <Link
                 href="/qazan"
                 className="inline-flex h-11 items-center gap-2 rounded-[20px] border border-violet-500/35 bg-violet-950/25 px-4 text-sm font-semibold text-violet-50 shadow-[0_0_24px_-16px_rgba(124,58,237,0.9)] transition hover:border-violet-300/60 hover:bg-violet-900/35"
               >
@@ -273,7 +302,13 @@ export default function SiteHeader({
             className="absolute inset-0 h-full w-full bg-black/70 backdrop-blur-sm"
           />
           <div
-            className="absolute inset-x-0 top-[7.5rem] flex max-h-[calc(100dvh-7.5rem)] flex-col overflow-hidden rounded-b-3xl border-b border-white/10 bg-[#09090C] shadow-2xl md:top-[5.75rem] md:max-h-[calc(100dvh-5.75rem)]"
+            className="absolute inset-x-0 flex flex-col overflow-hidden rounded-b-3xl border-b border-white/10 bg-[#09090C] shadow-2xl"
+            style={{
+              top: headerHeight || undefined,
+              maxHeight: headerHeight
+                ? `calc(100dvh - ${headerHeight}px)`
+                : "calc(100dvh - 7.5rem)",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div

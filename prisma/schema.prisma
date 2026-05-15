@@ -254,13 +254,18 @@ model ServiceCode {
 // daxil edərək cüzdan balansına məbləği köçürə bilər. Kodlar 1 il etibarlıdır.
 
 model HonsellGiftCard {
-  id             String @id @default(cuid())
-  // 11 simvollu unikal kod — alıcıya verilir, aktivləşdirmə üçün lazımdır.
-  code           String @unique
+  id             String  @id @default(cuid())
+  // 11 simvollu unikal kod — admin tərəfindən manual daxil edilir.
+  // PENDING vəziyyətində NULL ola bilər; admin kod daxil etdikdən sonra dolur.
+  code           String? @unique
   // Kartın AZN qəpiklə nominalı (5 AZN → 500).
   amountAznCents Int
-  // ACTIVE | REDEEMED — bir kart yalnız bir dəfə istifadə oluna bilər.
-  status         String @default("ACTIVE")
+  // PENDING | ACTIVE | REDEEMED — alışdan sonra PENDING, admin kod daxil etdikdə ACTIVE,
+  // başqa istifadəçi aktivləşdirdikdə REDEEMED. Bir kart yalnız bir dəfə istifadə oluna bilər.
+  status         String  @default("PENDING")
+
+  // Admin kodu daxil edib təslim etdiyi vaxt.
+  deliveredAt DateTime?
 
   // Alıcı (system-də qeydiyyatlı istifadəçi olmalıdır).
   purchasedById         String?
@@ -305,6 +310,12 @@ model Transaction {
   // rows when a discount was active at checkout: original − final per unit ×
   // qty. Profile aggregates this to display lifetime savings.
   savingsAznCents Int @default(0)
+
+  // Mağazanın maya dəyəri snapshot-u (AZN qəpik) — alış anında FX rate ilə
+  // hesablanıb saxlanılır ki, gələcəkdə rate dəyişəndə mənfəət hesabatı
+  // pozulmasın. 0 = naməlum (köhnə tranzaksiyalar və ya scrape-də qiymət olmayan
+  // oyunlar). Yalnız PURCHASE sətirlərində mənalıdır.
+  costAznCents Int @default(0)
 
   // Optional purchase details
   gameId String?

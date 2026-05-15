@@ -263,7 +263,6 @@ export default function NavSearch() {
           className="fixed inset-0 z-[100] flex items-start justify-center bg-black/85 p-3 backdrop-blur-xl sm:p-6 sm:pt-[10vh]"
           role="dialog"
           aria-modal="true"
-          onClick={close}
         >
           {/* Decorative glow behind modal */}
           <div

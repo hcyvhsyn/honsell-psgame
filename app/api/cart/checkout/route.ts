@@ -38,10 +38,7 @@ import {
 import {
   HONSELL_GIFT_CARD_SERVICE_TYPE,
   HONSELL_GIFT_CARD_VALIDITY_DAYS,
-  formatHonsellGiftCardCode,
-  generateUniqueHonsellGiftCardCode,
 } from "@/lib/honsellGiftCard";
-import { sendHonsellGiftCardEmail } from "@/lib/resend";
 
 export const runtime = "nodejs";
 
@@ -465,6 +462,7 @@ export async function POST(req: Request) {
           gameId: line.game.id,
           unitListCents: line.unitListCents,
           unitSavingsCents: line.unitSavingsCents,
+          unitCostCents: line.unitCostCents,
           psnAccountId: psnAccount!.id,
           reviewAffiliateId,
         };
@@ -763,7 +761,6 @@ export async function POST(req: Request) {
       let tryBalancePendingCount = 0;
       let tryBalanceDeliveredCount = 0;
       const honsellGiftCardsIssued: {
-        code: string;
         amountAznCents: number;
         expiresAt: Date;
         transactionId: string;
@@ -781,6 +778,7 @@ export async function POST(req: Request) {
                 status: "PENDING",
                 amountAznCents: -line.unitListCents,
                 savingsAznCents: line.unitSavingsCents,
+                costAznCents: line.unitCostCents,
                 gameId: line.game.id,
                 psnAccountId: psnAccount!.id,
                 metadata: JSON.stringify({
@@ -951,10 +949,9 @@ export async function POST(req: Request) {
             });
             serviceOrderIds.push(serviceOrder.id);
           } else if (line.kind === "HONSELL_GIFT_CARD") {
-            // Honsell hədiyyə kartı — hər ədəd üçün unikal kod generasiya edib
-            // HonsellGiftCard sətri yaradırıq. Status ACTIVE; başqa istifadəçi
-            // /profile/hediyye-kart səhifəsindən aktivləşdirə bilər.
-            const code = await generateUniqueHonsellGiftCardCode();
+            // Honsell hədiyyə kartı — alış zamanı kod yaranmır. Status PENDING
+            // qalır; admin /admin/honsell-gift-cards səhifəsindən kodu manual
+            // daxil edib müştəriyə təslim edir.
             const expiresAt = new Date(
               Date.now() + HONSELL_GIFT_CARD_VALIDITY_DAYS * 24 * 60 * 60 * 1000,
             );
@@ -962,7 +959,7 @@ export async function POST(req: Request) {
               data: {
                 userId: user.id,
                 type: "SERVICE_PURCHASE",
-                status: "SUCCESS",
+                status: "PENDING",
                 amountAznCents: -line.unitListCents,
                 serviceProductId: line.service.id,
                 metadata: JSON.stringify({
@@ -970,7 +967,6 @@ export async function POST(req: Request) {
                   kind: "HONSELL_GIFT_CARD",
                   paymentSource: payTag,
                   orderCode,
-                  honsellGiftCardCode: code,
                   honsellGiftCardAmountAznCents: line.unitListCents,
                   honsellGiftCardExpiresAt: expiresAt.toISOString(),
                 }),
@@ -978,9 +974,9 @@ export async function POST(req: Request) {
             });
             await tx.honsellGiftCard.create({
               data: {
-                code,
+                code: null,
                 amountAznCents: line.unitListCents,
-                status: "ACTIVE",
+                status: "PENDING",
                 purchasedById: user.id,
                 purchaseTransactionId: serviceOrder.id,
                 expiresAt,
@@ -988,7 +984,6 @@ export async function POST(req: Request) {
             });
             serviceOrderIds.push(serviceOrder.id);
             honsellGiftCardsIssued.push({
-              code,
               amountAznCents: line.unitListCents,
               expiresAt,
               transactionId: serviceOrder.id,
@@ -1096,27 +1091,9 @@ export async function POST(req: Request) {
     console.error("admin order notify failed", notifyErr);
   }
 
+  // Honsell hədiyyə kartı kodları admin tərəfindən manual daxil edildikdə
+  // (/admin/honsell-gift-cards) müştəriyə email ilə göndərilir.
   const honsellGiftCards = result.honsellGiftCardsIssued ?? [];
-  if (honsellGiftCards.length > 0) {
-    const redeemUrl = `${requestOrigin(req)}/profile/hediyye-kart`;
-    const dateFmt = new Intl.DateTimeFormat("az-AZ", { dateStyle: "long" });
-    for (const card of honsellGiftCards) {
-      try {
-        await sendHonsellGiftCardEmail({
-          email: user.email,
-          userName: user.name ?? user.email,
-          amountAznFormatted: `${(card.amountAznCents / 100).toFixed(2)} AZN`,
-          code: card.code,
-          formattedCode: formatHonsellGiftCardCode(card.code),
-          expiresAtFormatted: dateFmt.format(card.expiresAt),
-          redeemUrl,
-          referralCode: user.referralCode,
-        });
-      } catch (emailErr) {
-        console.error("honsell gift card email failed", emailErr);
-      }
-    }
-  }
 
   return NextResponse.json({
     ok: true,
@@ -1140,10 +1117,9 @@ export async function POST(req: Request) {
       0
     ),
     honsellGiftCards: honsellGiftCards.map((c) => ({
-      code: c.code,
-      formattedCode: formatHonsellGiftCardCode(c.code),
       amountAzn: c.amountAznCents / 100,
       expiresAt: c.expiresAt.toISOString(),
+      pending: true,
     })),
     deliveredTo: psnAccount
       ? {

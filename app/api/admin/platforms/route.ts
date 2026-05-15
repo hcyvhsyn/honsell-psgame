@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import {
   isValidPlatformCategory,
+  isValidAiBrand,
   type PlatformCategory,
 } from "@/lib/platformSubscriptions";
 
@@ -12,7 +13,11 @@ export const dynamic = "force-dynamic";
 
 function revalidatePlatform(category: PlatformCategory) {
   if (category === "MUSIC") revalidatePath("/music");
-  if (category === "AI") revalidatePath("/ai");
+  if (category === "AI") {
+    revalidatePath("/ai");
+    revalidatePath("/ai/claude");
+    revalidatePath("/ai/chatgpt");
+  }
   if (category === "WORK") revalidatePath("/work");
   revalidatePath("/qazan");
 }
@@ -80,6 +85,8 @@ export async function POST(req: Request) {
         durationMonthsRaw === "" || durationMonthsRaw == null
           ? null
           : Number(durationMonthsRaw);
+      const aiBrandRaw = typeof body.aiBrand === "string" ? body.aiBrand.trim() : "";
+      const aiBrand = isValidAiBrand(aiBrandRaw) ? aiBrandRaw : null;
       const existing =
         typeof id === "string"
           ? await prisma.serviceProduct.findUnique({
@@ -130,6 +137,7 @@ export async function POST(req: Request) {
             ? { originalPriceAznCents: Math.round(originalPriceAzn * 100) }
             : {}),
           ...(durationMonths != null ? { durationMonths } : {}),
+          ...(category === "AI" && aiBrand ? { aiBrand } : {}),
           referralEnabled: referral.referralEnabled,
           referralPct: referral.referralEnabled ? referral.referralPct : 0,
         },

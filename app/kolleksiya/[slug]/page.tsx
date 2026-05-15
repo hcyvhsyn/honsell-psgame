@@ -89,7 +89,9 @@ export default async function CollectionPage({
         finalAzn: price.finalAzn,
         originalAzn: price.originalAzn,
         discountPct: price.discountPct,
-        discountEndAt: game.discountEndAt ? game.discountEndAt.toISOString() : null,
+        discountEndAt: game.discountEndAt
+          ? (game.discountEndAt instanceof Date ? game.discountEndAt.toISOString() : new Date(game.discountEndAt).toISOString())
+          : null,
       };
     });
 

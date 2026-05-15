@@ -61,12 +61,22 @@ export async function POST(req: Request) {
     },
   });
 
-  const channel = await deliverSignupOtp({
-    email,
-    phone: user.phone,
-    userName: user.name ?? email.split("@")[0],
-    code: otpCode,
-  });
+  let channel;
+  try {
+    channel = await deliverSignupOtp({
+      email,
+      phone: user.phone,
+      userName: user.name ?? email.split("@")[0],
+      code: otpCode,
+    });
+  } catch (deliveryError) {
+    console.error("[resend-otp] delivery failed:", deliveryError);
+    const message =
+      deliveryError instanceof Error
+        ? deliveryError.message
+        : "WhatsApp təsdiq kodu göndərilə bilmədi. Bir az sonra yenidən cəhd et.";
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
 
   return NextResponse.json({ ok: true, expiresInMinutes: OTP_TTL_MINUTES, channel });
 }

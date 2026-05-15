@@ -13,6 +13,7 @@ import {
   Crown,
   Heart,
   Gift,
+  AlertCircle,
 } from "lucide-react";
 
 const ITEMS = [
@@ -27,7 +28,11 @@ const ITEMS = [
   { href: "/profile/referrals", label: "Referallar", icon: Share2 },
 ];
 
-export default function ProfileSidebar() {
+export default function ProfileSidebar({
+  profileIncomplete = false,
+}: {
+  profileIncomplete?: boolean;
+}) {
   const pathname = usePathname();
 
   async function logout() {
@@ -42,6 +47,8 @@ export default function ProfileSidebar() {
           {ITEMS.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
+            const showBadge =
+              profileIncomplete && item.href === "/profile/settings";
             return (
               <li key={item.href} className="min-w-0">
                 <Link
@@ -54,6 +61,14 @@ export default function ProfileSidebar() {
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   <span className="truncate">{item.label}</span>
+                  {showBadge && (
+                    <span
+                      title="Profil məlumatları natamamdır"
+                      className="ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500/90 text-[11px] font-black text-white shadow-[0_0_0_2px_rgba(244,63,94,0.25)]"
+                    >
+                      !
+                    </span>
+                  )}
                 </Link>
               </li>
             );
@@ -67,6 +82,8 @@ export default function ProfileSidebar() {
             {ITEMS.map((item) => {
               const active = isActive(pathname, item.href);
               const Icon = item.icon;
+              const showBadge =
+                profileIncomplete && item.href === "/profile/settings";
               return (
                 <li key={item.href}>
                   <Link
@@ -81,6 +98,14 @@ export default function ProfileSidebar() {
                       className={`h-5 w-5 shrink-0 ${active ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
                     />
                     <span className="font-medium">{item.label}</span>
+                    {showBadge && (
+                      <span
+                        title="Profil məlumatları natamamdır — tamamla"
+                        className="ml-auto inline-flex h-6 min-w-6 shrink-0 items-center justify-center gap-1 rounded-full bg-rose-500 px-1.5 text-xs font-black text-white shadow-[0_0_0_3px_rgba(244,63,94,0.2)]"
+                      >
+                        <AlertCircle className="h-3.5 w-3.5" />
+                      </span>
+                    )}
                   </Link>
                 </li>
               );

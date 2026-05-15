@@ -4,16 +4,12 @@ import { getSettings } from "@/lib/pricing";
 import { recordPurchaseSpend, recordSuccessfulInvite } from "@/lib/referralCycle";
 import {
   sendAdminOrderNotification,
-  sendHonsellGiftCardEmail,
 } from "@/lib/resend";
 import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
 import type { EpointResultData } from "@/lib/epoint";
 import {
   HONSELL_GIFT_CARD_VALIDITY_DAYS,
-  formatHonsellGiftCardCode,
-  generateUniqueHonsellGiftCardCode,
 } from "@/lib/honsellGiftCard";
-import { SITE_URL } from "@/lib/site";
 
 export const EPOINT_CART_PAYMENT_TYPE = "CHECKOUT_PAYMENT";
 
@@ -25,6 +21,9 @@ export type EpointCartLineSnapshot =
       gameId: string;
       unitListCents: number;
       unitSavingsCents: number;
+      // Maya dəyəri snapshot-u (AZN qəpik). Köhnə epoint payment-lərində
+      // olmaya bilər — completeEpointCartCheckout-da fallback ilə işlənir.
+      unitCostCents?: number;
       psnAccountId: string;
       reviewAffiliateId?: string | null;
     }
@@ -162,7 +161,6 @@ export async function finalizeEpointCartCheckout(
 
   const settings = await getSettings();
   type IssuedHonsellGiftCard = {
-    code: string;
     amountAznCents: number;
     expiresAt: Date;
   };
@@ -202,6 +200,7 @@ export async function finalizeEpointCartCheckout(
               status: "PENDING",
               amountAznCents: -line.unitListCents,
               savingsAznCents: line.unitSavingsCents,
+              costAznCents: line.unitCostCents ?? 0,
               gameId: line.gameId,
               psnAccountId: line.psnAccountId,
               metadata: JSON.stringify({
@@ -397,7 +396,9 @@ export async function finalizeEpointCartCheckout(
         }
 
         if (line.kind === "HONSELL_GIFT_CARD") {
-          const code = await generateUniqueHonsellGiftCardCode();
+          // Honsell hədiyyə kartı — alış zamanı kod yaranmır. Status PENDING qalır;
+          // admin /admin/honsell-gift-cards səhifəsindən kodu manual daxil edib
+          // müştəriyə email ilə təslim edir.
           const expiresAt = new Date(
             Date.now() + HONSELL_GIFT_CARD_VALIDITY_DAYS * 24 * 60 * 60 * 1000,
           );
@@ -405,7 +406,7 @@ export async function finalizeEpointCartCheckout(
             data: {
               userId: payment.userId,
               type: "SERVICE_PURCHASE",
-              status: "SUCCESS",
+              status: "PENDING",
               amountAznCents: -line.unitListCents,
               serviceProductId: line.serviceProductId,
               metadata: JSON.stringify({
@@ -414,7 +415,6 @@ export async function finalizeEpointCartCheckout(
                 paymentSource: "EPOINT",
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
-                honsellGiftCardCode: code,
                 honsellGiftCardAmountAznCents: line.unitListCents,
                 honsellGiftCardExpiresAt: expiresAt.toISOString(),
               }),
@@ -422,16 +422,16 @@ export async function finalizeEpointCartCheckout(
           });
           await tx.honsellGiftCard.create({
             data: {
-              code,
+              code: null,
               amountAznCents: line.unitListCents,
-              status: "ACTIVE",
+              status: "PENDING",
               purchasedById: payment.userId,
               purchaseTransactionId: serviceOrder.id,
               expiresAt,
             },
           });
           serviceOrderIds.push(serviceOrder.id);
-          honsellGiftCards.push({ code, amountAznCents: line.unitListCents, expiresAt });
+          honsellGiftCards.push({ amountAznCents: line.unitListCents, expiresAt });
           continue;
         }
 
@@ -487,26 +487,8 @@ export async function finalizeEpointCartCheckout(
 
   if (!summary) return { ok: false, reason: "ALREADY_PROCESSED" };
 
-  if (summary.honsellGiftCards.length > 0) {
-    const redeemUrl = `${SITE_URL.replace(/\/$/, "")}/profile/hediyye-kart`;
-    const dateFmt = new Intl.DateTimeFormat("az-AZ", { dateStyle: "long" });
-    for (const card of summary.honsellGiftCards) {
-      try {
-        await sendHonsellGiftCardEmail({
-          email: user.email,
-          userName: user.name ?? user.email,
-          amountAznFormatted: `${(card.amountAznCents / 100).toFixed(2)} AZN`,
-          code: card.code,
-          formattedCode: formatHonsellGiftCardCode(card.code),
-          expiresAtFormatted: dateFmt.format(card.expiresAt),
-          redeemUrl,
-          referralCode: user.referralCode,
-        });
-      } catch (emailErr) {
-        console.error("honsell gift card email failed", emailErr);
-      }
-    }
-  }
+  // Honsell hədiyyə kartı kodları admin tərəfindən manual təslim edildikdə
+  // (/admin/honsell-gift-cards) müştəriyə email ilə göndərilir.
 
   try {
     await sendAdminOrderNotification({

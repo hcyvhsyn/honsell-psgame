@@ -172,6 +172,47 @@ export default function OrdersAdminClient() {
   const [streamingForm, setStreamingForm] = useState<StreamingApprovalForm>(emptyStreamingForm());
   const [streamingFormError, setStreamingFormError] = useState<string | null>(null);
 
+  // TRY_BALANCE hədiyyə kartı təsdiqi — admin modal-da kodu manual daxil edir.
+  const [giftCardApprovingId, setGiftCardApprovingId] = useState<string | null>(null);
+  const [giftCardCode, setGiftCardCode] = useState("");
+  const [giftCardFormError, setGiftCardFormError] = useState<string | null>(null);
+
+  function openGiftCardApproval(id: string) {
+    setGiftCardFormError(null);
+    setGiftCardCode("");
+    setGiftCardApprovingId(id);
+  }
+
+  function submitGiftCardApproval() {
+    const id = giftCardApprovingId;
+    if (!id) return;
+    const code = giftCardCode.trim();
+    if (!code) {
+      setGiftCardFormError("Kodu daxil edin.");
+      return;
+    }
+    setGiftCardFormError(null);
+    startTransition(async () => {
+      const res = await fetch(`/api/admin/service-orders/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "SUCCESS", code }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setGiftCardFormError(j.error ?? "Əməliyyat alınmadı");
+        return;
+      }
+      setData((prev) => {
+        if (!prev) return prev;
+        const list = prev.giftCardOrders.filter((o) => o.id !== id);
+        return { ...prev, giftCardOrders: list };
+      });
+      setGiftCardApprovingId(null);
+      setGiftCardCode("");
+    });
+  }
+
   function openStreamingApproval(id: string) {
     setStreamingFormError(null);
     setStreamingForm(emptyStreamingForm());
@@ -463,14 +504,14 @@ export default function OrdersAdminClient() {
                 userLabel: o.user.name ?? o.user.email,
                 userSub: o.user.email,
                 item: o.serviceProduct?.title ?? "TRY Balance",
-                itemSub: o.serviceCode ? "Kod ayrılıb" : "Kod ayrılmayıb (stokdan seçiləcək)",
+                itemSub: o.serviceCode ? "Kod ayrılıb" : "Kodu modal-da daxil edin",
                 paymentSource: getPaymentSource(o.metadata),
                 amount: fmtAzn(o.amountAznCents),
                 date: fmtDate(o.createdAt),
                 actions: (
                   <RowActions
                     pending={pending}
-                    onApprove={() => actService(o.id, "SUCCESS", "giftCardOrders")}
+                    onApprove={() => openGiftCardApproval(o.id)}
                     onReject={() => actService(o.id, "FAILED", "giftCardOrders")}
                   />
                 ),
@@ -581,6 +622,62 @@ export default function OrdersAdminClient() {
           Hesab açılışı
         </Link>
       </div>
+
+      {giftCardApprovingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+            <h3 className="mb-2 text-lg font-bold">Hədiyyə kart kodunu daxil et</h3>
+            <p className="mb-5 text-sm text-zinc-400">
+              Bu kod müştərinin email ünvanına göndərilir və profilində görünür. Sifariş tamamlanmış sayılacaq.
+            </p>
+
+            <label className="block text-sm">
+              <span className="text-zinc-300">E-pin / kod</span>
+              <input
+                type="text"
+                value={giftCardCode}
+                onChange={(e) => {
+                  setGiftCardCode(e.target.value);
+                  if (giftCardFormError) setGiftCardFormError(null);
+                }}
+                autoFocus
+                spellCheck={false}
+                autoCapitalize="characters"
+                placeholder="Məs. ABCD-EFG-1234"
+                className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm tracking-widest text-emerald-300"
+              />
+            </label>
+
+            {giftCardFormError && (
+              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+                {giftCardFormError}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setGiftCardApprovingId(null);
+                  setGiftCardFormError(null);
+                  setGiftCardCode("");
+                }}
+                className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-300"
+              >
+                İmtina
+              </button>
+              <button
+                type="button"
+                onClick={submitGiftCardApproval}
+                disabled={pending}
+                className="rounded bg-emerald-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {pending ? "Göndərilir..." : "Təsdiq et və göndər"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {streamingApprovingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">

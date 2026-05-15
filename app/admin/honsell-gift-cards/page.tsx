@@ -8,6 +8,7 @@ import {
   normalizeHonsellGiftCardCode,
 } from "@/lib/honsellGiftCard";
 import HonsellProductsAdmin from "./HonsellProductsAdmin";
+import PendingGiftCardsDelivery from "./PendingGiftCardsDelivery";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +23,15 @@ export default async function HonsellGiftCardsAdminPage({
   searchParams?: Search;
 }) {
   const rawQ = (searchParams?.q ?? "").trim();
-  const statusFilter = searchParams?.status?.toUpperCase() === "REDEEMED"
-    ? "REDEEMED"
-    : searchParams?.status?.toUpperCase() === "ACTIVE"
-      ? "ACTIVE"
-      : null;
+  const rawStatus = searchParams?.status?.toUpperCase();
+  const statusFilter =
+    rawStatus === "REDEEMED"
+      ? "REDEEMED"
+      : rawStatus === "ACTIVE"
+        ? "ACTIVE"
+        : rawStatus === "PENDING"
+          ? "PENDING"
+          : null;
 
   const where: Prisma.HonsellGiftCardWhereInput = {};
   if (statusFilter) where.status = statusFilter;
@@ -44,7 +49,7 @@ export default async function HonsellGiftCardsAdminPage({
     orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
   });
 
-  const [cards, totals] = await Promise.all([
+  const [cards, totals, pendingCards] = await Promise.all([
     prisma.honsellGiftCard.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -59,14 +64,25 @@ export default async function HonsellGiftCardsAdminPage({
       _count: { _all: true },
       _sum: { amountAznCents: true },
     }),
+    prisma.honsellGiftCard.findMany({
+      where: { status: "PENDING" },
+      orderBy: { purchasedAt: "asc" },
+      include: { purchasedBy: { select: { email: true, name: true } } },
+    }),
   ]);
 
   const summary = {
+    pending: { count: 0, amount: 0 },
     active: { count: 0, amount: 0 },
     redeemed: { count: 0, amount: 0 },
   };
   for (const t of totals) {
-    const bucket = t.status === "ACTIVE" ? summary.active : summary.redeemed;
+    const bucket =
+      t.status === "ACTIVE"
+        ? summary.active
+        : t.status === "REDEEMED"
+          ? summary.redeemed
+          : summary.pending;
     bucket.count = t._count._all;
     bucket.amount = (t._sum.amountAznCents ?? 0) / 100;
   }
@@ -95,6 +111,18 @@ export default async function HonsellGiftCardsAdminPage({
         </Link>
       </header>
 
+      <PendingGiftCardsDelivery
+        cards={pendingCards.map((c) => ({
+          id: c.id,
+          amountAznCents: c.amountAznCents,
+          purchasedAt: c.purchasedAt.toISOString(),
+          expiresAt: c.expiresAt.toISOString(),
+          purchaser: c.purchasedBy
+            ? { email: c.purchasedBy.email, name: c.purchasedBy.name }
+            : null,
+        }))}
+      />
+
       <HonsellProductsAdmin
         products={products.map((p) => {
           const meta = (p.metadata as Record<string, unknown> | null) ?? null;
@@ -116,18 +144,13 @@ export default async function HonsellGiftCardsAdminPage({
       />
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SummaryCard label="Təslim gözləyir" value={String(summary.pending.count)} sub={`${summary.pending.amount.toFixed(2)} AZN`} tone="amber" />
         <SummaryCard label="Aktiv kartlar" value={String(summary.active.count)} sub={`${summary.active.amount.toFixed(2)} AZN`} tone="violet" />
         <SummaryCard label="Aktivləşdirilmiş" value={String(summary.redeemed.count)} sub={`${summary.redeemed.amount.toFixed(2)} AZN`} tone="emerald" />
         <SummaryCard
           label="Cəmi satılmış"
-          value={String(summary.active.count + summary.redeemed.count)}
-          sub={`${(summary.active.amount + summary.redeemed.amount).toFixed(2)} AZN`}
-          tone="zinc"
-        />
-        <SummaryCard
-          label="Bu siyahı"
-          value={String(cards.length)}
-          sub="son 200 kart"
+          value={String(summary.pending.count + summary.active.count + summary.redeemed.count)}
+          sub={`${(summary.pending.amount + summary.active.amount + summary.redeemed.amount).toFixed(2)} AZN`}
           tone="zinc"
         />
       </section>
@@ -154,6 +177,7 @@ export default async function HonsellGiftCardsAdminPage({
             className="mt-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-violet-500/60"
           >
             <option value="">Hamısı</option>
+            <option value="PENDING">Təslim gözləyir</option>
             <option value="ACTIVE">Aktiv</option>
             <option value="REDEEMED">Aktivləşdirilmiş</option>
           </select>
@@ -193,7 +217,7 @@ export default async function HonsellGiftCardsAdminPage({
               return (
                 <tr key={c.id} className="border-t border-zinc-800/60 hover:bg-zinc-900/40">
                   <td className="px-3 py-2 font-mono text-xs text-zinc-200">
-                    {formatHonsellGiftCardCode(c.code)}
+                    {c.code ? formatHonsellGiftCardCode(c.code) : <span className="text-zinc-600">—</span>}
                   </td>
                   <td className="px-3 py-2 font-semibold text-white">
                     {(c.amountAznCents / 100).toFixed(2)} AZN
@@ -233,14 +257,16 @@ function SummaryCard({
   label: string;
   value: string;
   sub: string;
-  tone: "violet" | "emerald" | "zinc";
+  tone: "violet" | "emerald" | "zinc" | "amber";
 }) {
   const toneCls =
     tone === "violet"
       ? "border-violet-500/30 bg-violet-500/10 text-violet-200"
       : tone === "emerald"
         ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-        : "border-zinc-800 bg-zinc-900/40 text-zinc-300";
+        : tone === "amber"
+          ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
+          : "border-zinc-800 bg-zinc-900/40 text-zinc-300";
   return (
     <div className={`rounded-2xl border p-4 ${toneCls}`}>
       <div className="text-[11px] uppercase tracking-wider opacity-80">{label}</div>
@@ -262,6 +288,13 @@ function StatusBadge({ status, expired }: { status: string; expired: boolean }) 
     return (
       <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/30">
         Aktivləşdirilib
+      </span>
+    );
+  }
+  if (status === "PENDING") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300 ring-1 ring-amber-500/30">
+        Təslim gözləyir
       </span>
     );
   }

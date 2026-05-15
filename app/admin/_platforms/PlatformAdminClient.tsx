@@ -5,6 +5,8 @@ import { Loader2, Plus, Edit2, Upload, X, Trash2 } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import {
   PLATFORM_CATEGORY_LABELS,
+  AI_BRANDS,
+  AI_BRAND_LABELS,
   readPlatformMeta,
   type PlatformCategory,
 } from "@/lib/platformSubscriptions";
@@ -56,6 +58,7 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
       originalPriceAzn: m.originalPriceAznCents != null ? (m.originalPriceAznCents / 100).toFixed(2) : "",
       durationMonths: m.durationMonths ?? "",
       terms: m.terms ?? "",
+      aiBrand: m.aiBrand ?? (category === "AI" ? "CLAUDE" : ""),
     });
   }
 
@@ -72,6 +75,7 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
       originalPriceAzn: "",
       durationMonths: "",
       terms: "",
+      aiBrand: category === "AI" ? "CLAUDE" : "",
     });
   }
 
@@ -140,6 +144,7 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
           originalPriceAzn,
           durationMonths,
           terms: String(editForm.terms ?? ""),
+          aiBrand: category === "AI" ? String(editForm.aiBrand ?? "") : undefined,
         }),
       });
       if (!res.ok) {
@@ -193,6 +198,7 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
             <tr>
               <th className="px-5 py-4 font-medium">Şəkil</th>
               <th className="px-5 py-4 font-medium">Başlıq</th>
+              {category === "AI" && <th className="px-5 py-4 font-medium">Brend</th>}
               <th className="px-5 py-4 font-medium">Qiymət</th>
               <th className="px-5 py-4 font-medium">Müddət</th>
               <th className="px-5 py-4 font-medium">Status</th>
@@ -213,6 +219,11 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
                   )}
                 </td>
                 <td className="px-5 py-4 font-medium text-zinc-200">{p.title}</td>
+                {category === "AI" && (
+                  <td className="px-5 py-4 text-zinc-300">
+                    {meta.aiBrand ? AI_BRAND_LABELS[meta.aiBrand] : "—"}
+                  </td>
+                )}
                 <td className="px-5 py-4 tabular-nums">{(p.priceAznCents / 100).toFixed(2)} AZN</td>
                 <td className="px-5 py-4 text-zinc-300">
                   {meta.durationMonths
@@ -260,6 +271,25 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
                   placeholder="Spotify Premium"
                 />
               </label>
+
+              {category === "AI" && (
+                <label className="block text-sm">
+                  Brend
+                  <select
+                    className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
+                    value={String(editForm.aiBrand || "CLAUDE")}
+                    onChange={(e) => setEditForm({ ...editForm, aiBrand: e.target.value })}
+                  >
+                    {AI_BRANDS.map((b) => (
+                      <option key={b} value={b}>{AI_BRAND_LABELS[b]}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[11px] text-zinc-500">
+                    Brend seçimi paketin hansı alt-səhifədə görünəcəyini təyin edir
+                    (/ai/claude, /ai/chatgpt). &laquo;Digər&raquo; seçimi yalnız /ai əsas səhifəsində qalır.
+                  </p>
+                </label>
+              )}
 
               <label className="block text-sm">
                 Açıqlama / Mətn

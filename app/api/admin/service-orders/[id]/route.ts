@@ -112,24 +112,42 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const productType = tx.serviceProduct?.type;
   if (productType === "TRY_BALANCE") {
     const settings = await getSettings();
+    // Admin modal-dan birbaşa kod daxil edə bilər (stokda kod olmadıqda
+    // və ya hər halda manual təslim etmək istədikdə). Boşluq/defislər silinir,
+    // boş string-dirsə stokdan götürmə axınına düşür.
+    const manualCodeRaw = typeof body?.code === "string" ? body.code.trim() : "";
+    const manualCode = manualCodeRaw.replace(/[\s-]+/g, "");
+
     // Allocate code on approval if not already allocated.
     const updated = await prisma.$transaction(async (ptx) => {
       let serviceCodeId = tx.serviceCodeId;
       let codeValue = tx.serviceCode?.code ?? null;
 
       if (!serviceCodeId) {
-        const sc = await ptx.serviceCode.findFirst({
-          where: { serviceProductId: tx.serviceProductId ?? "", isUsed: false },
-          orderBy: { createdAt: "asc" },
-        });
-        if (!sc) return { ok: false as const, reason: "OUT_OF_STOCK" as const };
+        if (manualCode) {
+          const sc = await ptx.serviceCode.create({
+            data: {
+              serviceProductId: tx.serviceProductId ?? "",
+              code: manualCode,
+              isUsed: true,
+            },
+          });
+          serviceCodeId = sc.id;
+          codeValue = sc.code;
+        } else {
+          const sc = await ptx.serviceCode.findFirst({
+            where: { serviceProductId: tx.serviceProductId ?? "", isUsed: false },
+            orderBy: { createdAt: "asc" },
+          });
+          if (!sc) return { ok: false as const, reason: "OUT_OF_STOCK" as const };
 
-        await ptx.serviceCode.update({
-          where: { id: sc.id },
-          data: { isUsed: true },
-        });
-        serviceCodeId = sc.id;
-        codeValue = sc.code;
+          await ptx.serviceCode.update({
+            where: { id: sc.id },
+            data: { isUsed: true },
+          });
+          serviceCodeId = sc.id;
+          codeValue = sc.code;
+        }
       }
 
       await ptx.transaction.update({
@@ -160,7 +178,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     if (!updated.ok) {
       return NextResponse.json(
-        { error: "Hazırda stokda e-pin yoxdur. Zəhmət olmasa kod əlavə edib yenidən cəhd edin." },
+        {
+          error: "Hazırda stokda e-pin yoxdur. Zəhmət olmasa kod əlavə edib yenidən cəhd edin.",
+          reason: "OUT_OF_STOCK",
+        },
         { status: 409 }
       );
     }

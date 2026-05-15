@@ -31,6 +31,25 @@ export function isValidPlatformCategory(s: string): s is PlatformCategory {
   return PLATFORM_CATEGORIES.includes(s as PlatformCategory);
 }
 
+export type AiBrand = "CLAUDE" | "CHATGPT" | "OTHER";
+
+export const AI_BRANDS: AiBrand[] = ["CLAUDE", "CHATGPT", "OTHER"];
+
+export const AI_BRAND_LABELS: Record<AiBrand, string> = {
+  CLAUDE: "Claude",
+  CHATGPT: "ChatGPT",
+  OTHER: "Digər",
+};
+
+export const AI_BRAND_SLUGS: Record<Exclude<AiBrand, "OTHER">, string> = {
+  CLAUDE: "claude",
+  CHATGPT: "chatgpt",
+};
+
+export function isValidAiBrand(s: string): s is AiBrand {
+  return AI_BRANDS.includes(s as AiBrand);
+}
+
 export type PlatformProductMetadata = {
   category: PlatformCategory;
   terms?: string;
@@ -38,6 +57,7 @@ export type PlatformProductMetadata = {
   durationMonths?: number;
   referralPct?: number;
   referralEnabled: boolean;
+  aiBrand?: AiBrand;
 };
 
 export function readPlatformMeta(
@@ -48,6 +68,7 @@ export function readPlatformMeta(
   const opc = Number(m.originalPriceAznCents);
   const durationMonths = Number(m.durationMonths);
   const referralPct = Number(m.referralPct);
+  const aiBrandRaw = String(m.aiBrand ?? "");
   return {
     category: isValidPlatformCategory(cat) ? cat : "MUSIC",
     terms: typeof m.terms === "string" ? m.terms : undefined,
@@ -57,5 +78,6 @@ export function readPlatformMeta(
     referralPct:
       Number.isFinite(referralPct) && referralPct >= 0 ? Math.min(100, referralPct) : undefined,
     referralEnabled: m.referralEnabled !== false,
+    aiBrand: isValidAiBrand(aiBrandRaw) ? aiBrandRaw : undefined,
   };
 }

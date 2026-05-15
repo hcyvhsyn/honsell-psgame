@@ -119,7 +119,7 @@ export default function RegisterForm({
     }
     setStep("otp");
     setInfo(
-      `${form.email} ünvanına 6 rəqəmli kod göndərdik. Kodun müddəti ${data.expiresInMinutes ?? 10} dəqiqəyə bitir.`,
+      `${fullPhoneNumber()} nömrəsinə WhatsApp ilə 6 rəqəmli kod göndərdik. Kodun müddəti ${data.expiresInMinutes ?? 10} dəqiqəyə bitir.`,
     );
     setResendIn(30);
   }
@@ -241,9 +241,21 @@ export default function RegisterForm({
               trailing={
                 <button
                   type="button"
-                  onClick={() => setShowPassword((s) => !s)}
+                  onPointerDown={(e) => {
+                    // Mobil Safari: label-in içindəki düymə tıkı input-a fokus
+                    // ötürür və klik faktiki olaraq icra olunmur. Default-u
+                    // qaldırırıq ki, fokus köçməsin və toggle hər zaman işləsin.
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowPassword((s) => !s);
+                  }}
+                  onClick={(e) => {
+                    // pointerdown artıq toggle-u həll etdi; ikinci dəfə dəyiş­məsin.
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
                   aria-label={showPassword ? "Şifrəni gizlət" : "Şifrəni göstər"}
-                  className="absolute right-5 top-1/2 -translate-y-1/2 text-zinc-500 transition hover:text-zinc-200"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 grid h-11 w-11 place-items-center rounded-xl text-zinc-500 transition hover:text-zinc-200 active:text-zinc-200"
                   tabIndex={-1}
                 >
                   {showPassword ? (
@@ -335,7 +347,6 @@ export default function RegisterForm({
         <OtpStep
           busy={busy}
           code={code}
-          email={form.email}
           error={error}
           info={info}
           resend={resend}
@@ -559,7 +570,6 @@ function CountryCodePicker({
 function OtpStep({
   busy,
   code,
-  email,
   error,
   info,
   resend,
@@ -570,7 +580,6 @@ function OtpStep({
 }: {
   busy: boolean;
   code: string;
-  email: string;
   error: string | null;
   info: string | null;
   resend: () => void;
@@ -587,11 +596,10 @@ function OtpStep({
         </span>
         <div>
           <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-            E-poçtu təsdiq et
+            Nömrəni təsdiq et
           </h2>
           <p className="mt-1.5 text-sm leading-relaxed text-zinc-400 sm:text-base">
-            <span className="text-zinc-200">{email}</span> ünvanına göndərilən 6
-            rəqəmli kodu daxil et.
+            WhatsApp ilə göndərilən 6 rəqəmli kodu daxil et.
           </p>
         </div>
       </div>

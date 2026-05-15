@@ -1,11 +1,9 @@
-import { OTP_TTL_MINUTES, sendOtpEmail, sendResetPasswordEmail } from "@/lib/resend";
+import { OTP_TTL_MINUTES, sendResetPasswordEmail } from "@/lib/resend";
 import { isWasenderConfigured, normalizeToE164, sendWasenderText } from "@/lib/wasender";
 
 /**
- * WhatsApp birinci, e-poçt ehtiyat kanaldır. WHATSAPP_PROVIDER=wasender olduqda
- * və istifadəçinin telefonu E.164 formatına gətirilə bilsə, OTP WhatsApp-dan
- * göndərilir. WhatsApp uğursuz olduqda və ya konfiqurasiya yoxdursa, e-poçtla
- * göndərilir ki, istifadəçi bloklanmasın.
+ * Qeydiyyat OTP-si yalnız WhatsApp ilə göndərilir (e-poçt fallback-i yoxdur).
+ * Şifrə yeniləmə OTP-si üçün WhatsApp birinci, e-poçt ehtiyat kanaldır.
  */
 
 type DeliveryChannel = "whatsapp" | "email";
@@ -46,17 +44,24 @@ export async function deliverSignupOtp(params: {
   code: string;
 }): Promise<DeliveryChannel> {
   const phoneE164 = normalizeToE164(params.phone);
-  if (whatsappEnabled() && phoneE164) {
-    const result = await sendWasenderText({
-      to: phoneE164,
-      text: signupOtpText(params.userName, params.code),
-    });
-    if (result.ok) return "whatsapp";
-    console.error("[otp] wasender signup send failed, falling back to email:", result.error);
+  if (!whatsappEnabled()) {
+    throw new Error(
+      "WhatsApp OTP konfiqurasiyası tamamlanmayıb. WASENDER_API_KEY və WHATSAPP_PROVIDER təyin olunmalıdır."
+    );
+  }
+  if (!phoneE164) {
+    throw new Error("Telefon nömrəsi E.164 formatına gətirilə bilmədi.");
   }
 
-  await sendOtpEmail(params.email, params.userName, params.code);
-  return "email";
+  const result = await sendWasenderText({
+    to: phoneE164,
+    text: signupOtpText(params.userName, params.code),
+  });
+  if (!result.ok) {
+    console.error("[otp] wasender signup send failed:", result.error);
+    throw new Error("WhatsApp təsdiq kodu göndərilə bilmədi. Bir az sonra yenidən cəhd et.");
+  }
+  return "whatsapp";
 }
 
 export async function deliverResetPasswordOtp(params: {

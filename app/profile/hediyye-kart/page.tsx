@@ -52,7 +52,7 @@ export default async function HonsellGiftCardRedeemPage() {
             {recentRedeemed.map((c) => (
               <li key={c.id} className="flex items-center justify-between py-2.5 text-sm">
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs text-zinc-300">{formatHonsellGiftCardCode(c.code)}</span>
+                  <span className="font-mono text-xs text-zinc-300">{c.code ? formatHonsellGiftCardCode(c.code) : "—"}</span>
                   <span className="text-xs text-zinc-500">
                     {c.redeemedAt
                       ? new Intl.DateTimeFormat("az-AZ", { dateStyle: "medium" }).format(c.redeemedAt)

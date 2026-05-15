@@ -140,6 +140,27 @@ export async function POST(req: Request) {
       );
     }
 
+    // Eyni telefon nömrəsi ilə başqa hesab varsa, yenisi yaradıla bilməz.
+    const phoneOwner = await prisma.user.findFirst({ where: { phone } });
+    if (phoneOwner) {
+      if (phoneOwner.emailVerified) {
+        return NextResponse.json(
+          { error: "Bu telefon nömrəsi artıq istifadə olunur." },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json(
+        {
+          error:
+            "Bu telefon nömrəsi ilə tamamlanmamış hesab var. Şifrəni yenilə düyməsinə basaraq hesabı bərpa et.",
+          accountExists: true,
+          needsPasswordReset: true,
+          email: phoneOwner.email,
+        },
+        { status: 409 }
+      );
+    }
+
     let referredById: string | null = null;
     if (referralCode) {
       const referrer = await prisma.user.findUnique({ where: { referralCode } });
@@ -152,6 +173,7 @@ export async function POST(req: Request) {
     const otpCode = generateOtpCode();
     const otpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
 
+    let createdUserId: string | null = null;
     {
       let code = generateReferralCode();
       for (let i = 0; i < 5; i++) {
@@ -160,7 +182,7 @@ export async function POST(req: Request) {
         code = generateReferralCode();
       }
 
-      await prisma.user.create({
+      const created = await prisma.user.create({
         data: {
           email,
           name,
@@ -172,14 +194,28 @@ export async function POST(req: Request) {
           otpExpiresAt,
         },
       });
+      createdUserId = created.id;
     }
 
-    const channel = await deliverSignupOtp({
-      email,
-      phone,
-      userName: name ?? email.split("@")[0],
-      code: otpCode,
-    });
+    let channel;
+    try {
+      channel = await deliverSignupOtp({
+        email,
+        phone,
+        userName: name ?? email.split("@")[0],
+        code: otpCode,
+      });
+    } catch (deliveryError) {
+      console.error("[register] OTP delivery failed:", deliveryError);
+      if (createdUserId) {
+        await prisma.user.delete({ where: { id: createdUserId } }).catch(() => {});
+      }
+      const message =
+        deliveryError instanceof Error
+          ? deliveryError.message
+          : "WhatsApp təsdiq kodu göndərilə bilmədi. Bir az sonra yenidən cəhd et.";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
 
     const res = NextResponse.json({
       ok: true,

@@ -185,13 +185,28 @@ export default async function OrdersPage() {
                     </div>
                   );
                 })()}
-                {r.type === "SERVICE_PURCHASE" && !r.serviceCode && (
-                  <div className="mt-1 text-xs text-zinc-400">
-                    {r.status === "PENDING" && "Admin tərəfindən icra edilir..."}
-                    {r.status === "SUCCESS" && "Sifariş tamamlandı."}
-                    {r.status === "FAILED" && <span className="text-rose-400">Sifariş rədd edildi (Balans qaytarıldı).</span>}
-                  </div>
-                )}
+                {r.type === "SERVICE_PURCHASE" && !r.serviceCode && (() => {
+                  let rawMeta: Record<string, unknown> | null = null;
+                  try {
+                    rawMeta = r.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : null;
+                  } catch {
+                    rawMeta = null;
+                  }
+                  const isHonsellGift = rawMeta?.kind === "HONSELL_GIFT_CARD";
+                  const hasCode = typeof rawMeta?.honsellGiftCardCode === "string";
+                  if (isHonsellGift && hasCode) return null;
+                  return (
+                    <div className="mt-1 text-xs text-zinc-400">
+                      {r.status === "PENDING" && (
+                        isHonsellGift
+                          ? "Hədiyyə kart kodu admin tərəfindən hazırlanır — kod hazır olduqda email ilə göndəriləcək."
+                          : "Admin tərəfindən icra edilir..."
+                      )}
+                      {r.status === "SUCCESS" && !isHonsellGift && "Sifariş tamamlandı."}
+                      {r.status === "FAILED" && <span className="text-rose-400">Sifariş rədd edildi (Balans qaytarıldı).</span>}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="text-right sm:ml-auto">

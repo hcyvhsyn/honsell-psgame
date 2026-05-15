@@ -79,6 +79,49 @@ body {
   }
 }
 
+/* Honsell gift card navbar button — violet light streak travelling left to right */
+.honsell-gift-btn {
+  position: relative;
+  isolation: isolate;
+  background-color: #0c0518;
+  border-radius: 20px;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  overflow: hidden;
+}
+.honsell-gift-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(168, 85, 247, 0.9) 48%,
+    #ffffff 50%,
+    rgba(168, 85, 247, 0.9) 52%,
+    transparent 65%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: honsell-gift-streak 2.6s linear infinite;
+  pointer-events: none;
+}
+@keyframes honsell-gift-streak {
+  0%   { background-position: -120% 0; }
+  100% { background-position:  220% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .honsell-gift-btn::before { animation: none; }
+}
+
 /* Guide / article prose styling — applied to markdown-rendered HTML */
 .guide-prose {
   color: rgb(212 212 216); /* zinc-300 */
