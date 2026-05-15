@@ -98,11 +98,6 @@ export async function POST(req: Request) {
           amount: amountAzn,
           order_id: tx.id,
           description,
-          currency: "AZN",
-          language: "az",
-          success_redirect_url: successUrl,
-          error_redirect_url: errorUrl,
-          result_url: `${origin}/result`,
         },
         config.privateKey,
       );

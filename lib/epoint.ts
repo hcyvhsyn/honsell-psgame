@@ -29,16 +29,14 @@ const EPOINT_REQUEST_URL = "https://epoint.az/api/1/request";
 const EPOINT_GET_STATUS_URL = "https://epoint.az/api/1/get-status";
 const EPOINT_WIDGET_URL = "https://epoint.az/api/1/token/widget";
 
+// Epoint widget endpoint (POST /api/1/token/widget) cəmi 4 sahə qəbul edir.
+// Success/error/result URL-ləri merchant səviyyəsində Epoint personal cabinet-də
+// konfiqurasiya olunur — sorğuya əlavə edilmir.
 export type EpointWidgetRequest = {
   public_key: string;
   amount: number;
   order_id: string;
   description: string;
-  currency?: "AZN";
-  language?: EpointLanguage;
-  success_redirect_url?: string;
-  error_redirect_url?: string;
-  result_url?: string;
 };
 
 export type EpointWidgetResponse = {

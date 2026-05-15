@@ -44,12 +44,19 @@ export default function EpointWidgetModal({
 
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
+      let widgetOrigin: string;
       try {
-        const origin = new URL(widgetUrl).origin;
-        if (event.origin !== origin) return;
+        widgetOrigin = new URL(widgetUrl).origin;
       } catch {
         return;
       }
+      // DEBUG: prod-da Epoint-in göndərdiyi mesajları görmək üçün
+      console.log("[epoint-widget] message", {
+        origin: event.origin,
+        expectedOrigin: widgetOrigin,
+        data: event.data,
+      });
+      if (event.origin !== widgetOrigin) return;
 
       let payload: unknown = event.data;
       if (typeof payload === "string") {
