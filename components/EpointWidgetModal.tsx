@@ -109,7 +109,29 @@ export default function EpointWidgetModal({
             src={widgetUrl}
             title={title}
             allow="payment"
-            onLoad={() => setLoading(false)}
+            onLoad={() => {
+              setLoading(false);
+              // Epoint widget bəzən iframe-i success_redirect_url / error_redirect_url-ə
+              // yönləndirir (postMessage göndərmədən). Eyni-origin olduğu üçün
+              // iframe.contentWindow.location-u oxuya bilirik.
+              const frame = iframeRef.current;
+              if (!frame || resolved) return;
+              try {
+                const href = frame.contentWindow?.location.href;
+                if (!href) return;
+                const url = new URL(href);
+                if (url.origin !== window.location.origin) return;
+                if (url.pathname.startsWith("/success") || url.pathname.startsWith("/succeess")) {
+                  setResolved(true);
+                  window.location.href = successUrl;
+                } else if (url.pathname.startsWith("/error")) {
+                  setResolved(true);
+                  window.location.href = errorUrl;
+                }
+              } catch {
+                // Cross-origin — keçmiş.
+              }
+            }}
             className="h-full w-full border-0"
           />
         </div>

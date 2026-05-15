@@ -35,6 +35,10 @@ export type EpointWidgetRequest = {
   order_id: string;
   description: string;
   currency?: "AZN";
+  language?: EpointLanguage;
+  success_redirect_url?: string;
+  error_redirect_url?: string;
+  result_url?: string;
 };
 
 export type EpointWidgetResponse = {
