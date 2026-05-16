@@ -6,6 +6,7 @@ import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import {
   BriefcaseBusiness,
   ChevronDown,
+  ChevronRight,
   Flame,
   Gamepad2,
   Gem,
@@ -14,8 +15,10 @@ import {
   Heart,
   LogIn,
   Menu,
+  MessageCircle,
   Music2,
   Sparkles,
+  Tags,
   type LucideIcon,
   User,
   UserPlus,
@@ -34,6 +37,9 @@ const BRAND_PURPLE_DARK = "#2D006F";
 type NavLinkItem = {
   href: string;
   label: string;
+  description?: string;
+  Icon?: LucideIcon;
+  section?: "products" | "helpful";
   featured?: boolean;
   comingSoon?: boolean;
 };
@@ -52,15 +58,70 @@ const playstationGroup: NavGroup = {
   Icon: Gamepad2,
   href: "/playstation",
   items: [
-    { href: "/oyunlar", label: "Oyunlar" },
-    { href: "/ps-plus", label: "PS Plus" },
-    { href: "/ea-play", label: "EA Play" },
-    { href: "/hediyye-kartlari", label: "Hədiyyə Kartları" },
-    { href: "/hesab-acma", label: "Hesab Açma" },
-    { href: "/kolleksiyalar", label: "Kolleksiyalar" },
-    { href: "/endirimler", label: "Endirimlər", featured: true },
-    { href: "/reyler", label: "Rəylər" },
-    { href: "/profile/favorites", label: "Favoritlərim" },
+    {
+      href: "/oyunlar",
+      label: "Oyunlar",
+      description: "PS4 və PS5 rəqəmsal oyunları",
+      Icon: Gamepad2,
+      section: "products",
+    },
+    {
+      href: "/ps-plus",
+      label: "PS Plus",
+      description: "Essential, Extra və Deluxe paketləri",
+      Icon: Gem,
+      section: "products",
+    },
+    {
+      href: "/ea-play",
+      label: "EA Play",
+      description: "EA oyun kolleksiyası və sınaq",
+      Icon: Flame,
+      section: "products",
+    },
+    {
+      href: "/hediyye-kartlari",
+      label: "Hədiyyə Kartları",
+      description: "PSN və Honsell gift card-ları",
+      Icon: Gift,
+      section: "products",
+    },
+    {
+      href: "/hesab-acma",
+      label: "Hesab Açma",
+      description: "Türkiyə PSN hesabı yarat",
+      Icon: UserPlus,
+      section: "products",
+    },
+    {
+      href: "/kolleksiyalar",
+      label: "Kolleksiyalar",
+      description: "Seçilmiş oyun siyahıları",
+      Icon: Grid2X2,
+      section: "products",
+    },
+    {
+      href: "/endirimler",
+      label: "Endirimlər",
+      description: "Kampaniyalar və ucuz təkliflər",
+      Icon: Tags,
+      section: "helpful",
+      featured: true,
+    },
+    {
+      href: "/reyler",
+      label: "Rəylər",
+      description: "Müştəri təcrübələri",
+      Icon: MessageCircle,
+      section: "helpful",
+    },
+    {
+      href: "/profile/favorites",
+      label: "Favoritlərim",
+      description: "Sevdiyin məhsullara bax",
+      Icon: Heart,
+      section: "helpful",
+    },
   ],
 };
 
@@ -261,7 +322,7 @@ export default function SiteHeader({
           <div className="hidden min-h-[64px] items-center justify-between gap-4 border-t border-violet-300/15 px-6 xl:flex">
             <nav className="flex min-w-0 items-center gap-5" aria-label="Əsas naviqasiya">
               {navGroups.map((g) => (
-                <NavDropdown key={g.label} group={g} active={isGroupActive(g, pathname)} />
+                <NavDropdown key={g.label} group={g} active={isGroupActive(g, pathname)} pathname={pathname} />
               ))}
             </nav>
 
@@ -415,7 +476,19 @@ function isGroupActive(group: NavGroup, pathname: string) {
   return group.items.some((item) => hrefMatches(pathname, item.href));
 }
 
-function NavDropdown({ group, active }: { group: NavGroup; active: boolean }) {
+function NavDropdown({
+  group,
+  active,
+  pathname,
+}: {
+  group: NavGroup;
+  active: boolean;
+  pathname: string;
+}) {
+  if (group.label === "PlayStation") {
+    return <PlayStationDropdown group={group} active={active} pathname={pathname} />;
+  }
+
   // Dropdown title-i qrupun əsas səhifəsinə (varsa) link-ə çevrilir; əks halda
   // sadəcə görsəl trigger düymədir. ChevronDown panelin açıldığını göstərir.
   const triggerClass =
@@ -474,6 +547,162 @@ function NavDropdown({ group, active }: { group: NavGroup; active: boolean }) {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function PlayStationDropdown({
+  group,
+  active,
+  pathname,
+}: {
+  group: NavGroup;
+  active: boolean;
+  pathname: string;
+}) {
+  const productItems = group.items.filter((item) => item.section !== "helpful");
+  const helpfulItems = group.items.filter((item) => item.section === "helpful");
+
+  return (
+    <div className="group relative">
+      <Link
+        href={group.href ?? "/playstation"}
+        className={`relative inline-flex h-12 items-center gap-3 rounded-[20px] border px-4 pr-3 text-base font-bold transition ${
+          active
+            ? "border-violet-400/70 bg-violet-950/50 text-fuchsia-100 shadow-[0_0_34px_-18px_rgba(168,85,247,0.95)]"
+            : "border-white/10 bg-white/[0.035] text-zinc-100 hover:border-violet-400/60 hover:bg-violet-950/40 hover:text-fuchsia-100"
+        }`}
+      >
+        <span className="grid h-8 w-8 place-items-center rounded-xl bg-violet-400/10 text-fuchsia-100 ring-1 ring-violet-300/30">
+          <PlayStationMark compact />
+        </span>
+        <span>PlayStation</span>
+        <ChevronDown className="h-4 w-4 text-fuchsia-100 transition group-hover:rotate-180" />
+      </Link>
+
+      <div className="invisible absolute left-0 top-full z-50 w-[820px] max-w-[calc(100vw-3rem)] pt-3 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+        <div
+          className="relative overflow-hidden rounded-[30px] border border-violet-400/[0.45] p-7 shadow-[0_30px_100px_-30px_rgba(168,85,247,0.85)] backdrop-blur-2xl"
+          style={{
+            background:
+              "radial-gradient(circle at 7% 7%, rgba(168, 85, 247, 0.24), transparent 31%), radial-gradient(circle at 94% 10%, rgba(59, 130, 246, 0.16), transparent 28%), linear-gradient(135deg, rgba(17, 19, 32, 0.98), rgba(5, 7, 15, 0.97))",
+          }}
+        >
+          <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/70 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-8 bottom-0 h-24 bg-violet-700/10 blur-3xl" />
+          <PlayStationShapes />
+
+          <div className="relative">
+            <div className="flex items-center gap-7 pb-6">
+              <span className="grid h-[76px] w-[76px] shrink-0 place-items-center rounded-full border border-violet-400/[0.45] bg-violet-950/30 shadow-[0_0_42px_-18px_rgba(168,85,247,0.95)]">
+                <PlayStationMark />
+              </span>
+              <div className="min-w-0">
+                <p className="text-3xl font-black text-white">PlayStation</p>
+                <p className="mt-2 text-lg font-medium text-zinc-300">
+                  Oyunlar, abunəliklər və faydalı keçidlər
+                </p>
+              </div>
+            </div>
+
+            <PlayStationSection title="SATIŞ MƏHSULLARI" items={productItems} pathname={pathname} />
+            <PlayStationSection title="FAYDALI BÖLMƏLƏR" items={helpfulItems} pathname={pathname} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlayStationSection({
+  title,
+  items,
+  pathname,
+}: {
+  title: string;
+  items: NavLinkItem[];
+  pathname: string;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mt-5 first:mt-0">
+      <div className="mb-3 flex items-center gap-4">
+        <p className="shrink-0 text-sm font-black uppercase text-violet-300">{title}</p>
+        <span className="h-px flex-1 bg-white/10" />
+      </div>
+
+      <div className="grid gap-2.5">
+        {items.map((item) => (
+          <PlayStationMenuItem key={item.href} item={item} active={hrefMatches(pathname, item.href)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PlayStationMenuItem({ item, active }: { item: NavLinkItem; active: boolean }) {
+  const ItemIcon = item.Icon ?? Gamepad2;
+
+  return (
+    <Link
+      href={item.href}
+      className={`group/item relative flex min-h-[76px] items-center gap-4 rounded-[14px] border px-4 py-3 transition ${
+        item.featured
+          ? "border-rose-400/70 bg-rose-500/10 text-rose-100 shadow-[0_0_28px_-20px_rgba(251,113,133,0.95)] hover:bg-rose-500/[0.15]"
+          : active
+            ? "border-violet-300/[0.55] bg-violet-500/[0.12] text-white"
+            : "border-white/10 bg-white/[0.035] text-zinc-100 hover:border-violet-300/40 hover:bg-white/[0.065]"
+      }`}
+    >
+      <span
+        className={`grid h-[54px] w-[54px] shrink-0 place-items-center rounded-[14px] border shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${
+          item.featured
+            ? "border-rose-300/30 bg-rose-300/[0.15] text-rose-200"
+            : "border-white/10 bg-white/[0.06] text-violet-100"
+        }`}
+      >
+        <ItemIcon className="h-7 w-7" />
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <span className={`block text-lg font-black ${item.featured ? "text-rose-200" : "text-white"}`}>
+          {item.label}
+        </span>
+        {item.description && (
+          <span className="mt-1 block truncate text-base font-medium text-zinc-300">
+            {item.description}
+          </span>
+        )}
+      </span>
+
+      {item.featured && <Sparkles className="h-5 w-5 shrink-0 fill-rose-300/20 text-rose-300" />}
+      <ChevronRight className="h-6 w-6 shrink-0 text-zinc-300 transition group-hover/item:translate-x-1 group-hover/item:text-white" />
+    </Link>
+  );
+}
+
+function PlayStationMark({ compact = false }: { compact?: boolean }) {
+  return (
+    <span
+      className={`font-black text-white ${compact ? "text-[13px]" : "text-2xl"}`}
+      aria-hidden="true"
+    >
+      PS
+    </span>
+  );
+}
+
+function PlayStationShapes() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute right-10 top-6 h-28 w-36">
+      <span className="absolute left-4 top-3 h-0 w-0 rotate-[28deg] border-y-[18px] border-r-[30px] border-y-transparent border-r-violet-300/25" />
+      <span className="absolute right-1 top-3 h-12 w-12 rounded-full border-[5px] border-violet-300/25" />
+      <span className="absolute bottom-2 left-16 h-12 w-12 rotate-[24deg] border-[5px] border-violet-300/20" />
+      <span className="absolute bottom-6 left-1 h-14 w-14">
+        <span className="absolute left-1/2 top-0 h-full w-[5px] -translate-x-1/2 rotate-[63deg] rounded-full bg-violet-300/20" />
+        <span className="absolute left-1/2 top-0 h-full w-[5px] -translate-x-1/2 -rotate-[63deg] rounded-full bg-violet-300/20" />
+      </span>
     </div>
   );
 }

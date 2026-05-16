@@ -120,7 +120,7 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
         typeof data.successUrl !== "string" ||
         typeof data.errorUrl !== "string"
       ) {
-        setMessage({ ok: false, text: data.error ?? "Apple Pay / Google Pay açıla bilmədi." });
+        setMessage({ ok: false, text: data.error ?? "Google Pay açıla bilmədi." });
         setBusy(false);
         return;
       }
@@ -131,7 +131,7 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
         errorUrl: data.errorUrl,
       });
     } catch {
-      setMessage({ ok: false, text: "Apple Pay / Google Pay açıla bilmədi." });
+      setMessage({ ok: false, text: "Google Pay açıla bilmədi." });
     } finally {
       setBusy(false);
     }
@@ -195,15 +195,20 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
         </button>
 
         {EPOINT_WIDGET_ENABLED ? (
-          <button
-            type="button"
-            onClick={startWidgetDeposit}
-            disabled={busy}
-            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
-          >
-            <Smartphone className="h-4 w-4" />
-            {busy ? "Açılır..." : "Apple Pay / Google Pay ilə artır"}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={startWidgetDeposit}
+              disabled={busy}
+              className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
+            >
+              <Smartphone className="h-4 w-4" />
+              {busy ? "Açılır..." : "Google Pay ilə artır"}
+            </button>
+            <p className="mt-1.5 text-center text-[11px] text-zinc-500">
+              Apple Pay yaxınlarda — hazırda yalnız Google Pay aktivdir.
+            </p>
+          </>
         ) : null}
 
         {message && (
@@ -226,7 +231,7 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
           widgetUrl={widget.url}
           successUrl={widget.successUrl}
           errorUrl={widget.errorUrl}
-          title="Apple Pay / Google Pay"
+          title="Google Pay"
           onClose={() => setWidget(null)}
         />
       ) : null}

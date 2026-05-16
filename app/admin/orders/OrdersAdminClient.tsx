@@ -177,6 +177,70 @@ export default function OrdersAdminClient() {
   const [giftCardCode, setGiftCardCode] = useState("");
   const [giftCardFormError, setGiftCardFormError] = useState<string | null>(null);
 
+  // Cancel-with-reason modal. Used for both game and service tabs.
+  type CancelTarget =
+    | { kind: "game"; id: string; title: string }
+    | {
+        kind: "service";
+        id: string;
+        title: string;
+        listKey:
+          | "psPlusOrders"
+          | "eaPlayOrders"
+          | "giftCardOrders"
+          | "accountCreationOrders"
+          | "streamingOrders"
+          | "aiOrders"
+          | "musicOrders"
+          | "workOrders";
+      };
+  const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  function openCancelModal(target: CancelTarget) {
+    setCancelReason("");
+    setCancelError(null);
+    setCancelTarget(target);
+  }
+
+  function submitCancel() {
+    const target = cancelTarget;
+    if (!target) return;
+    const reason = cancelReason.trim();
+    if (!reason) {
+      setCancelError("Səbəbi yazın.");
+      return;
+    }
+    setCancelError(null);
+    startTransition(async () => {
+      const url =
+        target.kind === "game"
+          ? `/api/admin/game-orders/${target.id}`
+          : `/api/admin/service-orders/${target.id}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "FAILED", reason }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setCancelError(j.error ?? "Əməliyyat alınmadı");
+        return;
+      }
+      setData((prev) => {
+        if (!prev) return prev;
+        if (target.kind === "game") {
+          return { ...prev, gameOrders: prev.gameOrders.filter((o) => o.id !== target.id) };
+        }
+        const list = prev[target.listKey].filter((o) => o.id !== target.id);
+        return { ...prev, [target.listKey]: list };
+      });
+      setCancelTarget(null);
+      setCancelReason("");
+    });
+  }
+
   function openGiftCardApproval(id: string) {
     setGiftCardFormError(null);
     setGiftCardCode("");
@@ -341,7 +405,7 @@ export default function OrdersAdminClient() {
 
   async function actService(
     id: string,
-    action: "SUCCESS" | "FAILED",
+    action: "SUCCESS",
     listKey:
       | "psPlusOrders"
       | "eaPlayOrders"
@@ -352,7 +416,7 @@ export default function OrdersAdminClient() {
       | "musicOrders"
       | "workOrders"
   ) {
-    if (!confirm(action === "SUCCESS" ? "Sifarişi tamamla?" : "Sifarişi rədd et?")) return;
+    if (!confirm("Sifarişi tamamla?")) return;
     setError(null);
     startTransition(async () => {
       const res = await fetch(`/api/admin/service-orders/${id}`, {
@@ -365,13 +429,28 @@ export default function OrdersAdminClient() {
         setError(j.error ?? "Əməliyyat alınmadı");
         return;
       }
-      // Optimistic removal — same approach as the game tab.
       setData((prev) => {
         if (!prev) return prev;
         const list = prev[listKey].filter((o) => o.id !== id);
         return { ...prev, [listKey]: list };
       });
     });
+  }
+
+  function rejectService(
+    id: string,
+    title: string,
+    listKey:
+      | "psPlusOrders"
+      | "eaPlayOrders"
+      | "giftCardOrders"
+      | "accountCreationOrders"
+      | "streamingOrders"
+      | "aiOrders"
+      | "musicOrders"
+      | "workOrders"
+  ) {
+    openCancelModal({ kind: "service", id, title, listKey });
   }
 
   return (
@@ -442,6 +521,13 @@ export default function OrdersAdminClient() {
                     toggleExpand={() => toggleExpandGame(o.id)}
                     busy={busyGameId === o.id}
                     onAction={(body) => patchGameOrder(o.id, body)}
+                    onReject={() =>
+                      openCancelModal({
+                        kind: "game",
+                        id: o.id,
+                        title: o.game?.title ?? "Oyun sifarişi",
+                      })
+                    }
                     paymentSource={getPaymentSource(o.metadata)}
                   />
                 ))}
@@ -464,7 +550,9 @@ export default function OrdersAdminClient() {
                     toggleExpand={() => toggleExpandPsPlus(o.id)}
                     busy={pending}
                     onApprove={() => actService(o.id, "SUCCESS", "eaPlayOrders")}
-                    onReject={() => actService(o.id, "FAILED", "eaPlayOrders")}
+                    onReject={() =>
+                      rejectService(o.id, o.serviceProduct?.title ?? "EA Play", "eaPlayOrders")
+                    }
                     paymentSource={getPaymentSource(o.metadata)}
                   />
                 ))}
@@ -487,7 +575,9 @@ export default function OrdersAdminClient() {
                     toggleExpand={() => toggleExpandPsPlus(o.id)}
                     busy={pending}
                     onApprove={() => actService(o.id, "SUCCESS", "psPlusOrders")}
-                    onReject={() => actService(o.id, "FAILED", "psPlusOrders")}
+                    onReject={() =>
+                      rejectService(o.id, o.serviceProduct?.title ?? "PS Plus", "psPlusOrders")
+                    }
                     paymentSource={getPaymentSource(o.metadata)}
                   />
                 ))}
@@ -512,7 +602,13 @@ export default function OrdersAdminClient() {
                   <RowActions
                     pending={pending}
                     onApprove={() => openGiftCardApproval(o.id)}
-                    onReject={() => actService(o.id, "FAILED", "giftCardOrders")}
+                    onReject={() =>
+                      rejectService(
+                        o.id,
+                        o.serviceProduct?.title ?? "Hədiyyə kart",
+                        "giftCardOrders"
+                      )
+                    }
                   />
                 ),
               }))}
@@ -536,7 +632,13 @@ export default function OrdersAdminClient() {
                   <RowActions
                     pending={pending}
                     onApprove={() => actService(o.id, "SUCCESS", "accountCreationOrders")}
-                    onReject={() => actService(o.id, "FAILED", "accountCreationOrders")}
+                    onReject={() =>
+                      rejectService(
+                        o.id,
+                        o.serviceProduct?.title ?? "Hesab açma",
+                        "accountCreationOrders"
+                      )
+                    }
                   />
                 ),
               }))}
@@ -567,7 +669,13 @@ export default function OrdersAdminClient() {
                     <RowActions
                       pending={pending}
                       onApprove={() => openStreamingApproval(o.id)}
-                      onReject={() => actService(o.id, "FAILED", "streamingOrders")}
+                      onReject={() =>
+                        rejectService(
+                          o.id,
+                          o.serviceProduct?.title ?? "Streaming",
+                          "streamingOrders"
+                        )
+                      }
                     />
                   ),
                 };
@@ -581,7 +689,7 @@ export default function OrdersAdminClient() {
               empty="Gözləyən süni intellekt sifarişi yoxdur."
               pending={pending}
               onApprove={(id) => actService(id, "SUCCESS", "aiOrders")}
-              onReject={(id) => actService(id, "FAILED", "aiOrders")}
+              onReject={(id, title) => rejectService(id, title, "aiOrders")}
             />
           )}
 
@@ -591,7 +699,7 @@ export default function OrdersAdminClient() {
               empty="Gözləyən musiqi sifarişi yoxdur."
               pending={pending}
               onApprove={(id) => actService(id, "SUCCESS", "musicOrders")}
-              onReject={(id) => actService(id, "FAILED", "musicOrders")}
+              onReject={(id, title) => rejectService(id, title, "musicOrders")}
             />
           )}
 
@@ -601,7 +709,7 @@ export default function OrdersAdminClient() {
               empty="Gözləyən iş platforması sifarişi yoxdur."
               pending={pending}
               onApprove={(id) => actService(id, "SUCCESS", "workOrders")}
-              onReject={(id) => actService(id, "FAILED", "workOrders")}
+              onReject={(id, title) => rejectService(id, title, "workOrders")}
             />
           )}
         </>
@@ -622,6 +730,86 @@ export default function OrdersAdminClient() {
           Hesab açılışı
         </Link>
       </div>
+
+      {cancelTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => {
+            if (pending) return;
+            setCancelTarget(null);
+            setCancelReason("");
+            setCancelError(null);
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-2xl border border-rose-500/30 bg-zinc-950 p-6 shadow-2xl"
+          >
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-500/10 ring-1 ring-rose-500/30">
+                <X className="h-5 w-5 text-rose-300" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-zinc-100">Sifarişi ləğv et</h3>
+                <p className="mt-1 text-sm text-zinc-400">
+                  <span className="text-zinc-200">{cancelTarget.title}</span> sifarişini
+                  ləğv edirsiniz. Səbəbi müştərinin sifariş tarixçəsində görünəcək və ödəniş
+                  müvafiq balansa geri qaytarılacaq.
+                </p>
+              </div>
+            </div>
+
+            <label className="mt-5 block text-sm">
+              <span className="text-zinc-300">Ləğv etmə səbəbi</span>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => {
+                  setCancelReason(e.target.value);
+                  if (cancelError) setCancelError(null);
+                }}
+                autoFocus
+                rows={4}
+                maxLength={1000}
+                placeholder="Məs. Stokda yoxdur, müştəri ilə əlaqə qurula bilmədi, yanlış məlumat..."
+                className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-rose-500 focus:outline-none"
+              />
+              <div className="mt-1 text-right text-[10px] text-zinc-500">
+                {cancelReason.length} / 1000
+              </div>
+            </label>
+
+            {cancelError && (
+              <div className="mt-3 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+                {cancelError}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setCancelTarget(null);
+                  setCancelReason("");
+                  setCancelError(null);
+                }}
+                disabled={pending}
+                className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-300 disabled:opacity-50"
+              >
+                İmtina
+              </button>
+              <button
+                type="button"
+                onClick={submitCancel}
+                disabled={pending || !cancelReason.trim()}
+                className="inline-flex items-center gap-2 rounded bg-rose-500 px-4 py-2 text-sm font-bold text-white hover:bg-rose-400 disabled:opacity-50"
+              >
+                <X className="h-4 w-4" />
+                {pending ? "Ləğv edilir..." : "Ləğv et və geri qaytar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {giftCardApprovingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -766,6 +954,7 @@ function GameOrderCard({
   toggleExpand,
   busy,
   onAction,
+  onReject,
   paymentSource,
 }: {
   o: OrdersPayload["gameOrders"][number];
@@ -773,6 +962,7 @@ function GameOrderCard({
   toggleExpand: () => void;
   busy: boolean;
   onAction: (body: object) => void;
+  onReject: () => void;
   paymentSource: string;
 }) {
   const meta = parseGameOrderMeta(o.metadata ?? null);
@@ -871,10 +1061,7 @@ function GameOrderCard({
             <button
               type="button"
               disabled={busy}
-              onClick={() => {
-                if (typeof window !== "undefined" && window.confirm("Sifarişi rədd et və məbləği geri köçür?"))
-                  onAction({ action: "FAILED" });
-              }}
+              onClick={onReject}
               className="inline-flex items-center gap-1.5 rounded-lg bg-rose-500/85 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
             >
               <X className="h-3.5 w-3.5" /> Rədd · geri qaytarma
@@ -1197,7 +1384,7 @@ function PlatformOrdersTable({
   empty: string;
   pending: boolean;
   onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+  onReject: (id: string, title: string) => void;
 }) {
   return (
     <OrdersTable
@@ -1216,7 +1403,7 @@ function PlatformOrdersTable({
           <RowActions
             pending={pending}
             onApprove={() => onApprove(o.id)}
-            onReject={() => onReject(o.id)}
+            onReject={() => onReject(o.id, o.serviceProduct?.title ?? "Platform")}
           />
         ),
       }))}

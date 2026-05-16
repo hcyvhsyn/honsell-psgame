@@ -90,6 +90,17 @@ export default async function OrdersPage() {
         <ul className="space-y-2">
           {rows.map((r) => {
             const rowMeta = parseGameOrderMeta(r.metadata ?? null);
+            let cancelReason: string | null = null;
+            if (r.status === "FAILED" && r.metadata) {
+              try {
+                const m = JSON.parse(r.metadata) as { cancelReason?: unknown };
+                if (typeof m.cancelReason === "string" && m.cancelReason.trim()) {
+                  cancelReason = m.cancelReason.trim();
+                }
+              } catch {
+                /* ignore */
+              }
+            }
             return (
             <li
               key={r.id}
@@ -129,9 +140,16 @@ export default async function OrdersPage() {
                       Oyun sifarişi tamamlanıb.
                     </p>
                   ) : isGamePurchase && r.status === "FAILED" ? (
-                    <p className="mt-1 text-[11px] text-rose-400/95">
-                      Sifariş tamamlanmadı — ödəniş məbləği uyğun olaraq cüzdanınıza və ya referal balansınıza geri qaytarıldı.
-                    </p>
+                    <div className="mt-1 space-y-1 text-[11px] leading-snug text-rose-400/95">
+                      <p>
+                        Sifariş tamamlanmadı — ödəniş məbləği uyğun olaraq cüzdanınıza və ya referal balansınıza geri qaytarıldı.
+                      </p>
+                      {cancelReason && (
+                        <p className="rounded-md border border-rose-500/30 bg-rose-500/10 px-2 py-1.5 text-rose-200/95">
+                          <span className="font-semibold">Ləğv səbəbi:</span> {cancelReason}
+                        </p>
+                      )}
+                    </div>
                   ) : null;
                 })()}
                 <div className="text-xs text-zinc-500">
@@ -203,7 +221,16 @@ export default async function OrdersPage() {
                           : "Admin tərəfindən icra edilir..."
                       )}
                       {r.status === "SUCCESS" && !isHonsellGift && "Sifariş tamamlandı."}
-                      {r.status === "FAILED" && <span className="text-rose-400">Sifariş rədd edildi (Balans qaytarıldı).</span>}
+                      {r.status === "FAILED" && (
+                        <span className="block space-y-1">
+                          <span className="block text-rose-400">Sifariş rədd edildi (Balans qaytarıldı).</span>
+                          {cancelReason && (
+                            <span className="block rounded-md border border-rose-500/30 bg-rose-500/10 px-2 py-1.5 text-[11px] text-rose-200/95">
+                              <span className="font-semibold">Ləğv səbəbi:</span> {cancelReason}
+                            </span>
+                          )}
+                        </span>
+                      )}
                     </div>
                   );
                 })()}

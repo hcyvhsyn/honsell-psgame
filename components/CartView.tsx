@@ -686,8 +686,13 @@ export default function CartView({
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition hover:border-zinc-500 hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-50"
                 >
                   <Smartphone className="h-4 w-4" />
-                  {busy ? "İşlənir..." : "Apple Pay / Google Pay"}
+                  {busy ? "İşlənir..." : "Google Pay"}
                 </button>
+              ) : null}
+              {EPOINT_WIDGET_ENABLED ? (
+                <p className="text-center text-[11px] text-zinc-500">
+                  Apple Pay yaxınlarda — hazırda yalnız Google Pay aktivdir.
+                </p>
               ) : null}
             </div>
           )}
@@ -736,7 +741,7 @@ export default function CartView({
           widgetUrl={widget.url}
           successUrl={widget.successUrl}
           errorUrl={widget.errorUrl}
-          title="Apple Pay / Google Pay"
+          title="Google Pay"
           onClose={() => setWidget(null)}
         />
       ) : null}

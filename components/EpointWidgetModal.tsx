@@ -27,7 +27,7 @@ export default function EpointWidgetModal({
   widgetUrl,
   successUrl,
   errorUrl,
-  title = "Apple Pay / Google Pay",
+  title = "Google Pay",
   onClose,
 }: Props) {
   const [loading, setLoading] = useState(true);

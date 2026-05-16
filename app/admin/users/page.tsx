@@ -158,7 +158,7 @@ export default async function AdminUsersPage({
                 <Td>{u._count.referrals}</Td>
                 <Td className="text-zinc-400">{fmtDate(u.createdAt)}</Td>
                 <Td className="text-right">
-                  <UserRowActions userId={u.id} email={u.email} />
+                  <UserRowActions userId={u.id} email={u.email} phone={u.phone} name={u.name} />
                 </Td>
               </tr>
             ))}

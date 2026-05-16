@@ -186,17 +186,35 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: "Artıq bağlanmış sifariş." }, { status: 400 });
     }
 
+    const reasonRaw = typeof body.reason === "string" ? body.reason.trim() : "";
+    if (!reasonRaw) {
+      return NextResponse.json(
+        { error: "Ləğv etmə səbəbi tələb olunur." },
+        { status: 400 }
+      );
+    }
+    const cancelReason = reasonRaw.slice(0, 1000);
+
     await prisma.$transaction(async (ptx) => {
       const refundCents = Math.abs(row.amountAznCents);
       let toReferral = false;
+      let existingMeta: Record<string, unknown> = {};
       try {
         if (row.metadata) {
-          const meta = JSON.parse(row.metadata) as { paymentSource?: string };
-          if (meta.paymentSource === "REFERRAL") toReferral = true;
+          existingMeta = JSON.parse(row.metadata) as Record<string, unknown>;
+          if ((existingMeta as { paymentSource?: string }).paymentSource === "REFERRAL") {
+            toReferral = true;
+          }
         }
       } catch {
         /* köhnə məlumat */
       }
+
+      const nextMeta = {
+        ...existingMeta,
+        cancelReason,
+        cancelledAt: new Date().toISOString(),
+      };
 
       await ptx.user.update({
         where: { id: row.userId },
@@ -204,7 +222,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           ? { referralBalanceCents: { increment: refundCents } }
           : { walletBalance: { increment: refundCents } },
       });
-      await ptx.transaction.update({ where: { id: row.id }, data: { status: "FAILED" } });
+      await ptx.transaction.update({
+        where: { id: row.id },
+        data: { status: "FAILED", metadata: JSON.stringify(nextMeta) },
+      });
     });
 
     return NextResponse.json({ ok: true });

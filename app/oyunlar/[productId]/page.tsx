@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { ArrowLeft, ExternalLink, Gamepad2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, Gamepad2, Zap, ShieldCheck, Headset, BadgeCheck } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
@@ -22,6 +22,19 @@ const PRODUCT_TYPE_LABEL: Record<string, string> = {
   CURRENCY: "Sanal valyuta",
   OTHER: "Digər",
 };
+
+// Build a franchise prefix from a game title — e.g.
+//   "Call of Duty®: Black Ops 4"  → "Call of"
+//   "FIFA 23 — Ultimate Edition"  → "FIFA 23"
+//   "God of War Ragnarök"         → "God of"
+// Used to find sibling SKUs that share the same franchise root.
+function buildFranchiseSeed(title: string): string | null {
+  const cleaned = title.replace(/[™®©]/g, " ").trim();
+  const tokens = cleaned.split(/[\s:_/–—-]+/).filter(Boolean);
+  if (tokens.length === 0) return null;
+  const seed = tokens.slice(0, Math.min(2, tokens.length)).join(" ").trim();
+  return seed.length >= 3 ? seed : null;
+}
 
 export async function generateMetadata({
   params,
@@ -93,20 +106,66 @@ export default async function GameDetailPage({
 
   const display = computeDisplayPrice(game, settings);
 
-  // Pull a few similar items for "You might also like": same productType, share at
-  // least one platform, exclude self. Discounted entries first.
-  const similar = await prisma.game.findMany({
-    where: {
-      isActive: true,
-      productType: game.productType,
-      id: { not: game.id },
-      ...(game.platform
-        ? { platform: { contains: game.platform.split(",")[0] } }
-        : {}),
-    },
-    orderBy: [{ discountTryCents: "desc" }, { lastScrapedAt: "desc" }],
-    take: 8,
+  // Relevance for "You might also like":
+  //   1) Same franchise — title shares its first 1–2 significant tokens (e.g. "Call of Duty …").
+  //   2) Curated peers — games that appear together in the same Collection.
+  //   3) Fallback — same productType + platform, recent.
+  const franchiseSeed = buildFranchiseSeed(game.title);
+  const myCollections = await prisma.collectionGame.findMany({
+    where: { gameId: game.id, collection: { isActive: true } },
+    select: { collectionId: true },
   });
+  const myCollectionIds = myCollections.map((c) => c.collectionId);
+
+  const platformContains = game.platform ? game.platform.split(",")[0] : null;
+
+  const [byFranchise, byCollection, byFallback] = await Promise.all([
+    franchiseSeed
+      ? prisma.game.findMany({
+          where: {
+            isActive: true,
+            productType: game.productType,
+            id: { not: game.id },
+            title: { startsWith: franchiseSeed, mode: "insensitive" },
+          },
+          orderBy: [{ isFeatured: "desc" }, { discountTryCents: "desc" }, { lastScrapedAt: "desc" }],
+          take: 8,
+        })
+      : Promise.resolve([]),
+    myCollectionIds.length
+      ? prisma.game.findMany({
+          where: {
+            isActive: true,
+            id: { not: game.id },
+            collections: { some: { collectionId: { in: myCollectionIds } } },
+          },
+          orderBy: [{ isFeatured: "desc" }, { discountTryCents: "desc" }, { lastScrapedAt: "desc" }],
+          take: 8,
+        })
+      : Promise.resolve([]),
+    prisma.game.findMany({
+      where: {
+        isActive: true,
+        productType: game.productType,
+        id: { not: game.id },
+        ...(platformContains ? { platform: { contains: platformContains } } : {}),
+      },
+      orderBy: [{ isFeatured: "desc" }, { discountTryCents: "desc" }, { lastScrapedAt: "desc" }],
+      take: 8,
+    }),
+  ]);
+
+  const seen = new Set<string>();
+  const similar: typeof byFallback = [];
+  for (const arr of [byFranchise, byCollection, byFallback]) {
+    for (const g of arr) {
+      if (seen.has(g.id)) continue;
+      seen.add(g.id);
+      similar.push(g);
+      if (similar.length >= 8) break;
+    }
+    if (similar.length >= 8) break;
+  }
 
   const similarCards: GameCardData[] = similar.map((g) => {
     const d = computeDisplayPrice(g, settings);
@@ -202,7 +261,7 @@ export default async function GameDetailPage({
           <div className="absolute inset-0 -z-10 bg-gradient-to-b from-zinc-900 to-[#0A0A0F]" />
         )}
 
-        <div className="mx-auto max-w-6xl px-4 pt-6 pb-12 sm:px-6 sm:pt-10 sm:pb-20">
+        <div className="mx-auto max-w-[1536px] px-4 pt-6 pb-12 sm:px-6 sm:pt-10 sm:pb-20">
           <Link
             href="/oyunlar"
             className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white"
@@ -210,7 +269,23 @@ export default async function GameDetailPage({
             <ArrowLeft className="h-4 w-4" /> Bütün oyunlar
           </Link>
 
-          <div className="mt-8 grid gap-8 sm:mt-12 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="mt-8 grid gap-8 sm:mt-12 lg:grid-cols-[240px_minmax(0,1fr)_400px]">
+            {/* Cover */}
+            {game.imageUrl && (
+              <div className="hidden lg:block">
+                <div className="overflow-hidden rounded-2xl border border-white/10 shadow-2xl ring-1 ring-black/40">
+                  <Image
+                    src={game.imageUrl}
+                    alt={`${game.title} cover`}
+                    width={480}
+                    height={480}
+                    sizes="240px"
+                    className="h-auto w-full object-cover"
+                  />
+                </div>
+              </div>
+            )}
+
             <div>
               {game.editionLabel && (
                 <span className="inline-block rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/40">
@@ -233,8 +308,39 @@ export default async function GameDetailPage({
                 <span className="rounded-full bg-zinc-800/80 px-3 py-1 text-xs font-medium text-zinc-300 ring-1 ring-zinc-700">
                   {PRODUCT_TYPE_LABEL[game.productType] ?? game.productType}
                 </span>
-                <span className="text-xs text-zinc-500">ID: {game.productId}</span>
               </div>
+
+              {/* Value props */}
+              <ul className="mt-6 grid gap-3 sm:grid-cols-2 sm:gap-4">
+                <li className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-3.5 py-3 backdrop-blur">
+                  <Zap className="mt-0.5 h-4 w-4 shrink-0 text-indigo-300" />
+                  <div className="text-xs leading-snug text-zinc-300">
+                    <div className="font-semibold text-zinc-100">Anında çatdırılma</div>
+                    Sifariş təsdiqindən sonra dəqiqələr ərzində PSN hesabına yüklənir.
+                  </div>
+                </li>
+                <li className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-3.5 py-3 backdrop-blur">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                  <div className="text-xs leading-snug text-zinc-300">
+                    <div className="font-semibold text-zinc-100">Lisenziya zəmanəti</div>
+                    Rəsmi PS Store-dan, hesabınıza ömürlük bağlı qalır.
+                  </div>
+                </li>
+                <li className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-3.5 py-3 backdrop-blur">
+                  <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                  <div className="text-xs leading-snug text-zinc-300">
+                    <div className="font-semibold text-zinc-100">Etibarlı ödəniş</div>
+                    Yerli kart, balans və epoint ilə təhlükəsiz satınalma.
+                  </div>
+                </li>
+                <li className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-3.5 py-3 backdrop-blur">
+                  <Headset className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
+                  <div className="text-xs leading-snug text-zinc-300">
+                    <div className="font-semibold text-zinc-100">7/24 dəstək</div>
+                    WhatsApp və telefon üzərindən canlı kömək.
+                  </div>
+                </li>
+              </ul>
             </div>
 
             {/* Price card */}
@@ -306,7 +412,7 @@ export default async function GameDetailPage({
 
       {/* Trailer */}
       {game.trailerUrl && (
-        <section className="mx-auto max-w-6xl px-4 pb-10 sm:px-6">
+        <section className="mx-auto max-w-[1536px] px-4 pb-10 sm:px-6">
           <h2 className="mb-4 text-lg font-semibold text-zinc-200">Treyler</h2>
           <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-black">
             <video
@@ -323,11 +429,28 @@ export default async function GameDetailPage({
 
       {/* Screenshots */}
       {screenshots.length > 0 && (
-        <section className="mx-auto max-w-6xl px-4 pb-10 sm:px-6">
+        <section className="mx-auto max-w-[1536px] px-4 pb-10 sm:px-6">
           <h2 className="mb-4 text-lg font-semibold text-zinc-200">
             Ekran görüntüləri
           </h2>
           <ScreenshotGallery screenshots={screenshots} gameTitle={game.title} />
+        </section>
+      )}
+
+      {/* Similar — surfaced above reviews so users actually see them */}
+      {similarCards.length > 0 && (
+        <section className="mx-auto max-w-[1536px] px-4 pb-10 sm:px-6">
+          <div className="mb-5 flex items-center gap-2">
+            <Gamepad2 className="h-5 w-5 text-indigo-400" />
+            <h2 className="text-lg font-semibold text-zinc-200">
+              Bunlar da xoşunuza gələ bilər
+            </h2>
+          </div>
+          <ul className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            {similarCards.slice(0, 6).map((g) => (
+              <GameCard key={g.id} game={g} />
+            ))}
+          </ul>
         </section>
       )}
 
@@ -342,23 +465,6 @@ export default async function GameDetailPage({
         }}
         viewerUserId={currentUser?.id ?? null}
       />
-
-      {/* Similar */}
-      {similarCards.length > 0 && (
-        <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
-          <div className="mb-5 flex items-center gap-2">
-            <Gamepad2 className="h-5 w-5 text-indigo-400" />
-            <h2 className="text-lg font-semibold text-zinc-200">
-              Bunlar da xoşunuza gələ bilər
-            </h2>
-          </div>
-          <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {similarCards.slice(0, 4).map((g) => (
-              <GameCard key={g.id} game={g} />
-            ))}
-          </ul>
-        </section>
-      )}
     </main>
   );
 }

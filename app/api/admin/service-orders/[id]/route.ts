@@ -83,17 +83,36 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   if (action === "FAILED") {
+    const reasonRaw = typeof body.reason === "string" ? body.reason.trim() : "";
+    if (!reasonRaw) {
+      return NextResponse.json(
+        { error: "Ləğv etmə səbəbi tələb olunur." },
+        { status: 400 }
+      );
+    }
+    const cancelReason = reasonRaw.slice(0, 1000);
+
     await prisma.$transaction(async (ptx) => {
       const refundCents = Math.abs(tx.amountAznCents);
       let refundToReferral = false;
+      let existingMeta: Record<string, unknown> = {};
       try {
         if (tx.metadata) {
-          const meta = JSON.parse(tx.metadata) as { paymentSource?: string };
-          if (meta.paymentSource === "REFERRAL") refundToReferral = true;
+          existingMeta = JSON.parse(tx.metadata) as Record<string, unknown>;
+          if ((existingMeta as { paymentSource?: string }).paymentSource === "REFERRAL") {
+            refundToReferral = true;
+          }
         }
       } catch {
         /* köhnə sifarişlər → cüzdan */
       }
+
+      const nextMeta = {
+        ...existingMeta,
+        cancelReason,
+        cancelledAt: new Date().toISOString(),
+      };
+
       await ptx.user.update({
         where: { id: tx.userId },
         data: refundToReferral
@@ -102,7 +121,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       });
       await ptx.transaction.update({
         where: { id: tx.id },
-        data: { status: "FAILED" },
+        data: { status: "FAILED", metadata: JSON.stringify(nextMeta) },
       });
     });
     return NextResponse.json({ ok: true });
