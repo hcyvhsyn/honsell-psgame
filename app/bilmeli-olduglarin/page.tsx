@@ -51,7 +51,7 @@ export default function GuidesIndexPage() {
       />
       <SiteHeaderServer />
 
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="rounded-3xl border border-indigo-500/20 bg-gradient-to-br from-indigo-600/15 via-fuchsia-700/10 to-zinc-900/40 p-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-200">
             <BookOpen className="h-3.5 w-3.5" />
@@ -67,7 +67,7 @@ export default function GuidesIndexPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
         {guides.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 py-20 text-center text-zinc-500">
             Hələ heç bir bələdçi əlavə edilməyib.

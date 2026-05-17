@@ -83,7 +83,7 @@ export default function ReferralPromoBar({
   return (
     <div className="relative overflow-hidden border-b border-fuchsia-500/20 bg-gradient-to-r from-fuchsia-700/30 via-purple-700/25 to-fuchsia-700/30">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(232,121,249,0.25),transparent_60%)]" />
-      <div className="relative mx-auto flex max-w-[1536px] items-center gap-3 px-4 py-2 sm:px-6">
+      <div className="relative mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
         <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-fuchsia-500/25 ring-1 ring-fuchsia-400/40">
           <Sparkles className="h-4 w-4 text-fuchsia-200" />
         </div>

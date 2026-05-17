@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Crown, CheckCircle2, Plus, Sparkles } from "lucide-react";
+import { Crown, CheckCircle2, Plus, Sparkles, Check, Minus } from "lucide-react";
 import { useCart } from "@/lib/cart";
 
 type Plan = {
@@ -16,6 +16,31 @@ type Plan = {
 type TierKey = "ESSENTIAL" | "EXTRA" | "DELUXE";
 
 const TIERS: TierKey[] = ["ESSENTIAL", "EXTRA", "DELUXE"];
+
+// Üç tier arasındakı fərqlər tək siyahıda — hər tier üzrə hansılar daxildir.
+// Sıra önəmlidir: oxşar imkanlar yan-yana görsənir.
+const FEATURE_ROWS: { label: string; tiers: Record<TierKey, boolean> }[] = [
+  { label: "Onlayn multiplayer", tiers: { ESSENTIAL: true, EXTRA: true, DELUXE: true } },
+  { label: "Hər ay pulsuz oyunlar (2–3 oyun)", tiers: { ESSENTIAL: true, EXTRA: true, DELUXE: true } },
+  { label: "Bulud yaddaşı (100 GB save)", tiers: { ESSENTIAL: true, EXTRA: true, DELUXE: true } },
+  { label: "Eksklüziv mağaza endirimləri", tiers: { ESSENTIAL: true, EXTRA: true, DELUXE: true } },
+  { label: "Share Play (dostla birgə oyun)", tiers: { ESSENTIAL: true, EXTRA: true, DELUXE: true } },
+  { label: "Game Catalog — 400+ PS4/PS5 oyunu", tiers: { ESSENTIAL: false, EXTRA: true, DELUXE: true } },
+  { label: "Ubisoft+ Classics kataloqu", tiers: { ESSENTIAL: false, EXTRA: true, DELUXE: true } },
+  { label: "Klassiklər kataloqu (PS1, PS2, PSP)", tiers: { ESSENTIAL: false, EXTRA: false, DELUXE: true } },
+  { label: "Game Trials (oyunun 2 saatlıq demo-su)", tiers: { ESSENTIAL: false, EXTRA: false, DELUXE: true } },
+];
+
+const TIER_TAGLINE: Record<TierKey, string> = {
+  ESSENTIAL: "Onlayn oyunun və hər ay pulsuz oyunların əsas paketi.",
+  EXTRA: "Essential-in hamısı + 400-dən çox PS4/PS5 oyununa giriş.",
+  DELUXE: "Extra-nın hamısı + PS1, PS2, PSP klassikləri və Game Trials.",
+};
+
+const TIER_BADGE: Partial<Record<TierKey, string>> = {
+  EXTRA: "Ən populyar",
+  DELUXE: "Tam kolleksiya",
+};
 
 export default function PsPlusClient({ plans, hideTierSelector = false, flatMode = false }: { plans: Plan[]; hideTierSelector?: boolean; flatMode?: boolean }) {
   const [tier, setTier] = useState<TierKey>("EXTRA");
@@ -108,6 +133,11 @@ export default function PsPlusClient({ plans, hideTierSelector = false, flatMode
             </div>
           </div>
         </div>
+      )}
+
+      {/* Tier comparison — yalnız 3-lü seçici görünəndə (əsas /ps-plus səhifəsi). */}
+      {!hideTierSelector && !flatMode && (
+        <TierComparison activeTier={tier} onSelect={(t) => setTier(t)} tierCounts={tierCounts} />
       )}
 
       {/* Cards only */}
@@ -263,5 +293,142 @@ export default function PsPlusClient({ plans, hideTierSelector = false, flatMode
         </div>
       )}
     </div>
+  );
+}
+
+const TIER_ACCENT: Record<
+  TierKey,
+  { ring: string; bg: string; text: string; dot: string; pill: string; gradient: string }
+> = {
+  ESSENTIAL: {
+    ring: "ring-sky-500/40",
+    bg: "bg-sky-500/[0.06]",
+    text: "text-sky-200",
+    dot: "text-sky-300",
+    pill: "bg-sky-500/15 text-sky-200 ring-sky-500/30",
+    gradient: "from-sky-500/10 via-transparent to-transparent",
+  },
+  EXTRA: {
+    ring: "ring-emerald-500/40",
+    bg: "bg-emerald-500/[0.06]",
+    text: "text-emerald-200",
+    dot: "text-emerald-300",
+    pill: "bg-emerald-500/15 text-emerald-200 ring-emerald-500/30",
+    gradient: "from-emerald-500/10 via-transparent to-transparent",
+  },
+  DELUXE: {
+    ring: "ring-amber-500/40",
+    bg: "bg-amber-500/[0.06]",
+    text: "text-amber-200",
+    dot: "text-amber-300",
+    pill: "bg-amber-500/15 text-amber-200 ring-amber-500/30",
+    gradient: "from-amber-500/10 via-transparent to-transparent",
+  },
+};
+
+function TierComparison({
+  activeTier,
+  onSelect,
+  tierCounts,
+}: {
+  activeTier: TierKey;
+  onSelect: (t: TierKey) => void;
+  tierCounts: Record<TierKey, number>;
+}) {
+  return (
+    <section className="mb-10 rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.03] to-transparent p-5 sm:p-6">
+      <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold tracking-tight text-white sm:text-xl">
+            Hansı paketi seçməliyəm?
+          </h2>
+          <p className="mt-1 max-w-xl text-sm text-zinc-400">
+            Üç paket arasındakı fərqlər. Bir tier-ə klik etsəniz, aşağıda həmin tier üzrə müddət variantları görsənəcək.
+          </p>
+        </div>
+      </header>
+
+      {/* Tier columns */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {TIERS.map((t) => {
+          const accent = TIER_ACCENT[t];
+          const active = activeTier === t;
+          const disabled = (tierCounts[t] ?? 0) === 0;
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => (!disabled ? onSelect(t) : undefined)}
+              disabled={disabled}
+              className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border bg-zinc-950/60 p-5 text-left transition ${
+                active
+                  ? `border-transparent ring-2 ${accent.ring} ${accent.bg}`
+                  : "border-zinc-800 hover:border-zinc-700"
+              } ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
+            >
+              {active && (
+                <div
+                  aria-hidden
+                  className={`pointer-events-none absolute inset-0 bg-gradient-to-b ${accent.gradient}`}
+                />
+              )}
+
+              <div className="relative flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                    PS Plus
+                  </div>
+                  <div className={`mt-0.5 text-2xl font-black tracking-tight ${active ? accent.text : "text-white"}`}>
+                    {t}
+                  </div>
+                </div>
+                {TIER_BADGE[t] && (
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ring-1 ${accent.pill}`}>
+                    {TIER_BADGE[t]}
+                  </span>
+                )}
+              </div>
+
+              <p className="relative mt-3 text-xs leading-relaxed text-zinc-400">
+                {TIER_TAGLINE[t]}
+              </p>
+
+              <ul className="relative mt-4 space-y-2">
+                {FEATURE_ROWS.map((row) => {
+                  const included = row.tiers[t];
+                  return (
+                    <li key={row.label} className="flex items-start gap-2 text-[12.5px] leading-snug">
+                      {included ? (
+                        <Check className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${accent.dot}`} />
+                      ) : (
+                        <Minus className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-700" />
+                      )}
+                      <span className={included ? "text-zinc-200" : "text-zinc-600 line-through decoration-zinc-800"}>
+                        {row.label}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <div className="relative mt-5 flex items-center justify-between border-t border-white/5 pt-3 text-xs">
+                <span className="text-zinc-500">
+                  {disabled
+                    ? "Hazırda paket yoxdur"
+                    : active
+                      ? "Seçildi — aşağıda müddət variantları"
+                      : "Bu tier-i seç"}
+                </span>
+                {active ? (
+                  <Sparkles className={`h-3.5 w-3.5 ${accent.dot}`} />
+                ) : (
+                  <span className="text-zinc-600 group-hover:text-zinc-400">→</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }

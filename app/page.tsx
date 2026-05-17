@@ -172,7 +172,7 @@ export default async function HomePage() {
       <h1 className="sr-only">{SITE_NAME} — {SITE_DESCRIPTION}</h1>
 
       {/* Hero banner (HOME scope) */}
-      <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
         {bannerSlides.length > 0 ? (
           <HomeBannerSlider banners={bannerSlides} />
         ) : (
@@ -200,7 +200,7 @@ export default async function HomePage() {
       {/* Top-level platform navigator */}
       <section id="platformalar" className="py-16">
         <MarqueeHeader text="PLATFORMALAR" />
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <PlatformCard
               href="/playstation"
@@ -254,7 +254,7 @@ export default async function HomePage() {
       {/* Niyə biz */}
       <section id="niye-biz" className="py-16">
         <MarqueeHeader text="NİYƏ BİZ" />
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             {[
               { icon: <Zap className="h-6 w-6 text-white" />, title: "Anında çatdırılma", desc: "Gift card və bir çox sifarişdə nəticə saniyələr içində." },

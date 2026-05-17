@@ -261,7 +261,7 @@ export default async function GameDetailPage({
           <div className="absolute inset-0 -z-10 bg-gradient-to-b from-zinc-900 to-[#0A0A0F]" />
         )}
 
-        <div className="mx-auto max-w-[1536px] px-4 pt-6 pb-12 sm:px-6 sm:pt-10 sm:pb-20">
+        <div className="mx-auto w-full max-w-7xl px-4 pt-6 pb-12 sm:px-6 sm:pt-10 sm:pb-20 lg:px-8">
           <Link
             href="/oyunlar"
             className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white"
@@ -412,7 +412,7 @@ export default async function GameDetailPage({
 
       {/* Trailer */}
       {game.trailerUrl && (
-        <section className="mx-auto max-w-[1536px] px-4 pb-10 sm:px-6">
+        <section className="mx-auto w-full max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
           <h2 className="mb-4 text-lg font-semibold text-zinc-200">Treyler</h2>
           <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-black">
             <video
@@ -429,7 +429,7 @@ export default async function GameDetailPage({
 
       {/* Screenshots */}
       {screenshots.length > 0 && (
-        <section className="mx-auto max-w-[1536px] px-4 pb-10 sm:px-6">
+        <section className="mx-auto w-full max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
           <h2 className="mb-4 text-lg font-semibold text-zinc-200">
             Ekran görüntüləri
           </h2>
@@ -439,7 +439,7 @@ export default async function GameDetailPage({
 
       {/* Similar — surfaced above reviews so users actually see them */}
       {similarCards.length > 0 && (
-        <section className="mx-auto max-w-[1536px] px-4 pb-10 sm:px-6">
+        <section className="mx-auto w-full max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
           <div className="mb-5 flex items-center gap-2">
             <Gamepad2 className="h-5 w-5 text-indigo-400" />
             <h2 className="text-lg font-semibold text-zinc-200">

@@ -26,11 +26,11 @@ export default async function FilmsPage() {
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeaderServer />
 
-      <div className="mx-auto max-w-7xl px-4 pt-2 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 pt-2 sm:px-6 lg:px-8">
         <StreamingTopBar />
       </div>
 
-      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <header className="mb-6">
           <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-200">
             <Film className="h-3.5 w-3.5" /> Filmlər

@@ -16,7 +16,6 @@ import {
   ChevronDown,
   Check,
   Pencil,
-  Smartphone,
 } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 import AccountCreationCartEditModal from "@/components/AccountCreationCartEditModal";
@@ -93,6 +92,7 @@ export default function CartView({
     url: string;
     successUrl: string;
     errorUrl: string;
+    brand: "apple" | "google";
   } | null>(null);
   const [message, setMessage] = useState<{
     kind: "ok" | "error";
@@ -294,7 +294,10 @@ export default function CartView({
     return "";
   }
 
-  async function checkout(paymentMethod: "wallet" | "epoint" | "epoint-widget") {
+  async function checkout(
+    paymentMethod: "wallet" | "epoint" | "epoint-widget",
+    widgetBrand: "apple" | "google" = "google",
+  ) {
     if (!isAuthed || blockedNoPsn) return;
     if (
       items.some(
@@ -359,6 +362,7 @@ export default function CartView({
             url: data.widgetUrl,
             successUrl: data.successUrl,
             errorUrl: data.errorUrl,
+            brand: widgetBrand,
           });
           return;
         }
@@ -679,20 +683,46 @@ export default function CartView({
               </button>
 
               {EPOINT_WIDGET_ENABLED ? (
-                <button
-                  type="button"
-                  onClick={() => checkout("epoint-widget")}
-                  disabled={busy}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition hover:border-zinc-500 hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-50"
-                >
-                  <Smartphone className="h-4 w-4" />
-                  {busy ? "İşlənir..." : "Google Pay"}
-                </button>
-              ) : null}
-              {EPOINT_WIDGET_ENABLED ? (
-                <p className="text-center text-[11px] text-zinc-500">
-                  Apple Pay yaxınlarda — hazırda yalnız Google Pay aktivdir.
-                </p>
+                <>
+                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-zinc-500">
+                    <span className="h-px flex-1 bg-zinc-800" />
+                    <span>və ya</span>
+                    <span className="h-px flex-1 bg-zinc-800" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => checkout("epoint-widget", "apple")}
+                      disabled={busy}
+                      aria-label="Apple Pay ilə ödə"
+                      className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50"
+                    >
+                      <Image
+                        src="/apple-pay.png"
+                        alt="Apple Pay"
+                        width={96}
+                        height={40}
+                        className="h-10 w-auto object-contain"
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => checkout("epoint-widget", "google")}
+                      disabled={busy}
+                      aria-label="Google Pay ilə ödə"
+                      className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-700 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50"
+                    >
+                      <Image
+                        src="/google-pay.webp"
+                        alt="Google Pay"
+                        width={64}
+                        height={28}
+                        className="h-7 w-auto object-contain"
+                      />
+                    </button>
+                  </div>
+                </>
               ) : null}
             </div>
           )}
@@ -741,7 +771,7 @@ export default function CartView({
           widgetUrl={widget.url}
           successUrl={widget.successUrl}
           errorUrl={widget.errorUrl}
-          title="Google Pay"
+          title={widget.brand === "apple" ? "Apple Pay" : "Google Pay"}
           onClose={() => setWidget(null)}
         />
       ) : null}

@@ -25,6 +25,27 @@ export async function POST(req: Request) {
     );
   }
 
+  if (user.disabled) {
+    return NextResponse.json(
+      { error: "Bu hesab bloklanıb. Dəstək ilə əlaqə saxlayın." },
+      { status: 403 }
+    );
+  }
+
+  const xff = req.headers.get("x-forwarded-for");
+  const ip = xff?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || null;
+  const ua = req.headers.get("user-agent")?.slice(0, 500) ?? null;
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      lastLoginAt: new Date(),
+      lastLoginIp: ip,
+      lastUserAgent: ua,
+      loginCount: { increment: 1 },
+    },
+  });
+
   const res = NextResponse.json({ id: user.id, email: user.email });
   res.cookies.set(SESSION_COOKIE_NAME, user.id, {
     httpOnly: true,

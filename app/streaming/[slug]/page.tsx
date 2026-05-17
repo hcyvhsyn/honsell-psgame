@@ -124,11 +124,11 @@ export default async function StreamingServicePage({
       />
       <SiteHeaderServer />
 
-      <div className="mx-auto max-w-7xl px-4 pt-2 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 pt-2 sm:px-6 lg:px-8">
         <StreamingTopBar />
       </div>
 
-      <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
         <Link
           href="/streaming"
           className="inline-flex items-center gap-1 text-sm text-zinc-400 transition hover:text-white"
@@ -155,7 +155,7 @@ export default async function StreamingServicePage({
       </section>
 
       {/* Title catalog (only AZ-available) */}
-      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <header className="mb-6">
           <h2 className="text-2xl font-black text-white sm:text-3xl">
             Azərbaycanda yayımlananlar
@@ -195,7 +195,7 @@ export default async function StreamingServicePage({
       </section>
 
       {/* Plan selector (pricing) at bottom — alış burada baş verir */}
-      <section id="plan-sec" className="mx-auto max-w-7xl px-4 pb-14 sm:px-6">
+      <section id="plan-sec" className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
         <header className="mb-6">
           <h2 className="text-2xl font-black text-white sm:text-3xl">Plan seç</h2>
           <p className="mt-1 text-sm text-zinc-500">
@@ -222,7 +222,7 @@ export default async function StreamingServicePage({
       </section>
 
       {/* Community reviews — yalnız bu xidmət üçün */}
-      <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
         <header className="mb-5">
           <h2 className="text-2xl font-black text-white sm:text-3xl">{svc.label} icmalları</h2>
           <p className="mt-1 text-sm text-zinc-500">

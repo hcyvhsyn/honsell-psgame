@@ -28,7 +28,7 @@ export default async function EaPlayPage() {
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeaderServer />
 
-      <header className="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
+      <header className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
           EA Play Üzvlüyü
         </h1>
@@ -38,7 +38,7 @@ export default async function EaPlayPage() {
         </p>
       </header>
 
-      <section className="mx-auto max-w-7xl px-4 pb-14 pt-6 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-14 pt-6 sm:px-6 lg:px-8">
         <EaPlayClient
           plans={plans.map((p) => ({
             id: p.id,
@@ -51,7 +51,7 @@ export default async function EaPlayPage() {
         />
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
         <div className="grid gap-4 rounded-2xl border border-white/10 bg-white/5 p-6 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <div className="text-2xl font-black text-white">100+ oyun</div>

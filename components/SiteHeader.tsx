@@ -237,7 +237,7 @@ export default function SiteHeader({
   return (
     <>
       <header ref={headerRef} className="sticky top-0 z-50 bg-[#03030A]/85 px-4 py-3 backdrop-blur-xl sm:px-6">
-        <div className="honsell-navbar-shell mx-auto flex max-w-[1536px] flex-col rounded-[24px]">
+        <div className="honsell-navbar-shell mx-auto flex w-full max-w-7xl flex-col rounded-[24px]">
           <div className="grid min-h-[66px] grid-cols-[auto_1fr] items-center gap-3 px-4 py-3 md:grid-cols-[150px_minmax(220px,1fr)_auto] md:px-5 xl:grid-cols-[170px_minmax(260px,1fr)_auto] xl:gap-4 xl:px-6">
             <div className="flex min-w-0 items-center">
               <Logo href="/" height={28} priority className="h-6 w-auto xl:h-7" />
@@ -562,44 +562,47 @@ function PlayStationDropdown({
 }) {
   const productItems = group.items.filter((item) => item.section !== "helpful");
   const helpfulItems = group.items.filter((item) => item.section === "helpful");
+  const Icon = group.Icon;
+  const triggerClass =
+    `relative inline-flex h-10 items-center gap-2 rounded-[18px] px-1 text-sm font-semibold transition group-focus-within:text-white ${
+      active
+        ? "text-white"
+        : "text-zinc-200/90 hover:text-white"
+    }`;
 
   return (
     <div className="group relative">
       <Link
         href={group.href ?? "/playstation"}
-        className={`relative inline-flex h-12 items-center gap-3 rounded-[20px] border px-4 pr-3 text-base font-bold transition ${
-          active
-            ? "border-violet-400/70 bg-violet-950/50 text-fuchsia-100 shadow-[0_0_34px_-18px_rgba(168,85,247,0.95)]"
-            : "border-white/10 bg-white/[0.035] text-zinc-100 hover:border-violet-400/60 hover:bg-violet-950/40 hover:text-fuchsia-100"
-        }`}
+        className={triggerClass}
       >
-        <span className="grid h-8 w-8 place-items-center rounded-xl bg-violet-400/10 text-fuchsia-100 ring-1 ring-violet-300/30">
-          <PlayStationMark compact />
-        </span>
-        <span>PlayStation</span>
-        <ChevronDown className="h-4 w-4 text-fuchsia-100 transition group-hover:rotate-180" />
+        <Icon className="h-5 w-5 shrink-0 text-zinc-100" />
+        <span className="relative z-10">PlayStation</span>
+        <ChevronDown className="relative z-10 h-4 w-4 text-violet-400" />
+        {active && (
+          <span className="pointer-events-none absolute inset-x-2 -bottom-2 h-px bg-gradient-to-r from-transparent via-violet-300 to-transparent" />
+        )}
       </Link>
 
-      <div className="invisible absolute left-0 top-full z-50 w-[820px] max-w-[calc(100vw-3rem)] pt-3 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+      <div className="invisible absolute left-0 top-full z-50 w-[520px] max-w-[calc(100vw-3rem)] pt-3 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
         <div
-          className="relative overflow-hidden rounded-[30px] border border-violet-400/[0.45] p-7 shadow-[0_30px_100px_-30px_rgba(168,85,247,0.85)] backdrop-blur-2xl"
+          className="relative overflow-hidden rounded-[20px] border border-violet-400/[0.45] p-4 shadow-[0_22px_70px_-34px_rgba(168,85,247,0.85)] backdrop-blur-2xl"
           style={{
             background:
               "radial-gradient(circle at 7% 7%, rgba(168, 85, 247, 0.24), transparent 31%), radial-gradient(circle at 94% 10%, rgba(59, 130, 246, 0.16), transparent 28%), linear-gradient(135deg, rgba(17, 19, 32, 0.98), rgba(5, 7, 15, 0.97))",
           }}
         >
           <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/70 to-transparent" />
-          <div className="pointer-events-none absolute inset-x-8 bottom-0 h-24 bg-violet-700/10 blur-3xl" />
-          <PlayStationShapes />
+          <div className="pointer-events-none absolute inset-x-8 bottom-0 h-16 bg-violet-700/10 blur-3xl" />
 
           <div className="relative">
-            <div className="flex items-center gap-7 pb-6">
-              <span className="grid h-[76px] w-[76px] shrink-0 place-items-center rounded-full border border-violet-400/[0.45] bg-violet-950/30 shadow-[0_0_42px_-18px_rgba(168,85,247,0.95)]">
+            <div className="flex items-center gap-3 pb-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-violet-400/[0.45] bg-violet-950/30 shadow-[0_0_28px_-18px_rgba(168,85,247,0.95)]">
                 <PlayStationMark />
               </span>
               <div className="min-w-0">
-                <p className="text-3xl font-black text-white">PlayStation</p>
-                <p className="mt-2 text-lg font-medium text-zinc-300">
+                <p className="text-xl font-black text-white">PlayStation</p>
+                <p className="text-xs font-medium text-zinc-300">
                   Oyunlar, abunəliklər və faydalı keçidlər
                 </p>
               </div>
@@ -626,13 +629,13 @@ function PlayStationSection({
   if (items.length === 0) return null;
 
   return (
-    <div className="mt-5 first:mt-0">
-      <div className="mb-3 flex items-center gap-4">
-        <p className="shrink-0 text-sm font-black uppercase text-violet-300">{title}</p>
+    <div className="mt-4 first:mt-0">
+      <div className="mb-2.5 flex items-center gap-3">
+        <p className="shrink-0 text-xs font-black uppercase text-violet-300">{title}</p>
         <span className="h-px flex-1 bg-white/10" />
       </div>
 
-      <div className="grid gap-2.5">
+      <div className="grid grid-cols-2 gap-2">
         {items.map((item) => (
           <PlayStationMenuItem key={item.href} item={item} active={hrefMatches(pathname, item.href)} />
         ))}
@@ -647,7 +650,7 @@ function PlayStationMenuItem({ item, active }: { item: NavLinkItem; active: bool
   return (
     <Link
       href={item.href}
-      className={`group/item relative flex min-h-[76px] items-center gap-4 rounded-[14px] border px-4 py-3 transition ${
+      className={`group/item relative flex min-h-[48px] items-center gap-2.5 rounded-xl border px-2.5 py-2 transition ${
         item.featured
           ? "border-rose-400/70 bg-rose-500/10 text-rose-100 shadow-[0_0_28px_-20px_rgba(251,113,133,0.95)] hover:bg-rose-500/[0.15]"
           : active
@@ -656,28 +659,28 @@ function PlayStationMenuItem({ item, active }: { item: NavLinkItem; active: bool
       }`}
     >
       <span
-        className={`grid h-[54px] w-[54px] shrink-0 place-items-center rounded-[14px] border shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${
+        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${
           item.featured
             ? "border-rose-300/30 bg-rose-300/[0.15] text-rose-200"
             : "border-white/10 bg-white/[0.06] text-violet-100"
         }`}
       >
-        <ItemIcon className="h-7 w-7" />
+        <ItemIcon className="h-4 w-4" />
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className={`block text-lg font-black ${item.featured ? "text-rose-200" : "text-white"}`}>
+        <span className={`block truncate text-sm font-black ${item.featured ? "text-rose-200" : "text-white"}`}>
           {item.label}
         </span>
         {item.description && (
-          <span className="mt-1 block truncate text-base font-medium text-zinc-300">
+          <span className="mt-0.5 block truncate text-xs font-medium text-zinc-300">
             {item.description}
           </span>
         )}
       </span>
 
-      {item.featured && <Sparkles className="h-5 w-5 shrink-0 fill-rose-300/20 text-rose-300" />}
-      <ChevronRight className="h-6 w-6 shrink-0 text-zinc-300 transition group-hover/item:translate-x-1 group-hover/item:text-white" />
+      {item.featured && <Sparkles className="h-3.5 w-3.5 shrink-0 fill-rose-300/20 text-rose-300" />}
+      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition group-hover/item:translate-x-1 group-hover/item:text-white" />
     </Link>
   );
 }
@@ -685,24 +688,10 @@ function PlayStationMenuItem({ item, active }: { item: NavLinkItem; active: bool
 function PlayStationMark({ compact = false }: { compact?: boolean }) {
   return (
     <span
-      className={`font-black text-white ${compact ? "text-[13px]" : "text-2xl"}`}
+      className={`font-black text-white ${compact ? "text-[13px]" : "text-base"}`}
       aria-hidden="true"
     >
       PS
     </span>
-  );
-}
-
-function PlayStationShapes() {
-  return (
-    <div aria-hidden="true" className="pointer-events-none absolute right-10 top-6 h-28 w-36">
-      <span className="absolute left-4 top-3 h-0 w-0 rotate-[28deg] border-y-[18px] border-r-[30px] border-y-transparent border-r-violet-300/25" />
-      <span className="absolute right-1 top-3 h-12 w-12 rounded-full border-[5px] border-violet-300/25" />
-      <span className="absolute bottom-2 left-16 h-12 w-12 rotate-[24deg] border-[5px] border-violet-300/20" />
-      <span className="absolute bottom-6 left-1 h-14 w-14">
-        <span className="absolute left-1/2 top-0 h-full w-[5px] -translate-x-1/2 rotate-[63deg] rounded-full bg-violet-300/20" />
-        <span className="absolute left-1/2 top-0 h-full w-[5px] -translate-x-1/2 -rotate-[63deg] rounded-full bg-violet-300/20" />
-      </span>
-    </div>
   );
 }

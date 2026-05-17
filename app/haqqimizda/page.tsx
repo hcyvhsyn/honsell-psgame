@@ -43,7 +43,7 @@ export default function AboutPage() {
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeaderServer />
 
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-14">
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-violet-200">
@@ -98,7 +98,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
         <div className="grid gap-4 md:grid-cols-3">
           {values.map(({ title, description, Icon }) => (
             <article key={title} className="rounded-2xl border border-white/10 bg-zinc-900/45 p-5">
@@ -112,7 +112,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
         <div className="grid gap-6 rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/80 to-zinc-950 p-6 md:grid-cols-[1fr_auto] md:items-center">
           <div>
             <h2 className="text-2xl font-black text-white">Sualın var?</h2>

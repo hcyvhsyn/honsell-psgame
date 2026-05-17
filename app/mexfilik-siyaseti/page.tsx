@@ -57,7 +57,7 @@ export default function PrivacyPolicyPage() {
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeaderServer />
 
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-14">
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <div className="max-w-4xl">
           <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">
             <ShieldCheck className="h-3.5 w-3.5" />
@@ -75,7 +75,7 @@ export default function PrivacyPolicyPage() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-5 px-4 pb-12 sm:px-6 lg:grid-cols-3">
+      <section className="mx-auto grid max-w-7xl gap-5 px-4 pb-12 sm:px-6 lg:px-8 lg:grid-cols-3">
         <article className="rounded-2xl border border-white/10 bg-white/[0.035] p-5">
           <Database className="h-6 w-6 text-emerald-200" />
           <h2 className="mt-4 text-lg font-bold text-white">Minimum məlumat</h2>
@@ -102,7 +102,7 @@ export default function PrivacyPolicyPage() {
         </article>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
         <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
           <aside className="rounded-2xl border border-white/10 bg-zinc-900/45 p-6">
             <UserCheck className="h-7 w-7 text-emerald-200" />
@@ -139,7 +139,7 @@ export default function PrivacyPolicyPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/80 to-zinc-950 p-6 text-sm leading-7 text-zinc-400">
           <p>
             Məxfilik siyasətində dəyişiklik olduqda bu səhifədə yenilənmiş tarix göstəriləcək.

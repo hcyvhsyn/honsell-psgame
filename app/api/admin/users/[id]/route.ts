@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { logAdminAction } from "@/lib/adminAudit";
 
 export const runtime = "nodejs";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  let admin;
   try {
-    await requireAdmin();
+    admin = await requireAdmin();
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -114,6 +116,22 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         },
       });
     }
+  });
+
+  await logAdminAction({
+    actorId: admin.id,
+    targetUserId: params.id,
+    action: "user.balance.adjust",
+    details: {
+      walletPrev: current.walletBalance,
+      walletNext: Math.round(walletBalance),
+      cashbackPrev: current.cashbackBalanceCents,
+      cashbackNext: Math.round(cashbackBalanceCents),
+      referralPrev: current.referralBalanceCents,
+      referralNext: Math.round(referralBalanceCents),
+      referralCodePrev: current.referralCode,
+      referralCodeNext: referralCodeRaw ?? null,
+    },
   });
 
   return NextResponse.json({ ok: true });

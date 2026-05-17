@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { logAdminAction } from "@/lib/adminAudit";
 
 export const runtime = "nodejs";
 
@@ -28,11 +29,25 @@ export async function POST(
     );
   }
 
+  const prev = await prisma.user.findUnique({
+    where: { id: params.id },
+    select: { role: true },
+  });
+
   const user = await prisma.user.update({
     where: { id: params.id },
     data: { role },
     select: { id: true, role: true },
   });
+
+  if (prev && prev.role !== role) {
+    await logAdminAction({
+      actorId: admin.id,
+      targetUserId: params.id,
+      action: "user.role.update",
+      details: { prev: prev.role, next: role },
+    });
+  }
 
   return NextResponse.json(user);
 }

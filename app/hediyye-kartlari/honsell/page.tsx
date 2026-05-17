@@ -30,7 +30,7 @@ export default async function HonsellGiftCardsPage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeaderServer />
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="rounded-3xl border border-violet-500/20 bg-gradient-to-br from-violet-600/20 via-fuchsia-700/10 to-zinc-900/40 p-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-xs text-violet-200">
             <Gift className="h-3.5 w-3.5" />
@@ -77,7 +77,7 @@ export default async function HonsellGiftCardsPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
         <HonsellGiftCardsClient
           cards={cards.map((c) => {
             const meta = (c.metadata as Record<string, unknown> | null) ?? null;

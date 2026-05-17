@@ -15,7 +15,7 @@ export default async function StreamingTopBar() {
     : 0;
 
   return (
-    <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-white/5 bg-zinc-950/80 px-4 py-2 backdrop-blur-md sm:-mx-6 sm:px-6">
+    <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-white/5 bg-zinc-950/80 px-4 py-2 backdrop-blur-md sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
       <div className="mx-auto flex max-w-7xl items-center justify-between">
         <div className="flex items-center gap-3">
           <Link

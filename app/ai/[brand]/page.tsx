@@ -55,7 +55,7 @@ export default async function AiBrandPage({ params }: { params: Promise<Params> 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeaderServer />
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <Link
           href="/ai"
           className="inline-flex items-center gap-1 text-sm text-zinc-400 transition hover:text-white"

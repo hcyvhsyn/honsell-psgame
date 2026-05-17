@@ -11,11 +11,23 @@ import {
   Cake,
   Gamepad2,
   Star,
+  Heart,
+  MessageSquare,
+  Repeat,
+  Activity,
+  Globe,
+  Monitor,
+  ScrollText,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { fmtAzn, fmtDate } from "@/lib/format";
 import RoleToggle from "./RoleToggle";
 import UserAdminActions from "./UserAdminActions";
+import CancelPurchaseButton from "./CancelPurchaseButton";
+import DisableUserButton from "./DisableUserButton";
+import AdminNotesSection from "./AdminNotesSection";
+import QuickActionsBar from "./QuickActionsBar";
+import { Ban } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -49,11 +61,44 @@ export default async function AdminUserDetailPage({
         include: {
           game: { select: { title: true, platform: true } },
           psnAccount: { select: { label: true, psnEmail: true } },
+          serviceProduct: { select: { title: true, type: true } },
+          serviceCode: { select: { code: true } },
         },
       },
       commissions: {
         orderBy: { createdAt: "desc" },
         include: { user: { select: { email: true } } },
+      },
+      gameReviews: {
+        orderBy: { createdAt: "desc" },
+        include: { game: { select: { title: true, platform: true } } },
+      },
+      favorites: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          game: { select: { id: true, title: true, platform: true } },
+        },
+        take: 50,
+      },
+      subscriptions: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          serviceProduct: { select: { title: true } },
+          psnAccount: { select: { label: true } },
+        },
+      },
+      adminNotes: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          author: { select: { email: true, name: true } },
+        },
+      },
+      adminAuditEntries: {
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        include: {
+          actor: { select: { email: true, name: true } },
+        },
       },
     },
   });
@@ -61,9 +106,34 @@ export default async function AdminUserDetailPage({
   if (!user) notFound();
 
   const purchases = user.transactions.filter((t) => t.type === "PURCHASE");
+  const servicePurchases = user.transactions.filter(
+    (t) => t.type === "SERVICE_PURCHASE"
+  );
   const deposits = user.transactions.filter((t) => t.type === "DEPOSIT");
 
-  const purchasedTotal = purchases.reduce(
+  function parseAdminAdjust(meta: string | null): {
+    field?: string;
+    prev?: number;
+    next?: number;
+  } | null {
+    if (!meta) return null;
+    try {
+      const parsed = JSON.parse(meta);
+      if (parsed && parsed.kind === "ADMIN_ADJUST") return parsed;
+    } catch {
+      /* not JSON */
+    }
+    return null;
+  }
+
+  const adminAdjusts = deposits.filter((t) => parseAdminAdjust(t.metadata));
+  const userDeposits = deposits.filter((t) => !parseAdminAdjust(t.metadata));
+
+  const allPurchases = [...purchases, ...servicePurchases];
+  const successPurchases = allPurchases.filter((t) => t.status === "SUCCESS");
+  const failedPurchases = allPurchases.filter((t) => t.status === "FAILED");
+
+  const purchasedTotal = successPurchases.reduce(
     (sum, t) => sum + Math.abs(t.amountAznCents),
     0
   );
@@ -71,6 +141,29 @@ export default async function AdminUserDetailPage({
     (sum, t) => sum + t.amountAznCents,
     0
   );
+
+  const totalSavings = allPurchases.reduce(
+    (sum, t) => sum + (t.savingsAznCents ?? 0),
+    0
+  );
+
+  const avgOrderValueCents =
+    successPurchases.length > 0
+      ? Math.round(purchasedTotal / successPurchases.length)
+      : 0;
+
+  const cancellationRate =
+    allPurchases.length > 0
+      ? Math.round((failedPurchases.length / allPurchases.length) * 100)
+      : 0;
+
+  const lastPurchase = successPurchases[0];
+  const firstPurchase = successPurchases[successPurchases.length - 1];
+  const daysSinceLastPurchase = lastPurchase
+    ? Math.floor(
+        (Date.now() - lastPurchase.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+      )
+    : null;
 
   return (
     <div className="space-y-6">
@@ -87,6 +180,11 @@ export default async function AdminUserDetailPage({
             {user.name ?? user.email}
           </h1>
           <div className="mt-3 flex flex-wrap items-center gap-2">
+            {user.disabled && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-1 text-xs font-bold text-rose-300 ring-1 ring-rose-500/40">
+                <Ban className="h-3 w-3" /> BLOKLANIB
+              </span>
+            )}
             {user.emailVerified ? (
               <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-300 ring-1 ring-emerald-500/30">
                 Email təsdiqlənib
@@ -109,18 +207,82 @@ export default async function AdminUserDetailPage({
         </div>
 
         <div className="flex flex-col items-end gap-2">
-          <RoleToggle userId={user.id} role={user.role} />
-          <UserAdminActions
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <RoleToggle userId={user.id} role={user.role} />
+            <DisableUserButton
+              userId={user.id}
+              disabled={user.disabled}
+              isAdminTarget={user.role === "ADMIN"}
+            />
+          </div>
+          <QuickActionsBar
             userId={user.id}
-            email={user.email}
-            walletBalance={user.walletBalance}
-            cashbackBalanceCents={user.cashbackBalanceCents}
-            referralBalanceCents={user.referralBalanceCents}
-            referralCode={user.referralCode}
-            referredByCode={user.referredBy?.referralCode ?? null}
+            emailVerified={user.emailVerified}
           />
         </div>
       </header>
+
+      {user.disabled && (
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-5">
+          <div className="flex items-start gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-rose-500/20 ring-1 ring-rose-500/40">
+              <Ban className="h-5 w-5 text-rose-300" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-rose-200">
+                Bu hesab bloklanıb
+              </div>
+              <div className="mt-1 text-xs text-rose-300/80">
+                {user.disabledAt && (
+                  <>Bloklanma tarixi: <span className="font-medium">{fmtDate(user.disabledAt)}</span></>
+                )}
+              </div>
+              {user.disabledReason && (
+                <div className="mt-2 rounded border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-sm text-rose-100">
+                  <span className="text-[10px] uppercase tracking-wider text-rose-300/70">Səbəb</span>
+                  <div className="mt-0.5 whitespace-pre-line">{user.disabledReason}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <AdminNotesSection userId={user.id} notes={user.adminNotes} />
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
+        <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <Activity className="h-4 w-4 text-cyan-300" />
+            Login aktivliyi
+          </h2>
+          <span className="text-xs text-zinc-500">
+            Ümumi login: <span className="font-semibold text-zinc-300">{user.loginCount}</span>
+          </span>
+        </header>
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+          <ProfileField
+            icon={<Calendar className="h-4 w-4" />}
+            label="Son login"
+            value={user.lastLoginAt ? fmtDate(user.lastLoginAt) : null}
+          />
+          <ProfileField
+            icon={<Globe className="h-4 w-4" />}
+            label="IP ünvan"
+            value={user.lastLoginIp}
+            mono
+          />
+          <div className="sm:col-span-2">
+            <dt className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-zinc-500">
+              <Monitor className="h-4 w-4 text-zinc-600" />
+              User-Agent
+            </dt>
+            <dd className="mt-1 truncate font-mono text-xs text-zinc-300" title={user.lastUserAgent ?? ""}>
+              {user.lastUserAgent ?? "—"}
+            </dd>
+          </div>
+        </dl>
+      </section>
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
         <header className="border-b border-zinc-800 px-5 py-3">
@@ -234,6 +396,60 @@ export default async function AdminUserDetailPage({
         />
       </section>
 
+      <UserAdminActions
+        userId={user.id}
+        email={user.email}
+        walletBalance={user.walletBalance}
+        cashbackBalanceCents={user.cashbackBalanceCents}
+        referralBalanceCents={user.referralBalanceCents}
+        referralCode={user.referralCode}
+        referredByCode={user.referredBy?.referralCode ?? null}
+      />
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
+        <header className="border-b border-zinc-800 px-5 py-3">
+          <h2 className="text-sm font-semibold">Aktivlik göstəriciləri</h2>
+        </header>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 p-5 sm:grid-cols-3 lg:grid-cols-6">
+          <Metric label="Uğurlu sifarişlər" value={successPurchases.length.toString()} />
+          <Metric
+            label="Orta sifariş"
+            value={successPurchases.length > 0 ? fmtAzn(avgOrderValueCents) : "—"}
+          />
+          <Metric
+            label="Ümumi qənaət"
+            value={totalSavings > 0 ? fmtAzn(totalSavings) : "—"}
+            tone={totalSavings > 0 ? "emerald" : "default"}
+          />
+          <Metric
+            label="Ləğv olunan"
+            value={`${failedPurchases.length}${
+              allPurchases.length > 0 ? ` (${cancellationRate}%)` : ""
+            }`}
+            tone={cancellationRate >= 20 ? "rose" : "default"}
+          />
+          <Metric
+            label="Son alış"
+            value={
+              daysSinceLastPurchase === null
+                ? "Yoxdur"
+                : daysSinceLastPurchase === 0
+                  ? "Bu gün"
+                  : `${daysSinceLastPurchase} gün öncə`
+            }
+            tone={
+              daysSinceLastPurchase !== null && daysSinceLastPurchase > 90
+                ? "amber"
+                : "default"
+            }
+          />
+          <Metric
+            label="İlk alış"
+            value={firstPurchase ? fmtDate(firstPurchase.createdAt) : "Yoxdur"}
+          />
+        </dl>
+      </section>
+
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
         <header className="border-b border-zinc-800 px-5 py-3">
           <h2 className="text-sm font-semibold">Affiliate</h2>
@@ -307,6 +523,123 @@ export default async function AdminUserDetailPage({
         </div>
       </section>
 
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40">
+          <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <Heart className="h-4 w-4 text-rose-300" />
+              Favorit oyunlar ({user.favorites.length})
+            </h2>
+          </header>
+          {user.favorites.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-zinc-500">Favorit yoxdur.</p>
+          ) : (
+            <ul className="divide-y divide-zinc-800/70">
+              {user.favorites.slice(0, 12).map((f) => (
+                <li key={f.gameId} className="flex items-center justify-between px-5 py-2.5">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm text-zinc-100">
+                      {f.game.title}
+                    </div>
+                    <div className="text-xs text-zinc-500">
+                      {f.game.platform ?? "—"} · {fmtDate(f.createdAt)}
+                    </div>
+                  </div>
+                </li>
+              ))}
+              {user.favorites.length > 12 && (
+                <li className="px-5 py-2 text-center text-xs text-zinc-500">
+                  və daha {user.favorites.length - 12} oyun…
+                </li>
+              )}
+            </ul>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40">
+          <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <Repeat className="h-4 w-4 text-cyan-300" />
+              Abunəliklər ({user.subscriptions.length})
+            </h2>
+          </header>
+          {user.subscriptions.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-zinc-500">Aktiv abunəlik yoxdur.</p>
+          ) : (
+            <ul className="divide-y divide-zinc-800/70">
+              {user.subscriptions.map((s) => (
+                <li key={s.id} className="px-5 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium text-zinc-100">
+                          {s.serviceProduct.title}
+                        </span>
+                        <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-medium text-indigo-300 ring-1 ring-indigo-500/30">
+                          {s.tier}
+                        </span>
+                        {s.autoRenew && (
+                          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300 ring-1 ring-emerald-500/30">
+                            Auto-renew
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 text-xs text-zinc-500">
+                        {s.psnAccount?.label ?? "—"} · {s.durationMonths} ay ·{" "}
+                        {fmtAzn(s.priceAznCents)}
+                      </div>
+                      <div className="mt-1 text-xs text-zinc-500">
+                        Bitir: <span className="text-zinc-300">{fmtDate(s.expiresAt)}</span>
+                      </div>
+                    </div>
+                    <StatusBadge status={s.status} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
+        <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <MessageSquare className="h-4 w-4 text-amber-300" />
+            Oyun rəyləri ({user.gameReviews.length})
+          </h2>
+        </header>
+        {user.gameReviews.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-zinc-500">Rəy yazmayıb.</p>
+        ) : (
+          <ul className="divide-y divide-zinc-800/70">
+            {user.gameReviews.map((r) => (
+              <li key={r.id} className="px-5 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium text-zinc-100">
+                        {r.game.title}
+                      </span>
+                      <span className="inline-flex items-center gap-0.5 text-xs text-amber-300">
+                        <Star className="h-3 w-3 fill-current" />
+                        {r.rating}/5
+                      </span>
+                      <StatusBadge status={r.status} />
+                    </div>
+                    <p className="mt-1.5 line-clamp-3 text-sm text-zinc-400">
+                      {r.body}
+                    </p>
+                  </div>
+                  <span className="whitespace-nowrap text-xs text-zinc-500">
+                    {fmtDate(r.createdAt)}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
         <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
           <h2 className="text-sm font-semibold">
@@ -316,91 +649,293 @@ export default async function AdminUserDetailPage({
         {purchases.length === 0 ? (
           <p className="px-5 py-6 text-sm text-zinc-500">No purchases yet.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
-              <tr>
-                <Th>Game</Th>
-                <Th>Platform</Th>
-                <Th>PSN account</Th>
-                <Th>Status</Th>
-                <Th>Amount</Th>
-                <Th>Date</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-900">
-              {purchases.map((t) => (
-                <tr key={t.id}>
-                  <Td>{t.game?.title ?? "—"}</Td>
-                  <Td className="text-zinc-400">{t.game?.platform ?? "—"}</Td>
-                  <Td className="text-zinc-400">
-                    {t.psnAccount
-                      ? `${t.psnAccount.label} (${t.psnAccount.psnEmail})`
-                      : "—"}
-                  </Td>
-                  <Td>
-                    <StatusBadge status={t.status} />
-                  </Td>
-                  <Td className="font-medium text-rose-300">
-                    −{fmtAzn(Math.abs(t.amountAznCents))}
-                  </Td>
-                  <Td className="text-zinc-400">{fmtDate(t.createdAt)}</Td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[820px] text-sm">
+              <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
+                <tr>
+                  <Th>Game</Th>
+                  <Th>Platform</Th>
+                  <Th>PSN account</Th>
+                  <Th>Status</Th>
+                  <Th>Amount</Th>
+                  <Th>Date</Th>
+                  <Th className="text-right">Action</Th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-zinc-900">
+                {purchases.map((t) => (
+                  <tr key={t.id}>
+                    <Td>{t.game?.title ?? "—"}</Td>
+                    <Td className="text-zinc-400">{t.game?.platform ?? "—"}</Td>
+                    <td
+                      className="max-w-[220px] truncate px-4 py-2 align-top text-zinc-400"
+                      title={
+                        t.psnAccount
+                          ? `${t.psnAccount.label} (${t.psnAccount.psnEmail})`
+                          : ""
+                      }
+                    >
+                      {t.psnAccount
+                        ? `${t.psnAccount.label} (${t.psnAccount.psnEmail})`
+                        : "—"}
+                    </td>
+                    <Td>
+                      <StatusBadge status={t.status} />
+                    </Td>
+                    <Td className="whitespace-nowrap font-medium text-rose-300">
+                      −{fmtAzn(Math.abs(t.amountAznCents))}
+                    </Td>
+                    <Td className="whitespace-nowrap text-zinc-400">{fmtDate(t.createdAt)}</Td>
+                    <Td className="text-right">
+                      {t.status !== "FAILED" ? (
+                        <CancelPurchaseButton
+                          transactionId={t.id}
+                          kind="game"
+                          title={t.game?.title ?? "Oyun sifarişi"}
+                        />
+                      ) : (
+                        <span className="text-[11px] text-zinc-600">—</span>
+                      )}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
+        <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+          <h2 className="text-sm font-semibold">
+            Servis sifarişləri ({servicePurchases.length})
+          </h2>
+          <span className="text-[10px] uppercase tracking-wider text-zinc-500">
+            PS Plus · Gift card · TRY balance · Account
+          </span>
+        </header>
+        {servicePurchases.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-zinc-500">
+            Servis sifarişi yoxdur.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[820px] text-sm">
+              <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
+                <tr>
+                  <Th>Məhsul</Th>
+                  <Th>Tip</Th>
+                  <Th>Kod / Detal</Th>
+                  <Th>Status</Th>
+                  <Th>Məbləğ</Th>
+                  <Th>Tarix</Th>
+                  <Th className="text-right">Action</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-900">
+                {servicePurchases.map((t) => (
+                  <tr key={t.id}>
+                    <Td>{t.serviceProduct?.title ?? "—"}</Td>
+                    <Td className="text-zinc-400">
+                      <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-300 ring-1 ring-zinc-700">
+                        {t.serviceProduct?.type ?? "—"}
+                      </span>
+                    </Td>
+                    <td
+                      className="max-w-[200px] truncate px-4 py-2 align-top font-mono text-xs text-zinc-300"
+                      title={t.serviceCode?.code ?? t.metadata ?? ""}
+                    >
+                      {t.serviceCode?.code ?? t.metadata ?? "—"}
+                    </td>
+                    <Td>
+                      <StatusBadge status={t.status} />
+                    </Td>
+                    <Td className="whitespace-nowrap font-medium text-rose-300">
+                      −{fmtAzn(Math.abs(t.amountAznCents))}
+                    </Td>
+                    <Td className="whitespace-nowrap text-zinc-400">{fmtDate(t.createdAt)}</Td>
+                    <Td className="text-right">
+                      {t.status !== "FAILED" ? (
+                        <CancelPurchaseButton
+                          transactionId={t.id}
+                          kind="service"
+                          title={t.serviceProduct?.title ?? "Servis sifarişi"}
+                        />
+                      ) : (
+                        <span className="text-[11px] text-zinc-600">—</span>
+                      )}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {user.adminAuditEntries.length > 0 && (
+        <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
+          <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <ScrollText className="h-4 w-4 text-indigo-300" />
+              Admin əməliyyatları tarixçəsi ({user.adminAuditEntries.length})
+            </h2>
+            <span className="text-[10px] uppercase tracking-wider text-zinc-500">
+              Son 50 əməliyyat
+            </span>
+          </header>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
+                <tr>
+                  <Th>Əməliyyat</Th>
+                  <Th>Admin</Th>
+                  <Th>Detal</Th>
+                  <Th>Tarix</Th>
+                </tr>
+              </thead>
+            <tbody className="divide-y divide-zinc-900">
+              {user.adminAuditEntries.map((e) => (
+                <tr key={e.id}>
+                  <Td>
+                    <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 font-mono text-[10px] text-indigo-200 ring-1 ring-indigo-500/30">
+                      {e.action}
+                    </span>
+                  </Td>
+                  <Td className="text-zinc-300">
+                    {e.actor
+                      ? (e.actor.name ?? e.actor.email)
+                      : <span className="text-zinc-500">silinmiş</span>}
+                  </Td>
+                  <td
+                    className="max-w-md truncate px-4 py-2 align-top font-mono text-[11px] text-zinc-500"
+                    title={e.details ?? ""}
+                  >
+                    {e.details ?? "—"}
+                  </td>
+                  <Td className="whitespace-nowrap text-zinc-400">
+                    {fmtDate(e.createdAt)}
+                  </Td>
+                </tr>
+              ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {adminAdjusts.length > 0 && (
+        <section className="rounded-xl border border-amber-500/30 bg-amber-500/5">
+          <header className="flex items-center justify-between border-b border-amber-500/20 px-5 py-3">
+            <h2 className="text-sm font-semibold text-amber-200">
+              Admin manual balans dəyişiklikləri ({adminAdjusts.length})
+            </h2>
+            <span className="text-[10px] uppercase tracking-wider text-amber-300/70">
+              Audit
+            </span>
+          </header>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead className="bg-amber-500/5 text-xs uppercase tracking-wider text-amber-300/70">
+                <tr>
+                  <Th>Sahə</Th>
+                  <Th>Köhnə</Th>
+                  <Th>Yeni</Th>
+                  <Th>Delta</Th>
+                  <Th>Tarix</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-amber-500/10">
+                {adminAdjusts.map((t) => {
+                const adj = parseAdminAdjust(t.metadata);
+                return (
+                  <tr key={t.id}>
+                    <Td className="text-zinc-200">{adj?.field ?? "wallet"}</Td>
+                    <Td className="text-zinc-400">
+                      {adj?.prev != null ? fmtAzn(adj.prev) : "—"}
+                    </Td>
+                    <Td className="text-zinc-400">
+                      {adj?.next != null ? fmtAzn(adj.next) : "—"}
+                    </Td>
+                    <Td
+                      className={`font-medium ${
+                        t.amountAznCents >= 0
+                          ? "text-emerald-300"
+                          : "text-rose-300"
+                      }`}
+                    >
+                      {t.amountAznCents >= 0 ? "+" : ""}
+                      {fmtAzn(t.amountAznCents)}
+                    </Td>
+                    <Td className="whitespace-nowrap text-zinc-400">{fmtDate(t.createdAt)}</Td>
+                  </tr>
+                );
+              })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
         <header className="border-b border-zinc-800 px-5 py-3">
           <h2 className="text-sm font-semibold">
-            Deposits & commissions ({deposits.length + user.commissions.length})
+            Deposits & commissions ({userDeposits.length + user.commissions.length})
           </h2>
         </header>
-        {deposits.length + user.commissions.length === 0 ? (
+        {userDeposits.length + user.commissions.length === 0 ? (
           <p className="px-5 py-6 text-sm text-zinc-500">
             No wallet activity yet.
           </p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
-              <tr>
-                <Th>Type</Th>
-                <Th>Source</Th>
-                <Th>Status</Th>
-                <Th>Amount</Th>
-                <Th>Date</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-900">
-              {[...deposits, ...user.commissions]
-                .sort(
-                  (a, b) =>
-                    b.createdAt.getTime() - a.createdAt.getTime()
-                )
-                .map((t) => (
-                  <tr key={t.id}>
-                    <Td>
-                      <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-300 ring-1 ring-zinc-700">
-                        {t.type}
-                      </span>
-                    </Td>
-                    <Td className="text-zinc-400">
-                      {t.type === "COMMISSION" && "user" in t && t.user
-                        ? `from ${t.user.email}`
-                        : t.metadata ?? "—"}
-                    </Td>
-                    <Td>
-                      <StatusBadge status={t.status} />
-                    </Td>
-                    <Td className="font-medium text-emerald-300">
-                      +{fmtAzn(t.amountAznCents)}
-                    </Td>
-                    <Td className="text-zinc-400">{fmtDate(t.createdAt)}</Td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px] text-sm">
+              <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
+                <tr>
+                  <Th>Type</Th>
+                  <Th>Source</Th>
+                  <Th>Status</Th>
+                  <Th>Amount</Th>
+                  <Th>Date</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-900">
+                {[...userDeposits, ...user.commissions]
+                  .sort(
+                    (a, b) =>
+                      b.createdAt.getTime() - a.createdAt.getTime()
+                  )
+                  .map((t) => (
+                    <tr key={t.id}>
+                      <Td>
+                        <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-300 ring-1 ring-zinc-700">
+                          {t.type}
+                        </span>
+                      </Td>
+                      <td
+                        className="max-w-[260px] truncate px-4 py-2 align-top text-zinc-400"
+                        title={
+                          t.type === "COMMISSION" && "user" in t && t.user
+                            ? `from ${t.user.email}`
+                            : t.metadata ?? ""
+                        }
+                      >
+                        {t.type === "COMMISSION" && "user" in t && t.user
+                          ? `from ${t.user.email}`
+                          : t.metadata ?? "—"}
+                      </td>
+                      <Td>
+                        <StatusBadge status={t.status} />
+                      </Td>
+                      <Td className="whitespace-nowrap font-medium text-emerald-300">
+                        +{fmtAzn(t.amountAznCents)}
+                      </Td>
+                      <Td className="whitespace-nowrap text-zinc-400">{fmtDate(t.createdAt)}</Td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>
@@ -463,6 +998,33 @@ function Stat({
   );
 }
 
+function Metric({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "emerald" | "rose" | "amber";
+}) {
+  const toneClass =
+    tone === "emerald"
+      ? "text-emerald-300"
+      : tone === "rose"
+        ? "text-rose-300"
+        : tone === "amber"
+          ? "text-amber-300"
+          : "text-zinc-100";
+  return (
+    <div>
+      <dt className="text-[10px] uppercase tracking-wider text-zinc-500">
+        {label}
+      </dt>
+      <dd className={`mt-1 text-sm font-semibold ${toneClass}`}>{value}</dd>
+    </div>
+  );
+}
+
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     SUCCESS: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
@@ -480,8 +1042,14 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
-  return <th className="px-4 py-2 text-left font-medium">{children}</th>;
+function Th({
+  children,
+  className = "text-left",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <th className={`px-4 py-2 font-medium ${className}`}>{children}</th>;
 }
 
 function Td({

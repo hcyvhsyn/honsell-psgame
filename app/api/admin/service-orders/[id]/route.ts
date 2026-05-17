@@ -78,8 +78,21 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       serviceCode: true,
     },
   });
-  if (!tx || tx.type !== "SERVICE_PURCHASE" || tx.status !== "PENDING") {
-    return NextResponse.json({ error: "Not found or not pending" }, { status: 404 });
+  if (!tx || tx.type !== "SERVICE_PURCHASE") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  // SUCCESS-yi yalnız ləğv etmək üçün qəbul edirik. SUCCESS yenidən təsdiqlənə bilməz.
+  if (action === "SUCCESS" && tx.status !== "PENDING") {
+    return NextResponse.json({ error: "Not pending" }, { status: 400 });
+  }
+  if (action === "FAILED" && tx.status === "FAILED") {
+    return NextResponse.json({ error: "Sifariş artıq ləğv olunub." }, { status: 400 });
+  }
+  if (action === "FAILED" && tx.status !== "PENDING" && tx.status !== "SUCCESS") {
+    return NextResponse.json(
+      { error: "Bu statusda olan sifariş ləğv oluna bilməz." },
+      { status: 400 }
+    );
   }
 
   if (action === "FAILED") {
@@ -91,6 +104,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       );
     }
     const cancelReason = reasonRaw.slice(0, 1000);
+    const wasSuccess = tx.status === "SUCCESS";
 
     await prisma.$transaction(async (ptx) => {
       const refundCents = Math.abs(tx.amountAznCents);
@@ -107,10 +121,46 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         /* köhnə sifarişlər → cüzdan */
       }
 
+      // Təsdiqlənmiş sifarişdə inviter-ə yazılmış komissiyaları geri al.
+      if (wasSuccess) {
+        const needle = `"sourcePurchaseId":"${tx.id}"`;
+        const commissions = await ptx.transaction.findMany({
+          where: {
+            type: "COMMISSION",
+            status: "SUCCESS",
+            metadata: { contains: needle },
+          },
+          select: { id: true, userId: true, amountAznCents: true, metadata: true },
+        });
+        for (const c of commissions) {
+          const dec = Math.max(0, c.amountAznCents);
+          if (dec > 0) {
+            await ptx.user.update({
+              where: { id: c.userId },
+              data: { referralBalanceCents: { decrement: dec } },
+            });
+          }
+          await ptx.transaction.update({
+            where: { id: c.id },
+            data: {
+              status: "FAILED",
+              metadata: JSON.stringify({
+                kind: "COMMISSION_REVERSED",
+                reason: "SERVICE_ORDER_CANCELLED",
+                originalAmountCents: c.amountAznCents,
+                cancelledTransactionId: tx.id,
+                previousMetadata: c.metadata ?? null,
+              }),
+            },
+          });
+        }
+      }
+
       const nextMeta = {
         ...existingMeta,
         cancelReason,
         cancelledAt: new Date().toISOString(),
+        cancelledFromStatus: tx.status,
       };
 
       await ptx.user.update({

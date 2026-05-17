@@ -103,7 +103,7 @@ export default async function OyunlarPage({
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeaderServer />
-      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="rounded-3xl border border-indigo-500/20 bg-gradient-to-br from-indigo-600/15 to-zinc-900/40 p-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-200">
             <Gamepad2 className="h-3.5 w-3.5" />
@@ -114,7 +114,7 @@ export default async function OyunlarPage({
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
         <GameBrowser initial={initial} />
       </section>
     </main>

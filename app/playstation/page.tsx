@@ -176,7 +176,7 @@ export default async function PlayStationPage() {
       <h1 className="sr-only">{SITE_NAME} PlayStation — {SITE_DESCRIPTION}</h1>
 
       {/* Hero banner */}
-      <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
         {bannerSlides.length > 0 ? (
           <HomeBannerSlider banners={bannerSlides} />
         ) : (
@@ -204,7 +204,7 @@ export default async function PlayStationPage() {
       {/* Categories */}
       <section id="kateqoriyalar" className="py-16">
         <MarqueeHeader text="KATEQORİYALAR" />
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <CategoryGroup
             label="PlayStation kateqoriyaları"
             icon={<Gamepad2 className="h-5 w-5 text-white" />}
@@ -291,7 +291,7 @@ export default async function PlayStationPage() {
       {/* Featured games */}
       <section id="games" className="py-16">
         <MarqueeHeader text="OYUNLAR" />
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {results.map((g, i) => (
               <GameCard key={g.id} game={g} priority={i < 4} />
@@ -313,7 +313,7 @@ export default async function PlayStationPage() {
       {featuredCollections.length > 0 && (
         <section id="kolleksiyalar" className="py-16">
           <MarqueeHeader text="KOLLEKSIYALAR" />
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {featuredCollections.map((c) => {
                 const cover =
@@ -364,7 +364,7 @@ export default async function PlayStationPage() {
       {/* PS Plus */}
       <section id="ps-plus" className="py-16">
         <MarqueeHeader text="PS PLUS" />
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <PsPlusClient
             hideTierSelector={true}
             flatMode={true}
@@ -405,7 +405,7 @@ export default async function PlayStationPage() {
       {/* Gift cards */}
       <section id="gift-cards" className="py-16">
         <MarqueeHeader text="HƏDİYYƏ KARTLARI" />
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <HediyyeKartlariClient
             cards={giftCardProducts.map((c) => ({
               id: c.id,

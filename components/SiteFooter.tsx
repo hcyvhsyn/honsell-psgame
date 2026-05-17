@@ -5,8 +5,8 @@ import Link from "next/link";
  */
 export default function SiteFooter() {
   return (
-    <footer className="mt-0 border-t border-white/5 bg-[#0B0B0E] px-4 sm:px-6">
-      <div className="mx-auto max-w-[1536px] px-4 py-12 md:px-5 xl:px-6">
+    <footer className="mt-0 border-t border-white/5 bg-[#0B0B0E]">
+      <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between border-b border-white/5 pb-10">
           <p className="text-3xl font-black tracking-tight text-white">HONSELL</p>
           <nav className="flex flex-wrap items-center gap-6 text-sm text-zinc-300">

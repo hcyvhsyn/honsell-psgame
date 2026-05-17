@@ -54,7 +54,7 @@ export default function GameReviewsSection({ game, viewerUserId }: Props) {
   if (!loading && reviews.length === 0) return null;
 
   return (
-    <section className="mx-auto max-w-[1536px] px-4 pb-16 sm:px-6">
+    <section className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
       <div className="mb-5 flex items-center gap-2">
         <MessageCircle className="h-5 w-5 text-amber-400" />
         <h2 className="text-lg font-semibold text-zinc-200">

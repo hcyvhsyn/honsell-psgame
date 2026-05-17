@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Copy, Check, Pencil, Trash2, AlertTriangle, X, MessageCircle, Send } from "lucide-react";
+import { Copy, Check, Pencil, Trash2, AlertTriangle, X, MessageCircle, Send, Ban, ShieldCheck } from "lucide-react";
 
 export function CopyPhoneButton({ phone }: { phone: string }) {
   const [copied, setCopied] = useState(false);
@@ -37,11 +37,15 @@ export function UserRowActions({
   email,
   phone,
   name,
+  role,
+  disabled,
 }: {
   userId: string;
   email: string;
   phone: string | null;
   name: string | null;
+  role?: string;
+  disabled?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -83,6 +87,9 @@ export function UserRowActions({
       <div className="flex items-center justify-end gap-1">
         {phone && (
           <WhatsAppButton userId={userId} phone={phone} name={name} email={email} />
+        )}
+        {role !== "ADMIN" && (
+          <DisableButton userId={userId} disabled={disabled} />
         )}
         <Link
           href={`/admin/users/${userId}`}
@@ -168,6 +175,54 @@ export function UserRowActions({
         </div>
       )}
     </>
+  );
+}
+
+function DisableButton({
+  userId,
+  disabled,
+}: {
+  userId: string;
+  disabled?: boolean;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const isDisabled = !!disabled;
+
+  function toggle(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const verb = isDisabled ? "aktiv etmək" : "bloklamaq";
+    if (!confirm(`Bu istifadəçini ${verb} istədiyinizə əminsiniz?`)) return;
+    startTransition(async () => {
+      const res = await fetch(`/api/admin/users/${userId}/disable`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ disable: !isDisabled }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error ?? "Əməliyyat alınmadı");
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={pending}
+      title={isDisabled ? "Aktiv et" : "Blokla"}
+      className={`inline-flex h-7 w-7 items-center justify-center rounded-md ring-1 transition disabled:opacity-50 ${
+        isDisabled
+          ? "text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/10"
+          : "text-zinc-400 ring-zinc-800 hover:bg-amber-500/10 hover:text-amber-300 hover:ring-amber-500/30"
+      }`}
+    >
+      {isDisabled ? <ShieldCheck className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+    </button>
   );
 }
 

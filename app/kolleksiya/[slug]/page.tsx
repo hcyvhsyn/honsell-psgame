@@ -156,7 +156,7 @@ export default async function CollectionPage({
           </div>
         )}
 
-        <div className="mx-auto max-w-7xl px-4 pt-6 pb-10 sm:px-6 sm:pt-10 sm:pb-14">
+        <div className="mx-auto max-w-7xl px-4 pt-6 pb-10 sm:px-6 lg:px-8 sm:pt-10 sm:pb-14">
           <Link
             href="/oyunlar"
             className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white"
@@ -182,7 +182,7 @@ export default async function CollectionPage({
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
         {cards.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 py-20 text-center text-zinc-500">
             Bu kolleksiyada hələ oyun yoxdur.

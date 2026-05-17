@@ -90,12 +90,12 @@ export default async function StreamingPage() {
       />
       <SiteHeaderServer />
 
-      <div className="mx-auto max-w-7xl px-4 pt-2 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 pt-2 sm:px-6 lg:px-8">
         <StreamingTopBar />
       </div>
 
       {/* Hero / featured banner */}
-      <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
         {slides.length > 0 ? (
           <StreamingFeaturedBanner slides={slides} />
         ) : (
@@ -115,7 +115,7 @@ export default async function StreamingPage() {
       </section>
 
       {/* Platforma navigatoru — satışda olan platformalar PS Store stili kart sırası */}
-      <section className="mx-auto max-w-7xl px-4 pt-12 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
         <header className="mb-5">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">Satışda olan platformalar</p>
           <h2 className="mt-1 text-2xl font-black text-white sm:text-3xl">Hansı platformaya keçid etmək istəyirsən?</h2>
@@ -150,7 +150,7 @@ export default async function StreamingPage() {
       </section>
 
       {/* Per-platform sections (no pricing) */}
-      <section className="mx-auto max-w-7xl space-y-12 px-4 py-14 sm:px-6">
+      <section className="mx-auto max-w-7xl space-y-12 px-4 py-14 sm:px-6 lg:px-8">
         {STREAMING_SERVICES.map((service) => {
           const titles = titlesByService.get(service) ?? [];
           if (titles.length === 0) return null;
@@ -208,7 +208,7 @@ export default async function StreamingPage() {
       </section>
 
       {/* Community reviews preview */}
-      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <header className="mb-5">
           <h2 className="text-2xl font-black text-white sm:text-3xl">İcmallar</h2>
           <p className="mt-1 text-sm text-zinc-500">

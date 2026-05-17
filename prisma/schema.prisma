@@ -20,6 +20,11 @@ model User {
   passwordHash String
   role         String  @default("USER") // USER | ADMIN
 
+  // Admin tərəfindən bloklanan hesablar — login və ödəniş endpoint-ləri bunu yoxlayır.
+  disabled    Boolean   @default(false)
+  disabledAt  DateTime?
+  disabledReason String?
+
   // Optional profile fields edited from /profile/settings.
   birthDate DateTime?
   gender    String? // "MALE" | "FEMALE" | "OTHER"
@@ -40,6 +45,12 @@ model User {
   // password and verifies their email in one step.
   setPasswordToken          String?   @unique
   setPasswordTokenExpiresAt DateTime?
+
+  // Login activity — yenilənir hər uğurlu login-də (admin paneldən izləmə üçün).
+  lastLoginAt        DateTime?
+  lastLoginIp        String?
+  lastUserAgent      String?
+  loginCount         Int       @default(0)
 
   // Wallet (stored in AZN, scaled by 100 to keep integer math clean)
   walletBalance Int @default(0) // depozit / ödəniş üçün əsas cüzdan
@@ -86,6 +97,13 @@ model User {
   // Honsell hədiyyə kartları — istifadəçinin aldığı və aktivləşdirdiyi kartlar.
   honsellGiftCardsPurchased HonsellGiftCard[] @relation("HonsellGiftCardPurchases")
   honsellGiftCardsRedeemed  HonsellGiftCard[] @relation("HonsellGiftCardRedemptions")
+
+  // Admin paneldən bu istifadəçi haqqında yazılan daxili qeydlər.
+  adminNotes          AdminNote[]      @relation("AdminNoteTarget")
+  adminNotesAuthored  AdminNote[]      @relation("AdminNoteAuthor")
+  // Admin tərəfindən bu istifadəçi üzərində aparılan əməliyyatlar.
+  adminAuditEntries   AdminAuditLog[]  @relation("AdminAuditTarget")
+  adminActionsTaken   AdminAuditLog[]  @relation("AdminAuditActor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -986,6 +1004,61 @@ model ScrapeChange {
   @@index([scrapeRunId])
   @@index([platform, createdAt])
   @@index([titleId])
+}
+
+// ─── Admin notes & audit log ──────────────────────────────────────────────────
+//
+// `AdminNote` — bir istifadəçi haqqında admin tərəfindən yazılan daxili qeyd.
+// Müştəri özü görmür; yalnız admin paneldə göstərilir. Telefon zəngi, şikayət,
+// manual balans dəyişikliyinin səbəbi və s. üçün istifadə olunur.
+//
+// `AdminAuditLog` — istifadəçi üzərində aparılan admin əməliyyatlarının audit
+// jurnalı (rolünü dəyişdi, balansı redaktə etdi, hesabı blokladı və s.). Hər
+// sətir bir əməliyyatın "kim, kimə, nə vaxt, nə etdi" snapshot-udur.
+
+model AdminNote {
+  id String @id @default(cuid())
+
+  // Qeydin yazıldığı istifadəçi (müştəri).
+  targetUserId String
+  targetUser   User   @relation("AdminNoteTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  // Qeydi yazan admin. Admin silindikdə qeyd qalır, sadəcə author silinir.
+  authorId String?
+  author   User?   @relation("AdminNoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  body String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([targetUserId, createdAt])
+}
+
+model AdminAuditLog {
+  id String @id @default(cuid())
+
+  // Əməliyyatın aparıldığı istifadəçi.
+  targetUserId String
+  targetUser   User   @relation("AdminAuditTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  // Əməliyyatı aparan admin. Silindikdə audit qalır.
+  actorId String?
+  actor   User?   @relation("AdminAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  // Action key — sərbəst format, məs:
+  // "user.role.update" | "user.disable" | "user.enable" | "user.balance.adjust"
+  // "user.delete" | "user.password.reset" | "user.email.verify"
+  action String
+
+  // İxtiyari detal — JSON snapshot (prev/next dəyərlər, səbəb və s.).
+  details String?
+
+  createdAt DateTime @default(now())
+
+  @@index([targetUserId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
 }
 
 // ─── Rate limiting / abuse defence ────────────────────────────────────────────

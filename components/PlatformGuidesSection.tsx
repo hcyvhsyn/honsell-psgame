@@ -15,7 +15,7 @@ export default async function PlatformGuidesSection({ scope }: { scope: string }
   if (guides.length === 0) return null;
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+    <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <header className="mb-6 flex items-center gap-3">
         <span className="grid h-10 w-10 place-items-center rounded-xl border border-amber-400/30 bg-gradient-to-br from-amber-400/20 to-orange-400/15 text-amber-200">
           <BookOpen className="h-5 w-5" />

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -9,7 +10,6 @@ import {
   CreditCard,
   Receipt as ReceiptIcon,
   ShieldCheck,
-  Smartphone,
   XCircle,
 } from "lucide-react";
 import EpointWidgetModal from "./EpointWidgetModal";
@@ -43,6 +43,7 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
     url: string;
     successUrl: string;
     errorUrl: string;
+    brand: "apple" | "google";
   } | null>(null);
 
   useEffect(() => {
@@ -97,11 +98,13 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
     }
   }
 
-  async function startWidgetDeposit() {
+  async function startWidgetDeposit(brand: "apple" | "google") {
     if (!Number.isFinite(amountNum) || amountNum < 0.01) {
       setMessage({ ok: false, text: "Məbləğ ən azı 0.01 AZN olmalıdır." });
       return;
     }
+
+    const label = brand === "apple" ? "Apple Pay" : "Google Pay";
 
     setBusy(true);
     setMessage(null);
@@ -120,7 +123,7 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
         typeof data.successUrl !== "string" ||
         typeof data.errorUrl !== "string"
       ) {
-        setMessage({ ok: false, text: data.error ?? "Google Pay açıla bilmədi." });
+        setMessage({ ok: false, text: data.error ?? `${label} açıla bilmədi.` });
         setBusy(false);
         return;
       }
@@ -129,9 +132,10 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
         url: data.widgetUrl,
         successUrl: data.successUrl,
         errorUrl: data.errorUrl,
+        brand,
       });
     } catch {
-      setMessage({ ok: false, text: "Google Pay açıla bilmədi." });
+      setMessage({ ok: false, text: `${label} açıla bilmədi.` });
     } finally {
       setBusy(false);
     }
@@ -196,18 +200,46 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
 
         {EPOINT_WIDGET_ENABLED ? (
           <>
-            <button
-              type="button"
-              onClick={startWidgetDeposit}
-              disabled={busy}
-              className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white hover:border-zinc-500 hover:bg-zinc-800 disabled:opacity-50"
-            >
-              <Smartphone className="h-4 w-4" />
-              {busy ? "Açılır..." : "Google Pay ilə artır"}
-            </button>
-            <p className="mt-1.5 text-center text-[11px] text-zinc-500">
-              Apple Pay yaxınlarda — hazırda yalnız Google Pay aktivdir.
-            </p>
+            <div className="mt-3 flex items-center gap-2 text-[11px] uppercase tracking-wider text-zinc-500">
+              <span className="h-px flex-1 bg-zinc-800" />
+              <span>və ya</span>
+              <span className="h-px flex-1 bg-zinc-800" />
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => startWidgetDeposit("apple")}
+                disabled={busy}
+                aria-label="Apple Pay ilə ödə"
+                className="inline-flex h-12 w-full items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-900 transition hover:border-zinc-400 hover:bg-zinc-100 disabled:opacity-50"
+              >
+                <Image
+                  src="/apple-pay.png"
+                  alt="Apple Pay"
+                  width={96}
+                  height={40}
+                  className="h-10 w-auto object-contain"
+                  priority={false}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={() => startWidgetDeposit("google")}
+                disabled={busy}
+                aria-label="Google Pay ilə ödə"
+                className="inline-flex h-12 w-full items-center justify-center rounded-md border border-zinc-700 bg-white px-4 text-sm font-semibold text-zinc-900 transition hover:border-zinc-400 hover:bg-zinc-100 disabled:opacity-50"
+              >
+                <Image
+                  src="/google-pay.webp"
+                  alt="Google Pay"
+                  width={64}
+                  height={28}
+                  className="h-7 w-auto object-contain"
+                  priority={false}
+                />
+              </button>
+            </div>
           </>
         ) : null}
 
@@ -231,7 +263,7 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
           widgetUrl={widget.url}
           successUrl={widget.successUrl}
           errorUrl={widget.errorUrl}
-          title="Google Pay"
+          title={widget.brand === "apple" ? "Apple Pay" : "Google Pay"}
           onClose={() => setWidget(null)}
         />
       ) : null}

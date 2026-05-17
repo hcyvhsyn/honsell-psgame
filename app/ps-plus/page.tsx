@@ -28,7 +28,7 @@ export default async function PsPlusPage() {
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeaderServer />
 
-      <header className="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
+      <header className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
           PS Plus Üzvlüyü — Essential, Extra və Deluxe
         </h1>
@@ -37,7 +37,7 @@ export default async function PsPlusPage() {
         </p>
       </header>
 
-      <section className="mx-auto max-w-7xl px-4 pb-14 pt-6 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 pb-14 pt-6 sm:px-6 lg:px-8">
         <PsPlusClient
           plans={plans.map((p) => ({
             id: p.id,

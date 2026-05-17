@@ -119,6 +119,33 @@ function parseStreamingMeta(metadata?: string | null): {
   }
 }
 
+type AccountCreationDetails = {
+  firstName?: string;
+  lastName?: string;
+  birthDate?: string;
+  email?: string;
+  password?: string;
+};
+
+function parseAccountCreationDetails(metadata?: string | null): AccountCreationDetails | null {
+  if (!metadata) return null;
+  try {
+    const m = JSON.parse(metadata) as Record<string, unknown>;
+    const pick = (k: string) =>
+      typeof m[k] === "string" && (m[k] as string).length > 0 ? (m[k] as string) : undefined;
+    const out: AccountCreationDetails = {
+      firstName: pick("firstName"),
+      lastName: pick("lastName"),
+      birthDate: pick("birthDate"),
+      email: pick("email"),
+      password: pick("password"),
+    };
+    return out.email || out.password || out.firstName || out.lastName || out.birthDate ? out : null;
+  } catch {
+    return null;
+  }
+}
+
 function getPaymentSource(metadata?: string | null): "WALLET" | "REFERRAL" | "EPOINT" | "UNKNOWN" {
   if (!metadata) return "UNKNOWN";
   try {
@@ -618,30 +645,37 @@ export default function OrdersAdminClient() {
           {tab === "account" && (
             <OrdersTable
               empty="Gözləyən hesab açma sifarişi yoxdur."
-              rows={data.accountCreationOrders.map((o) => ({
-                id: o.id,
-                userId: o.user.id,
-                userLabel: o.user.name ?? o.user.email,
-                userSub: o.user.email,
-                item: o.serviceProduct?.title ?? "Hesab açma",
-                itemSub: "Detallar metadata-dadır",
-                paymentSource: getPaymentSource(o.metadata),
-                amount: fmtAzn(o.amountAznCents),
-                date: fmtDate(o.createdAt),
-                actions: (
-                  <RowActions
-                    pending={pending}
-                    onApprove={() => actService(o.id, "SUCCESS", "accountCreationOrders")}
-                    onReject={() =>
-                      rejectService(
-                        o.id,
-                        o.serviceProduct?.title ?? "Hesab açma",
-                        "accountCreationOrders"
-                      )
-                    }
-                  />
-                ),
-              }))}
+              rows={data.accountCreationOrders.map((o) => {
+                const details = parseAccountCreationDetails(o.metadata);
+                return {
+                  id: o.id,
+                  userId: o.user.id,
+                  userLabel: o.user.name ?? o.user.email,
+                  userSub: o.user.email,
+                  item: o.serviceProduct?.title ?? "Hesab açma",
+                  itemSub: details ? (
+                    <AccountCreationDetailsBlock details={details} />
+                  ) : (
+                    "Detallar metadata-dadır"
+                  ),
+                  paymentSource: getPaymentSource(o.metadata),
+                  amount: fmtAzn(o.amountAznCents),
+                  date: fmtDate(o.createdAt),
+                  actions: (
+                    <RowActions
+                      pending={pending}
+                      onApprove={() => actService(o.id, "SUCCESS", "accountCreationOrders")}
+                      onReject={() =>
+                        rejectService(
+                          o.id,
+                          o.serviceProduct?.title ?? "Hesab açma",
+                          "accountCreationOrders"
+                        )
+                      }
+                    />
+                  ),
+                };
+              })}
             />
           )}
 
@@ -1137,6 +1171,70 @@ function CredField({ label, value }: { label: string; value: string }) {
   );
 }
 
+function AccountCreationDetailsBlock({ details }: { details: AccountCreationDetails }) {
+  const fullName = [details.firstName, details.lastName]
+    .filter((s) => s && s !== "-" && s !== "?")
+    .join(" ")
+    .trim();
+  return (
+    <div className="mt-1 grid gap-2 rounded-lg border border-emerald-500/15 bg-emerald-500/[0.04] p-2.5 sm:grid-cols-2">
+      {fullName ? (
+        <DetailField label="Ad, soyad" value={fullName} full />
+      ) : null}
+      {details.birthDate ? (
+        <DetailField label="Doğum tarixi" value={details.birthDate} mono full />
+      ) : null}
+      {details.email ? (
+        <DetailField label="Email" value={details.email} mono full />
+      ) : null}
+      {details.password ? (
+        <DetailField label="Şifrə" value={details.password} mono full sensitive />
+      ) : null}
+    </div>
+  );
+}
+
+function DetailField({
+  label,
+  value,
+  mono = false,
+  full = false,
+  sensitive = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  full?: boolean;
+  sensitive?: boolean;
+}) {
+  return (
+    <div className={`flex items-center gap-2 ${full ? "sm:col-span-2" : ""}`}>
+      <span className="w-20 shrink-0 text-[10px] uppercase tracking-wider text-zinc-500">
+        {label}
+      </span>
+      <span
+        className={`min-w-0 flex-1 text-xs ${
+          sensitive ? "text-emerald-300" : "text-zinc-100"
+        } ${mono ? "break-all font-mono tracking-wide" : "break-words"}`}
+      >
+        {value}
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          if (typeof navigator !== "undefined" && navigator.clipboard) {
+            navigator.clipboard.writeText(value);
+          }
+        }}
+        className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+        title="Kopyala"
+      >
+        <Copy className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
 function PsPlusOrderCard({
   o,
   expanded,
@@ -1255,7 +1353,7 @@ function OrdersTable({
     userLabel: string;
     userSub: string;
     item: string;
-    itemSub: string;
+    itemSub: React.ReactNode;
     paymentSource: string;
     amount: string;
     date: string;
@@ -1294,7 +1392,7 @@ function OrdersTable({
                 </Td>
                 <Td>
                   <div className="truncate text-zinc-100">{r.item}</div>
-                  <div className="truncate text-xs text-zinc-500">{r.itemSub}</div>
+                  <div className="text-xs text-zinc-500">{r.itemSub}</div>
                 </Td>
                 <Td>
                   <span className="rounded-full bg-zinc-950 px-2 py-0.5 text-[11px] text-zinc-300 ring-1 ring-zinc-800">

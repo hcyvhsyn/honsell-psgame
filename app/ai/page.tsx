@@ -25,7 +25,7 @@ export default async function AiPage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeaderServer />
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <header className="mb-8 flex items-center gap-3">
           <span className="grid h-12 w-12 place-items-center rounded-xl border border-fuchsia-400/30 bg-fuchsia-400/15 text-fuchsia-200">
             <Brain className="h-6 w-6" />
