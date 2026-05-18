@@ -70,7 +70,9 @@ export async function GET(req: Request) {
     ];
   }
   if (onSale) where.discountTryCents = { not: null };
-  if (sort === "popular") where.isFeatured = true;
+  // "Popular" sort yalnız default browse rejimində featured-larla məhdudlaşır.
+  // İstifadəçi axtarış edirsə, məhsulu featured olmasa belə tapa bilməlidir.
+  if (sort === "popular" && !q) where.isFeatured = true;
 
   const useFuzzy = q.length >= 2;
 
@@ -215,7 +217,9 @@ async function fetchFuzzy({
   // the original `contains` behavior so search still works.
   try {
     let whereSql = buildGameWhereSql({ q, productType, platform, onSale });
-    if (sort === "popular") whereSql = PrismaSql.sql`${whereSql} AND g."isFeatured" = true`;
+    // Axtarış aktiv olduqda popular filtri tətbiq olunmur — axtarılan məhsul
+    // featured olmasa belə tapılmalıdır.
+    if (sort === "popular" && !q) whereSql = PrismaSql.sql`${whereSql} AND g."isFeatured" = true`;
 
     if (sort === "discount") {
       // This sort is computed (requires discount), so we fetch all matching and
@@ -254,7 +258,7 @@ async function fetchFuzzy({
       where.OR = [{ platform: { contains: platform } }, { platform: null }];
     }
     if (onSale) where.discountTryCents = { not: null };
-    if (sort === "popular") where.isFeatured = true;
+    if (sort === "popular" && !q) where.isFeatured = true;
 
     const [filteredCount, rows] = await Promise.all([
       prisma.game.count({ where }),

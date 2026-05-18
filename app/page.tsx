@@ -219,7 +219,7 @@ export default async function HomePage() {
               accentClass="border-rose-400/30 from-rose-400/25 to-orange-400/15"
             />
             <PlatformCard
-              href="/streaming/youtube"
+              href="/music"
               icon={<Music className="h-5 w-5 text-white" />}
               label="Musiqi Platformaları"
               sub="YouTube Premium — reklamsız + YouTube Music"

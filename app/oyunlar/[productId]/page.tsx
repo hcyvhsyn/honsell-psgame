@@ -2,7 +2,18 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { ArrowLeft, ExternalLink, Gamepad2, Zap, ShieldCheck, Headset, BadgeCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  BadgePercent,
+  CalendarClock,
+  ExternalLink,
+  Gamepad2,
+  Headset,
+  ShieldCheck,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
@@ -230,6 +241,44 @@ export default async function GameDetailPage({
     ],
   };
 
+  const savingsAzn =
+    display.originalAzn != null
+      ? Math.max(display.originalAzn - display.finalAzn, 0)
+      : null;
+  const discountEndLabel = game.discountEndAt
+    ? new Date(game.discountEndAt).toLocaleDateString("az-AZ", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+  const serviceHighlights = [
+    {
+      title: "Anında çatdırılma",
+      text: "Sifariş təsdiqindən sonra PSN hesabına yüklənir.",
+      Icon: Zap,
+      iconClass: "text-indigo-300",
+    },
+    {
+      title: "Lisenziya zəmanəti",
+      text: "Rəsmi PS Store-dan hesabınıza bağlı qalır.",
+      Icon: ShieldCheck,
+      iconClass: "text-emerald-300",
+    },
+    {
+      title: "Etibarlı ödəniş",
+      text: "Yerli kart, balans və epoint ilə təhlükəsiz alış.",
+      Icon: BadgeCheck,
+      iconClass: "text-amber-300",
+    },
+    {
+      title: "7/24 dəstək",
+      text: "WhatsApp və telefon üzərindən canlı kömək.",
+      Icon: Headset,
+      iconClass: "text-rose-300",
+    },
+  ];
+
   return (
     <main className="min-h-screen bg-[#0A0A0F] text-zinc-100">
       <script
@@ -243,7 +292,7 @@ export default async function GameDetailPage({
       <SiteHeaderServer />
 
       {/* Hero */}
-      <section className="relative">
+      <section className="relative overflow-hidden border-b border-white/10 bg-[#07070B]">
         {heroImage ? (
           <div className="absolute inset-0 -z-10 overflow-hidden">
             <Image
@@ -254,157 +303,185 @@ export default async function GameDetailPage({
               sizes="100vw"
               className="object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/80 to-[#0A0A0F]/40" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0F] via-transparent to-[#0A0A0F]/30" />
+            <div className="absolute inset-0 bg-[#07070B]/82" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(124,58,237,0.34),transparent_34%),radial-gradient(circle_at_78%_20%,rgba(236,72,153,0.16),transparent_28%)]" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/70 to-[#0A0A0F]/45" />
           </div>
         ) : (
           <div className="absolute inset-0 -z-10 bg-gradient-to-b from-zinc-900 to-[#0A0A0F]" />
         )}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/60 to-transparent" />
 
-        <div className="mx-auto w-full max-w-7xl px-4 pt-6 pb-12 sm:px-6 sm:pt-10 sm:pb-20 lg:px-8">
+        <div className="mx-auto w-full max-w-7xl px-4 pb-10 pt-6 sm:px-6 sm:pb-16 sm:pt-10 lg:px-8">
           <Link
             href="/oyunlar"
-            className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white"
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" /> Bütün oyunlar
           </Link>
 
-          <div className="mt-8 grid gap-8 sm:mt-12 lg:grid-cols-[240px_minmax(0,1fr)_400px]">
-            {/* Cover */}
-            {game.imageUrl && (
-              <div className="hidden lg:block">
-                <div className="overflow-hidden rounded-2xl border border-white/10 shadow-2xl ring-1 ring-black/40">
-                  <Image
-                    src={game.imageUrl}
-                    alt={`${game.title} cover`}
-                    width={480}
-                    height={480}
-                    sizes="240px"
-                    className="h-auto w-full object-cover"
-                  />
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_390px] xl:gap-8">
+            <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_28px_90px_-52px_rgba(124,58,237,0.75)] backdrop-blur-xl sm:p-6 lg:p-7">
+              {heroImage && (
+                <Image
+                  src={heroImage}
+                  alt=""
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 800px"
+                  className="object-cover opacity-25"
+                />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0F]/90 via-[#0A0A0F]/76 to-[#0A0A0F]/42" />
+              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-violet-950/30 to-transparent" />
+
+              <div className="relative grid gap-6 md:grid-cols-[210px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)]">
+                <div className="max-w-[220px] md:max-w-none">
+                  {game.imageUrl ? (
+                    <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-zinc-950 shadow-2xl shadow-black/50 ring-1 ring-violet-300/20">
+                      <Image
+                        src={game.imageUrl}
+                        alt={`${game.title} cover`}
+                        width={520}
+                        height={520}
+                        sizes="(max-width: 768px) 220px, 240px"
+                        className="aspect-square w-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="grid aspect-square w-full place-items-center rounded-2xl border border-white/10 bg-zinc-900 text-zinc-600">
+                      <Gamepad2 className="h-12 w-12" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex min-w-0 flex-col justify-center">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {game.editionLabel && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-bold text-amber-200">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {game.editionLabel}
+                      </span>
+                    )}
+                    <span className="rounded-full border border-white/10 bg-black/35 px-3 py-1 text-xs font-semibold text-zinc-300">
+                      Rəqəmsal aktivasiya
+                    </span>
+                  </div>
+
+                  <h1 className="mt-4 max-w-4xl text-4xl font-black leading-[0.95] tracking-tight text-white sm:text-5xl lg:text-6xl">
+                    {game.title}
+                  </h1>
+
+                  <div className="mt-5 flex flex-wrap items-center gap-2">
+                    {platforms.map((p) => (
+                      <span
+                        key={p}
+                        className="rounded-full border border-white/20 bg-white/[0.07] px-3 py-1 text-xs font-bold text-white backdrop-blur"
+                      >
+                        {p}
+                      </span>
+                    ))}
+                    <span className="rounded-full border border-zinc-700 bg-zinc-950/60 px-3 py-1 text-xs font-medium text-zinc-300">
+                      {PRODUCT_TYPE_LABEL[game.productType] ?? game.productType}
+                    </span>
+                  </div>
+
+                  <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                    {serviceHighlights.map(({ title, text, Icon, iconClass }) => (
+                      <div
+                        key={title}
+                        className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3 backdrop-blur"
+                      >
+                        <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${iconClass}`} />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-white">{title}</p>
+                          <p className="mt-0.5 text-sm leading-snug text-zinc-300">{text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            )}
-
-            <div>
-              {game.editionLabel && (
-                <span className="inline-block rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/40">
-                  {game.editionLabel}
-                </span>
-              )}
-              <h1 className="mt-3 text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
-                {game.title}
-              </h1>
-
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-                {platforms.map((p) => (
-                  <span
-                    key={p}
-                    className="rounded-full border border-white/30 bg-black/30 px-3 py-1 text-xs font-semibold text-white backdrop-blur"
-                  >
-                    {p}
-                  </span>
-                ))}
-                <span className="rounded-full bg-zinc-800/80 px-3 py-1 text-xs font-medium text-zinc-300 ring-1 ring-zinc-700">
-                  {PRODUCT_TYPE_LABEL[game.productType] ?? game.productType}
-                </span>
-              </div>
-
-              {/* Value props */}
-              <ul className="mt-6 grid gap-3 sm:grid-cols-2 sm:gap-4">
-                <li className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-3.5 py-3 backdrop-blur">
-                  <Zap className="mt-0.5 h-4 w-4 shrink-0 text-indigo-300" />
-                  <div className="text-xs leading-snug text-zinc-300">
-                    <div className="font-semibold text-zinc-100">Anında çatdırılma</div>
-                    Sifariş təsdiqindən sonra dəqiqələr ərzində PSN hesabına yüklənir.
-                  </div>
-                </li>
-                <li className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-3.5 py-3 backdrop-blur">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
-                  <div className="text-xs leading-snug text-zinc-300">
-                    <div className="font-semibold text-zinc-100">Lisenziya zəmanəti</div>
-                    Rəsmi PS Store-dan, hesabınıza ömürlük bağlı qalır.
-                  </div>
-                </li>
-                <li className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-3.5 py-3 backdrop-blur">
-                  <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-                  <div className="text-xs leading-snug text-zinc-300">
-                    <div className="font-semibold text-zinc-100">Etibarlı ödəniş</div>
-                    Yerli kart, balans və epoint ilə təhlükəsiz satınalma.
-                  </div>
-                </li>
-                <li className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-3.5 py-3 backdrop-blur">
-                  <Headset className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
-                  <div className="text-xs leading-snug text-zinc-300">
-                    <div className="font-semibold text-zinc-100">7/24 dəstək</div>
-                    WhatsApp və telefon üzərindən canlı kömək.
-                  </div>
-                </li>
-              </ul>
             </div>
 
             {/* Price card */}
-            <aside className="rounded-2xl border border-zinc-800 bg-[#0A0A0A]/85 p-5 shadow-xl backdrop-blur sm:p-6">
-              {display.discountPct != null && (
-                <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-[#6D28D9] px-2.5 py-1 text-xs font-bold text-white">
-                  -{display.discountPct}% endirim
+            <aside className="relative overflow-hidden rounded-[28px] border border-violet-400/20 bg-zinc-950/90 p-5 shadow-[0_24px_80px_-50px_rgba(124,58,237,0.9)] backdrop-blur-xl sm:p-6">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-violet-600/20 to-transparent" />
+              <div className="relative">
+                <div className="flex flex-wrap items-center gap-2">
+                  {display.discountPct != null ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-1 text-xs font-black text-white shadow-lg shadow-violet-900/30">
+                      <BadgePercent className="h-3.5 w-3.5" />
+                      -{display.discountPct}% endirim
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold text-zinc-300">
+                      <BadgeCheck className="h-3.5 w-3.5" />
+                      Aktiv təklif
+                    </span>
+                  )}
+                  {savingsAzn != null && savingsAzn > 0 && (
+                    <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-200">
+                      {savingsAzn.toFixed(2)}₼ qənaət
+                    </span>
+                  )}
                 </div>
-              )}
-              <div className="flex items-baseline gap-3">
-                {display.originalAzn != null && (
-                  <span className="relative text-base text-zinc-500">
-                    {display.originalAzn.toFixed(2)}₼
-                    <span
-                      aria-hidden
-                      className="pointer-events-none absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 -rotate-6 bg-rose-500"
-                    />
-                  </span>
+
+                <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                    Satış qiyməti
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-end gap-3">
+                    {display.originalAzn != null && (
+                      <span className="relative mb-1 text-lg font-semibold text-zinc-500">
+                        {display.originalAzn.toFixed(2)}₼
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 -rotate-6 bg-rose-500"
+                        />
+                      </span>
+                    )}
+                    <span className="text-5xl font-black leading-none tracking-tight text-white">
+                      {display.finalAzn.toFixed(2)}₼
+                    </span>
+                  </div>
+
+                  {discountEndLabel && display.discountPct != null && (
+                    <p className="mt-4 inline-flex items-center gap-2 text-sm text-zinc-400">
+                      <CalendarClock className="h-4 w-4 text-violet-300" />
+                      Endirim bitir:
+                      <span className="font-semibold text-violet-200">{discountEndLabel}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-5">
+                  <AddToCartButton
+                    game={{
+                      id: game.id,
+                      title: game.title,
+                      imageUrl: game.imageUrl,
+                      finalAzn: display.finalAzn,
+                      productType: game.productType,
+                    }}
+                  />
+                </div>
+
+                <div className="mt-3">
+                  <FavoriteButton gameId={game.id} variant="detail" />
+                </div>
+
+                {game.productUrl && (
+                  <a
+                    href={game.productUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/70 px-4 py-3 text-sm font-medium text-zinc-300 transition hover:border-violet-400/40 hover:text-white"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    PS Store-da bax
+                  </a>
                 )}
-                <span className="text-3xl font-bold tracking-tight text-white">
-                  {display.finalAzn.toFixed(2)}₼
-                </span>
               </div>
-
-              {game.discountEndAt && display.discountPct != null && (
-                <p className="mt-2 text-xs text-zinc-400">
-                  Endirim bitir:{" "}
-                  <span className="text-indigo-300">
-                    {new Date(game.discountEndAt).toLocaleDateString("az-AZ", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </span>
-                </p>
-              )}
-
-              <div className="mt-5">
-                <AddToCartButton
-                  game={{
-                    id: game.id,
-                    title: game.title,
-                    imageUrl: game.imageUrl,
-                    finalAzn: display.finalAzn,
-                    productType: game.productType,
-                  }}
-                />
-              </div>
-
-              <div className="mt-3">
-                <FavoriteButton gameId={game.id} variant="detail" />
-              </div>
-
-              {game.productUrl && (
-                <a
-                  href={game.productUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-xs font-medium text-zinc-300 hover:border-zinc-700 hover:text-white"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  PS Store-da bax
-                </a>
-              )}
             </aside>
           </div>
         </div>

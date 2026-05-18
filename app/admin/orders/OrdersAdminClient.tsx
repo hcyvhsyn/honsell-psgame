@@ -22,6 +22,7 @@ import {
   parseGameOrderMeta,
   type GameOrderStage,
 } from "@/lib/gameOrderFulfillment";
+import CopyableField from "@/components/CopyableField";
 
 type AnyOrder = {
   id: string;
@@ -1471,6 +1472,27 @@ function platformDurationLabel(o: PlatformOrder): string {
   return "Müddət göstərilməyib";
 }
 
+/** Order metadata-sından YouTube müştəri credentials-larını çıxarır. */
+function parsePlatformCustomerCreds(metadata?: string | null): {
+  gmail?: string;
+  password?: string;
+  isYoutube: boolean;
+} {
+  if (!metadata) return { isYoutube: false };
+  try {
+    const m = JSON.parse(metadata) as Record<string, unknown>;
+    const isYoutube =
+      m.kind === "PLATFORM" && String(m.musicBrand ?? "") === "YOUTUBE_PREMIUM";
+    return {
+      isYoutube,
+      gmail: typeof m.gmail === "string" ? m.gmail : undefined,
+      password: typeof m.customerPassword === "string" ? m.customerPassword : undefined,
+    };
+  } catch {
+    return { isYoutube: false };
+  }
+}
+
 function PlatformOrdersTable({
   orders,
   empty,
@@ -1487,24 +1509,40 @@ function PlatformOrdersTable({
   return (
     <OrdersTable
       empty={empty}
-      rows={orders.map((o) => ({
-        id: o.id,
-        userId: o.user.id,
-        userLabel: o.user.name ?? o.user.email,
-        userSub: o.user.email,
-        item: o.serviceProduct?.title ?? "Platform",
-        itemSub: platformDurationLabel(o),
-        paymentSource: getPaymentSource(o.metadata),
-        amount: fmtAzn(o.amountAznCents),
-        date: fmtDate(o.createdAt),
-        actions: (
-          <RowActions
-            pending={pending}
-            onApprove={() => onApprove(o.id)}
-            onReject={() => onReject(o.id, o.serviceProduct?.title ?? "Platform")}
-          />
-        ),
-      }))}
+      rows={orders.map((o) => {
+        const creds = parsePlatformCustomerCreds(o.metadata);
+        const itemSub = creds.isYoutube ? (
+          <div className="space-y-1.5">
+            <div className="text-xs text-zinc-400">{platformDurationLabel(o)}</div>
+            <div className="space-y-1">
+              {creds.gmail && <CopyableField label="Gmail" value={creds.gmail} />}
+              {creds.password && (
+                <CopyableField label="Şifrə" value={creds.password} masked mono />
+              )}
+            </div>
+          </div>
+        ) : (
+          platformDurationLabel(o)
+        );
+        return {
+          id: o.id,
+          userId: o.user.id,
+          userLabel: o.user.name ?? o.user.email,
+          userSub: o.user.email,
+          item: o.serviceProduct?.title ?? "Platform",
+          itemSub,
+          paymentSource: getPaymentSource(o.metadata),
+          amount: fmtAzn(o.amountAznCents),
+          date: fmtDate(o.createdAt),
+          actions: (
+            <RowActions
+              pending={pending}
+              onApprove={() => onApprove(o.id)}
+              onReject={() => onReject(o.id, o.serviceProduct?.title ?? "Platform")}
+            />
+          ),
+        };
+      })}
     />
   );
 }

@@ -7,6 +7,7 @@ import {
   parseGameOrderMeta,
 } from "@/lib/gameOrderFulfillment";
 import { formatHonsellGiftCardCode } from "@/lib/honsellGiftCard";
+import CopyableField from "@/components/CopyableField";
 
 export const dynamic = "force-dynamic";
 
@@ -172,6 +173,35 @@ export default async function OrdersPage() {
                     <span className="select-all font-mono font-bold tracking-widest text-emerald-400">{r.serviceCode.code}</span>
                   </div>
                 )}
+                {(() => {
+                  if (r.type !== "SERVICE_PURCHASE") return null;
+                  let rawMeta: Record<string, unknown> | null = null;
+                  try {
+                    rawMeta = r.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : null;
+                  } catch {
+                    rawMeta = null;
+                  }
+                  const isYoutube =
+                    rawMeta?.kind === "PLATFORM" &&
+                    String(rawMeta?.musicBrand ?? "") === "YOUTUBE_PREMIUM";
+                  const gmail = typeof rawMeta?.gmail === "string" ? rawMeta.gmail : null;
+                  const customerPassword =
+                    typeof rawMeta?.customerPassword === "string"
+                      ? rawMeta.customerPassword
+                      : null;
+                  if (!isYoutube || (!gmail && !customerPassword)) return null;
+                  return (
+                    <div className="mt-2 space-y-1.5 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-red-300">
+                        YouTube hesabı (admin abunəlik qoşacaq)
+                      </div>
+                      {gmail && <CopyableField label="Gmail" value={gmail} />}
+                      {customerPassword && (
+                        <CopyableField label="Şifrə" value={customerPassword} masked mono />
+                      )}
+                    </div>
+                  );
+                })()}
                 {(() => {
                   if (r.type !== "SERVICE_PURCHASE") return null;
                   let rawMeta: Record<string, unknown> | null = null;

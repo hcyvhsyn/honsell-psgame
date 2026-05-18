@@ -21,9 +21,9 @@ import { PlatformCard } from "@/components/MarketingUI";
 export const revalidate = 1800;
 
 export const metadata: Metadata = {
-  title: "Streaming Xidmətləri — Netflix, HBO Max, Gain, YouTube Premium",
+  title: "Streaming Xidmətləri — Netflix, HBO Max, Gain",
   description:
-    "Netflix, HBO Max, Gain və YouTube Premium üçün Azərbaycanda yayımlanan filmlər və seriallar. Hər platformanın özünə məxsus səhifəsi.",
+    "Netflix, HBO Max və Gain üçün Azərbaycanda yayımlanan filmlər və seriallar. Hər platformanın özünə məxsus səhifəsi.",
   alternates: { canonical: "/streaming" },
   openGraph: {
     title: "Streaming Platforması — Netflix, HBO Max, Gain | Honsell",
@@ -52,6 +52,12 @@ function toSlideArr(rows: Array<{
     trailerUrl: r.title.trailerUrl,
   }));
 }
+
+// Bu səhifə yalnız film/serial yönlü streaming xidmətlərini göstərir.
+// MUSIC kateqoriyalı xidmətlər (YouTube Premium) /music səhifəsində listlənir.
+const STREAMING_ONLY_SERVICES = STREAMING_SERVICES.filter(
+  (s) => STREAMING_SERVICE_META[s as StreamingService].category === "STREAMING"
+);
 
 export default async function StreamingPage() {
   const [featuredOverview, allTitles] = await Promise.all([
@@ -105,7 +111,7 @@ export default async function StreamingPage() {
               Streaming xidmətləri
             </div>
             <h1 className="mt-4 text-3xl font-black text-white sm:text-4xl">
-              Netflix · HBO Max · Gain · YouTube Premium
+              Netflix · HBO Max · Gain
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-zinc-400">
               Hər platformanın səhifəsinə keçid edib Azərbaycanda yayımlanan film və serialları kəşf et.
@@ -121,7 +127,7 @@ export default async function StreamingPage() {
           <h2 className="mt-1 text-2xl font-black text-white sm:text-3xl">Hansı platformaya keçid etmək istəyirsən?</h2>
         </header>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {STREAMING_SERVICES.map((service) => {
+          {STREAMING_ONLY_SERVICES.map((service) => {
             const meta = STREAMING_SERVICE_META[service as StreamingService];
             const sample = titlesByService.get(service) ?? [];
             const cover = sample[0]?.backdropUrl ?? sample[0]?.posterUrl ?? null;
@@ -151,7 +157,7 @@ export default async function StreamingPage() {
 
       {/* Per-platform sections (no pricing) */}
       <section className="mx-auto max-w-7xl space-y-12 px-4 py-14 sm:px-6 lg:px-8">
-        {STREAMING_SERVICES.map((service) => {
+        {STREAMING_ONLY_SERVICES.map((service) => {
           const titles = titlesByService.get(service) ?? [];
           if (titles.length === 0) return null;
           const meta = STREAMING_SERVICE_META[service as StreamingService];

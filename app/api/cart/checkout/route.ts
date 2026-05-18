@@ -51,6 +51,8 @@ type AccountCreationBody = {
 
 type StreamingBody = {
   gmail: string;
+  /** YouTube Premium kimi xidmətlərdə müştəri öz hesabının şifrəsini də verir. */
+  password?: string;
 };
 
 type CartLinePayload = {
@@ -79,7 +81,11 @@ function parseStreamingBody(raw: unknown):
   if (!gmail || !/^[^\s@]+@gmail\.com$/.test(gmail)) {
     return { ok: false, error: "Etibarlı Gmail ünvanı (@gmail.com) tələb olunur." };
   }
-  return { ok: true, value: { gmail } };
+  const password = typeof o.password === "string" ? o.password : "";
+  return {
+    ok: true,
+    value: password ? { gmail, password } : { gmail },
+  };
 }
 
 function parseAccountCreationBody(raw: unknown):
@@ -247,6 +253,10 @@ export async function POST(req: Request) {
         unitListCents: number;
         unitCostCents: number;
         lineCents: number;
+        /** YouTube Premium üçün müştəri Gmail-i. */
+        gmail?: string;
+        /** YouTube Premium üçün müştəri Gmail şifrəsi. */
+        password?: string;
       }
     | {
         kind: "HONSELL_GIFT_CARD";
@@ -372,6 +382,30 @@ export async function POST(req: Request) {
     }
 
     if (service.type === "PLATFORM") {
+      // YouTube Premium kimi paketlər üçün müştəri Gmail + şifrə təqdim edir.
+      // Digər PLATFORM paketləri (Spotify və s.) bu məlumatlara ehtiyac duymur.
+      const platformMeta = (service.metadata as Record<string, unknown> | null) ?? {};
+      const requiresGmail =
+        String(platformMeta.category ?? "") === "MUSIC" &&
+        String(platformMeta.musicBrand ?? "") === "YOUTUBE_PREMIUM";
+
+      let gmail: string | undefined;
+      let password: string | undefined;
+      if (requiresGmail) {
+        const parsed = parseStreamingBody(p.streaming);
+        if (!parsed.ok) {
+          return NextResponse.json({ error: parsed.error }, { status: 400 });
+        }
+        if (!parsed.value.password) {
+          return NextResponse.json(
+            { error: "YouTube paketi üçün hesab şifrəsi tələb olunur." },
+            { status: 400 }
+          );
+        }
+        gmail = parsed.value.gmail;
+        password = parsed.value.password;
+      }
+
       lines.push({
         kind: "PLATFORM",
         service,
@@ -379,6 +413,8 @@ export async function POST(req: Request) {
         unitListCents: service.priceAznCents,
         unitCostCents: service.priceAznCents,
         lineCents: service.priceAznCents * p.qty,
+        gmail,
+        password,
       });
       continue;
     }
@@ -1002,9 +1038,12 @@ export async function POST(req: Request) {
                   fromCart: true,
                   kind: "PLATFORM",
                   category: String(platformMeta.category ?? ""),
+                  musicBrand: String(platformMeta.musicBrand ?? "") || null,
                   durationMonths: Number(platformMeta.durationMonths) || null,
                   paymentSource: payTag,
                   orderCode,
+                  ...(line.gmail ? { gmail: line.gmail } : {}),
+                  ...(line.password ? { customerPassword: line.password } : {}),
                 }),
               },
             });

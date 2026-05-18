@@ -145,7 +145,7 @@ const musicGroup: NavGroup = {
   href: "/music",
   items: [
     { href: "/music", label: "Bütün musiqi paketləri" },
-    { href: "/streaming/youtube", label: "YouTube Premium" },
+    { href: "/music/youtube", label: "YouTube Premium" },
   ],
 };
 

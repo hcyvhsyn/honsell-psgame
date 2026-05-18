@@ -323,6 +323,19 @@ export default function CartView({
       });
       return;
     }
+    const missingYoutubeCreds = items.find(
+      (i) =>
+        i.productType === "PLATFORM" &&
+        i.title.toLowerCase().includes("youtube") &&
+        (!i.streaming?.gmail || !i.streaming?.password)
+    );
+    if (missingYoutubeCreds) {
+      setMessage({
+        kind: "error",
+        text: `${missingYoutubeCreds.title} üçün Gmail ünvanı və şifrə tələb olunur.`,
+      });
+      return;
+    }
     setBusy(true);
     setMessage(null);
     try {
@@ -336,7 +349,8 @@ export default function CartView({
             ...(i.productType === "ACCOUNT_CREATION" && i.accountCreation
               ? { accountCreation: i.accountCreation }
               : {}),
-            ...(i.productType === "STREAMING" && i.streaming
+            ...((i.productType === "STREAMING" || i.productType === "PLATFORM") &&
+            i.streaming
               ? { streaming: i.streaming }
               : {}),
           })),
@@ -827,6 +841,28 @@ function CartLine({
                 <p className="mt-0.5 break-all text-xs font-medium text-zinc-200">
                   {item.streaming.gmail}
                 </p>
+              </div>
+            ) : null}
+            {item.productType === "PLATFORM" && item.streaming?.gmail ? (
+              <div className="mt-2 w-full max-w-md space-y-1.5 rounded-lg border border-red-500/25 bg-red-500/[0.07] px-3 py-2">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-red-300">
+                    YouTube hesabı
+                  </p>
+                  <p className="mt-0.5 break-all text-xs font-medium text-zinc-200">
+                    {item.streaming.gmail}
+                  </p>
+                </div>
+                {item.streaming.password && (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-red-300">
+                      Şifrə
+                    </p>
+                    <p className="mt-0.5 break-all font-mono text-xs font-medium text-zinc-200">
+                      {"•".repeat(Math.min(item.streaming.password.length, 12))}
+                    </p>
+                  </div>
+                )}
               </div>
             ) : null}
             {item.productType === "ACCOUNT_CREATION" ? (

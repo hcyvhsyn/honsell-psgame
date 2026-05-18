@@ -46,7 +46,7 @@ export default function SiteFooter() {
               <li><Link href="/streaming/netflix" className="hover:text-white transition">Netflix</Link></li>
               <li><Link href="/streaming/hbo-max" className="hover:text-white transition">HBO Max</Link></li>
               <li><Link href="/streaming/gain" className="hover:text-white transition">Gain</Link></li>
-              <li><Link href="/streaming/youtube" className="hover:text-white transition">YouTube Premium</Link></li>
+              <li><Link href="/music/youtube" className="hover:text-white transition">YouTube Premium</Link></li>
               <li><Link href="/streaming/icmallar" className="hover:text-white transition">İcmallar</Link></li>
             </ul>
           </div>

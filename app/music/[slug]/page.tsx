@@ -13,10 +13,9 @@ export const revalidate = 1800;
 type Params = { slug: string };
 
 export function generateStaticParams(): Array<Params> {
-  // Yalnız STREAMING kateqoriyalı xidmətlər bu route altında listlənir.
-  // MUSIC kateqoriyalı xidmətlər /music/[slug] altında yaşayır.
+  // Yalnız MUSIC kateqoriyalı xidmətlər (məs. YouTube Premium) bu route altında.
   return STREAMING_SERVICES.filter(
-    (s) => STREAMING_SERVICE_META[s as StreamingService].category === "STREAMING"
+    (s) => STREAMING_SERVICE_META[s as StreamingService].category === "MUSIC"
   ).map((s) => ({ slug: STREAMING_SERVICE_META[s as StreamingService].slug }));
 }
 
@@ -27,9 +26,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const svc = getStreamingServiceBySlug(slug);
-  if (!svc) return { title: "Streaming xidməti tapılmadı" };
-  const title = `${svc.label} — Filmlər və Seriallar | Honsell`;
-  const url = `/streaming/${svc.slug}`;
+  if (!svc) return { title: "Musiqi xidməti tapılmadı" };
+  const title = `${svc.label} — Musiqi Abunəliyi | Honsell`;
+  const url = `/music/${svc.slug}`;
   return {
     title,
     description: svc.description,
@@ -42,7 +41,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function StreamingServicePage({
+export default async function MusicServicePage({
   params,
 }: {
   params: Promise<Params>;
@@ -51,17 +50,16 @@ export default async function StreamingServicePage({
   const svc = getStreamingServiceBySlug(slug);
   if (!svc) notFound();
 
-  // MUSIC kateqoriyalı xidmətlər (YouTube Premium) /music/[slug] altındadır —
-  // köhnə link-lər üçün dərhal yönləndir.
-  if (svc.category === "MUSIC") {
-    redirect(`/music/${svc.slug}`);
+  // STREAMING kateqoriyalı xidmətlər /streaming/[slug] altındadır.
+  if (svc.category !== "MUSIC") {
+    redirect(`/streaming/${svc.slug}`);
   }
 
   return (
     <StreamingServiceDetail
       svc={svc}
-      parent={{ href: "/streaming", label: "Streaming xidmətləri" }}
-      detailHref={`/streaming/${svc.slug}`}
+      parent={{ href: "/music", label: "Musiqi platformaları" }}
+      detailHref={`/music/${svc.slug}`}
     />
   );
 }

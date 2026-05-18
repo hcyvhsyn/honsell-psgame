@@ -27,6 +27,7 @@ import CancelPurchaseButton from "./CancelPurchaseButton";
 import DisableUserButton from "./DisableUserButton";
 import AdminNotesSection from "./AdminNotesSection";
 import QuickActionsBar from "./QuickActionsBar";
+import CopyableField from "@/components/CopyableField";
 import { Ban } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -110,6 +111,26 @@ export default async function AdminUserDetailPage({
     (t) => t.type === "SERVICE_PURCHASE"
   );
   const deposits = user.transactions.filter((t) => t.type === "DEPOSIT");
+
+  function parseYoutubeCreds(meta: string | null): {
+    isYoutube: boolean;
+    gmail?: string;
+    password?: string;
+  } {
+    if (!meta) return { isYoutube: false };
+    try {
+      const m = JSON.parse(meta) as Record<string, unknown>;
+      const isYoutube =
+        m.kind === "PLATFORM" && String(m.musicBrand ?? "") === "YOUTUBE_PREMIUM";
+      return {
+        isYoutube,
+        gmail: typeof m.gmail === "string" ? m.gmail : undefined,
+        password: typeof m.customerPassword === "string" ? m.customerPassword : undefined,
+      };
+    } catch {
+      return { isYoutube: false };
+    }
+  }
 
   function parseAdminAdjust(meta: string | null): {
     field?: string;
@@ -741,11 +762,35 @@ export default async function AdminUserDetailPage({
                         {t.serviceProduct?.type ?? "—"}
                       </span>
                     </Td>
-                    <td
-                      className="max-w-[200px] truncate px-4 py-2 align-top font-mono text-xs text-zinc-300"
-                      title={t.serviceCode?.code ?? t.metadata ?? ""}
-                    >
-                      {t.serviceCode?.code ?? t.metadata ?? "—"}
+                    <td className="min-w-[220px] max-w-[280px] px-4 py-2 align-top text-xs text-zinc-300">
+                      {(() => {
+                        const ytCreds = parseYoutubeCreds(t.metadata);
+                        if (ytCreds.isYoutube && (ytCreds.gmail || ytCreds.password)) {
+                          return (
+                            <div className="space-y-1">
+                              {ytCreds.gmail && (
+                                <CopyableField label="Gmail" value={ytCreds.gmail} />
+                              )}
+                              {ytCreds.password && (
+                                <CopyableField
+                                  label="Şifrə"
+                                  value={ytCreds.password}
+                                  masked
+                                  mono
+                                />
+                              )}
+                            </div>
+                          );
+                        }
+                        return (
+                          <span
+                            className="block max-w-[260px] truncate font-mono"
+                            title={t.serviceCode?.code ?? t.metadata ?? ""}
+                          >
+                            {t.serviceCode?.code ?? t.metadata ?? "—"}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <Td>
                       <StatusBadge status={t.status} />

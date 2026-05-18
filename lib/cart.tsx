@@ -18,9 +18,15 @@ export type AccountCreationCartDetails = {
   password: string;
 };
 
-/** YouTube Premium kimi xidmətlər üçün müştərinin Gmail ünvanı. */
+/**
+ * Gmail-yönlü xidmətlər üçün müştəri məlumatları.
+ *   - YouTube Premium üçün həm `gmail` həm `password` tələb olunur
+ *     (admin müştərinin hesabına abunəliyi qoşur).
+ *   - Digər streaming xidmətlərində (Netflix və s.) yalnız `gmail` istifadə olunur.
+ */
 export type StreamingCartDetails = {
   gmail: string;
+  password?: string;
 };
 
 export type CartItem = {
@@ -204,7 +210,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const updateStreaming = useCallback((id: string, details: StreamingCartDetails) => {
     setItems((prev) =>
       prev.map((i) =>
-        i.id === id && i.productType === "STREAMING" ? { ...i, streaming: details } : i
+        i.id === id && (i.productType === "STREAMING" || i.productType === "PLATFORM")
+          ? { ...i, streaming: details }
+          : i
       )
     );
   }, []);

@@ -50,6 +50,22 @@ export function isValidAiBrand(s: string): s is AiBrand {
   return AI_BRANDS.includes(s as AiBrand);
 }
 
+// Music kateqoriyasında alt-brend tipi. Brand "YOUTUBE_PREMIUM" olduqda paket
+// /music/youtube səhifəsində göstərilir; "GENERIC" olduqda yalnız /music
+// listing-də qalır.
+export type MusicBrand = "GENERIC" | "YOUTUBE_PREMIUM";
+
+export const MUSIC_BRANDS: MusicBrand[] = ["GENERIC", "YOUTUBE_PREMIUM"];
+
+export const MUSIC_BRAND_LABELS: Record<MusicBrand, string> = {
+  GENERIC: "Ümumi (musiqi siyahısı)",
+  YOUTUBE_PREMIUM: "YouTube Premium",
+};
+
+export function isValidMusicBrand(s: string): s is MusicBrand {
+  return MUSIC_BRANDS.includes(s as MusicBrand);
+}
+
 export type PlatformProductMetadata = {
   category: PlatformCategory;
   terms?: string;
@@ -58,6 +74,7 @@ export type PlatformProductMetadata = {
   referralPct?: number;
   referralEnabled: boolean;
   aiBrand?: AiBrand;
+  musicBrand?: MusicBrand;
 };
 
 export function readPlatformMeta(
@@ -69,6 +86,7 @@ export function readPlatformMeta(
   const durationMonths = Number(m.durationMonths);
   const referralPct = Number(m.referralPct);
   const aiBrandRaw = String(m.aiBrand ?? "");
+  const musicBrandRaw = String(m.musicBrand ?? "");
   return {
     category: isValidPlatformCategory(cat) ? cat : "MUSIC",
     terms: typeof m.terms === "string" ? m.terms : undefined,
@@ -79,5 +97,6 @@ export function readPlatformMeta(
       Number.isFinite(referralPct) && referralPct >= 0 ? Math.min(100, referralPct) : undefined,
     referralEnabled: m.referralEnabled !== false,
     aiBrand: isValidAiBrand(aiBrandRaw) ? aiBrandRaw : undefined,
+    musicBrand: isValidMusicBrand(musicBrandRaw) ? musicBrandRaw : undefined,
   };
 }

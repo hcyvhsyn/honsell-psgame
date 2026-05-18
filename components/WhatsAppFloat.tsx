@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const WHATSAPP_MSISDN = "994702560509";
 const WA_HREF = `https://wa.me/${WHATSAPP_MSISDN}`;
 
 export default function WhatsAppFloat() {
+  const pathname = usePathname();
   const [showTooltip, setShowTooltip] = useState(false);
 
   useEffect(() => {
@@ -34,6 +36,8 @@ export default function WhatsAppFloat() {
       clearInterval(interval);
     };
   }, []);
+
+  if (pathname?.startsWith("/admin")) return null;
 
   return (
     <div className="fixed bottom-5 right-5 z-50 flex items-end gap-2 sm:bottom-6 sm:right-6">
