@@ -7,6 +7,8 @@ import AppModals from "@/components/AppModals";
 import FavoritesBootstrap from "@/components/FavoritesBootstrap";
 import FavoriteIntroModal from "@/components/FavoriteIntroModal";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
+import TopLoader from "@/components/TopLoader";
+import { Suspense } from "react";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -104,6 +106,10 @@ export default function RootLayout({
           <div className="absolute -right-[20%] top-[20%] h-[800px] w-[800px] rounded-full bg-[radial-gradient(circle_at_center,rgba(88,28,135,0.15)_0%,transparent_60%)] blur-[100px]" />
           <div className="absolute -bottom-[20%] -left-[10%] h-[600px] w-[600px] rounded-full bg-[radial-gradient(circle_at_center,rgba(88,28,135,0.12)_0%,transparent_60%)] blur-[100px]" />
         </div>
+
+        <Suspense fallback={null}>
+          <TopLoader />
+        </Suspense>
 
         <ModalProvider>
           <FavoritesBootstrap>

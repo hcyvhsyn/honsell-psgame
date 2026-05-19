@@ -19,7 +19,9 @@ export async function GET() {
         take: 120,
         include: {
           user: { select: { id: true, email: true, name: true, phone: true } },
-          game: { select: { id: true, title: true, imageUrl: true, platform: true } },
+          game: {
+            select: { id: true, title: true, imageUrl: true, platform: true, productUrl: true },
+          },
           psnAccount: {
             select: { id: true, label: true, psnEmail: true, psnPassword: true, psModel: true },
           },

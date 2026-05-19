@@ -44,7 +44,13 @@ type PsnAccountSummary = {
 type OrdersPayload = {
   gameOrders: (AnyOrder & {
     user: { id: string; email: string; name: string | null; phone: string | null };
-    game: { id: string; title: string; imageUrl: string | null; platform: string | null } | null;
+    game: {
+      id: string;
+      title: string;
+      imageUrl: string | null;
+      platform: string | null;
+      productUrl: string | null;
+    } | null;
     psnAccount: PsnAccountSummary | null;
   })[];
   psPlusOrders: (AnyOrder & {
@@ -1060,6 +1066,9 @@ function GameOrderCard({
 
       {expanded && (
         <div className="space-y-3 border-t border-zinc-800 bg-zinc-950/50 px-4 py-4">
+          {o.game?.productUrl ? (
+            <CopyableField label="PS Store linki" value={o.game.productUrl} mono />
+          ) : null}
           <PsnDetailsBlock psn={o.psnAccount} />
 
           <div className="flex flex-wrap gap-2">
