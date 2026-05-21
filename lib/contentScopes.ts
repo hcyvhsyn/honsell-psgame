@@ -30,6 +30,7 @@ export const FAQ_SCOPES: ContentScopeOption[] = [
     label: `${STREAMING_SERVICE_LABELS[s] ?? s}`,
     description: `/streaming/${s.toLowerCase().replace("_", "-")}`,
   })),
+  { key: "LINKEDIN_PREMIUM", label: "LinkedIn Premium", description: "/work/linkedin-premium" },
 ];
 
 /** PlatformGuide eyni scope-lardan istifadə edir. */

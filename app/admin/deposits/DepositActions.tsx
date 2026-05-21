@@ -3,19 +3,25 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
+import { useDialog } from "@/lib/dialogs";
 
 export default function DepositActions({ depositId }: { depositId: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const dialog = useDialog();
 
-  function act(action: "approve" | "reject") {
+  async function act(action: "approve" | "reject") {
     if (
-      !confirm(
-        action === "approve"
-          ? "Bu deposit-i təsdiqləmək istəyirsən? Müştərinin balansı artırılacaq."
-          : "Bu deposit-i rədd etmək istəyirsən?"
-      )
+      !(await dialog.confirm({
+        title: action === "approve" ? "Depoziti təsdiqlə?" : "Depoziti rədd et?",
+        message:
+          action === "approve"
+            ? "Müştərinin balansı artırılacaq."
+            : "Bu deposit rədd edilsin?",
+        confirmLabel: action === "approve" ? "Təsdiq et" : "Rədd et",
+        tone: action === "approve" ? "default" : "danger",
+      }))
     )
       return;
 

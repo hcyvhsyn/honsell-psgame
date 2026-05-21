@@ -36,8 +36,10 @@ function parse(sp: RawSearchParams) {
   const role = ["admin", "user"].includes(roleRaw) ? roleRaw : "";
   const hasOrdersRaw = pickStr(sp.hasOrders);
   const hasOrders = ["yes", "no"].includes(hasOrdersRaw) ? hasOrdersRaw : "";
-  const walletMin = Number(pickStr(sp.walletMin));
-  const walletMax = Number(pickStr(sp.walletMax));
+  const walletMinStr = pickStr(sp.walletMin).trim();
+  const walletMaxStr = pickStr(sp.walletMax).trim();
+  const walletMin = walletMinStr === "" ? NaN : Number(walletMinStr);
+  const walletMax = walletMaxStr === "" ? NaN : Number(walletMaxStr);
   const fromStr = pickStr(sp.from);
   const toStr = pickStr(sp.to);
   const from = fromStr ? new Date(fromStr) : null;

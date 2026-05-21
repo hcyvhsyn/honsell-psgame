@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, ShieldOff } from "lucide-react";
+import { useDialog } from "@/lib/dialogs";
 
 export default function RoleToggle({
   userId,
@@ -14,18 +15,21 @@ export default function RoleToggle({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const dialog = useDialog();
 
   const isAdmin = role === "ADMIN";
   const next = isAdmin ? "USER" : "ADMIN";
 
-  function toggle() {
+  async function toggle() {
     setError(null);
     if (
-      !confirm(
-        isAdmin
+      !(await dialog.confirm({
+        title: isAdmin
           ? "Demote this user from admin?"
-          : "Promote this user to admin?"
-      )
+          : "Promote this user to admin?",
+        confirmLabel: isAdmin ? "Demote" : "Promote",
+        tone: isAdmin ? "danger" : "default",
+      }))
     )
       return;
 

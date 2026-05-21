@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Plus, Edit2, Upload, X, Trash2 } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { useDialog } from "@/lib/dialogs";
 
 type ServiceProduct = {
   id: string;
@@ -54,6 +55,7 @@ function readMeta(p: ServiceProduct) {
 }
 
 export default function StreamingAdminClient() {
+  const dialog = useDialog();
   const [products, setProducts] = useState<ServiceProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -144,11 +146,11 @@ export default function StreamingAdminClient() {
 
   async function uploadImageFile(file: File): Promise<string | null> {
     if (!file.type.startsWith("image/")) {
-      alert("Yalnız şəkil faylı yükləyə bilərsiniz");
+      await dialog.alert({ title: "Yanlış fayl tipi", message: "Yalnız şəkil faylı yükləyə bilərsiniz", tone: "warning" });
       return null;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert("Fayl çox böyükdür (max 5 MB)");
+      await dialog.alert({ title: "Fayl ölçüsü çox böyükdür", message: "Fayl çox böyükdür (max 5 MB)", tone: "warning" });
       return null;
     }
 
@@ -159,7 +161,7 @@ export default function StreamingAdminClient() {
     });
     const initData = await init.json();
     if (!init.ok) {
-      alert(initData.error ?? "Upload hazırlanmadı");
+      await dialog.alert({ title: "Upload hazırlanmadı", message: initData.error ?? "Upload hazırlanmadı", tone: "danger" });
       return null;
     }
 
@@ -168,7 +170,7 @@ export default function StreamingAdminClient() {
       .from(initData.bucket)
       .uploadToSignedUrl(initData.path, initData.token, file);
     if (upErr) {
-      alert(`Upload alınmadı: ${upErr.message}`);
+      await dialog.alert({ title: "Upload alınmadı", message: upErr.message, tone: "danger" });
       return null;
     }
 
@@ -187,7 +189,7 @@ export default function StreamingAdminClient() {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(`Şəkil yadda saxlanmadı: ${data.error ?? res.status}`);
+      await dialog.alert({ title: "Şəkil yadda saxlanmadı", message: String(data.error ?? res.status), tone: "danger" });
       return false;
     }
     await load();
@@ -206,7 +208,15 @@ export default function StreamingAdminClient() {
   }
 
   async function clearServiceImage(service: string) {
-    if (!confirm(`${serviceLabel(service)} üçün platforma şəklini silmək istəyirsən?`)) return;
+    if (
+      !(await dialog.confirm({
+        title: "Platforma şəklini sil?",
+        message: <p>«{serviceLabel(service)}» üçün platforma şəkli silinsin?</p>,
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     setUploadingServiceImage(service);
     try {
       await saveServiceImage(service, "");
@@ -233,7 +243,7 @@ export default function StreamingAdminClient() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(`Platforma məlumatı yadda saxlanmadı: ${data.error ?? res.status}`);
+        await dialog.alert({ title: "Platforma məlumatı yadda saxlanmadı", message: String(data.error ?? res.status), tone: "danger" });
         return false;
       }
       await load();
@@ -310,7 +320,15 @@ export default function StreamingAdminClient() {
   }
 
   async function deleteProduct(p: ServiceProduct) {
-    if (!confirm(`"${p.title}" məhsulunu silmək istədiyinə əminsən?`)) return;
+    if (
+      !(await dialog.confirm({
+        title: "Məhsulu sil?",
+        message: <p>«{p.title}» məhsulu silinsin?</p>,
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     const res = await fetch("/api/admin/streaming", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -318,7 +336,7 @@ export default function StreamingAdminClient() {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(`Silinmədi: ${data.error ?? res.status}`);
+      await dialog.alert({ title: "Silinmədi", message: String(data.error ?? res.status), tone: "danger" });
       return;
     }
     load();

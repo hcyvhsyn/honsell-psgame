@@ -16,6 +16,7 @@ import {
   UserCircle2,
 } from "lucide-react";
 import { REVIEW_COMMENT_BODY_MAX } from "@/lib/reviewAffiliateConstants";
+import { useDialog } from "@/lib/dialogs";
 
 export type ReviewCardData = {
   id: string;
@@ -57,6 +58,7 @@ type Props = {
 };
 
 export default function ReviewCard({ review, game, currentUserId }: Props) {
+  const dialog = useDialog();
   const [likes, setLikes] = useState(review.likes);
   const [dislikes, setDislikes] = useState(review.dislikes);
   const [myReaction, setMyReaction] = useState(review.myReaction);
@@ -146,7 +148,15 @@ export default function ReviewCard({ review, game, currentUserId }: Props) {
   }
 
   async function deleteComment(id: string) {
-    if (!confirm("Yorumu silmək istəyirsiniz?")) return;
+    if (
+      !(await dialog.confirm({
+        title: "Yorumu sil?",
+        message: "Bu yorum silinəcək.",
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     const res = await fetch(`/api/game-reviews/${review.id}/comments/${id}`, {
       method: "DELETE",
     });

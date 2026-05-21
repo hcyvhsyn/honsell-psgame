@@ -9,9 +9,12 @@ import {
   AI_BRAND_LABELS,
   MUSIC_BRANDS,
   MUSIC_BRAND_LABELS,
+  WORK_PLAN_TYPES,
+  WORK_PLAN_TYPE_LABELS,
   readPlatformMeta,
   type PlatformCategory,
 } from "@/lib/platformSubscriptions";
+import { useDialog } from "@/lib/dialogs";
 
 type Product = {
   id: string;
@@ -26,6 +29,7 @@ type Product = {
 };
 
 export default function PlatformAdminClient({ category }: { category: PlatformCategory }) {
+  const dialog = useDialog();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | "NEW" | null>(null);
@@ -62,6 +66,8 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
       terms: m.terms ?? "",
       aiBrand: m.aiBrand ?? (category === "AI" ? "CLAUDE" : ""),
       musicBrand: m.musicBrand ?? (category === "MUSIC" ? "GENERIC" : ""),
+      planType: m.planType ?? "",
+      isPopular: Boolean(m.isPopular),
     });
   }
 
@@ -80,16 +86,18 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
       terms: "",
       aiBrand: category === "AI" ? "CLAUDE" : "",
       musicBrand: category === "MUSIC" ? "GENERIC" : "",
+      planType: "",
+      isPopular: false,
     });
   }
 
   async function handleImageUpload(file: File) {
     if (!file.type.startsWith("image/")) {
-      alert("Yalnız şəkil faylı yükləyə bilərsiniz");
+      await dialog.alert({ title: "Yanlış fayl tipi", message: "Yalnız şəkil faylı yükləyə bilərsiniz", tone: "warning" });
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert("Fayl çox böyükdür (max 5 MB)");
+      await dialog.alert({ title: "Fayl ölçüsü çox böyükdür", message: "Fayl çox böyükdür (max 5 MB)", tone: "warning" });
       return;
     }
     setUploadingImage(true);
@@ -101,7 +109,7 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
       });
       const initData = await init.json();
       if (!init.ok) {
-        alert(initData.error ?? "Upload hazırlanmadı");
+        await dialog.alert({ title: "Upload hazırlanmadı", message: initData.error ?? "Upload hazırlanmadı", tone: "danger" });
         return;
       }
       const supabase = getSupabaseBrowser();
@@ -109,7 +117,7 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
         .from(initData.bucket)
         .uploadToSignedUrl(initData.path, initData.token, file);
       if (upErr) {
-        alert(`Upload alınmadı: ${upErr.message}`);
+        await dialog.alert({ title: "Upload alınmadı", message: upErr.message, tone: "danger" });
         return;
       }
       setEditForm((prev) => ({ ...prev, imageUrl: initData.publicUrl }));
@@ -150,6 +158,8 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
           terms: String(editForm.terms ?? ""),
           aiBrand: category === "AI" ? String(editForm.aiBrand ?? "") : undefined,
           musicBrand: category === "MUSIC" ? String(editForm.musicBrand ?? "") : undefined,
+          planType: category === "WORK" ? String(editForm.planType ?? "") : undefined,
+          isPopular: category === "WORK" ? Boolean(editForm.isPopular) : undefined,
         }),
       });
       if (!res.ok) {
@@ -165,7 +175,15 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
   }
 
   async function deleteProduct(p: Product) {
-    if (!confirm(`"${p.title}" məhsulunu silmək istədiyinə əminsən?`)) return;
+    if (
+      !(await dialog.confirm({
+        title: "Məhsulu sil?",
+        message: <p>«{p.title}» məhsulu silinsin?</p>,
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     const res = await fetch("/api/admin/platforms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -173,7 +191,7 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(`Silinmədi: ${data.error ?? res.status}`);
+      await dialog.alert({ title: "Silinmədi", message: String(data.error ?? res.status), tone: "danger" });
       return;
     }
     load();
@@ -206,6 +224,9 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
               {(category === "AI" || category === "MUSIC") && (
                 <th className="px-5 py-4 font-medium">Brend</th>
               )}
+              {category === "WORK" && (
+                <th className="px-5 py-4 font-medium">Plan</th>
+              )}
               <th className="px-5 py-4 font-medium">Qiymət</th>
               <th className="px-5 py-4 font-medium">Müddət</th>
               <th className="px-5 py-4 font-medium">Status</th>
@@ -234,6 +255,20 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
                 {category === "MUSIC" && (
                   <td className="px-5 py-4 text-zinc-300">
                     {meta.musicBrand ? MUSIC_BRAND_LABELS[meta.musicBrand] : "Ümumi"}
+                  </td>
+                )}
+                {category === "WORK" && (
+                  <td className="px-5 py-4 text-zinc-300">
+                    <div className="flex items-center gap-2">
+                      <span>
+                        {meta.planType ? WORK_PLAN_TYPE_LABELS[meta.planType] : "—"}
+                      </span>
+                      {meta.isPopular && (
+                        <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-300">
+                          Populyar
+                        </span>
+                      )}
+                    </div>
                   </td>
                 )}
                 <td className="px-5 py-4 tabular-nums">{(p.priceAznCents / 100).toFixed(2)} AZN</td>
@@ -320,6 +355,36 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
                     &laquo;Ümumi&raquo; seçimi /music əsas siyahısında qalır (Spotify, Apple Music və s.).
                   </p>
                 </label>
+              )}
+
+              {category === "WORK" && (
+                <>
+                  <label className="block text-sm">
+                    Plan tipi (LinkedIn Premium üçün)
+                    <select
+                      className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
+                      value={String(editForm.planType || "")}
+                      onChange={(e) => setEditForm({ ...editForm, planType: e.target.value })}
+                    >
+                      <option value="">— Seçilməyib (digər iş alətləri) —</option>
+                      {WORK_PLAN_TYPES.map((t) => (
+                        <option key={t} value={t}>{WORK_PLAN_TYPE_LABELS[t]}</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-[11px] text-zinc-500">
+                      Career / Business seçilirsə paket /work/linkedin-premium səhifəsində uyğun
+                      qrupda görünür. Boş qalırsa yalnız /work əsas siyahısında qalır.
+                    </p>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(editForm.isPopular)}
+                      onChange={(e) => setEditForm({ ...editForm, isPopular: e.target.checked })}
+                    />
+                    Populyar — &laquo;Populyar&raquo; rozetkası ilə qabardılır
+                  </label>
+                </>
               )}
 
               <label className="block text-sm">

@@ -1,18 +1,48 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await requireAdmin();
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [gameOrders, psPlusOrders, eaPlayOrders, giftCardOrders, accountCreationOrders, streamingPlatformOrders] =
-    await Promise.all([
+  const statusParam = (req.nextUrl.searchParams.get("status") ?? "").toUpperCase();
+
+  if (statusParam === "FAILED") {
+    const cancelled = await prisma.transaction.findMany({
+      where: {
+        status: "FAILED",
+        OR: [
+          { type: "PURCHASE", gameId: { not: null } },
+          { type: "SERVICE_PURCHASE" },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      include: {
+        user: { select: { id: true, email: true, name: true, phone: true } },
+        game: { select: { id: true, title: true, imageUrl: true, platform: true } },
+        serviceProduct: { select: { id: true, title: true, type: true, metadata: true } },
+      },
+    });
+
+    return NextResponse.json({ cancelledOrders: cancelled });
+  }
+
+  const [
+    gameOrders,
+    psPlusOrders,
+    eaPlayOrders,
+    giftCardOrders,
+    accountCreationOrders,
+    streamingPlatformOrders,
+    honsellOrders,
+  ] = await Promise.all([
       prisma.transaction.findMany({
         where: { type: "PURCHASE", status: "PENDING", gameId: { not: null } },
         orderBy: { createdAt: "desc" },
@@ -99,6 +129,19 @@ export async function GET() {
           serviceProduct: { select: { id: true, title: true, type: true, metadata: true } },
         },
       }),
+      prisma.honsellGiftCard.findMany({
+        where: { status: "PENDING" },
+        orderBy: { purchasedAt: "desc" },
+        take: 200,
+        select: {
+          id: true,
+          amountAznCents: true,
+          purchasedAt: true,
+          expiresAt: true,
+          purchaseTransactionId: true,
+          purchasedBy: { select: { id: true, email: true, name: true, phone: true } },
+        },
+      }),
     ]);
 
   const streamingOrders = streamingPlatformOrders.filter(
@@ -130,5 +173,6 @@ export async function GET() {
     aiOrders,
     musicOrders,
     workOrders,
+    honsellOrders,
   });
 }

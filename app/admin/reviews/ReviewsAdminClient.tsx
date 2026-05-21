@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Check, EyeOff, Loader2, Star, X } from "lucide-react";
+import { useDialog } from "@/lib/dialogs";
 
 type AdminReview = {
   id: string;
@@ -46,6 +47,7 @@ export default function ReviewsAdminClient({
 }: {
   initialCounts: Record<string, number>;
 }) {
+  const dialog = useDialog();
   const [filter, setFilter] = useState<StatusFilter>("PENDING");
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +88,11 @@ export default function ReviewsAdminClient({
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(json?.error ?? `Xəta: HTTP ${res.status}`);
+        await dialog.alert({
+          title: "Əməliyyat alınmadı",
+          message: json?.error ?? `Xəta: HTTP ${res.status}`,
+          tone: "danger",
+        });
         return;
       }
       // Lokal siyahı və sayğacları yenilə.

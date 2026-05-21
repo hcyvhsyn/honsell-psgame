@@ -23,9 +23,9 @@ const NAV_GROUPS: NavGroupSpec[] = [
     items: [
       { href: "/admin", label: "Dashboard", iconName: "LayoutDashboard" },
       { href: "/admin/users", label: "İstifadəçilər", iconName: "Users" },
-      { href: "/admin/deposits", label: "Ödəniş Tələbləri", iconName: "Wallet", badgeKey: "pendingDeposits" },
+      { href: "/admin/orders", label: "Sifarişlər", iconName: "ClipboardList", badgeKey: "pendingAllOrders" },
       { href: "/admin/transactions", label: "Tranzaksiyalar", iconName: "Receipt" },
-      { href: "/admin/orders", label: "Sifarişlər", iconName: "Receipt", badgeKey: "pendingAllOrders" },
+      { href: "/admin/deposits", label: "Ödəniş Tələbləri", iconName: "Wallet", badgeKey: "pendingDeposits" },
       { href: "/admin/referrals", label: "Referal faizləri", iconName: "Percent" },
       { href: "/admin/settings", label: "Tənzimləmələr", iconName: "SettingsIcon" },
     ],
@@ -57,7 +57,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
     ],
   },
   {
-    label: "Yayım Platformaları",
+    label: "Yayım",
     iconName: "Tv",
     items: [
       { href: "/admin/streaming", label: "Abunəliklər", iconName: "Tv" },
@@ -67,24 +67,34 @@ const NAV_GROUPS: NavGroupSpec[] = [
     ],
   },
   {
-    label: "Musiqi Platformaları",
-    iconName: "Music",
+    label: "Digər Platformalar",
+    iconName: "LayoutGrid",
     items: [
-      { href: "/admin/music", label: "Abunəliklər", iconName: "Music" },
+      { href: "/admin/music", label: "Musiqi", iconName: "Music" },
+      { href: "/admin/ai", label: "Süni İntellekt", iconName: "Brain" },
+      { href: "/admin/work", label: "İş Platformaları", iconName: "Briefcase" },
     ],
   },
   {
-    label: "Süni İntellekt",
-    iconName: "Brain",
-    items: [
-      { href: "/admin/ai", label: "Abunəliklər", iconName: "Brain" },
-    ],
-  },
-  {
-    label: "İş Platformaları",
+    label: "Xidmətlər",
     iconName: "Briefcase",
     items: [
-      { href: "/admin/work", label: "Abunəliklər", iconName: "Briefcase" },
+      {
+        href: "/admin/website-applications",
+        label: "Website Müraciətləri",
+        iconName: "ClipboardList",
+        badgeKey: "newWebsiteApplications",
+      },
+      {
+        href: "/admin/website-add-ons",
+        label: "Website Add-on-lar",
+        iconName: "LayoutGrid",
+      },
+      {
+        href: "/admin/website-pricing-config",
+        label: "Website Qiymət Konfiqurasiyası",
+        iconName: "SettingsIcon",
+      },
     ],
   },
 ];
@@ -122,12 +132,17 @@ export default async function AdminLayout({
     where: { status: "PENDING" },
   });
 
+  const newWebsiteApplications = await prisma.websiteServiceApplication
+    .count({ where: { status: "NEW" } })
+    .catch(() => 0);
+
   const badges = {
     pendingDeposits,
     pendingGameOrders,
     pendingAllOrders: pendingGameOrders + pendingServiceOrders,
     expiringSubs,
     pendingReviews,
+    newWebsiteApplications,
   } as const;
 
   return (

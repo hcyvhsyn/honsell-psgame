@@ -144,9 +144,9 @@ export default function YoutubePlanPicker({ products }: Props) {
       imageUrl: selected.imageUrl ?? "/youtube.png",
       finalAzn: selected.priceAznCents / 100,
       productType: "PLATFORM",
-      streaming: { gmail: cleanGmail, password },
+      streaming: { gmail: cleanGmail, password, platformKind: "YOUTUBE" },
     });
-    cart.updateStreaming(selected.id, { gmail: cleanGmail, password });
+    cart.updateStreaming(selected.id, { gmail: cleanGmail, password, platformKind: "YOUTUBE" });
     setJustAdded(selected.id);
     closeModal();
     setTimeout(() => setJustAdded((prev) => (prev === selected.id ? null : prev)), 2000);
@@ -155,7 +155,7 @@ export default function YoutubePlanPicker({ products }: Props) {
 
   return (
     <>
-      <section className="relative overflow-hidden bg-[#05070b] text-zinc-100">
+      <section className="relative overflow-hidden bg-zinc-50 text-zinc-900 dark:bg-[#05070b] dark:text-zinc-100">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_14%_6%,rgba(239,68,68,0.18),transparent_30%),radial-gradient(circle_at_82%_0%,rgba(244,63,94,0.18),transparent_32%),linear-gradient(180deg,rgba(127,29,29,0.16),transparent_58%)]" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.014)_1px,transparent_1px)] bg-[size:54px_54px] opacity-40" />
 
@@ -163,7 +163,7 @@ export default function YoutubePlanPicker({ products }: Props) {
           <Hero />
 
           {products.length === 0 ? (
-            <div className="mt-8 rounded-[8px] border border-dashed border-red-400/25 bg-white/[0.035] p-8 text-center text-sm text-zinc-400">
+            <div className="mt-8 rounded-[8px] border border-dashed border-red-300 bg-white/75 p-8 text-center text-sm text-zinc-600 dark:border-red-400/25 dark:bg-white/[0.035] dark:text-zinc-400">
               YouTube Premium üçün aktiv paket yoxdur.
             </div>
           ) : (
@@ -210,7 +210,7 @@ export default function YoutubePlanPicker({ products }: Props) {
 
 function Hero() {
   return (
-    <header className="relative overflow-hidden rounded-[8px] border border-red-400/25 bg-[radial-gradient(circle_at_91%_24%,rgba(239,68,68,0.32),transparent_22%),linear-gradient(115deg,rgba(127,29,29,0.56),rgba(7,10,15,0.96)_32%,rgba(8,12,18,0.96)_67%,rgba(127,29,29,0.42))] px-5 py-10 text-center shadow-[0_24px_90px_-58px_rgba(239,68,68,0.85)] sm:px-8 sm:py-12">
+    <header className="relative overflow-hidden rounded-[8px] border border-red-200 bg-[radial-gradient(circle_at_91%_24%,rgba(239,68,68,0.18),transparent_24%),linear-gradient(115deg,rgba(255,241,242,0.98),rgba(255,255,255,0.98)_35%,rgba(254,242,242,0.96)_70%,rgba(255,228,230,0.9))] px-5 py-10 text-center shadow-[0_24px_90px_-68px_rgba(239,68,68,0.42)] dark:border-red-400/25 dark:bg-[radial-gradient(circle_at_91%_24%,rgba(239,68,68,0.32),transparent_22%),linear-gradient(115deg,rgba(127,29,29,0.56),rgba(7,10,15,0.96)_32%,rgba(8,12,18,0.96)_67%,rgba(127,29,29,0.42))] dark:shadow-[0_24px_90px_-58px_rgba(239,68,68,0.85)] sm:px-8 sm:py-12">
       <div className="pointer-events-none absolute right-[-1.5rem] top-[-2.5rem] h-40 w-64 rotate-12 rounded-[32px] bg-red-500/15 shadow-[inset_0_0_55px_rgba(248,113,113,0.18)] sm:h-52 sm:w-80" />
       <div className="pointer-events-none absolute right-14 top-16 hidden h-0 w-0 border-y-[24px] border-l-[38px] border-y-transparent border-l-red-200/10 lg:block" />
       <div className="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-gradient-to-r from-transparent via-red-300/25 to-transparent" />
@@ -227,17 +227,17 @@ function Hero() {
           />
         </div>
 
-        <h1 className="mt-3 text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+        <h1 className="mt-3 text-4xl font-black leading-tight tracking-tight text-zinc-950 dark:text-white sm:text-5xl lg:text-6xl">
           YouTube Premium{" "}
           <span className="bg-gradient-to-r from-red-300 via-rose-400 to-red-500 bg-clip-text text-transparent">
             paketləri
           </span>
         </h1>
-        <p className="mt-4 max-w-3xl text-base text-zinc-300 sm:text-lg">
+        <p className="mt-4 max-w-3xl text-base text-zinc-600 dark:text-zinc-300 sm:text-lg">
           Müddətini seç, sifarişdən sonra hesab məlumatları emailinə göndəriləcək.
         </p>
 
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-zinc-300">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-zinc-700 dark:text-zinc-300">
           <HeroBenefit icon={<PlayCircle className="h-4 w-4" />} label="Reklamsız videolar" />
           <HeroBenefit icon={<Download className="h-4 w-4" />} label="Offline izləmə" />
           <HeroBenefit icon={<PlayCircle className="h-4 w-4" />} label="YouTube Music Premium" />
@@ -272,10 +272,10 @@ function PlanCard({
 
   return (
     <li
-      className={`group relative flex min-h-[30rem] flex-col overflow-visible rounded-[8px] border bg-[linear-gradient(180deg,rgba(127,29,29,0.56),rgba(7,11,16,0.98)_34%,rgba(6,10,15,0.98))] p-5 shadow-[0_26px_70px_-50px_rgba(239,68,68,0.8)] transition duration-200 hover:-translate-y-1 ${
+      className={`group relative flex min-h-[30rem] flex-col overflow-visible rounded-[8px] border bg-[linear-gradient(180deg,rgba(254,226,226,0.95),rgba(255,255,255,0.98)_34%,rgba(255,255,255,0.98))] p-5 shadow-[0_26px_70px_-58px_rgba(239,68,68,0.42)] transition duration-200 hover:-translate-y-1 dark:bg-[linear-gradient(180deg,rgba(127,29,29,0.56),rgba(7,11,16,0.98)_34%,rgba(6,10,15,0.98))] dark:shadow-[0_26px_70px_-50px_rgba(239,68,68,0.8)] ${
         isBest
-          ? "border-red-400/80 shadow-[0_0_0_1px_rgba(248,113,113,0.25),0_26px_80px_-42px_rgba(244,63,94,0.95)]"
-          : "border-white/10 hover:border-red-400/45"
+          ? "border-red-400/80 shadow-[0_0_0_1px_rgba(248,113,113,0.22),0_26px_80px_-48px_rgba(244,63,94,0.62)] dark:shadow-[0_0_0_1px_rgba(248,113,113,0.25),0_26px_80px_-42px_rgba(244,63,94,0.95)]"
+          : "border-red-200 hover:border-red-400/45 dark:border-white/10"
       }`}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[8px]">
@@ -289,7 +289,7 @@ function PlanCard({
             <Star className="h-4 w-4 fill-white" />
             Ən sərfəli
           </div>
-          <div className="absolute -bottom-4 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-[8px] border border-red-400/35 bg-red-950/90 px-4 py-2 text-xs font-medium text-red-100 shadow-[0_14px_36px_-20px_rgba(244,63,94,1)]">
+          <div className="absolute -bottom-4 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-[8px] border border-red-300 bg-white/95 px-4 py-2 text-xs font-medium text-red-700 shadow-[0_14px_36px_-24px_rgba(244,63,94,0.55)] dark:border-red-400/35 dark:bg-red-950/90 dark:text-red-100 dark:shadow-[0_14px_36px_-20px_rgba(244,63,94,1)]">
             <Flame className="h-4 w-4 fill-red-300 text-red-300" />
             Ən çox seçilən plan
           </div>
@@ -313,14 +313,14 @@ function PlanCard({
           />
         </div>
 
-        <div className="mx-auto mt-8 grid h-24 w-24 place-items-center rounded-[8px] border border-red-300/25 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <div className="mx-auto mt-8 grid h-24 w-24 place-items-center rounded-[8px] border border-red-200 bg-red-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:border-red-300/25 dark:bg-black/25 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
           <CalendarDays className="h-10 w-10 text-red-300" strokeWidth={1.8} />
-          <span className="text-2xl font-black text-white">
+          <span className="text-2xl font-black text-zinc-950 dark:text-white">
             {durationMonths ? `${durationMonths} ay` : "Plan"}
           </span>
         </div>
 
-        <h3 className="mt-5 text-center text-lg font-black leading-snug text-white">
+        <h3 className="mt-5 text-center text-lg font-black leading-snug text-zinc-950 dark:text-white">
           YouTube Premium &<br /> YouTube Music
         </h3>
 
@@ -332,7 +332,7 @@ function PlanCard({
           )}
           <div
             className={`text-4xl font-black tracking-tight ${
-              isBest ? "text-red-300" : "text-white"
+              isBest ? "text-red-600 dark:text-red-300" : "text-zinc-950 dark:text-white"
             }`}
           >
             {fmtAzn(product.priceAznCents).replace(" AZN", "")}{" "}
@@ -342,7 +342,7 @@ function PlanCard({
 
         <div className="mt-5 h-px bg-gradient-to-r from-transparent via-red-400/15 to-transparent" />
 
-        <ul className="mt-4 space-y-2.5 text-sm text-zinc-300">
+        <ul className="mt-4 space-y-2.5 text-sm text-zinc-700 dark:text-zinc-300">
           {BENEFITS.map((benefit) => (
             <li key={benefit} className="flex items-center gap-2">
               <CircleCheck className="h-4 w-4 shrink-0 text-red-400" />
@@ -387,7 +387,7 @@ function PlanCard({
 
 function TrustBar() {
   return (
-    <div className="mx-auto mt-12 flex max-w-4xl flex-wrap items-center justify-center gap-x-6 gap-y-3 rounded-full border border-white/10 bg-white/[0.035] px-6 py-3 text-sm text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <div className="mx-auto mt-12 flex max-w-4xl flex-wrap items-center justify-center gap-x-6 gap-y-3 rounded-full border border-zinc-200 bg-white/80 px-6 py-3 text-sm text-zinc-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
       <span className="inline-flex items-center gap-2">
         <ShieldCheck className="h-5 w-5 text-rose-400" />
         100% təhlükəsiz ödəniş
@@ -433,13 +433,13 @@ function CredentialsModal({
       <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-lg overflow-hidden rounded-[10px] border border-red-400/25 bg-[#080b10] p-6 text-zinc-100 shadow-[0_28px_90px_-42px_rgba(239,68,68,0.75)]"
+        className="relative w-full max-w-lg overflow-hidden rounded-[10px] border border-red-200 bg-white p-6 text-zinc-900 shadow-[0_28px_90px_-52px_rgba(239,68,68,0.48)] dark:border-red-400/25 dark:bg-[#080b10] dark:text-zinc-100 dark:shadow-[0_28px_90px_-42px_rgba(239,68,68,0.75)]"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_50%_0%,rgba(239,68,68,0.28),transparent_65%)]" />
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-[8px] border border-white/10 bg-white/[0.04] text-zinc-500 transition hover:bg-white/[0.08] hover:text-zinc-200"
+          className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-[8px] border border-zinc-200 bg-zinc-50 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] dark:hover:text-zinc-200"
           aria-label="Bağla"
         >
           <X className="h-5 w-5" />
@@ -459,8 +459,8 @@ function CredentialsModal({
                 className="object-contain object-left"
               />
             </div>
-            <h3 className="mt-3 text-xl font-black text-white">{title}</h3>
-            <p className="mt-1 text-sm leading-relaxed text-zinc-400">
+            <h3 className="mt-3 text-xl font-black text-zinc-950 dark:text-white">{title}</h3>
+            <p className="mt-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
               Abunəliyi qoşmaq üçün Gmail hesabının email və şifrəsini daxil et.
               Məlumatlar yalnız Premium aktivləşdirməsi üçün istifadə olunur.
             </p>
@@ -469,7 +469,7 @@ function CredentialsModal({
 
         <div className="relative mt-6 space-y-3">
           <label className="block text-sm">
-            <span className="font-medium text-zinc-300">Gmail ünvanı</span>
+            <span className="font-medium text-zinc-700 dark:text-zinc-300">Gmail ünvanı</span>
             <div className="relative mt-1.5">
               <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-red-300" />
               <input
@@ -478,13 +478,13 @@ function CredentialsModal({
                 value={gmail}
                 onChange={(e) => onGmailChange(e.target.value)}
                 placeholder="seninhesabin@gmail.com"
-                className="h-12 w-full rounded-[8px] border border-white/10 bg-black/25 pl-12 pr-4 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-red-300/55"
+                className="h-12 w-full rounded-[8px] border border-zinc-200 bg-zinc-50 pl-12 pr-4 text-sm text-zinc-950 outline-none placeholder:text-zinc-400 focus:border-red-400/60 focus:bg-white dark:border-white/10 dark:bg-black/25 dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:border-red-300/55"
               />
             </div>
           </label>
 
           <label className="block text-sm">
-            <span className="font-medium text-zinc-300">Şifrə</span>
+            <span className="font-medium text-zinc-700 dark:text-zinc-300">Şifrə</span>
             <div className="relative mt-1.5">
               <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-red-300" />
               <input
@@ -493,12 +493,12 @@ function CredentialsModal({
                 value={password}
                 onChange={(e) => onPasswordChange(e.target.value)}
                 placeholder="Gmail şifrəsi"
-                className="h-12 w-full rounded-[8px] border border-white/10 bg-black/25 pl-12 pr-12 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-red-300/55"
+                className="h-12 w-full rounded-[8px] border border-zinc-200 bg-zinc-50 pl-12 pr-12 text-sm text-zinc-950 outline-none placeholder:text-zinc-400 focus:border-red-400/60 focus:bg-white dark:border-white/10 dark:bg-black/25 dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:border-red-300/55"
               />
               <button
                 type="button"
                 onClick={() => onShowPasswordChange(!showPassword)}
-                className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[7px] text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200"
+                className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[7px] text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
                 aria-label={showPassword ? "Şifrəni gizlət" : "Şifrəni göstər"}
               >
                 {showPassword ? (
@@ -512,7 +512,7 @@ function CredentialsModal({
         </div>
 
         {error && (
-          <div className="relative mt-3 rounded-[8px] border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+          <div className="relative mt-3 rounded-[8px] border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200">
             {error}
           </div>
         )}
@@ -521,7 +521,7 @@ function CredentialsModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-[8px] border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.08]"
+            className="rounded-[8px] border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
           >
             İmtina
           </button>

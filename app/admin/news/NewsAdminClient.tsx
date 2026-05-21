@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { NEWS_SCOPES } from "@/lib/contentScopes";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { useDialog } from "@/lib/dialogs";
 
 type NewsItem = {
   id: string;
@@ -75,6 +76,7 @@ type View =
   | { kind: "home" };
 
 export default function NewsAdminClient() {
+  const dialog = useDialog();
   const [view, setView] = useState<View>({ kind: "scope", scope: "PLAYSTATION" });
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,11 +132,11 @@ export default function NewsAdminClient() {
 
   async function uploadCover(file: File) {
     if (!file.type.startsWith("image/")) {
-      alert("Yalnız şəkil faylı");
+      await dialog.alert({ title: "Yanlış fayl tipi", message: "Yalnız şəkil faylı", tone: "warning" });
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      alert("Fayl çox böyükdür (max 10 MB)");
+      await dialog.alert({ title: "Fayl ölçüsü çox böyükdür", message: "Fayl çox böyükdür (max 10 MB)", tone: "warning" });
       return;
     }
     setUploading(true);
@@ -146,7 +148,7 @@ export default function NewsAdminClient() {
       });
       const initData = await init.json();
       if (!init.ok) {
-        alert(initData.error ?? "Upload hazırlanmadı");
+        await dialog.alert({ title: "Upload hazırlanmadı", message: initData.error ?? "Upload hazırlanmadı", tone: "danger" });
         return;
       }
       const supabase = getSupabaseBrowser();
@@ -154,7 +156,7 @@ export default function NewsAdminClient() {
         .from(initData.bucket)
         .uploadToSignedUrl(initData.path, initData.token, file);
       if (upErr) {
-        alert(`Upload alınmadı: ${upErr.message}`);
+        await dialog.alert({ title: "Upload alınmadı", message: upErr.message, tone: "danger" });
         return;
       }
       setEditForm((prev) => ({ ...prev, coverImageUrl: initData.publicUrl }));
@@ -245,7 +247,14 @@ export default function NewsAdminClient() {
   }
 
   async function deleteItem(id: string) {
-    if (!confirm("Bu xəbəri silmək istəyirsən?")) return;
+    if (
+      !(await dialog.confirm({
+        title: "Xəbəri sil?",
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     await fetch("/api/admin/news", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

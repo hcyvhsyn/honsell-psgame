@@ -17,6 +17,7 @@ export default function Logo({
   // SVG intrinsic size: 168 × 29. Keep the ratio when next/image reserves space
   // so the layout doesn't reflow on load.
   const ASPECT = 168 / 29;
+  const logoClassName = ["honsell-logo-img", className].filter(Boolean).join(" ");
   const img = (
     <Image
       src="/honsell-logo.svg"
@@ -24,7 +25,7 @@ export default function Logo({
       height={height}
       width={Math.round(height * ASPECT)}
       priority={priority}
-      className={className}
+      className={logoClassName}
     />
   );
 

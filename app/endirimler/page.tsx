@@ -31,7 +31,6 @@ const getDiscountedGames = unstable_cache(
     return prisma.game.findMany({
       where: {
         isActive: true,
-        productType: "GAME",
         discountTryCents: { not: null },
         // Bitməmiş endirimlər: ya `discountEndAt` boşdur, ya da gələcəkdədir.
         // Stale endirimləri DB səviyyəsində filterləyirik ki, fantom təkliflər
@@ -41,7 +40,7 @@ const getDiscountedGames = unstable_cache(
       orderBy: { lastScrapedAt: "desc" },
     });
   },
-  ["endirimler-page"],
+  ["endirimler-page-v2-all-types"],
   { revalidate: 600, tags: ["games"] }
 );
 

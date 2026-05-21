@@ -7,6 +7,7 @@ import {
   STREAMING_SERVICES,
   type StreamingService,
 } from "@/lib/streamingCart";
+import { useDialog } from "@/lib/dialogs";
 
 type ScopeKey = "OVERVIEW" | StreamingService;
 
@@ -41,6 +42,7 @@ type FeaturedItem = {
 };
 
 export default function StreamingFeaturedAdminClient() {
+  const dialog = useDialog();
   const [activeScope, setActiveScope] = useState<ScopeKey>("OVERVIEW");
   const [items, setItems] = useState<FeaturedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,7 +119,14 @@ export default function StreamingFeaturedAdminClient() {
   }
 
   async function removeItem(id: string) {
-    if (!confirm("Bu elementi banner siyahısından silmək?")) return;
+    if (
+      !(await dialog.confirm({
+        title: "Banner siyahısından sil?",
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     await fetch("/api/admin/streaming/featured", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

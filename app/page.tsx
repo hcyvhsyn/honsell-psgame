@@ -152,7 +152,7 @@ export default async function HomePage() {
     : null;
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
@@ -176,16 +176,16 @@ export default async function HomePage() {
         {bannerSlides.length > 0 ? (
           <HomeBannerSlider banners={bannerSlides} />
         ) : (
-          <div className="relative overflow-hidden rounded-3xl border border-zinc-800/60">
-            <div className="relative aspect-[4/5] bg-gradient-to-br from-indigo-950 via-zinc-900 to-zinc-950 sm:aspect-[16/8] lg:aspect-[21/7]">
+          <div className="relative overflow-hidden rounded-3xl border border-zinc-200 dark:border-zinc-800/60">
+            <div className="relative aspect-[4/5] bg-gradient-to-br from-violet-50 via-white to-zinc-100 dark:from-indigo-950 dark:via-zinc-900 dark:to-zinc-950 sm:aspect-[16/8] lg:aspect-[21/7]">
               <div className="pointer-events-none absolute -left-20 top-0 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
               <div className="pointer-events-none absolute right-0 bottom-0 h-64 w-64 rounded-full bg-fuchsia-700/20 blur-3xl" />
               <div className="relative flex h-full flex-col items-start justify-center px-8 sm:px-14">
-                <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-200">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-400" />
+                <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-400/40 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-200">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-500 dark:bg-indigo-400" />
                   Yeni rəqəmsal mağaza təcrübəsi
                 </span>
-                <p className="text-3xl font-black tracking-tight text-white sm:text-5xl">
+                <p className="text-3xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-5xl">
                   Oyun, film, musiqi və digər
                   <br />
                   rəqəmsal məhsullar bir yerdə
@@ -257,17 +257,17 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             {[
-              { icon: <Zap className="h-6 w-6 text-white" />, title: "Anında çatdırılma", desc: "Gift card və bir çox sifarişdə nəticə saniyələr içində." },
-              { icon: <ShieldCheck className="h-6 w-6 text-white" />, title: "Etibarlı sistem", desc: "Şəffaf proses, manual yoxlama və təhlükəsiz ödəniş mərhələləri." },
-              { icon: <Clock className="h-6 w-6 text-white" />, title: "Sürətli dəstək", desc: "Sifariş statusu üzrə operativ admin müdaxiləsi və cavablar." },
-              { icon: <Sparkles className="h-6 w-6 text-white" />, title: "Premium təcrübə", desc: "Sadə interfeys, aydın yol və fərqli xidmətlər üçün xüsusi flow." },
+              { icon: <Zap className="h-6 w-6 !text-white" />, title: "Anında çatdırılma", desc: "Gift card və bir çox sifarişdə nəticə saniyələr içində." },
+              { icon: <ShieldCheck className="h-6 w-6 !text-white" />, title: "Etibarlı sistem", desc: "Şəffaf proses, manual yoxlama və təhlükəsiz ödəniş mərhələləri." },
+              { icon: <Clock className="h-6 w-6 !text-white" />, title: "Sürətli dəstək", desc: "Sifariş statusu üzrə operativ admin müdaxiləsi və cavablar." },
+              { icon: <Sparkles className="h-6 w-6 !text-white" />, title: "Premium təcrübə", desc: "Sadə interfeys, aydın yol və fərqli xidmətlər üçün xüsusi flow." },
             ].map((f) => (
-              <div key={f.title} className="relative mt-6 rounded-[24px] bg-[#150A21] p-6 pt-10 shadow-2xl transition hover:-translate-y-1">
-                <div className="absolute -top-8 left-6 grid h-16 w-16 place-items-center overflow-hidden rounded-full border-4 border-[#0A0A0F] bg-[#150A21]">
+              <div key={f.title} className="relative mt-6 rounded-[24px] bg-white dark:bg-[#150A21] p-6 pt-10 shadow-xl dark:shadow-2xl ring-1 ring-zinc-200 dark:ring-0 transition hover:-translate-y-1">
+                <div className="absolute -top-8 left-6 grid h-16 w-16 place-items-center overflow-hidden rounded-full border-4 border-zinc-50 dark:border-[#0A0A0F] bg-violet-600 dark:bg-[#150A21]">
                   {f.icon}
                 </div>
-                <h3 className="mt-2 text-lg font-bold text-white">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[#9CA3AF]">{f.desc}</p>
+                <h3 className="mt-2 text-lg font-bold text-zinc-900 dark:text-white">{f.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-[#9CA3AF]">{f.desc}</p>
               </div>
             ))}
           </div>

@@ -21,6 +21,7 @@ import {
 } from "@/lib/referralCycle";
 import { getSettings } from "@/lib/pricing";
 import { readReferralRateFromMeta } from "@/lib/referralCalculatorOptions";
+import { sendOrderApprovedWhatsApp } from "@/lib/orderNotifications";
 
 function reviewProductTypeFromService(type: string | undefined): ReviewProductType | null {
   switch (type) {
@@ -54,6 +55,20 @@ async function maybeSendReviewInvite(tx: {
     userName: tx.user.name,
     productTitle: tx.serviceProduct.title,
     productType,
+  });
+}
+
+/** Sifariş təsdiqlənəndə müştəriyə WhatsApp təsdiq mesajı göndərir (telefon və WaSender konfiqurasiya olmayanda səssiz keçir). */
+async function maybeNotifyApprovalWhatsApp(tx: {
+  user?: { name: string | null; phone: string | null } | null;
+  serviceProduct?: { title: string | null; type: string | null } | null;
+}) {
+  if (!tx.user?.phone) return;
+  await sendOrderApprovedWhatsApp({
+    phone: tx.user.phone,
+    userName: tx.user.name,
+    productTitle: tx.serviceProduct?.title ?? null,
+    kind: tx.serviceProduct?.type ?? undefined,
   });
 }
 
@@ -269,6 +284,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
 
     await maybeSendReviewInvite(tx);
+    await maybeNotifyApprovalWhatsApp(tx);
     return NextResponse.json({ ok: true });
   }
 
@@ -361,6 +377,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
 
     await maybeSendReviewInvite(tx);
+    await maybeNotifyApprovalWhatsApp(tx);
     return NextResponse.json({ ok: true });
   }
 
@@ -406,6 +423,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     });
 
     await maybeSendReviewInvite(tx);
+    await maybeNotifyApprovalWhatsApp(tx);
     return NextResponse.json({ ok: true });
   }
 
@@ -489,6 +507,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     });
 
     await maybeSendReviewInvite(tx);
+    await maybeNotifyApprovalWhatsApp(tx);
     return NextResponse.json({ ok: true });
   }
 
@@ -559,5 +578,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   });
 
   await maybeSendReviewInvite(tx);
+  await maybeNotifyApprovalWhatsApp(tx);
   return NextResponse.json({ ok: true });
 }

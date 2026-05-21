@@ -28,7 +28,12 @@ const DEFAULT_CATEGORY_URLS = [
   "https://store.playstation.com/tr-tr/category/1d443305-2dcf-4543-8f7e-8c6ec409ecbf",
 ];
 
+// Search seeds plug gaps the category hubs miss (e.g. GTA Online doesn't appear
+// in any hub) and also surface SKU-level rows that the hubs don't expose: the
+// hub crawl returns concepts (the game), while search returns each edition,
+// season pass, and DLC. This is how we get DLCs into the catalog.
 const DEFAULT_SEARCH_SEEDS = [
+  // Most-searched franchises on PS Store TR
   "grand theft auto",
   "gta",
   "call of duty",
@@ -55,6 +60,192 @@ const DEFAULT_SEARCH_SEEDS = [
   "demon souls",
   "final fantasy",
   "persona",
+  // From Software / Bandai
+  "elden ring",
+  "dark souls",
+  "bloodborne",
+  "sekiro",
+  "armored core",
+  // Sony first-party
+  "spider-man",
+  "marvel",
+  "death stranding",
+  "returnal",
+  "gravity rush",
+  "killzone",
+  "infamous",
+  "twisted metal",
+  "wipeout",
+  // Major third-party
+  "monster hunter",
+  "dragon ball",
+  "naruto",
+  "one piece",
+  "kingdom hearts",
+  "metal gear",
+  "silent hill",
+  "devil may cry",
+  "dragon age",
+  "mass effect",
+  "the witcher",
+  "diablo",
+  "warhammer",
+  "borderlands",
+  "doom",
+  "fallout",
+  "skyrim",
+  "elder scrolls",
+  "wolfenstein",
+  "dishonored",
+  "prey",
+  "hitman",
+  "deus ex",
+  "tomb raider",
+  "far cry",
+  "watch dogs",
+  "rainbow six",
+  "ghost recon",
+  "splinter cell",
+  "just cause",
+  "saints row",
+  "mafia",
+  "lego",
+  "crash bandicoot",
+  "spyro",
+  "sonic",
+  "rayman",
+  "yakuza",
+  "judgment",
+  "nier",
+  "tales of",
+  "trials of mana",
+  "ni no kuni",
+  "octopath",
+  "bravely",
+  "dragon quest",
+  "monster boy",
+  "shenmue",
+  "okami",
+  "soulcalibur",
+  "guilty gear",
+  "blazblue",
+  "dead or alive",
+  "injustice",
+  "wwe 2k",
+  "ufc",
+  "f1",
+  "pga",
+  "madden",
+  "nhl",
+  "rocket league",
+  "fall guys",
+  "overwatch",
+  "rainbow",
+  "destiny",
+  "borderlands",
+  "outriders",
+  "control",
+  "alan wake",
+  "quantum break",
+  "max payne",
+  "lord of the rings",
+  "harry potter",
+  "star wars",
+  "jurassic",
+  "pirates",
+  "alien",
+  "predator",
+  "rambo",
+  "terminator",
+  "robocop",
+  "the walking dead",
+  "back 4 blood",
+  "left 4 dead",
+  "dying light",
+  "dead island",
+  "dead space",
+  "evil within",
+  "outlast",
+  "phasmophobia",
+  "alone in the dark",
+  "amnesia",
+  "little nightmares",
+  "inside",
+  "limbo",
+  "hollow knight",
+  "ori and",
+  "cuphead",
+  "stardew valley",
+  "terraria",
+  "valheim",
+  "no man's sky",
+  "subnautica",
+  "ark",
+  "rust",
+  "raft",
+  "grounded",
+  "satisfactory",
+  "frostpunk",
+  "cities skylines",
+  "tropico",
+  "civilization",
+  "anno",
+  "age of empires",
+  "starcraft",
+  "warcraft",
+  "world of warcraft",
+  "league of legends",
+  "valorant",
+  "apex legends",
+  "pubg",
+  "warzone",
+  "tarkov",
+  "rainbow six siege",
+  "siege",
+  "for honor",
+  "the division",
+  "anthem",
+  "destiny 2",
+  "warframe",
+  "path of exile",
+  "diablo immortal",
+  "diablo 4",
+  "lost ark",
+  "new world",
+  "elder scrolls online",
+  "guild wars",
+  "ffxiv",
+  "final fantasy xiv",
+  "ff7",
+  "ff16",
+  "kingdom hearts 3",
+  "persona 5",
+  "persona 6",
+  "shin megami",
+  "atelier",
+  "fire emblem",
+  "xenoblade",
+  "smash bros",
+  "splatoon",
+  "animal crossing",
+  "zelda",
+  "mario",
+  "pokemon",
+  // PSN add-ons / currency
+  "psn",
+  "playstation plus",
+  "ps plus",
+  "v-bucks",
+  "fifa points",
+  "fc points",
+  "cod points",
+  "robux",
+  "shark card",
+  "apex coins",
+  "minecoins",
+  "rocket league credits",
+  "destiny 2 silver",
+  "warframe platinum",
 ];
 
 const USER_AGENT =
@@ -79,20 +270,49 @@ type ScrapedGame = {
   editionLabel: string | null;
 };
 
-function classify(raw: unknown): ScrapedGame["productType"] {
-  if (raw == null) return "GAME";
-  switch (raw) {
-    case "FULL_GAME":
-    case "GAME_BUNDLE":
-    case "PREMIUM_EDITION":
-      return "GAME";
-    case "ADD_ON_PACK":
-      return "ADDON";
-    case "VIRTUAL_CURRENCY":
-      return "CURRENCY";
-    default:
-      return "OTHER";
+// PS Store's `storeDisplayClassification` has many values beyond the canonical
+// FULL_GAME / ADD_ON_PACK pair. DLCs in particular surface as MAP, ITEM,
+// CHARACTER, SEASON_PASS, COSTUME, COSMETIC, etc. — depending on what the DLC
+// content actually is. Group them all under ADDON so they're treated uniformly.
+const GAME_CLASSIFICATIONS = new Set([
+  "FULL_GAME",
+  "GAME_BUNDLE",
+  "PREMIUM_EDITION",
+]);
+
+const ADDON_CLASSIFICATIONS = new Set([
+  "ADD_ON_PACK",
+  "MAP",
+  "ITEM",
+  "CHARACTER",
+  "SEASON_PASS",
+  "COSTUME",
+  "COSMETIC",
+  "CONSUMABLE",
+  "LEVEL",
+  "TRACK",
+  "MUSIC_TRACK",
+  "AVATAR",
+]);
+
+function classify(
+  raw: unknown,
+  topCategory?: unknown
+): ScrapedGame["productType"] {
+  // `topCategory` is the most reliable signal when present (only set on product
+  // detail pages). Falls back to `storeDisplayClassification` from listings.
+  if (typeof topCategory === "string") {
+    if (topCategory === "GAME") return "GAME";
+    if (topCategory === "ADD_ON") return "ADDON";
+    if (topCategory === "VIRTUAL_CURRENCY") return "CURRENCY";
   }
+  if (raw == null) return "GAME"; // concept rows with no classification → base game
+  if (typeof raw === "string") {
+    if (GAME_CLASSIFICATIONS.has(raw)) return "GAME";
+    if (ADDON_CLASSIFICATIONS.has(raw)) return "ADDON";
+    if (raw === "VIRTUAL_CURRENCY") return "CURRENCY";
+  }
+  return "OTHER";
 }
 
 function parseTryToCents(raw: unknown): number | null {
@@ -127,6 +347,7 @@ type RawProduct = {
   platforms?: unknown;
   storeDisplayClassification?: unknown;
   localizedStoreDisplayClassification?: unknown;
+  topCategory?: unknown;
   [key: string]: unknown;
 };
 
@@ -212,7 +433,7 @@ function extractFromHtml(html: string): ScrapedGame[] {
       imageUrl: imageUrl ? String(imageUrl) : null,
       productUrl: `https://store.playstation.com/tr-tr/product/${productId}`,
       platform: resolvePlatform(productId, product.platforms),
-      productType: classify(product.storeDisplayClassification),
+      productType: classify(product.storeDisplayClassification, product.topCategory),
       priceTryCents: basePrice,
       discountTryCents,
       discountEndAt: null,
@@ -362,7 +583,7 @@ export async function GET(req: Request) {
         ]
       : DEFAULT_SEARCH_SEEDS;
 
-    maxPages = Math.max(1, Math.min(25, Number(pagesParam) || 10));
+    maxPages = Math.max(1, Math.min(200, Number(pagesParam) || 25));
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Bad request";
     console.error("scrape-ps-store: param parse failed", err);
@@ -454,25 +675,41 @@ export async function GET(req: Request) {
         }
 
         // Strategy 2: hit PS Store search for franchise seeds.
-        for (let i = 0; i < seeds.length; i++) {
-          const seed = seeds[i];
-          const games = await fetchPage(searchUrl(seed));
-          let seedAdded = 0;
-          for (const g of games) {
-            if (!merged.has(g.productId)) {
-              merged.set(g.productId, g);
-              seedAdded++;
+        // Parallelized with a small concurrency cap — with ~200 seeds, a
+        // sequential loop with REQUEST_DELAY_MS sleeps would alone burn through
+        // most of the Vercel maxDuration budget.
+        {
+          const SEED_CONCURRENCY = 8;
+          let cursor = 0;
+          async function seedWorker() {
+            while (true) {
+              const i = cursor++;
+              if (i >= seeds.length) return;
+              const seed = seeds[i];
+              const games = await fetchPage(searchUrl(seed));
+              let seedAdded = 0;
+              for (const g of games) {
+                if (!merged.has(g.productId)) {
+                  merged.set(g.productId, g);
+                  seedAdded++;
+                }
+              }
+              emit({
+                type: "seed",
+                seedIndex: i,
+                seed,
+                foundOnPage: games.length,
+                added: seedAdded,
+                totalSoFar: merged.size,
+              });
             }
           }
-          emit({
-            type: "seed",
-            seedIndex: i,
-            seed,
-            foundOnPage: games.length,
-            added: seedAdded,
-            totalSoFar: merged.size,
-          });
-          await sleep(REQUEST_DELAY_MS);
+          await Promise.all(
+            Array.from(
+              { length: Math.min(SEED_CONCURRENCY, seeds.length) },
+              () => seedWorker()
+            )
+          );
         }
 
         if (merged.size === 0) {

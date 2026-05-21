@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Loader2, Plus, Edit2, Trash2, Upload, X, GripVertical, Eye, EyeOff } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { BANNER_SCOPES } from "@/lib/contentScopes";
+import { useDialog } from "@/lib/dialogs";
 
 type BannerScope = string;
 
@@ -52,6 +53,7 @@ type GameOption = {
 };
 
 export default function BannersAdminClient() {
+  const dialog = useDialog();
   const [banners, setBanners] = useState<Banner[]>([]);
   const [activeScope, setActiveScope] = useState<BannerScope>("HOME");
   const [loading, setLoading] = useState(true);
@@ -174,8 +176,14 @@ export default function BannersAdminClient() {
   }, [gameQuery, editForm.actionType]);
 
   async function handleImageUpload(file: File, target: "desktop" | "mobile") {
-    if (!file.type.startsWith("image/")) { alert("Yalnız şəkil faylı"); return; }
-    if (file.size > 10 * 1024 * 1024) { alert("Fayl çox böyükdür (max 10 MB)"); return; }
+    if (!file.type.startsWith("image/")) {
+      await dialog.alert({ title: "Yanlış fayl tipi", message: "Yalnız şəkil faylı", tone: "warning" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      await dialog.alert({ title: "Fayl ölçüsü çox böyükdür", message: "Fayl çox böyükdür (max 10 MB)", tone: "warning" });
+      return;
+    }
     setUploadingImage(target);
     try {
       const init = await fetch("/api/admin/banners/image-upload", {
@@ -184,10 +192,16 @@ export default function BannersAdminClient() {
         body: JSON.stringify({ contentType: file.type }),
       });
       const initData = await init.json();
-      if (!init.ok) { alert(initData.error ?? "Upload hazırlanmadı"); return; }
+      if (!init.ok) {
+        await dialog.alert({ title: "Upload hazırlanmadı", message: initData.error ?? "Upload hazırlanmadı", tone: "danger" });
+        return;
+      }
       const supabase = getSupabaseBrowser();
       const { error: upErr } = await supabase.storage.from(initData.bucket).uploadToSignedUrl(initData.path, initData.token, file);
-      if (upErr) { alert(`Upload alınmadı: ${upErr.message}`); return; }
+      if (upErr) {
+        await dialog.alert({ title: "Upload alınmadı", message: upErr.message, tone: "danger" });
+        return;
+      }
       setEditForm((prev) => target === "desktop"
         ? { ...prev, imageUrl: initData.publicUrl }
         : { ...prev, mobileImageUrl: initData.publicUrl });
@@ -250,12 +264,19 @@ export default function BannersAdminClient() {
     if (!res.ok) {
       // Rollback
       setBanners((prev) => prev.map((x) => (x.id === b.id ? { ...x, isActive: b.isActive } : x)));
-      alert("Status dəyişmədi");
+      await dialog.alert({ title: "Status dəyişmədi", tone: "danger" });
     }
   }
 
   async function deleteBanner(id: string) {
-    if (!confirm("Bu banneri silmək istəyirsiniz?")) return;
+    if (
+      !(await dialog.confirm({
+        title: "Banneri sil?",
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     await fetch("/api/admin/banners", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

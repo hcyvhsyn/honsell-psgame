@@ -24,6 +24,7 @@ import {
   SEARCH_SUGGESTION_ICON_LABEL,
   type SearchSuggestionIconKey,
 } from "@/lib/searchSuggestions";
+import { useDialog } from "@/lib/dialogs";
 
 type Row = {
   id: string;
@@ -53,6 +54,7 @@ function iconOf(key: string) {
 }
 
 export default function SearchSuggestionsAdminClient() {
+  const dialog = useDialog();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | "NEW" | null>(null);
@@ -129,7 +131,15 @@ export default function SearchSuggestionsAdminClient() {
   }
 
   async function remove(r: Row) {
-    if (!confirm(`"${r.label}" sırasını silmək istəyirsən?`)) return;
+    if (
+      !(await dialog.confirm({
+        title: "Sırauma sil?",
+        message: <p>«{r.label}» sırauma silinsin?</p>,
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     const res = await fetch("/api/admin/search-suggestions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -137,7 +147,11 @@ export default function SearchSuggestionsAdminClient() {
     });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      alert(j.error ?? "Silinmədi");
+      await dialog.alert({
+        title: "Silinmədi",
+        message: j.error ?? "Silinmədi",
+        tone: "danger",
+      });
       return;
     }
     await load();

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition, useCallback } from "react";
 import { FAQ_SCOPES } from "@/lib/contentScopes";
+import { useDialog } from "@/lib/dialogs";
 
 type Faq = {
   id: string;
@@ -15,6 +16,7 @@ type Faq = {
 };
 
 export default function FaqAdminClient() {
+  const dialog = useDialog();
   const [activeScope, setActiveScope] = useState<string>("HOME");
   const [faqs, setFaqs] = useState<Faq[]>([]);
   const [pending, startTransition] = useTransition();
@@ -92,8 +94,15 @@ export default function FaqAdminClient() {
     });
   }
 
-  function deleteFaq(id: string) {
-    if (!confirm("Bu FAQ silinsin?")) return;
+  async function deleteFaq(id: string) {
+    if (
+      !(await dialog.confirm({
+        title: "FAQ-i sil?",
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     startTransition(async () => {
       setError(null);
       const res = await fetch(`/api/admin/faq/${id}`, { method: "DELETE" });

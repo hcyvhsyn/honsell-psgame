@@ -1078,3 +1078,154 @@ model RateLimitEvent {
   @@index([key, createdAt])
   @@index([scope, createdAt])
 }
+
+// ─── Website Services (sifarişlə hazırlanan website xidməti) ─────────────────
+//
+// Bu adi rəqəmsal məhsul kimi alınmır — müştəri ətraflı müraciət formu
+// göndərir, admin paneldə baxılır və WhatsApp üzərindən əlaqə saxlanılır.
+
+model WebsiteServicePackage {
+  id           String  @id @default(cuid())
+  name         String // məs: "Basic Paket", "Standard Paket", "Premium Paket"
+  priceRange   String // məs: "150–300 AZN" və ya "600 AZN-dən başlayaraq"
+  description  String
+  // Xüsusiyyətlər siyahısı — admin panelindən idarə olunan sətirlərin massivi.
+  features     Json
+  deliveryTime String?
+  // "Ən çox seçilən" lentini göstərmək üçün.
+  isPopular    Boolean @default(false)
+  isActive     Boolean @default(true)
+  sortOrder    Int     @default(0)
+
+  applications WebsiteServiceApplication[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+model WebsiteServiceApplication {
+  id String @id @default(cuid())
+
+  // Müştəri məlumatları
+  fullName     String
+  phone        String
+  email        String?
+  businessName String?
+
+  // Əlaqə üsulu: "WHATSAPP" | "CALL" | "EMAIL"
+  contactMethod String?
+
+  // Layihə tipi: "BUSINESS" | "PORTFOLIO" | "RESTAURANT" | "ECOMMERCE" | "LANDING" | "OTHER"
+  websiteType String
+
+  packageId String?
+  package   WebsiteServicePackage? @relation(fields: [packageId], references: [id])
+
+  budgetRange String?
+
+  hasLogo    Boolean?
+  hasDomain  Boolean?
+  hasHosting Boolean?
+
+  projectBrief String
+
+  // Mövcud sayt (yenidən dizayn halında).
+  existingWebsiteUrl String?
+
+  // Bəyəndiyi nümunə sayt linkləri (sərbəst mətn — sətir-sətir və ya vergüllə).
+  referenceWebsiteLinks String?
+
+  // Logo, brendinq və s. üçün xarici fayl linki (Drive/Dropbox).
+  attachmentsUrl String?
+
+  // İstədiyi sayt bölmələri (sətirlərin massivi).
+  requestedSections Json?
+
+  // Sayt dilləri (string[] — "AZ" | "EN" | "RU" | "TR").
+  languages Json?
+
+  // İstənilən başlama tarixi.
+  preferredStartDate DateTime?
+
+  // Layihənin təcililiyi: "NORMAL" | "URGENT" | "FLEXIBLE"
+  urgency String?
+
+  wantsCustomDesign Boolean?
+  designStyle       String? // "MODERN" | "MINIMAL" | "CORPORATE" | "PLAYFUL" | ...
+
+  // Kontent vəziyyəti: "READY" | "PARTIAL" | "NEED_HELP"
+  contentStatus String?
+
+  // Status: "NEW" | "CONTACTED" | "PRICE_GIVEN" | "ACCEPTED" | "REJECTED" | "COMPLETED"
+  status String @default("NEW")
+
+  // Admin daxili qeydləri (müştəriyə görünmür).
+  adminNotes String?
+
+  // ─── AI ilə hesablanmış qiymət snapshot-u ──────────────────────────────────
+  // Müştərinin "Qiymət hesabla" düyməsi ilə aldığı və forma göndərən anda
+  // donduğu hesablama. Sonradan admin qiyməti dəyişsə də müraciət öz
+  // qiymətini saxlayır.
+  estimatedPriceMin Decimal? @db.Decimal(12, 2)
+  estimatedPriceMax Decimal? @db.Decimal(12, 2)
+  // Seçilmiş add-on-lar — [{ addOnId, slug, name, units, lineTotal, pricingType, ... }].
+  selectedAddOns    Json?
+  // AI-nın izahı və əmsalı snapshot-u — { reasoning, complexityFactor, baseRange: [min, max] }.
+  estimateBreakdown Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+// Admin tərəfindən idarə olunan əlavə xidmətlər (add-on-lar).
+// Müştəri formunda canlı görünür, qiymət hesablamasında istifadə olunur.
+model WebsiteServiceAddOn {
+  id          String  @id @default(cuid())
+  slug        String  @unique // məs: "dark-mode", "online-payment"
+  name        String           // məs: "Dark / Light mode"
+  description String?
+  // Qruplaşdırma (UI-da bölmələr üçün): "DESIGN" | "FUNCTIONALITY" | "SETUP" | "OTHER"
+  category    String?
+
+  // "FLAT" — sabit qiymət; "PER_UNIT" — N pulsuz + əlavə vahid başına ödəniş.
+  pricingType String
+
+  // FLAT üçün.
+  flatPrice Decimal? @db.Decimal(10, 2)
+
+  // PER_UNIT üçün (məs. dil dəstəyi: freeUnits=1, unitPrice=20).
+  freeUnits Int?
+  unitPrice Decimal? @db.Decimal(10, 2)
+  unitLabel String? // məs: "dil", "məhsul" — UI üçün
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+// Singleton qiymət konfiqurasiyası — AI üçün baza qiymət aralıqları.
+// Yalnız bir sətir saxlanılır (id="default").
+model WebsitePricingConfig {
+  id String @id @default("default")
+
+  // websiteType → { minBase: number, maxBase: number, notes?: string }
+  baseRanges Json
+
+  // AI üçün əlavə qaydalar (admin sərbəst yazır — məs. "Ecommerce-də məhsul
+  // sayı 100-dən çox olarsa qiyməti ən azı 20% artır").
+  aiInstructions String?
+
+  // OpenAI modeli (admin lazım olsa dəyişər).
+  aiModel String @default("gpt-4o-mini")
+
+  updatedAt DateTime @updatedAt
+}

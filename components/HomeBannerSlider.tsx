@@ -120,7 +120,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
     >
       {/* Hero */}
       <div
-        className="group relative w-full overflow-hidden rounded-2xl aspect-[4/5] sm:aspect-[16/8] lg:aspect-[21/9]"
+        className="media-hero group relative w-full overflow-hidden rounded-2xl aspect-[4/5] sm:aspect-[16/8] lg:aspect-[21/9]"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -158,7 +158,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                   />
                 )}
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent sm:bg-gradient-to-r sm:from-black/85 sm:via-black/35 sm:to-transparent" />
+              <div className="media-hero-overlay absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent sm:bg-gradient-to-r sm:from-black/85 sm:via-black/35 sm:to-transparent" />
               {bGame?.discountPct != null && (
                 <div className="absolute right-4 top-4 sm:left-4 sm:right-auto">
                   <span className="inline-flex items-center rounded-full bg-[#22d3ee] px-3 py-1 text-sm font-bold text-zinc-900 shadow-lg">
@@ -357,11 +357,11 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                   onMouseEnter={() => setPaused(true)}
                   className={`group/item flex w-full items-center gap-3 rounded-xl p-2 text-left transition ${
                     active
-                      ? "bg-white/10 ring-1 ring-white/15"
-                      : "hover:bg-white/5"
+                      ? "bg-white ring-1 ring-zinc-200 shadow-sm dark:bg-white/10 dark:ring-white/15 dark:shadow-none"
+                      : "hover:bg-white/70 dark:hover:bg-white/5"
                   }`}
                 >
-                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900">
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-900">
                     {thumb && (
                       <Image
                         src={thumb}
@@ -374,7 +374,9 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                   </div>
                   <span
                     className={`line-clamp-2 text-sm font-medium leading-tight ${
-                      active ? "text-white" : "text-zinc-300 group-hover/item:text-white"
+                      active
+                        ? "text-zinc-950 dark:text-white"
+                        : "text-zinc-600 group-hover/item:text-zinc-950 dark:text-zinc-300 dark:group-hover/item:text-white"
                     }`}
                   >
                     {t || "Banner"}

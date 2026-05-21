@@ -6,6 +6,7 @@ import {
   isValidPlatformCategory,
   isValidAiBrand,
   isValidMusicBrand,
+  isValidWorkPlanType,
   type PlatformCategory,
 } from "@/lib/platformSubscriptions";
 
@@ -22,7 +23,10 @@ function revalidatePlatform(category: PlatformCategory) {
     revalidatePath("/ai/claude");
     revalidatePath("/ai/chatgpt");
   }
-  if (category === "WORK") revalidatePath("/work");
+  if (category === "WORK") {
+    revalidatePath("/work");
+    revalidatePath("/work/linkedin-premium");
+  }
   revalidatePath("/qazan");
 }
 
@@ -93,6 +97,10 @@ export async function POST(req: Request) {
       const aiBrand = isValidAiBrand(aiBrandRaw) ? aiBrandRaw : null;
       const musicBrandRaw = typeof body.musicBrand === "string" ? body.musicBrand.trim() : "";
       const musicBrand = isValidMusicBrand(musicBrandRaw) ? musicBrandRaw : null;
+      const planTypeRaw =
+        typeof body.planType === "string" ? body.planType.trim().toUpperCase() : "";
+      const planType = isValidWorkPlanType(planTypeRaw) ? planTypeRaw : null;
+      const isPopular = Boolean(body.isPopular);
       const existing =
         typeof id === "string"
           ? await prisma.serviceProduct.findUnique({
@@ -145,6 +153,8 @@ export async function POST(req: Request) {
           ...(durationMonths != null ? { durationMonths } : {}),
           ...(category === "AI" && aiBrand ? { aiBrand } : {}),
           ...(category === "MUSIC" && musicBrand ? { musicBrand } : {}),
+          ...(category === "WORK" && planType ? { planType } : {}),
+          ...(category === "WORK" && isPopular ? { isPopular: true } : {}),
           referralEnabled: referral.referralEnabled,
           referralPct: referral.referralEnabled ? referral.referralPct : 0,
         },

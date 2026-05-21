@@ -444,22 +444,22 @@ export default function QazanCalculatorClient({
           {refreshing && <RefreshCw className="ml-auto h-4 w-4 animate-spin text-violet-300" />}
         </div>
 
-        <div className="relative overflow-hidden rounded-xl border border-violet-500/50 bg-gradient-to-br from-violet-950 via-slate-900 to-fuchsia-950 p-5">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_22%,rgba(217,70,239,0.35),transparent_32%)]" />
-          <p className="relative flex items-center gap-2 text-sm font-semibold text-violet-200">
+        <div className="relative overflow-hidden rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 p-5 shadow-[0_20px_56px_-44px_rgba(124,58,237,0.45)] dark:border-violet-500/50 dark:bg-gradient-to-br dark:from-violet-950 dark:via-slate-900 dark:to-fuchsia-950 dark:shadow-none">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_22%,rgba(217,70,239,0.14),transparent_32%)] dark:bg-[radial-gradient(circle_at_88%_22%,rgba(217,70,239,0.35),transparent_32%)]" />
+          <p className="relative flex items-center gap-2 text-sm font-semibold text-violet-700 dark:text-violet-200">
             Aylıq qazanc <Info className="h-4 w-4 text-violet-400" />
           </p>
           <div className="relative mt-4 flex items-end justify-between gap-4">
-            <p className="text-4xl font-black tabular-nums text-white sm:text-5xl">
+            <p className="text-4xl font-black tabular-nums text-zinc-950 dark:text-white sm:text-5xl">
               {formatMoney(totals.monthly)}
               <span className="ml-2 text-xl font-bold">AZN</span>
             </p>
             <MiniChart />
           </div>
           {periodMonths > 1 && (
-            <p className="relative mt-3 text-xs text-violet-100/70">
+            <p className="relative mt-3 text-xs text-violet-700/75 dark:text-violet-100/70">
               {periodMonths} ay üçün təxmin:{" "}
-              <span className="font-bold text-white">{formatMoney(totals.period)} AZN</span>
+              <span className="font-bold text-zinc-950 dark:text-white">{formatMoney(totals.period)} AZN</span>
             </p>
           )}
         </div>

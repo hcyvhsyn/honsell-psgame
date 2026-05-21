@@ -70,16 +70,24 @@ function splitFullName(full: string): { firstName: string; lastName: string } {
   return { firstName: t.slice(0, i), lastName: t.slice(i + 1).trim() || "-" };
 }
 
-function parseStreamingBody(raw: unknown):
+function parseStreamingBody(
+  raw: unknown,
+  opts: { allowAnyEmail?: boolean; emailLabel?: string } = {},
+):
   | { ok: true; value: StreamingBody }
   | { ok: false; error: string } {
+  const emailLabel = opts.emailLabel ?? "Gmail ünvanı";
   if (!raw || typeof raw !== "object") {
-    return { ok: false, error: "Streaming xidməti üçün Gmail ünvanı tələb olunur." };
+    return { ok: false, error: `Xidmət üçün ${emailLabel} tələb olunur.` };
   }
   const o = raw as Record<string, unknown>;
   const gmail = typeof o.gmail === "string" ? o.gmail.trim().toLowerCase() : "";
-  if (!gmail || !/^[^\s@]+@gmail\.com$/.test(gmail)) {
-    return { ok: false, error: "Etibarlı Gmail ünvanı (@gmail.com) tələb olunur." };
+  const regex = opts.allowAnyEmail
+    ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    : /^[^\s@]+@gmail\.com$/;
+  if (!gmail || !regex.test(gmail)) {
+    const hint = opts.allowAnyEmail ? "" : " (@gmail.com)";
+    return { ok: false, error: `Etibarlı ${emailLabel}${hint} tələb olunur.` };
   }
   const password = typeof o.password === "string" ? o.password : "";
   return {
@@ -382,23 +390,33 @@ export async function POST(req: Request) {
     }
 
     if (service.type === "PLATFORM") {
-      // YouTube Premium kimi paketlər üçün müştəri Gmail + şifrə təqdim edir.
-      // Digər PLATFORM paketləri (Spotify və s.) bu məlumatlara ehtiyac duymur.
+      // YouTube Premium və LinkedIn Premium üçün müştəri email + şifrə təqdim edir.
+      // Digər PLATFORM paketləri (Spotify, Notion və s.) bu məlumatlara ehtiyac duymur.
       const platformMeta = (service.metadata as Record<string, unknown> | null) ?? {};
-      const requiresGmail =
-        String(platformMeta.category ?? "") === "MUSIC" &&
-        String(platformMeta.musicBrand ?? "") === "YOUTUBE_PREMIUM";
+      const category = String(platformMeta.category ?? "");
+      const musicBrand = String(platformMeta.musicBrand ?? "");
+      const planType = String(platformMeta.planType ?? "");
+      const isYoutube = category === "MUSIC" && musicBrand === "YOUTUBE_PREMIUM";
+      const isLinkedIn = category === "WORK" && (planType === "CAREER" || planType === "BUSINESS");
+      const requiresCredentials = isYoutube || isLinkedIn;
 
       let gmail: string | undefined;
       let password: string | undefined;
-      if (requiresGmail) {
-        const parsed = parseStreamingBody(p.streaming);
+      if (requiresCredentials) {
+        const parsed = parseStreamingBody(p.streaming, {
+          allowAnyEmail: isLinkedIn,
+          emailLabel: isLinkedIn ? "LinkedIn email ünvanı" : "Gmail ünvanı",
+        });
         if (!parsed.ok) {
           return NextResponse.json({ error: parsed.error }, { status: 400 });
         }
         if (!parsed.value.password) {
           return NextResponse.json(
-            { error: "YouTube paketi üçün hesab şifrəsi tələb olunur." },
+            {
+              error: isLinkedIn
+                ? "LinkedIn paketi üçün hesab şifrəsi tələb olunur."
+                : "YouTube paketi üçün hesab şifrəsi tələb olunur.",
+            },
             { status: 400 }
           );
         }
@@ -586,7 +604,11 @@ export async function POST(req: Request) {
         serviceProductId: line.service.id,
         unitListCents: line.unitListCents,
         category: String(platformMeta.category ?? ""),
+        musicBrand: typeof platformMeta.musicBrand === "string" ? platformMeta.musicBrand : null,
+        planType: typeof platformMeta.planType === "string" ? platformMeta.planType : null,
         durationMonths: Number(platformMeta.durationMonths) || null,
+        gmail: line.gmail,
+        password: line.password,
       };
     });
 
@@ -1039,6 +1061,7 @@ export async function POST(req: Request) {
                   kind: "PLATFORM",
                   category: String(platformMeta.category ?? ""),
                   musicBrand: String(platformMeta.musicBrand ?? "") || null,
+                  planType: String(platformMeta.planType ?? "") || null,
                   durationMonths: Number(platformMeta.durationMonths) || null,
                   paymentSource: payTag,
                   orderCode,

@@ -22,7 +22,7 @@ export default async function ProfileLayout({
     !user.gender;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_50%_-10%,rgba(88,28,135,0.16),transparent_34%),linear-gradient(180deg,rgba(4,5,14,0.25),rgba(4,5,14,0.9))] text-zinc-100">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_50%_-10%,rgba(124,58,237,0.08),transparent_34%),linear-gradient(180deg,rgba(247,246,251,0.55),rgba(247,246,251,0.96))] text-zinc-900 dark:bg-[radial-gradient(circle_at_50%_-10%,rgba(88,28,135,0.16),transparent_34%),linear-gradient(180deg,rgba(4,5,14,0.25),rgba(4,5,14,0.9))] dark:text-zinc-100">
       <SiteHeader />
 
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">

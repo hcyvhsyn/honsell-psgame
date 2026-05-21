@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Loader2, Trash2, Check, X as XIcon, RefreshCw, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { useDialog } from "@/lib/dialogs";
 
 type ServiceProduct = {
   id: string;
@@ -30,6 +31,7 @@ const DURATIONS = [1, 12] as const;
 type Duration = (typeof DURATIONS)[number];
 
 export default function EaPlayAdminClient() {
+  const dialog = useDialog();
   const [products, setProducts] = useState<ServiceProduct[]>([]);
   const [orders, setOrders] = useState<PendingOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,11 +83,11 @@ export default function EaPlayAdminClient() {
 
   async function handleImageUpload(file: File) {
     if (!file.type.startsWith("image/")) {
-      alert("Yalnız şəkil faylı yükləyə bilərsiniz");
+      await dialog.alert({ title: "Yanlış fayl tipi", message: "Yalnız şəkil faylı yükləyə bilərsiniz", tone: "warning" });
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert("Fayl çox böyükdür (max 5 MB)");
+      await dialog.alert({ title: "Fayl ölçüsü çox böyükdür", message: "Fayl çox böyükdür (max 5 MB)", tone: "warning" });
       return;
     }
     setUploading(true);
@@ -97,7 +99,7 @@ export default function EaPlayAdminClient() {
       });
       const initData = await init.json();
       if (!init.ok) {
-        alert(initData.error ?? "Upload hazırlanmadı");
+        await dialog.alert({ title: "Upload hazırlanmadı", message: initData.error ?? "Upload hazırlanmadı", tone: "danger" });
         return;
       }
       const supabase = getSupabaseBrowser();
@@ -105,7 +107,7 @@ export default function EaPlayAdminClient() {
         .from(initData.bucket)
         .uploadToSignedUrl(initData.path, initData.token, file);
       if (upErr) {
-        alert(`Upload alınmadı: ${upErr.message}`);
+        await dialog.alert({ title: "Upload alınmadı", message: upErr.message, tone: "danger" });
         return;
       }
       return initData.publicUrl as string;
@@ -157,11 +159,11 @@ export default function EaPlayAdminClient() {
     const tryPrice = Number(tryInputs[k]);
     const aznPrice = Number(aznInputs[k]);
     if (!Number.isFinite(tryPrice) || tryPrice <= 0) {
-      alert("TRY (maya) qiyməti düzgün deyil!");
+      await dialog.alert({ title: "Yanlış qiymət", message: "TRY (maya) qiyməti düzgün deyil!", tone: "warning" });
       return;
     }
     if (!Number.isFinite(aznPrice) || aznPrice <= 0) {
-      alert("AZN satış qiyməti düzgün deyil!");
+      await dialog.alert({ title: "Yanlış qiymət", message: "AZN satış qiyməti düzgün deyil!", tone: "warning" });
       return;
     }
     setSaving(true);
@@ -181,7 +183,7 @@ export default function EaPlayAdminClient() {
     });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
-      alert(d.error ?? "Yadda saxlanmadı");
+      await dialog.alert({ title: "Yadda saxlanmadı", message: d.error ?? "Yadda saxlanmadı", tone: "danger" });
       setSaving(false);
       return;
     }
@@ -190,7 +192,15 @@ export default function EaPlayAdminClient() {
   }
 
   async function deleteProduct(id: string, title: string) {
-    if (!confirm(`"${title}" planını silmək istədiyinə əminsən?`)) return;
+    if (
+      !(await dialog.confirm({
+        title: "Planı sil?",
+        message: <p>«{title}» planı silinsin?</p>,
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     await fetch("/api/admin/ea-play", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -200,7 +210,14 @@ export default function EaPlayAdminClient() {
   }
 
   async function processOrder(id: string, action: "SUCCESS" | "FAILED") {
-    if (!confirm(action === "SUCCESS" ? "Sifarişi tamamla?" : "Sifarişi rədd et?")) return;
+    if (
+      !(await dialog.confirm({
+        title: action === "SUCCESS" ? "Sifarişi tamamla?" : "Sifarişi rədd et?",
+        confirmLabel: action === "SUCCESS" ? "Tamamla" : "Rədd et",
+        tone: action === "SUCCESS" ? "default" : "danger",
+      }))
+    )
+      return;
     await fetch(`/api/admin/service-orders/${id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -212,7 +229,7 @@ export default function EaPlayAdminClient() {
 
   async function saveAssets() {
     if (!assets.imageUrl.trim()) {
-      alert("Şəkil seçin.");
+      await dialog.alert({ title: "Şəkil seçin", message: "Şəkil seçin.", tone: "warning" });
       return;
     }
     setSaving(true);
@@ -227,7 +244,7 @@ export default function EaPlayAdminClient() {
     });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
-      alert(d.error ?? "Yadda saxlanmadı");
+      await dialog.alert({ title: "Yadda saxlanmadı", message: d.error ?? "Yadda saxlanmadı", tone: "danger" });
       setSaving(false);
       return;
     }

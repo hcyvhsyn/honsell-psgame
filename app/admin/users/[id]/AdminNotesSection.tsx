@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { StickyNote, Trash2, Plus } from "lucide-react";
 import { fmtDate } from "@/lib/format";
+import { useDialog } from "@/lib/dialogs";
 
 type Note = {
   id: string;
@@ -23,6 +24,7 @@ export default function AdminNotesSection({
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const dialog = useDialog();
 
   function add() {
     const trimmed = body.trim();
@@ -47,8 +49,16 @@ export default function AdminNotesSection({
     });
   }
 
-  function remove(noteId: string) {
-    if (!confirm("Bu qeydi silməyi təsdiqlə?")) return;
+  async function remove(noteId: string) {
+    if (
+      !(await dialog.confirm({
+        title: "Qeydi sil?",
+        message: "Bu qeydi silməyi təsdiqlə?",
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     startTransition(async () => {
       const res = await fetch(`/api/admin/users/${userId}/notes/${noteId}`, {
         method: "DELETE",

@@ -16,6 +16,7 @@ import {
   Copy,
 } from "lucide-react";
 import Select from "./Select";
+import { useDialog } from "@/lib/dialogs";
 
 export type PsnAccountSummary = {
   id: string;
@@ -41,6 +42,7 @@ export default function PsnAccountsManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const dialog = useDialog();
 
   async function refresh() {
     const res = await fetch("/api/profile/accounts");
@@ -62,7 +64,22 @@ export default function PsnAccountsManager({
   }
 
   async function remove(id: string) {
-    if (!confirm("Bu PSN hesabını silmək istəyirsən?")) return;
+    const acc = accounts.find((a) => a.id === id);
+    const ok = await dialog.confirm({
+      title: "PSN hesabını sil?",
+      message: acc ? (
+        <p>
+          <span className="font-medium text-zinc-200">{acc.label}</span> ({acc.psnEmail}){" "}
+          adlı PSN hesabı siyahıdan silinəcək.
+        </p>
+      ) : (
+        "Bu PSN hesabını silmək istəyirsən?"
+      ),
+      confirmLabel: "Sil",
+      cancelLabel: "Ləğv et",
+      tone: "danger",
+    });
+    if (!ok) return;
     setBusy(id);
     setError(null);
     const res = await fetch(`/api/profile/accounts/${id}`, { method: "DELETE" });

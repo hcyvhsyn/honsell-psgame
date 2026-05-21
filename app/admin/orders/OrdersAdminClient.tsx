@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   Check,
   X,
+  XCircle,
   RefreshCw,
   ChevronDown,
   ChevronUp,
@@ -13,8 +14,15 @@ import {
   PhoneForwarded,
   Loader2,
   Crown,
+  Trophy,
   Copy,
   KeyRound,
+  Gift,
+  UserPlus,
+  Tv,
+  Sparkles,
+  Music,
+  Briefcase,
 } from "lucide-react";
 import {
   GAME_ORDER_STAGES,
@@ -23,6 +31,7 @@ import {
   type GameOrderStage,
 } from "@/lib/gameOrderFulfillment";
 import CopyableField from "@/components/CopyableField";
+import { useDialog } from "@/lib/dialogs";
 
 type AnyOrder = {
   id: string;
@@ -88,6 +97,16 @@ type OrdersPayload = {
     user: { id: string; email: string; name: string | null; phone: string | null };
     serviceProduct: { id: string; title: string; type: string; metadata: unknown } | null;
   })[];
+  honsellOrders: HonsellOrder[];
+};
+
+type HonsellOrder = {
+  id: string;
+  amountAznCents: number;
+  purchasedAt: string;
+  expiresAt: string;
+  purchaseTransactionId: string | null;
+  purchasedBy: { id: string; email: string; name: string | null; phone: string | null } | null;
 };
 
 type PlatformOrder = OrdersPayload["aiOrders"][number];
@@ -171,16 +190,91 @@ const TABS = [
   { id: "psplus", label: "PS Plus" },
   { id: "eaplay", label: "EA Play" },
   { id: "gift", label: "Hədiyyə kart (TRY)" },
+  { id: "honsell", label: "Honsell Hədiyyə kart" },
   { id: "account", label: "Hesab açma" },
   { id: "streaming", label: "Streaming" },
   { id: "ai", label: "Süni İntellekt" },
   { id: "music", label: "Musiqi" },
   { id: "work", label: "İş Platformaları" },
+  { id: "cancelled", label: "Ləğv edilmiş" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
+const TAB_DESCRIPTIONS: Record<TabId, string> = {
+  game: "PSN-ə oyun çatdırılması — mərhələni yeniləyin və ya tamamlayın.",
+  psplus: "PS Plus aktivləşdirilməsi gözləyən sifarişlər.",
+  eaplay: "EA Play aktivləşdirilməsi gözləyən sifarişlər.",
+  gift: "TRY Balance kodu modal-da daxil edilir və müştəriyə göndərilir.",
+  honsell: "Honsell Hədiyyə kartları — kod avtomatik yaradılır, müştəriyə email + WhatsApp göndərilir.",
+  account: "Yeni PSN hesab açma sorğuları.",
+  streaming: "Netflix, YouTube TV və s. — profil təhvili.",
+  ai: "ChatGPT, Claude və digər süni intellekt platformaları.",
+  music: "Spotify, YouTube Premium və digər musiqi servisləri.",
+  work: "LinkedIn və digər iş platformaları.",
+  cancelled: "Son ləğv edilmiş sifarişlər — səbəb, müştəri və geri qaytarmalar.",
+};
+
+type CancelledOrder = AnyOrder & {
+  user: { id: string; email: string; name: string | null; phone: string | null };
+  game: { id: string; title: string; imageUrl: string | null; platform: string | null } | null;
+  serviceProduct: { id: string; title: string; type: string; metadata: unknown } | null;
+};
+
+type CancelMeta = {
+  reason: string | null;
+  cancelledAt: string | null;
+  fromStatus: string | null;
+};
+
+function parseCancelMeta(metadata?: string | null): CancelMeta {
+  if (!metadata) return { reason: null, cancelledAt: null, fromStatus: null };
+  try {
+    const m = JSON.parse(metadata) as Record<string, unknown>;
+    return {
+      reason: typeof m.cancelReason === "string" ? m.cancelReason : null,
+      cancelledAt: typeof m.cancelledAt === "string" ? m.cancelledAt : null,
+      fromStatus: typeof m.cancelledFromStatus === "string" ? m.cancelledFromStatus : null,
+    };
+  } catch {
+    return { reason: null, cancelledAt: null, fromStatus: null };
+  }
+}
+
+function cancelledItemLabel(o: CancelledOrder): string {
+  if (o.type === "PURCHASE") return o.game?.title ?? "Oyun";
+  return o.serviceProduct?.title ?? "Servis";
+}
+
+function cancelledTypeLabel(o: CancelledOrder): string {
+  if (o.type === "PURCHASE") return "Oyun çatdırılması";
+  const t = o.serviceProduct?.type ?? "";
+  switch (t) {
+    case "PS_PLUS":
+      return "PS Plus";
+    case "EA_PLAY":
+      return "EA Play";
+    case "TRY_BALANCE":
+      return "Hədiyyə kart";
+    case "ACCOUNT_CREATION":
+      return "Hesab açma";
+    case "STREAMING":
+      return "Streaming";
+    case "PLATFORM": {
+      const meta = (o.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
+      const cat = String(meta.category ?? "").toUpperCase();
+      if (cat === "AI") return "Süni İntellekt";
+      if (cat === "MUSIC") return "Musiqi";
+      if (cat === "WORK") return "İş Platforması";
+      return "Platform";
+    }
+    default:
+      return t || "Servis";
+  }
+}
+
 export default function OrdersAdminClient() {
+  const dialog = useDialog();
   const [pending, startTransition] = useTransition();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -210,6 +304,10 @@ export default function OrdersAdminClient() {
   const [giftCardApprovingId, setGiftCardApprovingId] = useState<string | null>(null);
   const [giftCardCode, setGiftCardCode] = useState("");
   const [giftCardFormError, setGiftCardFormError] = useState<string | null>(null);
+
+  const [cancelledOrders, setCancelledOrders] = useState<CancelledOrder[] | null>(null);
+  const [cancelledLoading, setCancelledLoading] = useState(false);
+  const [cancelledError, setCancelledError] = useState<string | null>(null);
 
   // Cancel-with-reason modal. Used for both game and service tabs.
   type CancelTarget =
@@ -410,13 +508,30 @@ export default function OrdersAdminClient() {
       psplus: data?.psPlusOrders.length ?? 0,
       eaplay: data?.eaPlayOrders?.length ?? 0,
       gift: data?.giftCardOrders.length ?? 0,
+      honsell: data?.honsellOrders?.length ?? 0,
       account: data?.accountCreationOrders.length ?? 0,
       streaming: data?.streamingOrders?.length ?? 0,
       ai: data?.aiOrders?.length ?? 0,
       music: data?.musicOrders?.length ?? 0,
       work: data?.workOrders?.length ?? 0,
+      cancelled: cancelledOrders?.length ?? 0,
     };
-  }, [data]);
+  }, [data, cancelledOrders]);
+
+  async function loadCancelled(opts: { silent?: boolean } = {}) {
+    if (!opts.silent) setCancelledLoading(true);
+    setCancelledError(null);
+    const res = await fetch("/api/admin/orders?status=FAILED", { cache: "no-store" });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      setCancelledError(j.error ?? "Yükləmə xətası");
+      if (!opts.silent) setCancelledLoading(false);
+      return;
+    }
+    const payload = (await res.json()) as { cancelledOrders: CancelledOrder[] };
+    setCancelledOrders(payload.cancelledOrders ?? []);
+    if (!opts.silent) setCancelledLoading(false);
+  }
 
   async function load(opts: { silent?: boolean } = {}) {
     if (!opts.silent) setLoading(true);
@@ -437,6 +552,13 @@ export default function OrdersAdminClient() {
     load();
   }, []);
 
+  useEffect(() => {
+    if (tab === "cancelled" && cancelledOrders === null && !cancelledLoading) {
+      loadCancelled();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
   async function actService(
     id: string,
     action: "SUCCESS",
@@ -450,7 +572,13 @@ export default function OrdersAdminClient() {
       | "musicOrders"
       | "workOrders"
   ) {
-    if (!confirm("Sifarişi tamamla?")) return;
+    if (
+      !(await dialog.confirm({
+        title: "Sifarişi tamamla?",
+        confirmLabel: "Tamamla",
+      }))
+    )
+      return;
     setError(null);
     startTransition(async () => {
       const res = await fetch(`/api/admin/service-orders/${id}`, {
@@ -471,6 +599,35 @@ export default function OrdersAdminClient() {
     });
   }
 
+  async function deliverHonsell(cardId: string) {
+    if (
+      !(await dialog.confirm({
+        title: "Honsell hədiyyə kartını təslim et?",
+        message: "Kod avtomatik yaradılacaq.",
+        confirmLabel: "Təslim et",
+      }))
+    )
+      return;
+    setError(null);
+    startTransition(async () => {
+      const res = await fetch("/api/admin/honsell-gift-cards/deliver", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardId }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setError(j.error ?? "Təslim alınmadı");
+        return;
+      }
+      setData((prev) => {
+        if (!prev) return prev;
+        const list = (prev.honsellOrders ?? []).filter((o) => o.id !== cardId);
+        return { ...prev, honsellOrders: list };
+      });
+    });
+  }
+
   function rejectService(
     id: string,
     title: string,
@@ -487,54 +644,178 @@ export default function OrdersAdminClient() {
     openCancelModal({ kind: "service", id, title, listKey });
   }
 
+  const activeTabLabel = TABS.find((t) => t.id === tab)?.label ?? "";
+  const activeTabCount = counts[tab];
+  const totalPending =
+    counts.game +
+    counts.psplus +
+    counts.eaplay +
+    counts.gift +
+    counts.honsell +
+    counts.account +
+    counts.streaming +
+    counts.ai +
+    counts.music +
+    counts.work;
+
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="mx-auto max-w-7xl space-y-4">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-zinc-800/70 pb-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Sifarişlər</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Oyun çatdırılması, PS Plus, hədiyyə kart və hesab açma sifarişləri tək paneldə.
+            Aktiv işlərinizi soldakı kateqoriyalardan açın və idarə edin.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => load()}
-          disabled={pending || loading}
-          className="inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Yenilə
-        </button>
-      </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatCard label="Gözləyir" value={totalPending} tone="amber" />
+          <StatCard label="Arxiv" value={counts.cancelled} tone="rose" />
+          <button
+            type="button"
+            onClick={() => (tab === "cancelled" ? loadCancelled() : load())}
+            disabled={pending || (tab === "cancelled" ? cancelledLoading : loading)}
+            className="inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Yenilə
+          </button>
+        </div>
+      </header>
 
-      <div className="flex flex-wrap gap-2">
-        {TABS.map((t) => {
-          const active = tab === t.id;
-          const c = counts[t.id];
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={[
-                "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm ring-1 transition",
-                active
-                  ? "bg-indigo-500/15 text-indigo-200 ring-indigo-500/30"
-                  : "bg-zinc-900/60 text-zinc-300 ring-zinc-800 hover:bg-zinc-900",
-              ].join(" ")}
-            >
-              {t.label}
-              <span className="rounded-full bg-zinc-950 px-2 py-0.5 text-xs text-zinc-400 ring-1 ring-zinc-800">
-                {c}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {error && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+          {error}
+        </div>
+      )}
 
-      {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">{error}</div>}
+      <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+          <nav className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
+            <SidebarGroup label="Oyun & PSN">
+              <NavItem
+                id="game"
+                active={tab === "game"}
+                icon={<Gamepad2 className="h-4 w-4" />}
+                label="Oyun çatdırılması"
+                count={counts.game}
+                onClick={setTab}
+              />
+              <NavItem
+                id="psplus"
+                active={tab === "psplus"}
+                icon={<Crown className="h-4 w-4" />}
+                label="PS Plus"
+                count={counts.psplus}
+                onClick={setTab}
+              />
+              <NavItem
+                id="eaplay"
+                active={tab === "eaplay"}
+                icon={<Trophy className="h-4 w-4" />}
+                label="EA Play"
+                count={counts.eaplay}
+                onClick={setTab}
+              />
+            </SidebarGroup>
+            <SidebarGroup label="Servislər">
+              <NavItem
+                id="gift"
+                active={tab === "gift"}
+                icon={<Gift className="h-4 w-4" />}
+                label="Hədiyyə kart"
+                count={counts.gift}
+                onClick={setTab}
+              />
+              <NavItem
+                id="honsell"
+                active={tab === "honsell"}
+                icon={<Gift className="h-4 w-4" />}
+                label="Honsell H. kart"
+                count={counts.honsell}
+                onClick={setTab}
+              />
+              <NavItem
+                id="account"
+                active={tab === "account"}
+                icon={<UserPlus className="h-4 w-4" />}
+                label="Hesab açma"
+                count={counts.account}
+                onClick={setTab}
+              />
+              <NavItem
+                id="streaming"
+                active={tab === "streaming"}
+                icon={<Tv className="h-4 w-4" />}
+                label="Streaming"
+                count={counts.streaming}
+                onClick={setTab}
+              />
+            </SidebarGroup>
+            <SidebarGroup label="Platforma">
+              <NavItem
+                id="ai"
+                active={tab === "ai"}
+                icon={<Sparkles className="h-4 w-4" />}
+                label="Süni İntellekt"
+                count={counts.ai}
+                onClick={setTab}
+              />
+              <NavItem
+                id="music"
+                active={tab === "music"}
+                icon={<Music className="h-4 w-4" />}
+                label="Musiqi"
+                count={counts.music}
+                onClick={setTab}
+              />
+              <NavItem
+                id="work"
+                active={tab === "work"}
+                icon={<Briefcase className="h-4 w-4" />}
+                label="İş Platformaları"
+                count={counts.work}
+                onClick={setTab}
+              />
+            </SidebarGroup>
+            <SidebarGroup label="Arxiv">
+              <NavItem
+                id="cancelled"
+                active={tab === "cancelled"}
+                icon={<XCircle className="h-4 w-4" />}
+                label="Ləğv edilmiş"
+                count={counts.cancelled}
+                onClick={setTab}
+                tone="muted"
+              />
+            </SidebarGroup>
+          </nav>
+        </aside>
 
-      {loading || !data ? (
+        <section className="min-w-0 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-800/70 bg-zinc-900/30 px-4 py-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <TabIcon id={tab} />
+              <div className="min-w-0">
+                <h2 className="truncate text-base font-semibold text-zinc-100">
+                  {activeTabLabel}
+                </h2>
+                <p className="mt-0.5 truncate text-xs text-zinc-500">
+                  {TAB_DESCRIPTIONS[tab]}
+                </p>
+              </div>
+            </div>
+            <span className="shrink-0 rounded-full bg-zinc-950 px-3 py-1 text-xs font-bold tabular-nums text-zinc-200 ring-1 ring-zinc-800">
+              {activeTabCount} sifariş
+            </span>
+          </div>
+
+          {tab === "cancelled" ? (
+        <CancelledOrdersView
+          orders={cancelledOrders}
+          loading={cancelledLoading}
+          error={cancelledError}
+        />
+      ) : loading || !data ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-10 text-center text-sm text-zinc-400">
           Yüklənir…
         </div>
@@ -649,6 +930,36 @@ export default function OrdersAdminClient() {
             />
           )}
 
+          {tab === "honsell" && (
+            <OrdersTable
+              empty="Gözləyən Honsell hədiyyə kartı yoxdur."
+              rows={(data.honsellOrders ?? []).map((c) => ({
+                id: c.id,
+                userId: c.purchasedBy?.id ?? "",
+                userLabel: c.purchasedBy?.name ?? c.purchasedBy?.email ?? "—",
+                userSub: c.purchasedBy?.email ?? "—",
+                item: `${(c.amountAznCents / 100).toFixed(2)} AZN Honsell Hədiyyə Kartı`,
+                itemSub: `Bitir: ${fmtDate(c.expiresAt)}`,
+                paymentSource: "—",
+                amount: fmtAzn(c.amountAznCents),
+                date: fmtDate(c.purchasedAt),
+                actions: (
+                  <div className="flex flex-col items-stretch gap-1.5">
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => deliverHonsell(c.id)}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-md bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-200 ring-1 ring-violet-500/30 hover:bg-violet-500/25 disabled:opacity-50"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      Təslim et
+                    </button>
+                  </div>
+                ),
+              }))}
+            />
+          )}
+
           {tab === "account" && (
             <OrdersTable
               empty="Gözləyən hesab açma sifarişi yoxdur."
@@ -756,20 +1067,7 @@ export default function OrdersAdminClient() {
         </>
       )}
 
-      <div className="text-xs text-zinc-500">
-        Qeyd: daha geniş idarəetmə üçün köhnə səhifələr hələ də qalır:
-        {" "}
-        <Link className="underline hover:text-zinc-300" href="/admin/ps-plus">
-          PS Plus
-        </Link>
-        {" · "}
-        <Link className="underline hover:text-zinc-300" href="/admin/services">
-          Gift Cardlar
-        </Link>
-        {" · "}
-        <Link className="underline hover:text-zinc-300" href="/admin/account-creation">
-          Hesab açılışı
-        </Link>
+        </section>
       </div>
 
       {cancelTarget && (
@@ -1006,6 +1304,7 @@ function GameOrderCard({
   onReject: () => void;
   paymentSource: string;
 }) {
+  const dialog = useDialog();
   const meta = parseGameOrderMeta(o.metadata ?? null);
   const stage = meta.fulfillmentStage ?? ("NEW" as GameOrderStage);
   const amount = Math.abs(o.amountAznCents / 100).toFixed(2);
@@ -1094,8 +1393,14 @@ function GameOrderCard({
             <button
               type="button"
               disabled={busy}
-              onClick={() => {
-                if (typeof window !== "undefined" && window.confirm("Sifariş tamamlandı (oyun PSN-da alındı və ya yükləndi)?"))
+              onClick={async () => {
+                if (
+                  await dialog.confirm({
+                    title: "Sifariş tamamlandı?",
+                    message: "Oyun PSN-da alındı və ya yükləndi?",
+                    confirmLabel: "Tamamla",
+                  })
+                )
                   onAction({ action: "SUCCESS" });
               }}
               className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/90 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
@@ -1372,8 +1677,8 @@ function OrdersTable({
   empty: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/40">
+      <table className="w-full min-w-[960px] text-sm">
         <thead className="bg-zinc-900/70 text-xs uppercase tracking-wider text-zinc-500">
           <tr>
             <Th>Müştəri</Th>
@@ -1431,24 +1736,24 @@ function RowActions({
   onReject: () => void;
 }) {
   return (
-    <div className="flex justify-end gap-2 px-2">
-      <button
-        type="button"
-        disabled={pending}
-        onClick={onReject}
-        className="inline-flex items-center gap-1.5 rounded-md bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-200 ring-1 ring-rose-500/30 hover:bg-rose-500/20 disabled:opacity-50"
-      >
-        <X className="h-3.5 w-3.5" />
-        Rədd
-      </button>
+    <div className="flex flex-col items-stretch gap-1.5">
       <button
         type="button"
         disabled={pending}
         onClick={onApprove}
-        className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-200 ring-1 ring-emerald-500/30 hover:bg-emerald-500/20 disabled:opacity-50"
+        className="inline-flex items-center justify-center gap-1.5 rounded-md bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 ring-1 ring-emerald-500/30 hover:bg-emerald-500/20 disabled:opacity-50"
       >
         <Check className="h-3.5 w-3.5" />
         Təsdiq
+      </button>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={onReject}
+        className="inline-flex items-center justify-center gap-1.5 rounded-md bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-200 ring-1 ring-rose-500/30 hover:bg-rose-500/20 disabled:opacity-50"
+      >
+        <X className="h-3.5 w-3.5" />
+        Rədd
       </button>
     </div>
   );
@@ -1481,25 +1786,257 @@ function platformDurationLabel(o: PlatformOrder): string {
   return "Müddət göstərilməyib";
 }
 
-/** Order metadata-sından YouTube müştəri credentials-larını çıxarır. */
+/** Order metadata-sından YouTube / LinkedIn müştəri credentials-larını çıxarır. */
 function parsePlatformCustomerCreds(metadata?: string | null): {
   gmail?: string;
   password?: string;
-  isYoutube: boolean;
+  /// Kart altında credentials qutusu göstərilməlidirsə — true.
+  hasCredentials: boolean;
+  /// LinkedIn üçün email label "Gmail" deyil, "Email" olur.
+  emailLabel: string;
+  /// Plan etiketləri (məs. "LinkedIn Career · 6 ay") admin sıralamada faydalıdır.
+  planLabel?: string;
 } {
-  if (!metadata) return { isYoutube: false };
+  if (!metadata) return { hasCredentials: false, emailLabel: "Gmail" };
   try {
     const m = JSON.parse(metadata) as Record<string, unknown>;
-    const isYoutube =
-      m.kind === "PLATFORM" && String(m.musicBrand ?? "") === "YOUTUBE_PREMIUM";
+    if (m.kind !== "PLATFORM") return { hasCredentials: false, emailLabel: "Gmail" };
+
+    const category = String(m.category ?? "");
+    const musicBrand = String(m.musicBrand ?? "");
+    const planType = String(m.planType ?? "").toUpperCase();
+    const isYoutube = category === "MUSIC" && musicBrand === "YOUTUBE_PREMIUM";
+    const isLinkedIn =
+      category === "WORK" && (planType === "CAREER" || planType === "BUSINESS");
+
+    const gmail = typeof m.gmail === "string" ? m.gmail : undefined;
+    const password = typeof m.customerPassword === "string" ? m.customerPassword : undefined;
+
+    const planLabel = isLinkedIn
+      ? `LinkedIn ${planType === "CAREER" ? "Career" : "Business"}`
+      : undefined;
+
     return {
-      isYoutube,
-      gmail: typeof m.gmail === "string" ? m.gmail : undefined,
-      password: typeof m.customerPassword === "string" ? m.customerPassword : undefined,
+      hasCredentials: isYoutube || isLinkedIn,
+      emailLabel: isLinkedIn ? "Email" : "Gmail",
+      gmail,
+      password,
+      planLabel,
     };
   } catch {
-    return { isYoutube: false };
+    return { hasCredentials: false, emailLabel: "Gmail" };
   }
+}
+
+function StatCard({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: number;
+  tone?: "default" | "amber" | "rose" | "indigo";
+}) {
+  const map: Record<string, string> = {
+    default: "border-zinc-800 bg-zinc-900/60 text-zinc-200",
+    amber: "border-amber-500/30 bg-amber-500/10 text-amber-200",
+    rose: "border-rose-500/30 bg-rose-500/10 text-rose-200",
+    indigo: "border-indigo-500/30 bg-indigo-500/10 text-indigo-200",
+  };
+  return (
+    <div className={`min-w-[88px] rounded-lg border px-3 py-1.5 ${map[tone]}`}>
+      <div className="text-[10px] font-semibold uppercase tracking-wider opacity-80">
+        {label}
+      </div>
+      <div className="text-lg font-bold leading-tight tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function SidebarGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-zinc-800/70 p-2 last:border-0">
+      <div className="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+        {label}
+      </div>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
+
+function NavItem({
+  id,
+  active,
+  icon,
+  label,
+  count,
+  onClick,
+  tone = "default",
+}: {
+  id: TabId;
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  count: number;
+  onClick: (id: TabId) => void;
+  tone?: "default" | "muted";
+}) {
+  const hasItems = count > 0 && tone !== "muted";
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(id)}
+      className={[
+        "flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm transition",
+        active
+          ? "bg-indigo-500/15 text-indigo-100 ring-1 ring-indigo-500/30"
+          : "text-zinc-300 hover:bg-zinc-800/60 hover:text-zinc-100",
+      ].join(" ")}
+    >
+      <span className={active ? "text-indigo-300" : "text-zinc-500"}>{icon}</span>
+      <span className="flex-1 truncate">{label}</span>
+      <span
+        className={[
+          "min-w-[1.75rem] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold tabular-nums ring-1",
+          hasItems
+            ? "bg-amber-500/15 text-amber-200 ring-amber-500/30"
+            : "bg-zinc-950 text-zinc-500 ring-zinc-800",
+        ].join(" ")}
+      >
+        {count}
+      </span>
+    </button>
+  );
+}
+
+function TabIcon({ id }: { id: TabId }) {
+  const map: Record<TabId, React.ReactNode> = {
+    game: <Gamepad2 className="h-5 w-5 text-indigo-300" />,
+    psplus: <Crown className="h-5 w-5 text-amber-300" />,
+    eaplay: <Trophy className="h-5 w-5 text-amber-300" />,
+    gift: <Gift className="h-5 w-5 text-emerald-300" />,
+    honsell: <Gift className="h-5 w-5 text-violet-300" />,
+    account: <UserPlus className="h-5 w-5 text-emerald-300" />,
+    streaming: <Tv className="h-5 w-5 text-rose-300" />,
+    ai: <Sparkles className="h-5 w-5 text-fuchsia-300" />,
+    music: <Music className="h-5 w-5 text-pink-300" />,
+    work: <Briefcase className="h-5 w-5 text-sky-300" />,
+    cancelled: <XCircle className="h-5 w-5 text-zinc-400" />,
+  };
+  return (
+    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-zinc-900 ring-1 ring-zinc-800">
+      {map[id]}
+    </div>
+  );
+}
+
+function CancelledOrdersView({
+  orders,
+  loading,
+  error,
+}: {
+  orders: CancelledOrder[] | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading && orders === null) {
+    return (
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-10 text-center text-sm text-zinc-400">
+        Yüklənir…
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+        {error}
+      </div>
+    );
+  }
+  if (!orders || orders.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-12 text-center text-sm text-zinc-500">
+        Ləğv edilmiş sifariş yoxdur.
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
+      <table className="w-full text-sm">
+        <thead className="bg-zinc-900/70 text-xs uppercase tracking-wider text-zinc-500">
+          <tr>
+            <Th>Müştəri</Th>
+            <Th>Məhsul</Th>
+            <Th>Növ</Th>
+            <Th>Ləğv səbəbi</Th>
+            <Th>Geri qaytarma</Th>
+            <Th>Məbləğ</Th>
+            <Th>Ləğv tarixi</Th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-zinc-800/70">
+          {orders.map((o) => {
+            const meta = parseCancelMeta(o.metadata);
+            const refundSource = getPaymentSource(o.metadata);
+            return (
+              <tr key={o.id} className="hover:bg-zinc-900/40 align-top">
+                <Td>
+                  <Link className="block" href={`/admin/users/${o.user.id}`}>
+                    <div className="truncate text-zinc-100">
+                      {o.user.name ?? o.user.email}
+                    </div>
+                    <div className="truncate text-xs text-zinc-500">{o.user.email}</div>
+                  </Link>
+                </Td>
+                <Td>
+                  <div className="truncate text-zinc-100">{cancelledItemLabel(o)}</div>
+                  {meta.fromStatus && meta.fromStatus !== "PENDING" && (
+                    <div className="text-[10px] uppercase tracking-wider text-amber-300/80">
+                      Əvvəlki status: {meta.fromStatus}
+                    </div>
+                  )}
+                </Td>
+                <Td>
+                  <span className="rounded-full bg-zinc-950 px-2 py-0.5 text-[11px] text-zinc-300 ring-1 ring-zinc-800">
+                    {cancelledTypeLabel(o)}
+                  </span>
+                </Td>
+                <Td className="max-w-[320px]">
+                  <div className="whitespace-pre-wrap break-words text-zinc-200">
+                    {meta.reason ?? <span className="text-zinc-500">—</span>}
+                  </div>
+                </Td>
+                <Td>
+                  <span className="rounded-full bg-zinc-950 px-2 py-0.5 text-[11px] text-zinc-300 ring-1 ring-zinc-800">
+                    {refundSource === "REFERRAL"
+                      ? "Referral"
+                      : refundSource === "WALLET"
+                        ? "Cüzdan"
+                        : refundSource === "EPOINT"
+                          ? "Cüzdan (Epoint)"
+                          : "—"}
+                  </span>
+                </Td>
+                <Td className="font-semibold text-zinc-100">
+                  {fmtAzn(o.amountAznCents)}
+                </Td>
+                <Td className="text-zinc-400">
+                  {meta.cancelledAt ? fmtDate(meta.cancelledAt) : fmtDate(o.createdAt)}
+                </Td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function PlatformOrdersTable({
@@ -1520,11 +2057,14 @@ function PlatformOrdersTable({
       empty={empty}
       rows={orders.map((o) => {
         const creds = parsePlatformCustomerCreds(o.metadata);
-        const itemSub = creds.isYoutube ? (
+        const itemSub = creds.hasCredentials ? (
           <div className="space-y-1.5">
-            <div className="text-xs text-zinc-400">{platformDurationLabel(o)}</div>
+            <div className="text-xs text-zinc-400">
+              {creds.planLabel ? `${creds.planLabel} · ` : ""}
+              {platformDurationLabel(o)}
+            </div>
             <div className="space-y-1">
-              {creds.gmail && <CopyableField label="Gmail" value={creds.gmail} />}
+              {creds.gmail && <CopyableField label={creds.emailLabel} value={creds.gmail} />}
               {creds.password && (
                 <CopyableField label="Şifrə" value={creds.password} masked mono />
               )}

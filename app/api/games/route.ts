@@ -18,13 +18,13 @@ const SORTS = new Set<Sort>([
   "popular",
 ]);
 
-const PRODUCT_TYPES = new Set(["GAME", "ADDON", "CURRENCY", "OTHER"]);
+const PRODUCT_TYPES = new Set(["ALL", "GAME", "ADDON", "CURRENCY", "OTHER"]);
 
 /**
  * Unified games listing.
  *   q             search query (min 2 chars; otherwise ignored)
  *   sort          newest | priceAsc | priceDesc | discount | alpha
- *   type          GAME | ADDON | CURRENCY | OTHER  (default: GAME)
+ *   type          ALL | GAME | ADDON | CURRENCY | OTHER  (default: ALL)
  *   platform      PS4 | PS5
  *   onSale        "1" → only items with an active discount
  *   limit         default 100, max 200
@@ -47,8 +47,11 @@ export async function GET(req: Request) {
   const sortParam = (url.searchParams.get("sort") ?? "newest") as Sort;
   const sort: Sort = SORTS.has(sortParam) ? sortParam : "newest";
 
-  const typeParam = url.searchParams.get("type") ?? "GAME";
-  const productType = PRODUCT_TYPES.has(typeParam) ? typeParam : "GAME";
+  const typeParam = url.searchParams.get("type") ?? "ALL";
+  const productType = PRODUCT_TYPES.has(typeParam) ? typeParam : "ALL";
+  // When type=ALL we skip the productType filter entirely. The pill switcher
+  // then renders a mixed catalog with games, DLCs, currency, and other SKUs.
+  const filterByType = productType !== "ALL";
 
   const platform = url.searchParams.get("platform"); // PS4 | PS5 | null
   const onSale = url.searchParams.get("onSale") === "1";
@@ -57,7 +60,8 @@ export async function GET(req: Request) {
   const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
   const page = Math.max(1, Math.floor(offset / limit) + 1);
 
-  const where: Prisma.GameWhereInput = { isActive: true, productType };
+  const where: Prisma.GameWhereInput = { isActive: true };
+  if (filterByType) where.productType = productType;
   if (q) where.title = { contains: q, mode: "insensitive" };
   if (platform === "PS4" || platform === "PS5") {
     // The platform column stores either a single value ("PS5"), a
@@ -77,9 +81,13 @@ export async function GET(req: Request) {
   const useFuzzy = q.length >= 2;
 
   const [typeAllCount, typeOnSaleCount, totalsArr, settings] = await Promise.all([
-    prisma.game.count({ where: { isActive: true, productType } }),
     prisma.game.count({
-      where: { isActive: true, productType, discountTryCents: { not: null } },
+      where: filterByType ? { isActive: true, productType } : { isActive: true },
+    }),
+    prisma.game.count({
+      where: filterByType
+        ? { isActive: true, productType, discountTryCents: { not: null } }
+        : { isActive: true, discountTryCents: { not: null } },
     }),
     prisma.game.groupBy({
       by: ["productType"],
@@ -90,7 +98,7 @@ export async function GET(req: Request) {
   ]);
 
   const { filteredCount, rows } = useFuzzy
-    ? await fetchFuzzy({ q, sort, productType, platform, onSale, limit, offset })
+    ? await fetchFuzzy({ q, sort, productType: filterByType ? productType : null, platform, onSale, limit, offset })
     : {
         filteredCount: await prisma.game.count({ where }),
         rows: await fetchSorted(where, sort, limit, offset),
@@ -206,7 +214,8 @@ async function fetchFuzzy({
 }: {
   q: string;
   sort: Sort;
-  productType: string;
+  /** null when type=ALL (no productType filter applied) */
+  productType: string | null;
   platform: string | null;
   onSale: boolean;
   limit: number;
@@ -252,7 +261,8 @@ async function fetchFuzzy({
     return { filteredCount: countRow?.[0]?.count ?? 0, rows };
   } catch {
     // Fallback: simple substring match (existing behavior).
-    const where: Prisma.GameWhereInput = { isActive: true, productType };
+    const where: Prisma.GameWhereInput = { isActive: true };
+    if (productType) where.productType = productType;
     where.title = { contains: q, mode: "insensitive" };
     if (platform === "PS4" || platform === "PS5") {
       where.OR = [{ platform: { contains: platform } }, { platform: null }];
@@ -275,15 +285,14 @@ function buildGameWhereSql({
   onSale,
 }: {
   q: string;
-  productType: string;
+  /** null when type=ALL (no productType filter applied) */
+  productType: string | null;
   platform: string | null;
   onSale: boolean;
 }) {
   // Base filters.
-  const parts: PrismaSql.Sql[] = [
-    PrismaSql.sql`g."isActive" = true`,
-    PrismaSql.sql`g."productType" = ${productType}`,
-  ];
+  const parts: PrismaSql.Sql[] = [PrismaSql.sql`g."isActive" = true`];
+  if (productType) parts.push(PrismaSql.sql`g."productType" = ${productType}`);
 
   if (onSale) parts.push(PrismaSql.sql`g."discountTryCents" IS NOT NULL`);
 

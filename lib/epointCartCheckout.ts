@@ -83,6 +83,14 @@ export type EpointCartLineSnapshot =
       unitListCents: number;
       category: string;
       durationMonths: number | null;
+      /// Musiqi alt-brendi (məs. YOUTUBE_PREMIUM) — admin sifariş baxışında lazımdır.
+      musicBrand?: string | null;
+      /// İş Platformaları (LinkedIn) plan tipi (CAREER | BUSINESS).
+      planType?: string | null;
+      /// LinkedIn / YouTube Premium üçün müştəri hesab email-i.
+      gmail?: string;
+      /// LinkedIn / YouTube Premium üçün müştəri hesab şifrəsi.
+      password?: string;
     }
   | {
       kind: "HONSELL_GIFT_CARD";
@@ -450,6 +458,10 @@ export async function finalizeEpointCartCheckout(
               paymentSource: "EPOINT",
               orderCode: meta.orderCode,
               epointPaymentId: payment.id,
+              ...(line.musicBrand ? { musicBrand: line.musicBrand } : {}),
+              ...(line.planType ? { planType: line.planType } : {}),
+              ...(line.gmail ? { gmail: line.gmail } : {}),
+              ...(line.password ? { customerPassword: line.password } : {}),
             }),
           },
         });

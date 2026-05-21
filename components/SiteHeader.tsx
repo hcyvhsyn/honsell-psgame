@@ -11,6 +11,7 @@ import {
   Gamepad2,
   Gem,
   Gift,
+  Globe,
   Grid2X2,
   Heart,
   LogIn,
@@ -48,6 +49,7 @@ type NavGroup = {
   label: string;
   Icon: LucideIcon;
   href?: string; // Group başlığını klikləməklə dropdown-un əsas səhifəsinə keçid.
+  description?: string;
   items: NavLinkItem[];
 };
 
@@ -57,6 +59,7 @@ const playstationGroup: NavGroup = {
   label: "PlayStation",
   Icon: Gamepad2,
   href: "/playstation",
+  description: "Oyunlar, abunəliklər və faydalı keçidlər",
   items: [
     {
       href: "/oyunlar",
@@ -129,13 +132,50 @@ const streamingGroup: NavGroup = {
   label: "Yayım",
   Icon: Video,
   href: "/streaming",
+  description: "Streaming xidmətləri, icmallar və izləmə listi",
   items: [
-    { href: "/streaming", label: "Bütün xidmətlər" },
-    { href: "/streaming/netflix", label: "Netflix" },
-    { href: "/streaming/hbo-max", label: "HBO Max" },
-    { href: "/streaming/gain", label: "Gain" },
-    { href: "/streaming/icmallar", label: "İcmallar" },
-    { href: "/streaming/izleme-listim", label: "İzləmə Listim" },
+    {
+      href: "/streaming",
+      label: "Bütün xidmətlər",
+      description: "Aktiv streaming paketləri",
+      Icon: Video,
+      section: "products",
+    },
+    {
+      href: "/streaming/netflix",
+      label: "Netflix",
+      description: "Film və serial platforması",
+      Icon: Video,
+      section: "products",
+    },
+    {
+      href: "/streaming/hbo-max",
+      label: "HBO Max",
+      description: "Premium film və serial arxivi",
+      Icon: Video,
+      section: "products",
+    },
+    {
+      href: "/streaming/gain",
+      label: "Gain",
+      description: "Yerli və xarici kontent",
+      Icon: Video,
+      section: "products",
+    },
+    {
+      href: "/streaming/icmallar",
+      label: "İcmallar",
+      description: "Baxışlar və tövsiyələr",
+      Icon: MessageCircle,
+      section: "helpful",
+    },
+    {
+      href: "/streaming/izleme-listim",
+      label: "İzləmə Listim",
+      description: "Seçdiklərini saxla",
+      Icon: Heart,
+      section: "helpful",
+    },
   ],
 };
 
@@ -143,9 +183,20 @@ const musicGroup: NavGroup = {
   label: "Musiqi",
   Icon: Music2,
   href: "/music",
+  description: "Premium musiqi və video paketləri",
   items: [
-    { href: "/music", label: "Bütün musiqi paketləri" },
-    { href: "/music/youtube", label: "YouTube Premium" },
+    {
+      href: "/music",
+      label: "Bütün musiqi paketləri",
+      description: "Musiqi xidmətlərinə bax",
+      Icon: Music2,
+    },
+    {
+      href: "/music/youtube",
+      label: "YouTube Premium",
+      description: "Reklamsız video və musiqi",
+      Icon: Video,
+    },
   ],
 };
 
@@ -153,8 +204,20 @@ const workGroup: NavGroup = {
   label: "İş",
   Icon: BriefcaseBusiness,
   href: "/work",
+  description: "Peşəkar platformalar və karyera alətləri",
   items: [
-    { href: "/work", label: "İş platformaları" },
+    {
+      href: "/work",
+      label: "İş platformaları",
+      description: "Peşəkar hesab xidmətləri",
+      Icon: BriefcaseBusiness,
+    },
+    {
+      href: "/work/linkedin-premium",
+      label: "LinkedIn Premium",
+      description: "LinkedIn paketləri",
+      Icon: BriefcaseBusiness,
+    },
   ],
 };
 
@@ -162,21 +225,75 @@ const aiGroup: NavGroup = {
   label: "AI",
   Icon: Sparkles,
   href: "/ai",
+  description: "Süni intellekt paketləri və brendlər",
   items: [
-    { href: "/ai", label: "Süni intellekt paketləri" },
-    { href: "/ai/claude", label: "Claude" },
-    { href: "/ai/chatgpt", label: "ChatGPT" },
+    {
+      href: "/ai",
+      label: "Süni intellekt paketləri",
+      description: "AI alətlərinə giriş",
+      Icon: Sparkles,
+    },
+    {
+      href: "/ai/claude",
+      label: "Claude",
+      description: "Claude AI paketləri",
+      Icon: Sparkles,
+    },
+    {
+      href: "/ai/chatgpt",
+      label: "ChatGPT",
+      description: "ChatGPT paketləri",
+      Icon: Sparkles,
+    },
+  ],
+};
+
+const servicesGroup: NavGroup = {
+  label: "Xidmətlər",
+  Icon: Globe,
+  href: "/xidmetler",
+  description: "Biznes üçün rəqəmsal xidmətlər",
+  items: [
+    {
+      href: "/xidmetler/website",
+      label: "Website Hazırlanması",
+      description: "Bizneslər üçün satış yönümlü saytlar",
+      Icon: Globe,
+      section: "products",
+      featured: true,
+    },
   ],
 };
 
 const otherGroup: NavGroup = {
   label: "Digər",
   Icon: Grid2X2,
+  description: "Bonuslar, bələdçilər və sayt məlumatları",
   items: [
-    { href: "/qazan", label: "Qazan" },
-    { href: "/bilmeli-olduglarin", label: "Bələdçilər" },
-    { href: "/haqqimizda", label: "Haqqımızda" },
-    { href: "/mexfilik-siyaseti", label: "Məxfilik siyasəti" },
+    {
+      href: "/qazan",
+      label: "Qazan",
+      description: "Bonus hesablayıcı",
+      Icon: Gem,
+    },
+    {
+      href: "/bilmeli-olduglarin",
+      label: "Bələdçilər",
+      description: "Faydalı məqalələr",
+      Icon: MessageCircle,
+    },
+    {
+      href: "/haqqimizda",
+      label: "Haqqımızda",
+      description: "Honsell haqqında",
+      Icon: User,
+    },
+    {
+      href: "/mexfilik-siyaseti",
+      label: "Məxfilik siyasəti",
+      description: "Məlumat təhlükəsizliyi",
+      Icon: Globe,
+    },
   ],
 };
 
@@ -186,6 +303,7 @@ const navGroups: NavGroup[] = [
   musicGroup,
   workGroup,
   aiGroup,
+  servicesGroup,
   otherGroup,
 ];
 
@@ -236,7 +354,7 @@ export default function SiteHeader({
 
   return (
     <>
-      <header ref={headerRef} className="sticky top-0 z-50 bg-[#03030A]/85 px-4 py-3 backdrop-blur-xl sm:px-6">
+      <header ref={headerRef} className="sticky top-0 z-50 bg-white/85 dark:bg-[#03030A]/85 px-4 py-3 backdrop-blur-xl sm:px-6">
         <div className="honsell-navbar-shell mx-auto flex w-full max-w-7xl flex-col rounded-[24px]">
           <div className="grid min-h-[66px] grid-cols-[auto_1fr] items-center gap-3 px-4 py-3 md:grid-cols-[150px_minmax(220px,1fr)_auto] md:px-5 xl:grid-cols-[170px_minmax(260px,1fr)_auto] xl:gap-4 xl:px-6">
             <div className="flex min-w-0 items-center">
@@ -248,47 +366,25 @@ export default function SiteHeader({
             </div>
 
             <div className="flex min-w-0 items-center justify-end gap-2 xl:gap-3">
-              <Link
-                href="/profile/favorites"
-                className="hidden h-10 items-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.045] px-3 text-sm font-semibold text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-400/35 hover:bg-white/[0.075] lg:inline-flex"
-              >
-                <Heart className="h-5 w-5" />
-                Favorilər
-              </Link>
-
               <CartIndicator />
 
-              {user?.walletBalance !== undefined && (
-                <Link
-                  href="/profile/wallet"
-                  className="hidden h-10 items-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.045] px-3 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-400/35 hover:bg-white/[0.075] sm:inline-flex"
-                  title="Balans"
-                >
-                  <span className="grid h-7 w-7 place-items-center rounded-xl bg-white/5 text-zinc-200">
-                    <Wallet className="h-4 w-4" />
-                  </span>
-                  <span className="tabular-nums">{(user.walletBalance / 100).toFixed(2)}₼</span>
-                </Link>
-              )}
+              <Link
+                href="/hediyye-kartlari/honsell"
+                className="hidden h-10 items-center gap-2 rounded-[18px] border border-violet-300/40 bg-violet-50 px-3 text-sm font-bold text-violet-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition hover:bg-violet-100 dark:border-violet-400/30 dark:bg-violet-950/30 dark:text-white dark:hover:bg-violet-900/40 sm:inline-flex"
+                title="Hədiyyə kartları"
+              >
+                <Gift className="h-4 w-4" />
+                <span>Hədiyyə kartları</span>
+              </Link>
 
               {user ? (
-                <Link
-                  href="/profile"
-                  className="hidden h-10 max-w-[170px] items-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.045] px-3 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-400/35 hover:bg-white/[0.075] sm:inline-flex"
-                  title="Hesab"
-                >
-                  <span className="grid h-7 w-7 place-items-center rounded-xl bg-white/5 text-zinc-200">
-                    <User className="h-4 w-4" />
-                  </span>
-                  <span className="truncate">{user.name?.split(" ")[0] ?? "Hesab"}</span>
-                  <ChevronDown className="h-4 w-4 shrink-0 text-violet-400" />
-                </Link>
+                <UserAccountDropdown user={user} />
               ) : (
                 <div className="hidden items-center gap-2 sm:flex">
                   <button
                     type="button"
                     onClick={() => open("login")}
-                    className="inline-flex h-10 items-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.045] px-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/[0.075]"
+                    className="inline-flex h-10 items-center gap-2 rounded-[18px] border border-zinc-200 bg-white/75 px-3 text-sm font-semibold text-zinc-900 transition hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-100 dark:hover:bg-white/[0.075]"
                   >
                     <LogIn className="h-4 w-4" /> Daxil ol
                   </button>
@@ -306,7 +402,7 @@ export default function SiteHeader({
               <button
                 type="button"
                 onClick={() => setMenuOpen((v) => !v)}
-                className="flex h-10 w-10 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.045] text-zinc-200 transition hover:bg-white/[0.075] xl:hidden"
+                className="flex h-10 w-10 items-center justify-center rounded-[16px] border border-zinc-200 bg-white/75 text-zinc-700 transition hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-200 dark:hover:bg-white/[0.075] xl:hidden"
                 aria-label="Menyu"
                 aria-expanded={menuOpen}
               >
@@ -319,7 +415,7 @@ export default function SiteHeader({
             </div>
           </div>
 
-          <div className="hidden min-h-[64px] items-center justify-between gap-4 border-t border-violet-300/15 px-6 xl:flex">
+          <div className="hidden min-h-[64px] items-center justify-between gap-4 border-t border-zinc-200 dark:border-violet-300/15 px-6 xl:flex">
             <nav className="flex min-w-0 items-center gap-5" aria-label="Əsas naviqasiya">
               {navGroups.map((g) => (
                 <NavDropdown key={g.label} group={g} active={isGroupActive(g, pathname)} pathname={pathname} />
@@ -328,15 +424,8 @@ export default function SiteHeader({
 
             <div className="flex shrink-0 items-center gap-5">
               <Link
-                href="/hediyye-kartlari/honsell"
-                className="honsell-gift-btn inline-flex h-11 items-center gap-2 px-4 text-sm font-bold text-white transition hover:brightness-110"
-              >
-                <Gift className="h-5 w-5 text-white" />
-                Honsell hədiyyə kartları
-              </Link>
-              <Link
                 href="/qazan"
-                className="inline-flex h-11 items-center gap-2 rounded-[20px] border border-violet-500/35 bg-violet-950/25 px-4 text-sm font-semibold text-violet-50 shadow-[0_0_24px_-16px_rgba(124,58,237,0.9)] transition hover:border-violet-300/60 hover:bg-violet-900/35"
+                className="inline-flex h-11 items-center gap-2 rounded-[20px] border border-violet-500/35 bg-violet-50 px-4 text-sm font-semibold text-violet-700 shadow-[0_0_24px_-16px_rgba(124,58,237,0.45)] transition hover:border-violet-400/60 hover:bg-violet-100 dark:bg-violet-950/25 dark:text-violet-50 dark:shadow-[0_0_24px_-16px_rgba(124,58,237,0.9)] dark:hover:border-violet-300/60 dark:hover:bg-violet-900/35"
               >
                 <Gem className="h-5 w-5" />
                 Bonus qazan
@@ -363,7 +452,7 @@ export default function SiteHeader({
             className="absolute inset-0 h-full w-full bg-black/70 backdrop-blur-sm"
           />
           <div
-            className="absolute inset-x-0 flex flex-col overflow-hidden rounded-b-3xl border-b border-white/10 bg-[#09090C] shadow-2xl"
+            className="absolute inset-x-0 flex flex-col overflow-hidden rounded-b-3xl border-b border-zinc-200 dark:border-white/10 bg-white dark:bg-[#09090C] shadow-2xl"
             style={{
               top: headerHeight || undefined,
               maxHeight: headerHeight
@@ -382,7 +471,7 @@ export default function SiteHeader({
                   <Link
                     href="/profile"
                     onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.06] to-white/[0.02] p-3"
+                    className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-gradient-to-r from-violet-50 to-white p-3 dark:border-white/10 dark:from-white/[0.06] dark:to-white/[0.02]"
                   >
                     <span
                       className="grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br text-white"
@@ -391,11 +480,11 @@ export default function SiteHeader({
                       <User className="h-5 w-5" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-white">
+                      <p className="truncate text-sm font-semibold text-zinc-900 dark:text-white">
                         {user.name ?? "Hesab"}
                       </p>
                       {user.walletBalance !== undefined && (
-                        <p className="truncate text-[11px] text-zinc-400">
+                        <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
                           Cüzdan {(user.walletBalance / 100).toFixed(2)} ₼
                           {typeof user.cashbackBalanceCents === "number" && user.cashbackBalanceCents > 0
                             ? ` · CB ${(user.cashbackBalanceCents / 100).toFixed(2)} ₼`
@@ -410,7 +499,7 @@ export default function SiteHeader({
                     <button
                       type="button"
                       onClick={() => { setMenuOpen(false); open("login"); }}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-medium text-zinc-200 hover:bg-white/10"
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200 dark:hover:bg-white/10"
                     >
                       <LogIn className="h-4 w-4" /> Daxil ol
                     </button>
@@ -433,24 +522,24 @@ export default function SiteHeader({
                         {section.heading}
                       </p>
                     )}
-                    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+                    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.02]">
                       {section.items.map((item, i) => (
                         <Link
                           key={item.href}
                           href={item.href}
                           onClick={() => setMenuOpen(false)}
-                          className={`flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium transition active:bg-white/10 hover:bg-white/[0.05] ${
-                            i > 0 ? "border-t border-white/5" : ""
-                          } ${item.featured ? "text-rose-200" : "text-zinc-200"}`}
+                          className={`flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium transition hover:bg-violet-50 active:bg-zinc-100 dark:hover:bg-white/[0.05] dark:active:bg-white/10 ${
+                            i > 0 ? "border-t border-zinc-200 dark:border-white/5" : ""
+                          } ${item.featured ? "text-rose-600 dark:text-rose-200" : "text-zinc-700 dark:text-zinc-200"}`}
                         >
                           <span className="truncate">{item.label}</span>
                           <span className="flex items-center gap-2">
                             {item.comingSoon && (
-                              <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200 ring-1 ring-amber-300/30">
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-amber-300/40 dark:bg-amber-400/15 dark:text-amber-200 dark:ring-amber-300/30">
                                 Tezliklə
                               </span>
                             )}
-                            <span className="text-zinc-600">→</span>
+                            <span className="text-zinc-400 dark:text-zinc-600">→</span>
                           </span>
                         </Link>
                       ))}
@@ -485,22 +574,27 @@ function NavDropdown({
   active: boolean;
   pathname: string;
 }) {
-  if (group.label === "PlayStation") {
-    return <PlayStationDropdown group={group} active={active} pathname={pathname} />;
-  }
-
   // Dropdown title-i qrupun əsas səhifəsinə (varsa) link-ə çevrilir; əks halda
   // sadəcə görsəl trigger düymədir. ChevronDown panelin açıldığını göstərir.
+  const hasSectionedItems = group.items.some((item) => item.section);
+  const productItems = group.items.filter((item) => item.section !== "helpful");
+  const helpfulItems = group.items.filter((item) => item.section === "helpful");
+  const sections = hasSectionedItems
+    ? [
+        { title: "SATIŞ MƏHSULLARI", items: productItems },
+        { title: "FAYDALI BÖLMƏLƏR", items: helpfulItems },
+      ].filter((section) => section.items.length > 0)
+    : [{ title: "BÖLMƏLƏR", items: group.items }];
   const triggerClass =
-    `relative inline-flex h-10 items-center gap-2 rounded-[18px] px-1 text-sm font-semibold transition group-focus-within:text-white ${
+    `relative inline-flex h-10 items-center gap-2 rounded-[18px] px-1 text-sm font-semibold transition group-focus-within:text-zinc-900 dark:group-focus-within:text-white ${
       active
-        ? "text-white"
-        : "text-zinc-200/90 hover:text-white"
+        ? "text-zinc-900 dark:text-white"
+        : "text-zinc-700 dark:text-zinc-200/90 hover:text-zinc-900 dark:hover:text-white"
     }`;
   const Icon = group.Icon;
   const triggerContent = (
     <>
-      <Icon className="h-5 w-5 shrink-0 text-zinc-100" />
+      <Icon className="h-5 w-5 shrink-0 text-zinc-700 dark:text-zinc-100" />
       <span className="relative z-10">{group.label}</span>
       <ChevronDown className="relative z-10 h-4 w-4 text-violet-400" />
       {active && (
@@ -525,91 +619,33 @@ function NavDropdown({
         hover hədəfidir — kursor triggerdən panelə keçəndə group hover-i
         kəsilmir.
       */}
-      <div className="invisible absolute left-1/2 top-full z-50 w-56 -translate-x-1/2 pt-3 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-        <div className="rounded-2xl border border-rose-300/15 bg-[#0B0B0E]/95 p-2 shadow-[0_24px_80px_-36px_rgba(244,63,94,0.55)] backdrop-blur-xl">
-          {group.items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition hover:bg-white/[0.07] ${
-                item.featured
-                  ? "text-rose-300 hover:text-rose-200"
-                  : "text-zinc-300 hover:text-white"
-              }`}
-            >
-              <span>{item.label}</span>
-              {item.comingSoon && (
-                <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200 ring-1 ring-amber-300/30">
-                  Tezliklə
-                </span>
-              )}
-            </Link>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PlayStationDropdown({
-  group,
-  active,
-  pathname,
-}: {
-  group: NavGroup;
-  active: boolean;
-  pathname: string;
-}) {
-  const productItems = group.items.filter((item) => item.section !== "helpful");
-  const helpfulItems = group.items.filter((item) => item.section === "helpful");
-  const Icon = group.Icon;
-  const triggerClass =
-    `relative inline-flex h-10 items-center gap-2 rounded-[18px] px-1 text-sm font-semibold transition group-focus-within:text-white ${
-      active
-        ? "text-white"
-        : "text-zinc-200/90 hover:text-white"
-    }`;
-
-  return (
-    <div className="group relative">
-      <Link
-        href={group.href ?? "/playstation"}
-        className={triggerClass}
-      >
-        <Icon className="h-5 w-5 shrink-0 text-zinc-100" />
-        <span className="relative z-10">PlayStation</span>
-        <ChevronDown className="relative z-10 h-4 w-4 text-violet-400" />
-        {active && (
-          <span className="pointer-events-none absolute inset-x-2 -bottom-2 h-px bg-gradient-to-r from-transparent via-violet-300 to-transparent" />
-        )}
-      </Link>
-
       <div className="invisible absolute left-0 top-full z-50 w-[520px] max-w-[calc(100vw-3rem)] pt-3 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-        <div
-          className="relative overflow-hidden rounded-[20px] border border-violet-400/[0.45] p-4 shadow-[0_22px_70px_-34px_rgba(168,85,247,0.85)] backdrop-blur-2xl"
-          style={{
-            background:
-              "radial-gradient(circle at 7% 7%, rgba(168, 85, 247, 0.24), transparent 31%), radial-gradient(circle at 94% 10%, rgba(59, 130, 246, 0.16), transparent 28%), linear-gradient(135deg, rgba(17, 19, 32, 0.98), rgba(5, 7, 15, 0.97))",
-          }}
-        >
+        <div className="relative overflow-hidden rounded-[20px] border border-violet-300/45 bg-[radial-gradient(circle_at_7%_7%,rgba(168,85,247,0.10),transparent_31%),radial-gradient(circle_at_94%_10%,rgba(59,130,246,0.08),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.97))] p-4 shadow-[0_22px_70px_-42px_rgba(124,58,237,0.35)] backdrop-blur-2xl dark:border-violet-400/[0.45] dark:bg-[radial-gradient(circle_at_7%_7%,rgba(168,85,247,0.24),transparent_31%),radial-gradient(circle_at_94%_10%,rgba(59,130,246,0.16),transparent_28%),linear-gradient(135deg,rgba(17,19,32,0.98),rgba(5,7,15,0.97))] dark:shadow-[0_22px_70px_-34px_rgba(168,85,247,0.85)]">
           <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/70 to-transparent" />
           <div className="pointer-events-none absolute inset-x-8 bottom-0 h-16 bg-violet-700/10 blur-3xl" />
 
           <div className="relative">
             <div className="flex items-center gap-3 pb-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-violet-400/[0.45] bg-violet-950/30 shadow-[0_0_28px_-18px_rgba(168,85,247,0.95)]">
-                <PlayStationMark />
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-violet-300/45 bg-violet-100 text-violet-700 shadow-[0_0_28px_-18px_rgba(168,85,247,0.65)] dark:border-violet-400/[0.45] dark:bg-violet-950/30 dark:text-white dark:shadow-[0_0_28px_-18px_rgba(168,85,247,0.95)]">
+                {group.label === "PlayStation" ? <PlayStationMark /> : <Icon className="h-5 w-5" />}
               </span>
               <div className="min-w-0">
-                <p className="text-xl font-black text-white">PlayStation</p>
-                <p className="text-xs font-medium text-zinc-300">
-                  Oyunlar, abunəliklər və faydalı keçidlər
+                <p className="text-xl font-black text-zinc-950 dark:text-white">{group.label}</p>
+                <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                  {group.description ?? "Seçilmiş keçidlər və xidmətlər"}
                 </p>
               </div>
             </div>
 
-            <PlayStationSection title="SATIŞ MƏHSULLARI" items={productItems} pathname={pathname} />
-            <PlayStationSection title="FAYDALI BÖLMƏLƏR" items={helpfulItems} pathname={pathname} />
+            {sections.map((section) => (
+              <DropdownSection
+                key={section.title}
+                title={section.title}
+                items={section.items}
+                pathname={pathname}
+                fallbackIcon={Icon}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -617,78 +653,234 @@ function PlayStationDropdown({
   );
 }
 
-function PlayStationSection({
+function DropdownSection({
   title,
   items,
   pathname,
+  fallbackIcon,
 }: {
   title: string;
   items: NavLinkItem[];
   pathname: string;
+  fallbackIcon: LucideIcon;
 }) {
   if (items.length === 0) return null;
+  const gridClass = items.length === 1 ? "grid-cols-1" : "grid-cols-2";
 
   return (
     <div className="mt-4 first:mt-0">
       <div className="mb-2.5 flex items-center gap-3">
-        <p className="shrink-0 text-xs font-black uppercase text-violet-300">{title}</p>
-        <span className="h-px flex-1 bg-white/10" />
+        <p className="shrink-0 text-xs font-black uppercase text-violet-600 dark:text-violet-300">{title}</p>
+        <span className="h-px flex-1 bg-zinc-200 dark:bg-white/10" />
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className={`grid ${gridClass} gap-2`}>
         {items.map((item) => (
-          <PlayStationMenuItem key={item.href} item={item} active={hrefMatches(pathname, item.href)} />
+          <DropdownMenuItem
+            key={item.href}
+            item={item}
+            active={hrefMatches(pathname, item.href)}
+            fallbackIcon={fallbackIcon}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function PlayStationMenuItem({ item, active }: { item: NavLinkItem; active: boolean }) {
-  const ItemIcon = item.Icon ?? Gamepad2;
+function DropdownMenuItem({
+  item,
+  active,
+  fallbackIcon,
+}: {
+  item: NavLinkItem;
+  active: boolean;
+  fallbackIcon: LucideIcon;
+}) {
+  const ItemIcon = item.Icon ?? fallbackIcon;
 
   return (
     <Link
       href={item.href}
       className={`group/item relative flex min-h-[48px] items-center gap-2.5 rounded-xl border px-2.5 py-2 transition ${
         item.featured
-          ? "border-rose-400/70 bg-rose-500/10 text-rose-100 shadow-[0_0_28px_-20px_rgba(251,113,133,0.95)] hover:bg-rose-500/[0.15]"
+          ? "border-rose-400/70 bg-rose-50 text-rose-700 shadow-[0_0_28px_-20px_rgba(251,113,133,0.55)] hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-100 dark:shadow-[0_0_28px_-20px_rgba(251,113,133,0.95)] dark:hover:bg-rose-500/[0.15]"
           : active
-            ? "border-violet-300/[0.55] bg-violet-500/[0.12] text-white"
-            : "border-white/10 bg-white/[0.035] text-zinc-100 hover:border-violet-300/40 hover:bg-white/[0.065]"
+            ? "border-violet-300/[0.55] bg-violet-50 text-zinc-950 dark:bg-violet-500/[0.12] dark:text-white"
+            : "border-zinc-200 bg-white text-zinc-700 hover:border-violet-300/40 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-100 dark:hover:bg-white/[0.065]"
       }`}
     >
       <span
         className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${
           item.featured
-            ? "border-rose-300/30 bg-rose-300/[0.15] text-rose-200"
-            : "border-white/10 bg-white/[0.06] text-violet-100"
+            ? "border-rose-300/30 bg-rose-100 text-rose-600 dark:bg-rose-300/[0.15] dark:text-rose-200"
+            : "border-zinc-200 bg-violet-50 text-violet-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-violet-100"
         }`}
       >
         <ItemIcon className="h-4 w-4" />
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className={`block truncate text-sm font-black ${item.featured ? "text-rose-200" : "text-white"}`}>
+        <span className={`block truncate text-sm font-black ${item.featured ? "text-rose-600 dark:text-rose-200" : "text-zinc-950 dark:text-white"}`}>
           {item.label}
         </span>
         {item.description && (
-          <span className="mt-0.5 block truncate text-xs font-medium text-zinc-300">
+          <span className="mt-0.5 block truncate text-xs font-medium text-zinc-500 dark:text-zinc-300">
             {item.description}
           </span>
         )}
       </span>
 
+      {item.comingSoon && (
+        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-amber-300/40 dark:bg-amber-400/15 dark:text-amber-200 dark:ring-amber-300/30">
+          Tezliklə
+        </span>
+      )}
       {item.featured && <Sparkles className="h-3.5 w-3.5 shrink-0 fill-rose-300/20 text-rose-300" />}
-      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition group-hover/item:translate-x-1 group-hover/item:text-white" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 transition group-hover/item:translate-x-1 group-hover/item:text-zinc-950 dark:text-zinc-300 dark:group-hover/item:text-white" />
     </Link>
+  );
+}
+
+function UserAccountDropdown({
+  user,
+}: {
+  user: {
+    name?: string | null;
+    walletBalance?: number;
+    cashbackBalanceCents?: number;
+  };
+}) {
+  const wallet =
+    typeof user.walletBalance === "number" ? user.walletBalance / 100 : null;
+  const cashback =
+    typeof user.cashbackBalanceCents === "number"
+      ? user.cashbackBalanceCents / 100
+      : null;
+
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function show() {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    setOpen(true);
+  }
+
+  function scheduleHide() {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setOpen(false), 140);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    };
+  }, []);
+
+  return (
+    <div
+      className="relative hidden sm:inline-flex"
+      onMouseEnter={show}
+      onMouseLeave={scheduleHide}
+      onFocus={show}
+      onBlur={scheduleHide}
+    >
+      <Link
+        href="/profile"
+        className="flex h-10 max-w-[180px] items-center gap-2 rounded-[18px] border border-zinc-200 bg-white/75 px-3 text-sm font-bold text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition hover:border-violet-400/35 hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:bg-white/[0.075]"
+        title="Hesab"
+      >
+        <span className="grid h-7 w-7 place-items-center rounded-xl bg-violet-50 text-violet-700 dark:bg-white/5 dark:text-zinc-200">
+          <User className="h-4 w-4" />
+        </span>
+        <span className="truncate">{user.name?.split(" ")[0] ?? "Hesab"}</span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-violet-400" />
+      </Link>
+
+      <div
+        className={`absolute right-0 top-full z-50 w-[280px] pt-2 transition-opacity duration-150 ${
+          open ? "visible opacity-100" : "pointer-events-none invisible opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden rounded-2xl border border-violet-300/45 bg-white shadow-[0_22px_70px_-32px_rgba(124,58,237,0.55)] dark:border-violet-400/[0.45] dark:bg-[#0B0B14]">
+          {wallet !== null && (
+            <Link
+              href="/profile/wallet"
+              className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 transition hover:bg-violet-50 dark:border-white/10 dark:hover:bg-white/[0.04]"
+            >
+              <span className="flex items-center gap-3">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-200">
+                  <Wallet className="h-4 w-4" />
+                </span>
+                <span className="flex flex-col">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Cüzdan
+                  </span>
+                  <span className="text-base font-black tabular-nums text-zinc-900 dark:text-white">
+                    {wallet.toFixed(2)} ₼
+                  </span>
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
+            </Link>
+          )}
+
+          {cashback !== null && cashback > 0 && (
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-white/10">
+              <span className="flex items-center gap-3">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+                  <Gem className="h-4 w-4" />
+                </span>
+                <span className="flex flex-col">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Cashback
+                  </span>
+                  <span className="text-base font-black tabular-nums text-zinc-900 dark:text-white">
+                    {cashback.toFixed(2)} ₼
+                  </span>
+                </span>
+              </span>
+            </div>
+          )}
+
+          <Link
+            href="/profile"
+            className="flex items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-violet-50 dark:text-zinc-200 dark:hover:bg-white/[0.04]"
+          >
+            <span className="flex items-center gap-3">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-zinc-100 text-zinc-700 dark:bg-white/5 dark:text-zinc-200">
+                <User className="h-4 w-4" />
+              </span>
+              <span>Hesabım</span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
+          </Link>
+
+          <Link
+            href="/profile/favorites"
+            className="flex items-center justify-between gap-3 border-t border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-violet-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/[0.04]"
+          >
+            <span className="flex items-center gap-3">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-200">
+                <Heart className="h-4 w-4" />
+              </span>
+              <span>Favoritlərim</span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
 
 function PlayStationMark({ compact = false }: { compact?: boolean }) {
   return (
     <span
-      className={`font-black text-white ${compact ? "text-[13px]" : "text-base"}`}
+      className={`font-black ${compact ? "text-[13px]" : "text-base"}`}
       aria-hidden="true"
     >
       PS

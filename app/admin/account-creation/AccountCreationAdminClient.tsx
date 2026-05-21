@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Loader2, Edit2, Check, X as XIcon, RefreshCw, Settings2, ChevronDown, ChevronUp } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useDialog } from "@/lib/dialogs";
 
 type ServiceProduct = {
   id: string;
@@ -44,6 +45,7 @@ export default function AccountCreationAdminClient() {
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
 
   const router = useRouter();
+  const dialog = useDialog();
 
   const loadProduct = useCallback(async () => {
     setLoading(true);
@@ -108,7 +110,14 @@ export default function AccountCreationAdminClient() {
   }
 
   async function processOrder(id: string, action: "SUCCESS" | "FAILED") {
-    if (!confirm(action === "SUCCESS" ? "Hesab açıldı? Sifarişi tamamla?" : "Sifarişi rədd et?")) return;
+    if (
+      !(await dialog.confirm({
+        title: action === "SUCCESS" ? "Hesab açıldı? Sifarişi tamamla?" : "Sifarişi rədd et?",
+        confirmLabel: action === "SUCCESS" ? "Tamamla" : "Rədd et",
+        tone: action === "SUCCESS" ? "default" : "danger",
+      }))
+    )
+      return;
     await fetch(`/api/admin/service-orders/${id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

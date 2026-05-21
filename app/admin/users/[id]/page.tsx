@@ -18,6 +18,7 @@ import {
   Globe,
   Monitor,
   ScrollText,
+  KeyRound,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { fmtAzn, fmtDate } from "@/lib/format";
@@ -129,6 +130,77 @@ export default async function AdminUserDetailPage({
       };
     } catch {
       return { isYoutube: false };
+    }
+  }
+
+  type PlatformProfileRow = {
+    kind: "LINKEDIN" | "YOUTUBE";
+    brandLabel: string;
+    email: string;
+    password: string | null;
+    productTitle: string;
+    orderedAt: Date;
+    transactionId: string;
+  };
+
+  function parsePlatformProfile(
+    meta: string | null,
+    productTitle: string,
+  ): Omit<PlatformProfileRow, "orderedAt" | "transactionId"> | null {
+    if (!meta) return null;
+    try {
+      const m = JSON.parse(meta) as Record<string, unknown>;
+      if (m.kind !== "PLATFORM") return null;
+      const gmail = typeof m.gmail === "string" ? m.gmail : undefined;
+      if (!gmail) return null;
+      const password = typeof m.customerPassword === "string" ? m.customerPassword : null;
+      const category = String(m.category ?? "");
+      const musicBrand = String(m.musicBrand ?? "");
+      const planType = String(m.planType ?? "").toUpperCase();
+
+      if (category === "MUSIC" && musicBrand === "YOUTUBE_PREMIUM") {
+        return {
+          kind: "YOUTUBE",
+          brandLabel: "YouTube Premium",
+          email: gmail,
+          password,
+          productTitle,
+        };
+      }
+      if (category === "WORK" && (planType === "CAREER" || planType === "BUSINESS")) {
+        return {
+          kind: "LINKEDIN",
+          brandLabel: `LinkedIn ${planType === "CAREER" ? "Career" : "Business"}`,
+          email: gmail,
+          password,
+          productTitle,
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  const platformProfiles: PlatformProfileRow[] = [];
+  {
+    const seen = new Set<string>();
+    for (const t of user.transactions) {
+      if (t.status !== "SUCCESS") continue;
+      if (t.type !== "PURCHASE" && t.type !== "SERVICE_PURCHASE") continue;
+      const parsed = parsePlatformProfile(
+        t.metadata,
+        t.serviceProduct?.title ?? "—",
+      );
+      if (!parsed) continue;
+      const key = `${parsed.kind}::${parsed.email.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      platformProfiles.push({
+        ...parsed,
+        orderedAt: t.createdAt,
+        transactionId: t.id,
+      });
     }
   }
 
@@ -384,6 +456,75 @@ export default async function AdminUserDetailPage({
                 </dl>
               </li>
             ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
+        <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <KeyRound className="h-4 w-4 text-fuchsia-300" />
+            Platform profilləri ({platformProfiles.length})
+          </h2>
+          <span className="text-[10px] uppercase tracking-wider text-zinc-500">
+            LinkedIn · YouTube
+          </span>
+        </header>
+        {platformProfiles.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-zinc-500">
+            Bu istifadəçi hələ LinkedIn və ya YouTube Premium sifariş edib öz hesab məlumatlarını
+            verməyib.
+          </p>
+        ) : (
+          <ul className="divide-y divide-zinc-800/70">
+            {platformProfiles.map((p) => {
+              const accent =
+                p.kind === "LINKEDIN"
+                  ? "bg-sky-500/15 text-sky-200 ring-sky-500/30"
+                  : "bg-red-500/15 text-red-200 ring-red-500/30";
+              return (
+                <li key={`${p.kind}-${p.transactionId}`} className="px-5 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ${accent}`}
+                        >
+                          {p.brandLabel}
+                        </span>
+                        <span className="truncate text-sm font-semibold text-zinc-100">
+                          {p.productTitle}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-xs text-zinc-500">
+                      Sifariş: {fmtDate(p.orderedAt)}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <CopyableField
+                      label={p.kind === "LINKEDIN" ? "Email" : "Gmail"}
+                      value={p.email}
+                      mono
+                    />
+                    {p.password ? (
+                      <CopyableField label="Şifrə" value={p.password} mono masked />
+                    ) : (
+                      <div className="flex items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950/80 px-3 py-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                            Şifrə
+                          </div>
+                          <div className="mt-0.5 truncate text-sm italic text-zinc-500">
+                            Saxlanılmayıb
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

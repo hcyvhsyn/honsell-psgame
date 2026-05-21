@@ -12,7 +12,7 @@ export default function CartIndicator() {
     <button
       type="button"
       onClick={() => open("cart")}
-      className="relative inline-flex h-10 items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.045] px-3 text-sm font-semibold text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-400/35 hover:bg-white/[0.075]"
+      className="relative inline-flex h-10 items-center justify-center gap-2 rounded-[18px] border border-zinc-200 bg-white/70 px-3 text-sm font-semibold text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition hover:border-violet-400/35 hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-100 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:bg-white/[0.075]"
     >
       <ShoppingCart className="h-5 w-5" />
       <span className="hidden sm:inline">Səbət</span>

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Loader2, Check, X, Trash2, Shield, ShieldOff, Star } from "lucide-react";
 import { STREAMING_SERVICE_LABELS } from "@/lib/streamingCart";
 import { formatAzDateTime } from "@/lib/streamingLanguages";
+import { useDialog } from "@/lib/dialogs";
 
 type Review = {
   id: string;
@@ -29,6 +30,7 @@ const TABS: { key: "PENDING" | "APPROVED" | "REJECTED"; label: string }[] = [
 ];
 
 export default function StreamingReviewsAdminClient() {
+  const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<"PENDING" | "APPROVED" | "REJECTED">("PENDING");
   const [items, setItems] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,15 @@ export default function StreamingReviewsAdminClient() {
   }
 
   async function deleteReview(id: string) {
-    if (!confirm("İcmalı tamamilə silmək?")) return;
+    if (
+      !(await dialog.confirm({
+        title: "İcmalı sil?",
+        message: "Bu icmal tamamilə silinəcək.",
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     await fetch("/api/admin/streaming-reviews", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -3,13 +3,22 @@
 import { useState } from "react";
 import { Loader2, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useDialog } from "@/lib/dialogs";
 
 export default function ActionButtons({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const router = useRouter();
+  const dialog = useDialog();
 
   async function act(action: "SUCCESS" | "FAILED") {
-    if (!confirm(action === "SUCCESS" ? "Sifarişi tamamla?" : "Rədd et?")) return;
+    if (
+      !(await dialog.confirm({
+        title: action === "SUCCESS" ? "Sifarişi tamamla?" : "Rədd et?",
+        confirmLabel: action === "SUCCESS" ? "Tamamla" : "Rədd et",
+        tone: action === "SUCCESS" ? "default" : "danger",
+      }))
+    )
+      return;
     setBusy(true);
     await fetch(`/api/admin/service-orders/${id}`, {
       method: "POST",

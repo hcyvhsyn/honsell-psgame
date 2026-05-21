@@ -50,36 +50,36 @@ export default async function QazanPage() {
   const maxPlatformPct = Math.max(0, ...calculatorOptions.map((o) => o.ratePct));
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <SiteHeaderServer />
 
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-white/5">
+      <section className="relative overflow-hidden border-b border-zinc-200 dark:border-white/5">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(232,121,249,0.25),transparent_60%)]" />
         <div className="relative mx-auto max-w-5xl px-4 py-16 text-center sm:px-6 sm:py-24">
-          <span className="inline-flex items-center gap-2 rounded-full border border-fuchsia-500/40 bg-fuchsia-500/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-fuchsia-200">
+          <span className="inline-flex items-center gap-2 rounded-full border border-fuchsia-300/50 bg-fuchsia-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-fuchsia-700 dark:border-fuchsia-500/40 dark:bg-fuchsia-500/10 dark:text-fuchsia-200">
             <Sparkles className="h-3.5 w-3.5" /> Referal proqramı
           </span>
-          <h1 className="mt-6 text-4xl font-black tracking-tight text-white sm:text-6xl">
+          <h1 className="mt-6 text-4xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-6xl">
             Dostunu dəvət et,
             <br />
             <span className="bg-gradient-to-r from-fuchsia-400 to-amber-300 bg-clip-text text-transparent">
               hər alışından PUL qazan
             </span>
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-zinc-300 sm:text-lg">
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-zinc-600 dark:text-zinc-300 sm:text-lg">
             Honsell-də əsas qazanc kanalımız sizinlədir. Kodunla qoşulan hər
             dostunun oyun, streaming, musiqi, AI və iş platforması alışlarından
             platformaya görə dəyişən referal faizi ilə komissiya qazanırsan.
           </p>
 
           {user ? (
-            <div className="mx-auto mt-8 max-w-2xl rounded-2xl border border-fuchsia-500/30 bg-zinc-950/40 p-5 backdrop-blur sm:p-6">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-fuchsia-300">
+            <div className="mx-auto mt-8 max-w-2xl rounded-2xl border border-fuchsia-200 bg-white/80 p-5 shadow-[0_20px_60px_-44px_rgba(217,70,239,0.45)] backdrop-blur dark:border-fuchsia-500/30 dark:bg-zinc-950/40 dark:shadow-none sm:p-6">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-fuchsia-700 dark:text-fuchsia-300">
                 Sənin referal kodun
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                <span className="break-all rounded-xl border border-white/15 bg-white/[0.06] px-4 py-2.5 font-mono text-2xl font-bold tracking-[0.2em] text-white">
+                <span className="break-all rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 font-mono text-2xl font-bold tracking-[0.2em] text-zinc-950 dark:border-white/15 dark:bg-white/[0.06] dark:text-white">
                   {user.referralCode}
                 </span>
                 <ReferralCodeCopy code={user.referralCode} />
@@ -98,7 +98,7 @@ export default async function QazanPage() {
               </Link>
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                className="inline-flex items-center gap-2 rounded-full border border-fuchsia-300/50 bg-white/70 px-6 py-3 text-sm font-semibold text-fuchsia-700 transition hover:bg-fuchsia-50 dark:border-white/30 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
               >
                 Daxil ol
               </Link>
@@ -109,7 +109,7 @@ export default async function QazanPage() {
 
       {/* How it works */}
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <h2 className="text-center text-3xl font-black tracking-tight text-white sm:text-4xl">
+        <h2 className="text-center text-3xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-4xl">
           Necə işləyir?
         </h2>
         <ul className="mt-10 grid gap-5 sm:grid-cols-3">
@@ -132,35 +132,35 @@ export default async function QazanPage() {
           ].map((step) => (
             <li
               key={step.title}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+              className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03] dark:shadow-none"
             >
-              <div className="grid h-12 w-12 place-items-center rounded-full bg-white/10">
+              <div className="grid h-12 w-12 place-items-center rounded-full bg-violet-50 dark:bg-white/10">
                 {step.icon}
               </div>
-              <h3 className="mt-4 text-lg font-bold text-white">{step.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-zinc-400">{step.body}</p>
+              <h3 className="mt-4 text-lg font-bold text-zinc-950 dark:text-white">{step.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{step.body}</p>
             </li>
           ))}
         </ul>
       </section>
 
       {/* Calculator */}
-      <section className="relative overflow-hidden border-y border-white/5 bg-[#050817]">
+      <section className="relative overflow-hidden border-y border-zinc-200 bg-white dark:border-white/5 dark:bg-[#050817]">
         <div className="pointer-events-none absolute left-1/2 top-0 h-80 w-[70rem] -translate-x-1/2 rounded-full bg-violet-600/10 blur-3xl" />
         <div className="pointer-events-none absolute left-[18%] top-24 h-1.5 w-1.5 rounded-full bg-violet-300 shadow-[0_0_18px_rgba(167,139,250,0.9)]" />
         <div className="pointer-events-none absolute right-[9%] top-32 h-2 w-2 rounded-full bg-violet-400 shadow-[0_0_18px_rgba(167,139,250,0.9)]" />
         <div className="relative mx-auto max-w-[1560px] px-4 py-16 sm:px-6 lg:py-20">
           <div className="mb-8 text-center">
-            <span className="inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
+            <span className="inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.22em] text-slate-600 dark:text-slate-300">
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-violet-500/20 text-violet-200 ring-1 ring-violet-300/20">
                 H
               </span>
               Honsell Store
             </span>
-            <h2 className="mt-5 text-4xl font-black tracking-tight text-white sm:text-6xl">
+            <h2 className="mt-5 text-4xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-6xl">
               Qazanc kalkulyatoru
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-slate-300">
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-slate-600 dark:text-slate-300">
               Kateqoriyaları, platformaları, orta aylıq xərci, referal sayını və dövrü
               seçərək referal sistemimizdən nə qədər qazanc əldə edə biləcəyinizi təxmin edin.
             </p>
@@ -174,8 +174,8 @@ export default async function QazanPage() {
       {/* Cycle countdown */}
       {cycle ? (
         <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center">
-            <p className="text-sm text-zinc-400">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm dark:border-white/10 dark:bg-white/[0.02] dark:shadow-none">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
               Cari ay üçün leaderboard sayğacı
             </p>
             <CycleCountdown endsAt={cycle.endsAt.toISOString()} />
@@ -184,16 +184,16 @@ export default async function QazanPage() {
       ) : null}
 
       {/* Leaderboard */}
-      <section className="border-y border-white/5 bg-white/[0.02]">
+      <section className="border-y border-zinc-200 bg-white/60 dark:border-white/5 dark:bg-white/[0.02]">
         <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-          <h2 className="text-center text-3xl font-black tracking-tight text-white sm:text-4xl">
+          <h2 className="text-center text-3xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-4xl">
             Bu ay liderlər
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-center text-sm text-zinc-400">
+          <p className="mx-auto mt-3 max-w-xl text-center text-sm text-zinc-600 dark:text-zinc-400">
             Cari ay üçün ən çox bal toplayan istifadəçilərimiz (anonim) — öz xərc və dəvətlərinə görə.
           </p>
           {leaderboard.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-12 text-center text-sm text-zinc-500">
+            <div className="mt-8 rounded-2xl border border-dashed border-zinc-300 bg-white p-12 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/30">
               <Trophy className="mx-auto h-10 w-10 text-zinc-700" />
               <p className="mt-3">
                 Hələ ki, bu ay heç kim sıralamada deyil. İlk olan sən olarsan?
@@ -210,7 +210,7 @@ export default async function QazanPage() {
                     className={`flex items-center gap-4 rounded-2xl border p-4 ${
                       entry.rank <= 3
                         ? "border-amber-500/30 bg-amber-500/5"
-                        : "border-white/10 bg-white/[0.02]"
+                        : "border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.02]"
                     }`}
                   >
                     <div className="flex w-10 shrink-0 items-center justify-center text-xl">
@@ -220,7 +220,7 @@ export default async function QazanPage() {
                       {entry.avatarLetter}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-white">{entry.displayName}</p>
+                      <p className="truncate text-sm font-semibold text-zinc-950 dark:text-white">{entry.displayName}</p>
                       <p className="text-[11px] text-zinc-500">
                         {entry.invites} dəvət · {entry.spendAzn.toFixed(0)} AZN xərc
                       </p>
@@ -239,10 +239,10 @@ export default async function QazanPage() {
       {/* Past cycle archive — last 1 month */}
       {lastCycle.cycle ? (
         <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-          <h2 className="text-center text-3xl font-black tracking-tight text-white sm:text-4xl">
+          <h2 className="text-center text-3xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-4xl">
             Keçən ay nəticələri
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-center text-sm text-zinc-400">
+          <p className="mx-auto mt-3 max-w-xl text-center text-sm text-zinc-600 dark:text-zinc-400">
             {lastCycle.cycle.startsAt.toLocaleDateString("az-AZ", {
               month: "long",
               year: "numeric",
@@ -250,7 +250,7 @@ export default async function QazanPage() {
             ayının yekun sıralaması.
           </p>
           {lastCycle.entries.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-12 text-center text-sm text-zinc-500">
+            <div className="mt-8 rounded-2xl border border-dashed border-zinc-300 bg-white p-12 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/30">
               Keçən ay heç kim sıralamada deyildi.
             </div>
           ) : (
@@ -269,8 +269,8 @@ export default async function QazanPage() {
                     key={entry.userId}
                     className={`flex items-center gap-4 rounded-2xl border p-4 ${
                       entry.rank <= 3
-                        ? "border-zinc-700 bg-zinc-900/40"
-                        : "border-white/5 bg-white/[0.02]"
+                        ? "border-zinc-200 bg-amber-50/70 dark:border-zinc-700 dark:bg-zinc-900/40"
+                        : "border-zinc-200 bg-white dark:border-white/5 dark:bg-white/[0.02]"
                     }`}
                   >
                     <div className="flex w-10 shrink-0 items-center justify-center text-xl">
@@ -278,18 +278,18 @@ export default async function QazanPage() {
                         <span className="text-sm text-zinc-500">#{entry.rank}</span>
                       )}
                     </div>
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-800 text-sm font-semibold text-zinc-300 ring-1 ring-white/10">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-100 text-sm font-semibold text-zinc-700 ring-1 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-white/10">
                       {entry.avatarLetter}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-zinc-200">
+                      <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-200">
                         {entry.displayName}
                       </p>
                       <p className="text-[11px] text-zinc-500">
                         {entry.invites} dəvət · {entry.spendAzn.toFixed(0)} AZN xərc
                       </p>
                     </div>
-                    <p className="font-bold tabular-nums text-zinc-300">
+                    <p className="font-bold tabular-nums text-zinc-700 dark:text-zinc-300">
                       {entry.points} bal
                     </p>
                   </li>
@@ -302,7 +302,7 @@ export default async function QazanPage() {
 
       {/* FAQ */}
       <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-        <h2 className="text-center text-3xl font-black tracking-tight text-white sm:text-4xl">
+        <h2 className="text-center text-3xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-4xl">
           Tez-tez verilən suallar
         </h2>
         <div className="mt-8 space-y-4">
@@ -330,24 +330,24 @@ export default async function QazanPage() {
           ].map((item) => (
             <details
               key={item.q}
-              className="group rounded-2xl border border-white/10 bg-white/[0.03] p-5 open:border-fuchsia-500/30 open:bg-fuchsia-500/[0.04]"
+              className="group rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm open:border-fuchsia-300 open:bg-fuchsia-50 dark:border-white/10 dark:bg-white/[0.03] dark:shadow-none dark:open:border-fuchsia-500/30 dark:open:bg-fuchsia-500/[0.04]"
             >
-              <summary className="flex cursor-pointer items-center justify-between gap-3 text-base font-semibold text-white">
+              <summary className="flex cursor-pointer items-center justify-between gap-3 text-base font-semibold text-zinc-950 dark:text-white">
                 {item.q}
                 <span className="text-fuchsia-300 transition group-open:rotate-180">▾</span>
               </summary>
-              <p className="mt-3 text-sm leading-relaxed text-zinc-300">{item.a}</p>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">{item.a}</p>
             </details>
           ))}
         </div>
       </section>
 
       {/* Final CTA */}
-      <section className="border-t border-white/5 bg-gradient-to-r from-fuchsia-700/20 via-purple-700/15 to-fuchsia-700/20 py-14">
+      <section className="border-t border-zinc-200 bg-gradient-to-r from-fuchsia-50 via-white to-purple-50 py-14 dark:border-white/5 dark:from-fuchsia-700/20 dark:via-purple-700/15 dark:to-fuchsia-700/20">
         <div className="mx-auto flex max-w-3xl flex-col items-center px-6 text-center">
           <Gift className="h-10 w-10 text-fuchsia-300" />
-          <h2 className="mt-4 text-3xl font-black text-white sm:text-4xl">İndi başla</h2>
-          <p className="mt-3 max-w-xl text-sm text-fuchsia-50/80 sm:text-base">
+          <h2 className="mt-4 text-3xl font-black text-zinc-950 dark:text-white sm:text-4xl">İndi başla</h2>
+          <p className="mt-3 max-w-xl text-sm text-zinc-600 dark:text-fuchsia-50/80 sm:text-base">
             {user
               ? "Kodunu paylaşmaq üçün dəqiqələr lazımdır. Komissiya isə həmişəlik."
               : "Qeydiyyatdan keç, kodunu götür və paylaşmağa başla."}
@@ -363,7 +363,7 @@ export default async function QazanPage() {
                 </Link>
                 <Link
                   href="/oyunlar"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                  className="inline-flex items-center gap-2 rounded-full border border-fuchsia-300/50 bg-white/70 px-6 py-3 text-sm font-semibold text-fuchsia-700 transition hover:bg-fuchsia-50 dark:border-white/30 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
                 >
                   <Check className="h-4 w-4" /> Mağazaya keç
                 </Link>
@@ -378,7 +378,7 @@ export default async function QazanPage() {
                 </Link>
                 <Link
                   href="/login"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                  className="inline-flex items-center gap-2 rounded-full border border-fuchsia-300/50 bg-white/70 px-6 py-3 text-sm font-semibold text-fuchsia-700 transition hover:bg-fuchsia-50 dark:border-white/30 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
                 >
                   Daxil ol
                 </Link>

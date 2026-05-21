@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Wallet2, Save } from "lucide-react";
+import { useDialog } from "@/lib/dialogs";
 
 function centsToInput(cents: number) {
   return (cents / 100).toFixed(2);
@@ -34,6 +35,7 @@ export default function UserAdminActions({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const dialog = useDialog();
 
   const initial = useMemo(
     () => ({
@@ -104,12 +106,21 @@ export default function UserAdminActions({
     });
   }
 
-  function deleteUser() {
+  async function deleteUser() {
     setError(null);
     if (
-      !confirm(
-        `Bu müştərini silmək istədiyinə əminsən?\n\n${email}\n\nDiqqət: bütün əməliyyat tarixçəsi (transactions) də silinəcək.`
-      )
+      !(await dialog.confirm({
+        title: "Müştərini sil?",
+        message: (
+          <span>
+            <span className="font-mono">{email}</span>
+            <br />
+            Diqqət: bütün əməliyyat tarixçəsi (transactions) də silinəcək.
+          </span>
+        ),
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
     )
       return;
 

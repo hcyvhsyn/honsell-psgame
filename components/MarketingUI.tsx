@@ -21,14 +21,14 @@ export function CategoryGroup({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[28px] border border-white/10 bg-[#0F0817] p-5 sm:p-6">
+    <div className="rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#0F0817] dark:shadow-none sm:p-6">
       <div className="mb-5 flex items-center gap-3">
         <span className={`grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-gradient-to-br backdrop-blur-sm ${accentClass}`}>
           {icon}
         </span>
         <div>
-          <h3 className="text-xl font-black tracking-tight text-white sm:text-2xl">{label}</h3>
-          {description && <p className="text-xs text-zinc-400 sm:text-sm">{description}</p>}
+          <h3 className="text-xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-2xl">{label}</h3>
+          {description && <p className="text-xs text-zinc-600 dark:text-zinc-400 sm:text-sm">{description}</p>}
         </div>
       </div>
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]">
@@ -56,7 +56,7 @@ export function SubCategoryCard({
   return (
     <Link
       href={href}
-      className="group relative flex min-h-[140px] overflow-hidden rounded-2xl border border-white/10 bg-[#150A21] p-4 transition hover:-translate-y-0.5 hover:border-indigo-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A78BFA]/60"
+      className="group relative flex min-h-[140px] overflow-hidden rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-400/50 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A78BFA]/60 dark:border-white/10 dark:bg-[#150A21] dark:shadow-none dark:hover:border-indigo-500/40"
     >
       {imageUrl ? (
         <Image
@@ -64,23 +64,23 @@ export function SubCategoryCard({
           alt=""
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 16vw"
-          className="object-cover opacity-25 saturate-125 transition duration-500 group-hover:scale-105 group-hover:opacity-35"
+          className="object-cover opacity-20 saturate-125 transition duration-500 group-hover:scale-105 group-hover:opacity-30 dark:opacity-25 dark:group-hover:opacity-35"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-[#201032] via-[#150A21] to-[#0A0A0F]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-50 via-white to-zinc-100 dark:from-[#201032] dark:via-[#150A21] dark:to-[#0A0A0F]" />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0F0817] via-[#0F0817]/80 to-[#0F0817]/30" />
+      <div className="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-white/30 dark:from-[#0F0817] dark:via-[#0F0817]/80 dark:to-[#0F0817]/30" />
 
       <div className="relative z-10 flex flex-1 flex-col justify-between">
         <div className="flex items-start justify-between gap-3">
           <span className={`grid h-9 w-9 place-items-center rounded-xl border bg-gradient-to-br text-white backdrop-blur-sm ${accentClass}`}>
             {icon}
           </span>
-          <ArrowRight className="h-4 w-4 text-white/40 transition group-hover:translate-x-1 group-hover:text-white" />
+          <ArrowRight className="h-4 w-4 text-zinc-400 transition group-hover:translate-x-1 group-hover:text-zinc-900 dark:text-white/40 dark:group-hover:text-white" />
         </div>
         <div>
-          <h4 className="text-base font-bold leading-tight text-white">{label}</h4>
-          <p className="mt-1 text-xs text-zinc-300">{sub}</p>
+          <h4 className="text-base font-bold leading-tight text-zinc-950 dark:text-white">{label}</h4>
+          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">{sub}</p>
         </div>
       </div>
     </Link>
@@ -108,7 +108,7 @@ export function PlatformCard({
   return (
     <Link
       href={href}
-      className="group relative flex min-h-[210px] overflow-hidden rounded-[24px] border border-white/10 bg-[#150A21] p-5 shadow-2xl transition hover:-translate-y-1 hover:border-indigo-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A78BFA]/60"
+      className="group relative flex min-h-[210px] overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-indigo-400/50 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A78BFA]/60 dark:border-white/10 dark:bg-[#150A21] dark:shadow-2xl dark:hover:border-indigo-500/40"
     >
       {imageUrl ? (
         <Image
@@ -116,13 +116,13 @@ export function PlatformCard({
           alt=""
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 16vw"
-          className="object-cover opacity-20 saturate-125 transition duration-700 group-hover:scale-105 group-hover:opacity-25"
+          className="object-cover opacity-15 saturate-125 transition duration-700 group-hover:scale-105 group-hover:opacity-20 dark:opacity-20 dark:group-hover:opacity-25"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-[#201032] via-[#150A21] to-[#0A0A0F]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-50 via-white to-zinc-100 dark:from-[#201032] dark:via-[#150A21] dark:to-[#0A0A0F]" />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#150A21] via-[#150A21]/85 to-[#150A21]/35" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(167,139,250,0.20),transparent_34%)] opacity-80" />
+      <div className="absolute inset-0 bg-gradient-to-t from-white via-white/85 to-white/35 dark:from-[#150A21] dark:via-[#150A21]/85 dark:to-[#150A21]/35" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(124,58,237,0.12),transparent_34%)] opacity-80 dark:bg-[radial-gradient(circle_at_20%_15%,rgba(167,139,250,0.20),transparent_34%)]" />
 
       <div className="relative z-10 flex flex-1 flex-col justify-between">
         <div className="flex items-start justify-between gap-4">
@@ -136,9 +136,9 @@ export function PlatformCard({
           )}
         </div>
         <div>
-          <h3 className="text-lg font-black leading-tight text-white">{label}</h3>
-          <p className="mt-2 min-h-[42px] text-sm leading-relaxed text-zinc-300">{sub}</p>
-          <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-[#A78BFA] transition group-hover:text-white">
+          <h3 className="text-lg font-black leading-tight text-zinc-950 dark:text-white">{label}</h3>
+          <p className="mt-2 min-h-[42px] text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">{sub}</p>
+          <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-violet-600 transition group-hover:text-zinc-950 dark:text-[#A78BFA] dark:group-hover:text-white">
             Keçid et <ArrowRight className="h-4 w-4" />
           </span>
         </div>
@@ -149,15 +149,15 @@ export function PlatformCard({
 
 export function MarqueeHeader({ text }: { text: string }) {
   const content = Array.from({ length: 15 }).map((_, i) => (
-    <span key={i} className="mx-4 text-2xl font-bold tracking-[0.2em] text-white uppercase sm:text-4xl">
-      {text} <span className="mx-4 text-white/30">•</span>
+    <span key={i} className="mx-4 text-2xl font-bold uppercase tracking-[0.2em] text-zinc-300 dark:text-white sm:text-4xl">
+      {text} <span className="mx-4 text-zinc-300/60 dark:text-white/30">•</span>
     </span>
   ));
 
   const duration = Math.max(text.length * 4, 30);
 
   return (
-    <div className="relative flex w-full overflow-hidden border-y border-white/10 bg-[#12081C] py-5">
+    <div className="relative flex w-full overflow-hidden border-y border-zinc-200 bg-white py-5 dark:border-white/10 dark:bg-[#12081C]">
       <div className="flex whitespace-nowrap" style={{ animation: `marquee ${duration}s linear infinite` }}>
         <style>{`
           @keyframes marquee {

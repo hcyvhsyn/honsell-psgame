@@ -64,13 +64,13 @@ export default function Modal({
         className="modal-backdrop absolute inset-0 bg-black/70 backdrop-blur-sm"
       />
       <div
-        className={`modal-panel relative max-h-[92vh] w-full overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/60 ${SIZE_CLASSES[size]}`}
+        className={`modal-panel relative max-h-[92vh] w-full overflow-y-auto rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 shadow-2xl shadow-black/60 ${SIZE_CLASSES[size]}`}
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Bağla"
-          className="absolute right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-[12px] border border-white/10 bg-white/[0.04] text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:border-violet-300/30 hover:bg-white/[0.08] hover:text-zinc-100"
+          className="absolute right-3 top-3 z-10 grid h-10 w-10 place-items-center rounded-[12px] border border-white/10 bg-white/[0.04] text-zinc-500 dark:text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:border-violet-300/30 hover:bg-white/[0.08] hover:text-zinc-900 dark:hover:text-zinc-100"
         >
           <X className="h-6 w-6" />
         </button>

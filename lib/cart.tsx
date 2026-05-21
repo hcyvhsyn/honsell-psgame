@@ -23,10 +23,13 @@ export type AccountCreationCartDetails = {
  *   - YouTube Premium üçün həm `gmail` həm `password` tələb olunur
  *     (admin müştərinin hesabına abunəliyi qoşur).
  *   - Digər streaming xidmətlərində (Netflix və s.) yalnız `gmail` istifadə olunur.
+ *   - `platformKind` — cart UI-də doğru etiket göstərə bilmək üçün
+ *     PLATFORM məhsullarında ("LINKEDIN" / "YOUTUBE" və s.) qeyd olunur.
  */
 export type StreamingCartDetails = {
   gmail: string;
   password?: string;
+  platformKind?: string;
 };
 
 export type CartItem = {

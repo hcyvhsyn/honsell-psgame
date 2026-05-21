@@ -33,11 +33,11 @@ type ListingResponse = {
 
 type Sort = "newest" | "popular" | "priceAsc" | "priceDesc" | "discount" | "alpha";
 type Platform = "ALL" | "PS4" | "PS5";
-type ProductType = "GAME" | "ADDON" | "CURRENCY" | "OTHER";
+type ProductType = "ALL" | "GAME" | "ADDON" | "CURRENCY" | "OTHER";
 
 const DEFAULT_SORT: Sort = "popular";
 const DEFAULT_PLATFORM: Platform = "ALL";
-const DEFAULT_TYPE: ProductType = "GAME";
+const DEFAULT_TYPE: ProductType = "ALL";
 const DEFAULT_PAGE_SIZE = 24;
 
 const SORT_OPTIONS: { value: Sort; label: string }[] = [
@@ -49,7 +49,7 @@ const SORT_OPTIONS: { value: Sort; label: string }[] = [
   { value: "alpha", label: "Əlifba sırası" },
 ];
 
-type Accent = "indigo" | "fuchsia" | "emerald" | "sky";
+type Accent = "violet" | "indigo" | "fuchsia" | "emerald" | "sky";
 
 const TYPE_TABS: {
   value: ProductType;
@@ -58,6 +58,7 @@ const TYPE_TABS: {
   icon: React.ReactNode;
   accent: Accent;
 }[] = [
+  { value: "ALL", label: "Hamısı", singular: "Məhsul", icon: <Library className="h-4 w-4" />, accent: "violet" },
   { value: "GAME", label: "Oyunlar", singular: "Oyun", icon: <Gamepad2 className="h-4 w-4" />, accent: "indigo" },
   { value: "ADDON", label: "Əlavələr", singular: "Əlavə", icon: <Package className="h-4 w-4" />, accent: "fuchsia" },
   { value: "CURRENCY", label: "Pul kartları", singular: "Pul kartı", icon: <Coins className="h-4 w-4" />, accent: "emerald" },
@@ -75,6 +76,14 @@ const ACCENT_STYLES: Record<
     hoverIcon: string;
   }
 > = {
+  violet: {
+    activeWrap: "border-violet-500/60 bg-gradient-to-br from-violet-500/20 via-violet-500/10 to-transparent",
+    activeIcon: "bg-violet-500/25 text-violet-200 ring-violet-400/40",
+    activeBadge: "bg-violet-500/25 text-violet-100",
+    activeText: "text-violet-100",
+    glow: "shadow-[0_8px_28px_-12px_rgba(139,92,246,0.6)]",
+    hoverIcon: "group-hover:text-violet-300",
+  },
   indigo: {
     activeWrap: "border-indigo-500/60 bg-gradient-to-br from-indigo-500/20 via-indigo-500/10 to-transparent",
     activeIcon: "bg-indigo-500/25 text-indigo-200 ring-indigo-400/40",
@@ -219,7 +228,13 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
     <>
       <div className="mb-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         {TYPE_TABS.map((tab) => {
-          const count = data.totals?.[tab.value] ?? 0;
+          const count =
+            tab.value === "ALL"
+              ? Object.values(data.totals ?? {}).reduce(
+                  (acc, n) => acc + (typeof n === "number" ? n : 0),
+                  0
+                )
+              : data.totals?.[tab.value] ?? 0;
           const active = tab.value === productType;
           const a = ACCENT_STYLES[tab.accent];
           return (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Loader2, Plus, Edit2, Trash2, X, GripVertical, Star, ChevronDown, ChevronUp, Search } from "lucide-react";
+import { useDialog } from "@/lib/dialogs";
 
 type GameRef = { id: string; productId: string; title: string; imageUrl: string | null; platform: string | null };
 type CollectionGameRow = { gameId: string; position: number; game: GameRef };
@@ -32,6 +33,7 @@ const EMPTY_FORM: EditForm = { slug: "", title: "", description: "", imageUrl: "
 type GameOption = { id: string; title: string; imageUrl: string | null };
 
 export default function CollectionsAdminClient() {
+  const dialog = useDialog();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | "NEW" | null>(null);
@@ -105,7 +107,15 @@ export default function CollectionsAdminClient() {
   }
 
   async function deleteCollection(id: string) {
-    if (!confirm("Bu kolleksiyanı silmək istəyirsiniz? İçindəki oyun bağlantıları da silinəcək.")) return;
+    if (
+      !(await dialog.confirm({
+        title: "Kolleksiyanı sil?",
+        message: "İçindəki oyun bağlantıları da silinəcək.",
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     await fetch("/api/admin/collections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

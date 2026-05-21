@@ -54,6 +54,31 @@ function useCountdown(iso: string | null) {
   return { expired: false, text };
 }
 
+// Maps productType to a small "DLC / Pul kartı / Digər" chip rendered over the
+// card cover. GAME deliberately renders no chip — base games are the default
+// expectation and a "GAME" tag would be noise on every card.
+function getProductTypeBadge(productType: string) {
+  switch (productType) {
+    case "ADDON":
+      return {
+        label: "DLC",
+        className: "border-fuchsia-300/60 bg-fuchsia-600/70",
+      };
+    case "CURRENCY":
+      return {
+        label: "Pul kartı",
+        className: "border-emerald-300/60 bg-emerald-600/70",
+      };
+    case "OTHER":
+      return {
+        label: "Digər",
+        className: "border-sky-300/60 bg-sky-600/70",
+      };
+    default:
+      return null;
+  }
+}
+
 export default function GameCard({ game, priority = false }: { game: GameCardData; priority?: boolean }) {
   const { add, remove, has, hydrated } = useCart();
   const inCart = hydrated && has(game.id);
@@ -61,9 +86,10 @@ export default function GameCard({ game, priority = false }: { game: GameCardDat
 
   const platforms = game.platform ? game.platform.split(",") : [];
   const detailHref = game.productId ? `/oyunlar/${game.productId}` : null;
+  const productTypeBadge = getProductTypeBadge(game.productType);
 
   const cover = (
-    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[18px] bg-zinc-900">
+    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[18px] bg-zinc-100 dark:bg-zinc-900">
       {game.imageUrl ? (
         <Image
           src={game.imageUrl}
@@ -74,7 +100,7 @@ export default function GameCard({ game, priority = false }: { game: GameCardDat
           priority={priority}
         />
       ) : (
-        <div className="flex h-full items-center justify-center text-zinc-600 bg-gradient-to-br from-zinc-900 to-zinc-800">
+        <div className="flex h-full items-center justify-center text-zinc-400 dark:text-zinc-600 bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-900 dark:to-zinc-800">
           <Gamepad2 className="h-10 w-10 opacity-30" />
         </div>
       )}
@@ -94,11 +120,21 @@ export default function GameCard({ game, priority = false }: { game: GameCardDat
           ))}
         </div>
       )}
+
+      {productTypeBadge && (
+        <div className="absolute bottom-3 right-3">
+          <span
+            className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-md ${productTypeBadge.className}`}
+          >
+            {productTypeBadge.label}
+          </span>
+        </div>
+      )}
     </div>
   );
 
   return (
-    <li className="group flex flex-col overflow-hidden rounded-[24px] border border-zinc-800 bg-[#0A0A0A] transition hover:-translate-y-1 hover:border-indigo-500/50 hover:shadow-[0_8px_30px_-10px_rgba(99,102,241,0.15)]">
+    <li className="group flex flex-col overflow-hidden rounded-[24px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0A] transition hover:-translate-y-1 hover:border-indigo-500/50 hover:shadow-[0_8px_30px_-10px_rgba(99,102,241,0.15)]">
       <div className="relative p-3 pb-0">
         {detailHref ? (
           <Link href={detailHref} aria-label={game.title} className="block">
@@ -109,7 +145,7 @@ export default function GameCard({ game, priority = false }: { game: GameCardDat
         )}
 
         {game.discountPct != null && (
-          <span className="pointer-events-none absolute -right-1 -top-1 z-20 grid h-16 w-16 place-items-center rounded-full bg-[#6D28D9] text-sm font-bold text-white shadow-[0_8px_24px_-6px_rgba(109,40,217,0.6)] ring-4 ring-[#0A0A0A]">
+          <span className="pointer-events-none absolute -right-1 -top-1 z-20 grid h-16 w-16 place-items-center rounded-full bg-[#6D28D9] text-sm font-bold text-white shadow-[0_8px_24px_-6px_rgba(109,40,217,0.6)] ring-4 ring-white dark:ring-[#0A0A0A]">
             -{game.discountPct}%
           </span>
         )}
@@ -119,19 +155,19 @@ export default function GameCard({ game, priority = false }: { game: GameCardDat
         {detailHref ? (
           <Link
             href={detailHref}
-            className="line-clamp-2 text-lg font-semibold leading-tight text-white transition hover:text-indigo-300"
+            className="line-clamp-2 text-lg font-semibold leading-tight text-zinc-900 dark:text-white transition hover:text-indigo-300"
           >
             {game.title}
           </Link>
         ) : (
-          <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-white">
+          <h3 className="line-clamp-2 text-lg font-semibold leading-tight text-zinc-900 dark:text-white">
             {game.title}
           </h3>
         )}
 
         <div className="mt-3 flex items-baseline justify-center gap-3">
           {game.originalAzn != null && (
-            <span className="relative text-base font-medium text-zinc-300">
+            <span className="relative text-base font-medium text-zinc-600 dark:text-zinc-300">
               {game.originalAzn.toFixed(2)}₼
               <span
                 aria-hidden
@@ -139,14 +175,14 @@ export default function GameCard({ game, priority = false }: { game: GameCardDat
               />
             </span>
           )}
-          <span className="text-2xl font-bold leading-none tracking-tight text-white">
+          <span className="text-2xl font-bold leading-none tracking-tight text-zinc-900 dark:text-white">
             {game.finalAzn.toFixed(2)}₼
           </span>
         </div>
 
         <div className="mt-2 min-h-[20px] text-sm">
           {countdown ? (
-            <span className="text-zinc-400">
+            <span className="text-zinc-500 dark:text-zinc-400">
               Kampaniyanın bitişinə:{" "}
               <span className="font-semibold text-indigo-300 tabular-nums">
                 {countdown.text}

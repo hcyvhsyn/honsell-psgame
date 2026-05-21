@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Loader2, Plus, Edit2, Trash2, Eye, EyeOff, X } from "lucide-react";
 import { PLATFORM_GUIDE_SCOPES } from "@/lib/contentScopes";
+import { useDialog } from "@/lib/dialogs";
 
 type Guide = {
   id: string;
@@ -41,6 +42,7 @@ function emptyForm(scope: string): EditForm {
 }
 
 export default function PlatformGuidesAdminClient() {
+  const dialog = useDialog();
   const [activeScope, setActiveScope] = useState<string>("PLAYSTATION");
   const [items, setItems] = useState<Guide[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,7 +132,14 @@ export default function PlatformGuidesAdminClient() {
   }
 
   async function deleteItem(id: string) {
-    if (!confirm("Bu bələdçini silmək istəyirsən?")) return;
+    if (
+      !(await dialog.confirm({
+        title: "Bələdçini sil?",
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     await fetch("/api/admin/platform-guides", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

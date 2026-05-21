@@ -169,7 +169,7 @@ export default function RegisterForm({
   }
 
   return (
-    <div className="relative isolate overflow-hidden rounded-[20px] border border-violet-400/25 bg-[linear-gradient(145deg,rgba(17,18,32,0.98),rgba(7,8,17,0.99))] p-4 text-zinc-100 shadow-[0_22px_68px_-42px_rgba(124,58,237,0.95),inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-5">
+    <div className="relative isolate overflow-hidden rounded-[20px] border border-violet-400/25 bg-white dark:bg-[linear-gradient(145deg,rgba(17,18,32,0.98),rgba(7,8,17,0.99))] p-4 text-zinc-900 dark:text-zinc-100 shadow-[0_22px_68px_-42px_rgba(124,58,237,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] dark:shadow-[0_22px_68px_-42px_rgba(124,58,237,0.95),inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-5">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_82%_12%,rgba(124,58,237,0.26),transparent_32%),radial-gradient(circle_at_16%_0%,rgba(168,85,247,0.14),transparent_28%)]" />
       <div className="pointer-events-none absolute right-0 top-0 -z-10 hidden h-36 w-[46%] overflow-hidden sm:block">
         <Image
@@ -189,10 +189,10 @@ export default function RegisterForm({
               <Gamepad2 className="h-7 w-7" strokeWidth={1.7} />
             </span>
             <div className="min-w-0">
-              <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+              <h2 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
                 Hesab yarat
               </h2>
-              <p className="mt-1 text-sm text-zinc-400">
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                 Cüzdanı doldur, oyun al, referallardan qazan.
               </p>
             </div>
@@ -255,7 +255,7 @@ export default function RegisterForm({
                     e.stopPropagation();
                   }}
                   aria-label={showPassword ? "Şifrəni gizlət" : "Şifrəni göstər"}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 grid h-11 w-11 place-items-center rounded-xl text-zinc-500 transition hover:text-zinc-200 active:text-zinc-200"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 grid h-11 w-11 place-items-center rounded-xl text-zinc-400 dark:text-zinc-500 transition hover:text-zinc-700 dark:hover:text-zinc-200 active:text-zinc-700 dark:active:text-zinc-200"
                   tabIndex={-1}
                 >
                   {showPassword ? (
@@ -316,7 +316,7 @@ export default function RegisterForm({
             )}
           </form>
 
-          <p className="mt-4 text-center text-sm text-zinc-400">
+          <p className="mt-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
             Hesabın artıq var?{" "}
             {onSwitchToLogin ? (
               <button
@@ -336,7 +336,7 @@ export default function RegisterForm({
             )}
           </p>
 
-          <div className="mt-4 border-t border-white/10 pt-3 text-center text-xs text-zinc-500">
+          <div className="mt-4 border-t border-zinc-200 dark:border-white/10 pt-3 text-center text-xs text-zinc-500">
             <span className="inline-flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-zinc-500" />
               Məlumatların təhlükəsizliyi bizim prioritetimizdir.
@@ -373,7 +373,7 @@ function FeaturePill({
   label: string;
 }) {
   return (
-    <div className="flex h-10 items-center justify-center gap-2 rounded-[11px] border border-white/10 bg-white/[0.045] px-2.5 text-xs font-semibold text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:h-12 sm:text-sm">
+    <div className="flex h-10 items-center justify-center gap-2 rounded-[11px] border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.045] px-2.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:h-12 sm:text-sm">
       <span className="text-violet-300">{icon}</span>
       <span className="truncate">{label}</span>
     </div>
@@ -417,11 +417,11 @@ function Field({
         readOnly={readOnly}
         aria-readonly={readOnly || undefined}
         tabIndex={readOnly ? -1 : undefined}
-        className={`h-12 w-full rounded-[13px] border border-violet-300/20 bg-black/20 pl-14 text-sm font-medium text-white outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition placeholder:text-zinc-500 focus:border-violet-300/55 focus:bg-black/30 sm:h-14 sm:pl-16 sm:text-base ${
+        className={`h-12 w-full rounded-[13px] border border-violet-300/30 dark:border-violet-300/20 bg-zinc-100 dark:bg-black/20 pl-14 text-sm font-medium text-zinc-900 dark:text-white outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition placeholder:text-zinc-500 focus:border-violet-400/70 dark:focus:border-violet-300/55 focus:bg-white dark:focus:bg-black/30 sm:h-14 sm:pl-16 sm:text-base ${
           trailing ? "pr-14" : "pr-5"
         } ${uppercase ? "uppercase tracking-widest" : ""} ${
           readOnly
-            ? "cursor-not-allowed bg-zinc-900/60 text-zinc-300 focus:border-violet-300/20"
+            ? "cursor-not-allowed bg-zinc-200/60 text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-300 focus:border-violet-300/30 dark:focus:border-violet-300/20"
             : ""
         }`}
       />
@@ -451,9 +451,9 @@ function PhoneField({
       <span className="pointer-events-none absolute left-5 top-1/2 z-10 -translate-y-1/2 text-violet-300">
         <Phone className="h-5 w-5" />
       </span>
-      <div className="relative flex h-12 items-center rounded-[13px] border border-violet-300/20 bg-black/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus-within:border-violet-300/55 focus-within:bg-black/30 sm:h-14">
+      <div className="relative flex h-12 items-center rounded-[13px] border border-violet-300/30 dark:border-violet-300/20 bg-zinc-100 dark:bg-black/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus-within:border-violet-400/70 dark:focus-within:border-violet-300/55 focus-within:bg-white dark:focus-within:bg-black/30 sm:h-14">
         <CountryCodePicker value={country} onChange={onCountryChange} />
-        <span className="mx-2 h-6 w-px shrink-0 bg-white/10" />
+        <span className="mx-2 h-6 w-px shrink-0 bg-zinc-300 dark:bg-white/10" />
         <input
           type="tel"
           inputMode="tel"
@@ -462,7 +462,7 @@ function PhoneField({
           onChange={(e) => onChange(e.target.value)}
           required
           autoComplete="tel"
-          className="min-w-0 flex-1 bg-transparent py-2 pl-0 pr-4 text-sm font-medium text-white outline-none placeholder:text-zinc-500 sm:text-base"
+          className="min-w-0 flex-1 bg-transparent py-2 pl-0 pr-4 text-sm font-medium text-zinc-900 dark:text-white outline-none placeholder:text-zinc-500 sm:text-base"
         />
       </div>
     </label>
@@ -508,7 +508,7 @@ function CountryCodePicker({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="group inline-flex h-9 min-w-[74px] items-center justify-center gap-1 rounded-[9px] px-1.5 text-sm font-bold text-white transition hover:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-violet-300/35"
+        className="group inline-flex h-9 min-w-[74px] items-center justify-center gap-1 rounded-[9px] px-1.5 text-sm font-bold text-zinc-900 dark:text-white transition hover:bg-zinc-200 dark:hover:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-violet-300/35"
         aria-expanded={open}
         aria-label="Ölkə kodu seç"
       >
@@ -517,14 +517,14 @@ function CountryCodePicker({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-[calc(100%+0.55rem)] z-30 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-[15px] border border-violet-300/20 bg-[#0b0c18]/95 shadow-[0_24px_80px_-30px_rgba(0,0,0,0.9),0_0_50px_-30px_rgba(168,85,247,0.95)] backdrop-blur-xl">
-          <div className="relative border-b border-white/10 p-2.5">
+        <div className="absolute left-0 top-[calc(100%+0.55rem)] z-30 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-[15px] border border-violet-300/30 dark:border-violet-300/20 bg-white/95 dark:bg-[#0b0c18]/95 shadow-[0_24px_80px_-30px_rgba(0,0,0,0.2),0_0_50px_-30px_rgba(168,85,247,0.45)] dark:shadow-[0_24px_80px_-30px_rgba(0,0,0,0.9),0_0_50px_-30px_rgba(168,85,247,0.95)] backdrop-blur-xl">
+          <div className="relative border-b border-zinc-200 dark:border-white/10 p-2.5">
             <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Ölkə və ya kod axtar..."
-              className="h-9 w-full rounded-[10px] border border-white/10 bg-black/25 pl-8 pr-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-violet-300/45"
+              className="h-9 w-full rounded-[10px] border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-black/25 pl-8 pr-3 text-sm text-zinc-900 dark:text-white outline-none placeholder:text-zinc-500 dark:placeholder:text-zinc-600 focus:border-violet-400/70 dark:focus:border-violet-300/45"
             />
           </div>
           <div className="max-h-64 overflow-y-auto p-1.5">
@@ -539,11 +539,11 @@ function CountryCodePicker({
                 }}
                 className={`grid w-full grid-cols-[2.5rem_1fr_auto] items-center gap-2 rounded-[10px] px-2.5 py-2 text-left text-sm transition ${
                   country.iso2 === value.iso2 && country.code === value.code
-                    ? "bg-violet-500/20 text-white"
-                    : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
+                    ? "bg-violet-500/15 text-violet-900 dark:bg-violet-500/20 dark:text-white"
+                    : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/[0.06] dark:hover:text-white"
                 }`}
               >
-                <span className="rounded-md border border-white/10 bg-white/[0.045] px-1.5 py-1 text-center text-[11px] font-bold text-violet-200">
+                <span className="rounded-md border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.045] px-1.5 py-1 text-center text-[11px] font-bold text-violet-700 dark:text-violet-200">
                   {country.iso2}
                 </span>
                 <span className="truncate">{country.name}</span>
@@ -595,10 +595,10 @@ function OtpStep({
           <ShieldCheck className="h-8 w-8" />
         </span>
         <div>
-          <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+          <h2 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white sm:text-4xl">
             Nömrəni təsdiq et
           </h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-zinc-400 sm:text-base">
+          <p className="mt-1.5 text-sm leading-relaxed text-zinc-500 dark:text-zinc-400 sm:text-base">
             WhatsApp ilə göndərilən 6 rəqəmli kodu daxil et.
           </p>
         </div>
@@ -614,7 +614,7 @@ function OtpStep({
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           placeholder="••••••"
-          className="h-16 w-full rounded-[14px] border border-violet-300/20 bg-black/20 text-center text-2xl font-black tracking-[0.55em] text-emerald-300 outline-none placeholder:text-zinc-700 focus:border-violet-300/55"
+          className="h-16 w-full rounded-[14px] border border-violet-300/30 dark:border-violet-300/20 bg-zinc-100 dark:bg-black/20 text-center text-2xl font-black tracking-[0.55em] text-emerald-600 dark:text-emerald-300 outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-700 focus:border-violet-400/70 dark:focus:border-violet-300/55"
         />
 
         <button
@@ -641,7 +641,7 @@ function OtpStep({
         <button
           type="button"
           onClick={onBack}
-          className="font-medium text-zinc-400 transition hover:text-zinc-200"
+          className="font-medium text-zinc-500 dark:text-zinc-400 transition hover:text-zinc-700 dark:hover:text-zinc-200"
         >
           Məlumatları dəyiş
         </button>

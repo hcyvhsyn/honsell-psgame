@@ -13,6 +13,7 @@ import {
   recordSuccessfulInvite,
 } from "@/lib/referralCycle";
 import { awardReviewAffiliateCommission } from "@/lib/reviewAffiliate";
+import { sendOrderApprovedWhatsApp } from "@/lib/orderNotifications";
 
 export const runtime = "nodejs";
 
@@ -36,7 +37,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     where: { id: params.id },
     include: {
       game: true,
-      user: { select: { id: true, email: true, name: true, referredById: true } },
+      user: { select: { id: true, email: true, name: true, phone: true, referredById: true } },
     },
   });
 
@@ -175,6 +176,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         userName: row.user.name,
         productTitle: gameRow.title,
         productType: "GAME",
+      });
+    }
+
+    if (row.user?.phone) {
+      await sendOrderApprovedWhatsApp({
+        phone: row.user.phone,
+        userName: row.user.name,
+        productTitle: gameRow.title,
+        kind: "GAME",
       });
     }
 

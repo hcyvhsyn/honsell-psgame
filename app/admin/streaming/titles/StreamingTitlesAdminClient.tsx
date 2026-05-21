@@ -5,6 +5,7 @@ import { Loader2, Plus, Edit2, Trash2, Upload, X, Eye, EyeOff, Film, Tv as TvIco
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { STREAMING_SERVICE_LABELS, STREAMING_SERVICES, type StreamingService } from "@/lib/streamingCart";
 import { LANGUAGE_OPTIONS, type LanguageCode } from "@/lib/streamingLanguages";
+import { useDialog } from "@/lib/dialogs";
 
 type StreamingTitle = {
   id: string;
@@ -58,6 +59,7 @@ type EditForm = {
 type ServiceFilter = "ALL" | (typeof STREAMING_SERVICES)[number];
 
 export default function StreamingTitlesAdminClient() {
+  const dialog = useDialog();
   const [items, setItems] = useState<StreamingTitle[]>([]);
   const [loading, setLoading] = useState(true);
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("ALL");
@@ -224,8 +226,14 @@ export default function StreamingTitlesAdminClient() {
   }
 
   async function handleImageUpload(file: File, target: "poster" | "backdrop") {
-    if (!file.type.startsWith("image/")) { alert("Yalnız şəkil faylı"); return; }
-    if (file.size > 10 * 1024 * 1024) { alert("Fayl çox böyükdür (max 10 MB)"); return; }
+    if (!file.type.startsWith("image/")) {
+      await dialog.alert({ title: "Yanlış fayl tipi", message: "Yalnız şəkil faylı", tone: "warning" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      await dialog.alert({ title: "Fayl ölçüsü çox böyükdür", message: "Fayl çox böyükdür (max 10 MB)", tone: "warning" });
+      return;
+    }
     setUploading(target);
     try {
       const init = await fetch("/api/admin/streaming/titles/image-upload", {
@@ -234,12 +242,18 @@ export default function StreamingTitlesAdminClient() {
         body: JSON.stringify({ contentType: file.type }),
       });
       const initData = await init.json();
-      if (!init.ok) { alert(initData.error ?? "Upload hazırlanmadı"); return; }
+      if (!init.ok) {
+        await dialog.alert({ title: "Upload hazırlanmadı", message: initData.error ?? "Upload hazırlanmadı", tone: "danger" });
+        return;
+      }
       const supabase = getSupabaseBrowser();
       const { error: upErr } = await supabase.storage
         .from(initData.bucket)
         .uploadToSignedUrl(initData.path, initData.token, file);
-      if (upErr) { alert(`Upload alınmadı: ${upErr.message}`); return; }
+      if (upErr) {
+        await dialog.alert({ title: "Upload alınmadı", message: upErr.message, tone: "danger" });
+        return;
+      }
       setEditForm((prev) =>
         target === "poster"
           ? { ...prev, posterUrl: initData.publicUrl }
@@ -308,7 +322,14 @@ export default function StreamingTitlesAdminClient() {
   }
 
   async function deleteItem(id: string) {
-    if (!confirm("Bu title-ı silmək istəyirsiniz?")) return;
+    if (
+      !(await dialog.confirm({
+        title: "Title-ı sil?",
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     await fetch("/api/admin/streaming/titles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

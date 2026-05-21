@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
+import { useDialog } from "@/lib/dialogs";
 
 /**
  * İzləmə listindən sil — favorit toggle endpoint-i istifadə edir, sonra səhifəni
@@ -19,11 +20,20 @@ export default function WatchlistRemoveButton({
   titleSnap: string;
 }) {
   const router = useRouter();
+  const dialog = useDialog();
   const [isPending, startTransition] = useTransition();
   const [hidden, setHidden] = useState(false);
 
   async function remove() {
-    if (!confirm(`"${titleSnap}" izləmə listindən çıxarılsın?`)) return;
+    if (
+      !(await dialog.confirm({
+        title: "İzləmə listindən sil?",
+        message: `"${titleSnap}" izləmə listindən çıxarılacaq.`,
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     setHidden(true);
     const res = await fetch("/api/streaming/favorites", {
       method: "POST",
@@ -34,7 +44,11 @@ export default function WatchlistRemoveButton({
       startTransition(() => router.refresh());
     } else {
       setHidden(false);
-      alert("Silinə bilmədi");
+      await dialog.alert({
+        title: "Silinə bilmədi",
+        message: "Yenidən cəhd edin.",
+        tone: "danger",
+      });
     }
   }
 

@@ -248,11 +248,11 @@ export default function NavSearch() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Axtar"
-        className="group inline-flex h-11 w-full items-center gap-3 rounded-[20px] border border-violet-500/30 bg-[#090914]/85 px-4 text-left text-sm text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_28px_-22px_rgba(124,58,237,0.9)] transition hover:border-violet-400/50 hover:bg-[#101022] hover:text-zinc-200 md:h-12 xl:h-12"
+        className="group inline-flex h-11 w-full items-center gap-3 rounded-[20px] border border-violet-200 bg-white/85 px-4 text-left text-sm text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.65),0_0_28px_-22px_rgba(124,58,237,0.45)] transition hover:border-violet-300 hover:bg-white hover:text-zinc-800 dark:border-violet-500/30 dark:bg-[#090914]/85 dark:text-zinc-400 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_28px_-22px_rgba(124,58,237,0.9)] dark:hover:border-violet-400/50 dark:hover:bg-[#101022] dark:hover:text-zinc-200 md:h-12 xl:h-12"
       >
-        <SearchIcon className="h-5 w-5 shrink-0 text-zinc-200" />
+        <SearchIcon className="h-5 w-5 shrink-0 text-zinc-500 dark:text-zinc-200" />
         <span className="min-w-0 flex-1 truncate">GTA V, Netflix, PS Plus, Spotify axtar...</span>
-        <span className="hidden rounded-lg border border-white/10 bg-white/[0.07] px-2.5 py-1 text-xs font-semibold text-zinc-200 md:inline">
+        <span className="hidden rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-500 dark:border-white/10 dark:bg-white/[0.07] dark:text-zinc-200 md:inline">
           ⌘K
         </span>
       </button>
@@ -260,7 +260,7 @@ export default function NavSearch() {
       {/* Modal — render to body so the header's backdrop-filter doesn't trap fixed positioning */}
       {open && mounted && createPortal(
         <div
-          className="fixed inset-0 z-[100] flex items-start justify-center bg-black/85 p-3 backdrop-blur-xl sm:p-6 sm:pt-[10vh]"
+          className="fixed inset-0 z-[100] flex items-start justify-center bg-zinc-950/45 p-3 backdrop-blur-xl dark:bg-black/85 sm:p-6 sm:pt-[10vh]"
           role="dialog"
           aria-modal="true"
         >
@@ -271,7 +271,7 @@ export default function NavSearch() {
           />
 
           <div
-            className="relative flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0a0a14]/95 shadow-[0_50px_140px_-20px_rgba(99,1,243,0.45),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-2xl"
+            className="relative flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/95 shadow-[0_50px_140px_-20px_rgba(99,1,243,0.22),0_0_0_1px_rgba(255,255,255,0.55)] backdrop-blur-2xl dark:border-white/10 dark:bg-[#0a0a14]/95 dark:shadow-[0_50px_140px_-20px_rgba(99,1,243,0.45),0_0_0_1px_rgba(255,255,255,0.04)]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Top gradient accent line */}
@@ -282,15 +282,15 @@ export default function NavSearch() {
 
             {/* Search input */}
             <div className="relative flex items-center gap-3 px-5 py-5 sm:px-6 sm:py-6">
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-500/25 to-fuchsia-500/10 ring-1 ring-inset ring-violet-400/30">
-                <SearchIcon className="h-5 w-5 text-violet-200" />
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-500/15 to-fuchsia-500/10 ring-1 ring-inset ring-violet-400/30 dark:from-violet-500/25">
+                <SearchIcon className="h-5 w-5 text-violet-600 dark:text-violet-200" />
               </div>
               <input
                 ref={inputRef}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Oyun, hədiyyə kartı, film və ya serial axtar..."
-                className="flex-1 bg-transparent text-lg font-medium text-white placeholder:text-zinc-500 focus:outline-none sm:text-xl"
+                className="flex-1 bg-transparent text-lg font-medium text-zinc-950 placeholder:text-zinc-400 focus:outline-none dark:text-white dark:placeholder:text-zinc-500 sm:text-xl"
               />
               {loading && <Loader2 className="h-5 w-5 animate-spin text-violet-300" />}
               {q && !loading && (
@@ -299,7 +299,7 @@ export default function NavSearch() {
                   onClick={() => setQ("")}
                   aria-label="Mətni təmizlə"
                   title="Mətni təmizlə"
-                  className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white/[0.05] px-3 text-[11px] font-semibold text-zinc-400 ring-1 ring-inset ring-white/[0.07] transition hover:bg-white/[0.1] hover:text-white"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full bg-zinc-100 px-3 text-[11px] font-semibold text-zinc-500 ring-1 ring-inset ring-zinc-200 transition hover:bg-zinc-200 hover:text-zinc-900 dark:bg-white/[0.05] dark:text-zinc-400 dark:ring-white/[0.07] dark:hover:bg-white/[0.1] dark:hover:text-white"
                 >
                   <Eraser className="h-3.5 w-3.5" />
                   Sil
@@ -310,7 +310,7 @@ export default function NavSearch() {
                 onClick={close}
                 aria-label="Modalı bağla"
                 title="Bağla (Esc)"
-                className="grid h-9 w-9 place-items-center rounded-xl border border-rose-400/30 bg-rose-500/10 text-rose-200 transition hover:border-rose-400/60 hover:bg-rose-500/20 hover:text-white"
+                className="grid h-9 w-9 place-items-center rounded-xl border border-rose-300/40 bg-rose-50 text-rose-600 transition hover:border-rose-400/60 hover:bg-rose-100 hover:text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:bg-rose-500/20 dark:hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -318,8 +318,8 @@ export default function NavSearch() {
 
             {/* Tabs */}
             {results && hasAny && (
-              <div className="border-b border-white/[0.06] px-5 pb-4 sm:px-6">
-                <div className="inline-flex items-center gap-1 rounded-2xl border border-white/[0.08] bg-black/40 p-1">
+              <div className="border-b border-zinc-200 px-5 pb-4 dark:border-white/[0.06] sm:px-6">
+                <div className="inline-flex items-center gap-1 rounded-2xl border border-zinc-200 bg-zinc-50 p-1 dark:border-white/[0.08] dark:bg-black/40">
                   {(
                     [
                       { key: "ALL", label: "Hamısı" },
@@ -338,14 +338,16 @@ export default function NavSearch() {
                         className={`relative inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
                           active
                             ? "bg-gradient-to-b from-violet-500 to-violet-600 text-white shadow-[0_4px_16px_-4px_rgba(124,58,237,0.7)]"
-                            : "text-zinc-400 hover:text-white"
+                            : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                         }`}
                       >
                         {t.label}
                         {c > 0 && (
                           <span
                             className={`grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-bold tabular-nums ${
-                              active ? "bg-white/25 text-white" : "bg-white/[0.08] text-zinc-300"
+                              active
+                                ? "bg-white/25 text-white"
+                                : "bg-zinc-200 text-zinc-600 dark:bg-white/[0.08] dark:text-zinc-300"
                             }`}
                           >
                             {c}
@@ -406,16 +408,16 @@ export default function NavSearch() {
             </div>
 
             {/* Footer hint */}
-            <div className="flex items-center justify-between gap-3 border-t border-white/[0.06] bg-black/40 px-5 py-3 text-[11px] text-zinc-500 sm:px-6">
+            <div className="flex items-center justify-between gap-3 border-t border-zinc-200 bg-zinc-50 px-5 py-3 text-[11px] text-zinc-500 dark:border-white/[0.06] dark:bg-black/40 sm:px-6">
               <div className="flex items-center gap-4">
                 <span className="hidden items-center gap-1.5 sm:inline-flex">
-                  <kbd className="grid h-5 min-w-5 place-items-center rounded-md border border-white/10 bg-white/[0.05] px-1.5 font-mono text-[10px] font-semibold text-zinc-300">
+                  <kbd className="grid h-5 min-w-5 place-items-center rounded-md border border-zinc-200 bg-white px-1.5 font-mono text-[10px] font-semibold text-zinc-600 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-300">
                     ↵
                   </kbd>
                   <span>Aç</span>
                 </span>
                 <span className="hidden items-center gap-1.5 sm:inline-flex">
-                  <kbd className="grid h-5 min-w-5 place-items-center rounded-md border border-white/10 bg-white/[0.05] px-1.5 font-mono text-[10px] font-semibold text-zinc-300">
+                  <kbd className="grid h-5 min-w-5 place-items-center rounded-md border border-zinc-200 bg-white px-1.5 font-mono text-[10px] font-semibold text-zinc-600 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-300">
                     Esc
                   </kbd>
                   <span>Bağla</span>
@@ -446,10 +448,10 @@ function EmptyState({
   return (
     <div className="px-5 py-12 text-center">
       <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/10 ring-1 ring-inset ring-violet-400/25">
-        <Sparkles className="h-6 w-6 text-violet-200" />
+        <Sparkles className="h-6 w-6 text-violet-600 dark:text-violet-200" />
       </div>
-      <p className="text-base font-bold text-white">Hər şeyi axtar</p>
-      <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-zinc-500">
+      <p className="text-base font-bold text-zinc-950 dark:text-white">Hər şeyi axtar</p>
+      <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-zinc-500 dark:text-zinc-500">
         PS oyunları, hədiyyə kartları, hesab açma, streaming film və serialları —
         hamısı bir yerdə.
       </p>
@@ -466,7 +468,7 @@ function EmptyState({
             key={s.id}
             type="button"
             onClick={() => onPick(s.label)}
-            className="group inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium text-zinc-300 transition hover:border-violet-400/40 hover:bg-violet-500/10 hover:text-white"
+            className="group inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[11px] font-medium text-zinc-600 transition hover:border-violet-400/40 hover:bg-violet-50 hover:text-zinc-950 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-violet-500/10 dark:hover:text-white"
           >
             <Icon className="h-3 w-3 text-zinc-500 transition group-hover:text-violet-300" />
             {s.label}
@@ -483,10 +485,10 @@ function EmptyState({
 function NoResults({ q }: { q: string }) {
   return (
     <div className="px-5 py-14 text-center">
-      <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl border border-white/[0.08] bg-white/[0.03]">
+      <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-white/[0.08] dark:bg-white/[0.03]">
         <SearchIcon className="h-5 w-5 text-zinc-500" />
       </div>
-      <p className="text-sm font-bold text-white">
+      <p className="text-sm font-bold text-zinc-950 dark:text-white">
         &quot;{q}&quot; üçün heç nə tapılmadı
       </p>
       <p className="mx-auto mt-1.5 max-w-sm text-xs text-zinc-500">
@@ -536,9 +538,9 @@ function ProductRow({
     <Link
       href={item.href}
       onClick={onPick}
-      className="group flex items-center gap-3 rounded-2xl border border-transparent p-2.5 transition hover:border-violet-400/20 hover:bg-gradient-to-r hover:from-violet-500/[0.08] hover:to-transparent"
+      className="group flex items-center gap-3 rounded-2xl border border-transparent p-2.5 transition hover:border-violet-300/30 hover:bg-gradient-to-r hover:from-violet-50 hover:to-transparent dark:hover:border-violet-400/20 dark:hover:from-violet-500/[0.08]"
     >
-      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-900 ring-1 ring-white/10 transition group-hover:ring-violet-400/40">
+      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-200 transition group-hover:ring-violet-300/50 dark:bg-zinc-900 dark:ring-white/10 dark:group-hover:ring-violet-400/40">
         {item.imageUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -558,7 +560,7 @@ function ProductRow({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-white">{item.title}</p>
+        <p className="truncate text-sm font-semibold text-zinc-950 dark:text-white">{item.title}</p>
         <p className="truncate text-[11px] text-zinc-500">{item.subtitle}</p>
         <div className="mt-1 flex items-baseline gap-2">
           <span className="text-sm font-bold text-amber-300 tabular-nums">
@@ -606,9 +608,9 @@ function LinkRow({
     <Link
       href={item.href}
       onClick={onPick}
-      className="group flex items-center gap-3 rounded-2xl border border-transparent p-2.5 transition hover:border-violet-400/20 hover:bg-gradient-to-r hover:from-violet-500/[0.08] hover:to-transparent"
+      className="group flex items-center gap-3 rounded-2xl border border-transparent p-2.5 transition hover:border-violet-300/30 hover:bg-gradient-to-r hover:from-violet-50 hover:to-transparent dark:hover:border-violet-400/20 dark:hover:from-violet-500/[0.08]"
     >
-      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-900 ring-1 ring-white/10 transition group-hover:ring-violet-400/40">
+      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-200 transition group-hover:ring-violet-300/50 dark:bg-zinc-900 dark:ring-white/10 dark:group-hover:ring-violet-400/40">
         {item.imageUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -628,10 +630,10 @@ function LinkRow({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-white">{item.title}</p>
+        <p className="truncate text-sm font-semibold text-zinc-950 dark:text-white">{item.title}</p>
         <p className="truncate text-[11px] text-zinc-500">{item.subtitle}</p>
       </div>
-      <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[11px] font-semibold text-zinc-300 transition group-hover:border-violet-400/40 group-hover:bg-violet-500/10 group-hover:text-white">
+      <span className="shrink-0 rounded-full border border-zinc-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-zinc-600 transition group-hover:border-violet-400/40 group-hover:bg-violet-50 group-hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300 dark:group-hover:bg-violet-500/10 dark:group-hover:text-white">
         Bax →
       </span>
     </Link>

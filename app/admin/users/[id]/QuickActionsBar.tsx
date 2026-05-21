@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, KeyRound } from "lucide-react";
+import { useDialog } from "@/lib/dialogs";
 
 type Props = {
   userId: string;
@@ -13,9 +14,17 @@ export default function QuickActionsBar({ userId, emailVerified }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const dialog = useDialog();
 
-  function run(label: string, url: string, confirmText?: string) {
-    if (confirmText && !confirm(confirmText)) return;
+  async function run(label: string, url: string, confirmText?: string) {
+    if (
+      confirmText &&
+      !(await dialog.confirm({
+        title: confirmText,
+        confirmLabel: "Təsdiq et",
+      }))
+    )
+      return;
     setMsg(null);
     startTransition(async () => {
       const res = await fetch(url, { method: "POST" });

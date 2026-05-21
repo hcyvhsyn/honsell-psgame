@@ -66,6 +66,22 @@ export function isValidMusicBrand(s: string): s is MusicBrand {
   return MUSIC_BRANDS.includes(s as MusicBrand);
 }
 
+// İş Platformaları kateqoriyasında LinkedIn Premium variantları üçün — admin
+// panel hər ServiceProduct rekorduna planType və populyarlıq bayrağı qoyur ki,
+// /work/linkedin-premium səhifəsi Career/Business qruplarını qura bilsin.
+export type WorkPlanType = "CAREER" | "BUSINESS";
+
+export const WORK_PLAN_TYPES: WorkPlanType[] = ["CAREER", "BUSINESS"];
+
+export const WORK_PLAN_TYPE_LABELS: Record<WorkPlanType, string> = {
+  CAREER: "LinkedIn Premium · Career",
+  BUSINESS: "LinkedIn Premium · Business",
+};
+
+export function isValidWorkPlanType(s: string): s is WorkPlanType {
+  return WORK_PLAN_TYPES.includes(s as WorkPlanType);
+}
+
 export type PlatformProductMetadata = {
   category: PlatformCategory;
   terms?: string;
@@ -75,6 +91,10 @@ export type PlatformProductMetadata = {
   referralEnabled: boolean;
   aiBrand?: AiBrand;
   musicBrand?: MusicBrand;
+  /// LinkedIn variantları üçün plan tipi (yalnız WORK kateqoriyası).
+  planType?: WorkPlanType;
+  /// "Populyar" rozetkası ilə qabardılan variant.
+  isPopular?: boolean;
 };
 
 export function readPlatformMeta(
@@ -87,6 +107,7 @@ export function readPlatformMeta(
   const referralPct = Number(m.referralPct);
   const aiBrandRaw = String(m.aiBrand ?? "");
   const musicBrandRaw = String(m.musicBrand ?? "");
+  const planTypeRaw = String(m.planType ?? "").toUpperCase();
   return {
     category: isValidPlatformCategory(cat) ? cat : "MUSIC",
     terms: typeof m.terms === "string" ? m.terms : undefined,
@@ -98,5 +119,7 @@ export function readPlatformMeta(
     referralEnabled: m.referralEnabled !== false,
     aiBrand: isValidAiBrand(aiBrandRaw) ? aiBrandRaw : undefined,
     musicBrand: isValidMusicBrand(musicBrandRaw) ? musicBrandRaw : undefined,
+    planType: isValidWorkPlanType(planTypeRaw) ? planTypeRaw : undefined,
+    isPopular: Boolean(m.isPopular),
   };
 }

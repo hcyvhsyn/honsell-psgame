@@ -5,83 +5,83 @@ import Link from "next/link";
  */
 export default function SiteFooter() {
   return (
-    <footer className="mt-0 border-t border-white/5 bg-[#0B0B0E]">
+    <footer className="mt-0 border-t border-zinc-200 dark:border-white/5 bg-zinc-50 dark:bg-[#0B0B0E]">
       <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between border-b border-white/5 pb-10">
-          <p className="text-3xl font-black tracking-tight text-white">HONSELL</p>
-          <nav className="flex flex-wrap items-center gap-6 text-sm text-zinc-300">
-            <Link href="/playstation" className="hover:text-white transition">PlayStation</Link>
-            <Link href="/streaming" className="hover:text-white transition">Streaming</Link>
-            <Link href="/qazan" className="text-fuchsia-300 hover:text-fuchsia-200 transition">Qazan (Referal)</Link>
-            <Link href="/haqqimizda" className="hover:text-white transition">Haqqımızda</Link>
-            <Link href="/mexfilik-siyaseti" className="hover:text-white transition">Məxfilik siyasəti</Link>
-            <Link href="/bilmeli-olduglarin" className="hover:text-white transition">Bələdçilər</Link>
-            <Link href="/reyler" className="hover:text-white transition">Rəylər</Link>
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between border-b border-zinc-200 dark:border-white/5 pb-10">
+          <p className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white">HONSELL</p>
+          <nav className="flex flex-wrap items-center gap-6 text-sm text-zinc-600 dark:text-zinc-300">
+            <Link href="/playstation" className="hover:text-zinc-900 dark:hover:text-white transition">PlayStation</Link>
+            <Link href="/streaming" className="hover:text-zinc-900 dark:hover:text-white transition">Streaming</Link>
+            <Link href="/qazan" className="text-fuchsia-600 dark:text-fuchsia-300 hover:text-fuchsia-500 dark:hover:text-fuchsia-200 transition">Qazan (Referal)</Link>
+            <Link href="/haqqimizda" className="hover:text-zinc-900 dark:hover:text-white transition">Haqqımızda</Link>
+            <Link href="/mexfilik-siyaseti" className="hover:text-zinc-900 dark:hover:text-white transition">Məxfilik siyasəti</Link>
+            <Link href="/bilmeli-olduglarin" className="hover:text-zinc-900 dark:hover:text-white transition">Bələdçilər</Link>
+            <Link href="/reyler" className="hover:text-zinc-900 dark:hover:text-white transition">Rəylər</Link>
           </nav>
         </div>
 
         <div className="mt-10 grid gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 text-sm">
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">PlayStation</p>
-            <ul className="space-y-2 text-zinc-300">
-              <li><Link href="/oyunlar" className="hover:text-white transition">PS5 oyunları</Link></li>
-              <li><Link href="/oyunlar" className="hover:text-white transition">PS4 oyunları</Link></li>
-              <li><Link href="/endirimler" className="hover:text-white transition">Endirimli oyunlar</Link></li>
-              <li><Link href="/oyunlar" className="hover:text-white transition">Yeni çıxan oyunlar</Link></li>
+            <ul className="space-y-2 text-zinc-600 dark:text-zinc-300">
+              <li><Link href="/oyunlar" className="hover:text-zinc-900 dark:hover:text-white transition">PS5 oyunları</Link></li>
+              <li><Link href="/oyunlar" className="hover:text-zinc-900 dark:hover:text-white transition">PS4 oyunları</Link></li>
+              <li><Link href="/endirimler" className="hover:text-zinc-900 dark:hover:text-white transition">Endirimli oyunlar</Link></li>
+              <li><Link href="/oyunlar" className="hover:text-zinc-900 dark:hover:text-white transition">Yeni çıxan oyunlar</Link></li>
             </ul>
           </div>
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Xidmətlər</p>
-            <ul className="space-y-2 text-zinc-300">
-              <li><Link href="/ps-plus" className="hover:text-white transition">PS Plus Essential</Link></li>
-              <li><Link href="/ps-plus" className="hover:text-white transition">PS Plus Extra</Link></li>
-              <li><Link href="/ps-plus" className="hover:text-white transition">PS Plus Deluxe</Link></li>
-              <li><Link href="/ea-play" className="hover:text-white transition">EA Play</Link></li>
-              <li><Link href="/hesab-acma" className="hover:text-white transition">Türkiyə PSN hesabı</Link></li>
+            <ul className="space-y-2 text-zinc-600 dark:text-zinc-300">
+              <li><Link href="/ps-plus" className="hover:text-zinc-900 dark:hover:text-white transition">PS Plus Essential</Link></li>
+              <li><Link href="/ps-plus" className="hover:text-zinc-900 dark:hover:text-white transition">PS Plus Extra</Link></li>
+              <li><Link href="/ps-plus" className="hover:text-zinc-900 dark:hover:text-white transition">PS Plus Deluxe</Link></li>
+              <li><Link href="/ea-play" className="hover:text-zinc-900 dark:hover:text-white transition">EA Play</Link></li>
+              <li><Link href="/hesab-acma" className="hover:text-zinc-900 dark:hover:text-white transition">Türkiyə PSN hesabı</Link></li>
             </ul>
           </div>
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Streaming</p>
-            <ul className="space-y-2 text-zinc-300">
-              <li><Link href="/streaming/netflix" className="hover:text-white transition">Netflix</Link></li>
-              <li><Link href="/streaming/hbo-max" className="hover:text-white transition">HBO Max</Link></li>
-              <li><Link href="/streaming/gain" className="hover:text-white transition">Gain</Link></li>
-              <li><Link href="/music/youtube" className="hover:text-white transition">YouTube Premium</Link></li>
-              <li><Link href="/streaming/icmallar" className="hover:text-white transition">İcmallar</Link></li>
+            <ul className="space-y-2 text-zinc-600 dark:text-zinc-300">
+              <li><Link href="/streaming/netflix" className="hover:text-zinc-900 dark:hover:text-white transition">Netflix</Link></li>
+              <li><Link href="/streaming/hbo-max" className="hover:text-zinc-900 dark:hover:text-white transition">HBO Max</Link></li>
+              <li><Link href="/streaming/gain" className="hover:text-zinc-900 dark:hover:text-white transition">Gain</Link></li>
+              <li><Link href="/music/youtube" className="hover:text-zinc-900 dark:hover:text-white transition">YouTube Premium</Link></li>
+              <li><Link href="/streaming/icmallar" className="hover:text-zinc-900 dark:hover:text-white transition">İcmallar</Link></li>
             </ul>
           </div>
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Hədiyyə Kartları</p>
-            <ul className="space-y-2 text-zinc-300">
-              <li><Link href="/hediyye-kartlari" className="hover:text-white transition">TRY Wallet kartları</Link></li>
-              <li><Link href="/hediyye-kartlari" className="hover:text-white transition">PSN top-up</Link></li>
-              <li><Link href="/hediyye-kartlari" className="hover:text-white transition">PlayStation gift card</Link></li>
-              <li><Link href="/hediyye-kartlari/honsell" className="hover:text-white transition">Honsell hədiyyə kartı</Link></li>
-              <li><Link href="/profile/hediyye-kart" className="hover:text-white transition">Hədiyyə kart aktivləşdir</Link></li>
+            <ul className="space-y-2 text-zinc-600 dark:text-zinc-300">
+              <li><Link href="/hediyye-kartlari" className="hover:text-zinc-900 dark:hover:text-white transition">TRY Wallet kartları</Link></li>
+              <li><Link href="/hediyye-kartlari" className="hover:text-zinc-900 dark:hover:text-white transition">PSN top-up</Link></li>
+              <li><Link href="/hediyye-kartlari" className="hover:text-zinc-900 dark:hover:text-white transition">PlayStation gift card</Link></li>
+              <li><Link href="/hediyye-kartlari/honsell" className="hover:text-zinc-900 dark:hover:text-white transition">Honsell hədiyyə kartı</Link></li>
+              <li><Link href="/profile/hediyye-kart" className="hover:text-zinc-900 dark:hover:text-white transition">Hədiyyə kart aktivləşdir</Link></li>
             </ul>
           </div>
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Şirkət</p>
-            <ul className="space-y-2 text-zinc-300">
-              <li><Link href="/haqqimizda" className="hover:text-white transition">Haqqımızda</Link></li>
-              <li><Link href="/mexfilik-siyaseti" className="hover:text-white transition">Məxfilik siyasəti</Link></li>
-              <li><Link href="/reyler" className="hover:text-white transition">Müştəri rəyləri</Link></li>
-              <li><Link href="/#niye-biz" className="hover:text-white transition">Niyə biz?</Link></li>
-              <li><Link href="/profile" className="hover:text-white transition">Hesabım</Link></li>
-              <li><Link href="/cart" className="hover:text-white transition">Səbətim</Link></li>
+            <ul className="space-y-2 text-zinc-600 dark:text-zinc-300">
+              <li><Link href="/haqqimizda" className="hover:text-zinc-900 dark:hover:text-white transition">Haqqımızda</Link></li>
+              <li><Link href="/mexfilik-siyaseti" className="hover:text-zinc-900 dark:hover:text-white transition">Məxfilik siyasəti</Link></li>
+              <li><Link href="/reyler" className="hover:text-zinc-900 dark:hover:text-white transition">Müştəri rəyləri</Link></li>
+              <li><Link href="/#niye-biz" className="hover:text-zinc-900 dark:hover:text-white transition">Niyə biz?</Link></li>
+              <li><Link href="/profile" className="hover:text-zinc-900 dark:hover:text-white transition">Hesabım</Link></li>
+              <li><Link href="/cart" className="hover:text-zinc-900 dark:hover:text-white transition">Səbətim</Link></li>
             </ul>
           </div>
         </div>
 
         <div className="mt-10 flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
-          <div className="flex flex-wrap gap-12 text-sm text-zinc-300">
+          <div className="flex flex-wrap gap-12 text-sm text-zinc-600 dark:text-zinc-300">
             <div>
               <p className="mb-1 text-zinc-500">Telefon:</p>
-              <p className="font-semibold text-white">+994 70 256 05 09</p>
+              <p className="font-semibold text-zinc-900 dark:text-white">+994 70 256 05 09</p>
             </div>
             <div>
               <p className="mb-1 text-zinc-500">Mail:</p>
-              <p className="font-semibold text-white">info@honsell.store</p>
+              <p className="font-semibold text-zinc-900 dark:text-white">info@honsell.store</p>
             </div>
           </div>
 

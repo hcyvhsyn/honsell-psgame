@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Plus, Edit2, Upload, X, Trash2, Eye } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { useDialog } from "@/lib/dialogs";
 
 type ServiceProduct = {
   id: string;
@@ -37,6 +38,7 @@ export default function ServicesAdminClient() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dialog = useDialog();
 
   useEffect(() => {
     load();
@@ -98,11 +100,19 @@ export default function ServicesAdminClient() {
 
   async function handleImageUpload(file: File) {
     if (!file.type.startsWith("image/")) {
-      alert("Yalnız şəkil faylı yükləyə bilərsiniz");
+      await dialog.alert({
+        title: "Yalnız şəkil faylı qəbul edilir",
+        message: "Şəkil formatında (PNG, JPG, WEBP) fayl seçin.",
+        tone: "warning",
+      });
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert("Fayl çox böyükdür (max 5 MB)");
+      await dialog.alert({
+        title: "Fayl ölçüsü çox böyükdür",
+        message: "Maksimum 5 MB-lıq şəkil yükləyə bilərsiniz.",
+        tone: "warning",
+      });
       return;
     }
     setUploadingImage(true);
@@ -114,7 +124,11 @@ export default function ServicesAdminClient() {
       });
       const initData = await init.json();
       if (!init.ok) {
-        alert(initData.error ?? "Upload hazırlanmadı");
+        await dialog.alert({
+          title: "Upload hazırlanmadı",
+          message: initData.error ?? "Bilinməyən xəta.",
+          tone: "danger",
+        });
         return;
       }
       const supabase = getSupabaseBrowser();
@@ -122,7 +136,11 @@ export default function ServicesAdminClient() {
         .from(initData.bucket)
         .uploadToSignedUrl(initData.path, initData.token, file);
       if (upErr) {
-        alert(`Upload alınmadı: ${upErr.message}`);
+        await dialog.alert({
+          title: "Upload alınmadı",
+          message: upErr.message,
+          tone: "danger",
+        });
         return;
       }
       setEditForm((prev) => ({ ...prev, imageUrl: initData.publicUrl }));
@@ -201,7 +219,13 @@ export default function ServicesAdminClient() {
   }
 
   async function deleteCode(codeId: string) {
-    if (!confirm("Bu kodu silmək istədiyinə əminsən?")) return;
+    const ok = await dialog.confirm({
+      title: "Kodu sil?",
+      message: "Bu kod siyahıdan silinəcək.",
+      confirmLabel: "Sil",
+      tone: "danger",
+    });
+    if (!ok) return;
     const res = await fetch("/api/admin/services", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -209,7 +233,11 @@ export default function ServicesAdminClient() {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(`Silinmədi: ${data.error ?? res.status}`);
+      await dialog.alert({
+        title: "Silinmədi",
+        message: String(data.error ?? res.status),
+        tone: "danger",
+      });
       return;
     }
     if (viewCodesId) await openCodesView(viewCodesId);
@@ -217,7 +245,17 @@ export default function ServicesAdminClient() {
   }
 
   async function deleteProduct(p: ServiceProduct) {
-    if (!confirm(`"${p.title}" məhsulunu silmək istədiyinə əminsən? Bütün kodları da silinəcək.`)) return;
+    const ok = await dialog.confirm({
+      title: "Məhsulu sil?",
+      message: (
+        <p>
+          <span className="font-medium text-zinc-200">«{p.title}»</span> məhsulu və bütün kodları silinəcək.
+        </p>
+      ),
+      confirmLabel: "Sil",
+      tone: "danger",
+    });
+    if (!ok) return;
     const res = await fetch("/api/admin/services", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -225,7 +263,11 @@ export default function ServicesAdminClient() {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      alert(`Silinmədi: ${data.error ?? res.status}`);
+      await dialog.alert({
+        title: "Silinmədi",
+        message: String(data.error ?? res.status),
+        tone: "danger",
+      });
       return;
     }
     load();

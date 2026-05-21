@@ -23,22 +23,24 @@ export const metadata: Metadata = {
 };
 
 const PAGE_SIZE = 24;
-const TYPE = "GAME";
 
+// /oyunlar is the unified catalog: games, DLCs, currency, and other SKUs are
+// served together so users can browse the full PS Store catalog from one page.
+// The type pill switcher inside GameBrowser narrows the view client-side.
 const getOyunlarPageData = unstable_cache(
   async (page: number) => {
     const offset = (page - 1) * PAGE_SIZE;
     const [games, popularCount, typeAllCount, typeOnSaleCount, totalsArr] = await Promise.all([
       prisma.game.findMany({
-        where: { isActive: true, productType: TYPE, isFeatured: true },
+        where: { isActive: true, isFeatured: true },
         orderBy: [{ lastScrapedAt: "desc" }, { title: "asc" }],
         take: PAGE_SIZE,
         skip: offset,
       }),
-      prisma.game.count({ where: { isActive: true, productType: TYPE, isFeatured: true } }),
-      prisma.game.count({ where: { isActive: true, productType: TYPE } }),
+      prisma.game.count({ where: { isActive: true, isFeatured: true } }),
+      prisma.game.count({ where: { isActive: true } }),
       prisma.game.count({
-        where: { isActive: true, productType: TYPE, discountTryCents: { not: null } },
+        where: { isActive: true, discountTryCents: { not: null } },
       }),
       prisma.game.groupBy({
         by: ["productType"],
@@ -48,7 +50,7 @@ const getOyunlarPageData = unstable_cache(
     ]);
     return { games, popularCount, typeAllCount, typeOnSaleCount, totalsArr };
   },
-  ["oyunlar-page-v2"],
+  ["oyunlar-page-v3-all-types"],
   { revalidate: 600, tags: ["games"] }
 );
 

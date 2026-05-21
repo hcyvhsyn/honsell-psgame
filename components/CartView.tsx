@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 import AccountCreationCartEditModal from "@/components/AccountCreationCartEditModal";
+import PlatformCartEditModal from "@/components/PlatformCartEditModal";
 import EpointWidgetModal from "@/components/EpointWidgetModal";
 import ReferralShareButtons from "@/components/ReferralShareButtons";
 import { Share2 } from "lucide-react";
@@ -104,6 +105,7 @@ export default function CartView({
   } | null>(null);
 
   const [accountEdit, setAccountEdit] = useState<{ itemId: string; key: number } | null>(null);
+  const [platformEdit, setPlatformEdit] = useState<{ itemId: string; key: number } | null>(null);
   // Default to the user's flagged-default PSN account; fall back to the first.
   const defaultId = psnAccounts.find((a) => a.isDefault)?.id ?? psnAccounts[0]?.id ?? "";
   const [psnAccountId, setPsnAccountId] = useState<string>(defaultId);
@@ -118,9 +120,23 @@ export default function CartView({
     }
   }, [items, accountEdit]);
 
+  useEffect(() => {
+    if (platformEdit && !items.some((i) => i.id === platformEdit.itemId)) {
+      setPlatformEdit(null);
+    }
+  }, [items, platformEdit]);
+
   const openAccountCartEdit = useCallback((item: CartItem) => {
     if (item.productType !== "ACCOUNT_CREATION") return;
     setAccountEdit((prev) => ({
+      itemId: item.id,
+      key: (prev?.key ?? 0) + 1,
+    }));
+  }, []);
+
+  const openPlatformCartEdit = useCallback((item: CartItem) => {
+    if (item.productType !== "PLATFORM") return;
+    setPlatformEdit((prev) => ({
       itemId: item.id,
       key: (prev?.key ?? 0) + 1,
     }));
@@ -433,7 +449,9 @@ export default function CartView({
         if (Array.isArray(data.honsellGiftCards) && data.honsellGiftCards.length > 0) {
           const hglSuffix = pendingGameQty > 0 ? "" : checkoutBalanceSuffix(data);
           const cnt = data.honsellGiftCards.length;
-          text = `Honsell hədiyyə kartınız hazırdır — ${cnt > 1 ? `${cnt} kod` : "kod"} email ilə göndərildi və Sifarişlər bölməsində görünür. Aktivləşdirmək üçün Profil → Hədiyyə kart səhifəsinə daxil olun.${hglSuffix}`;
+          text = `Honsell hədiyyə kart${cnt > 1 ? "larınız" : "ınız"} sifarişi qəbul edildi və hazırda gözləmədədir. ${
+            cnt > 1 ? "Kodlarınız" : "Kodunuz"
+          } hazır olduqda email ilə göndəriləcək və Sifarişlər bölməsində görünəcək. Aktivləşdirmək üçün Profil → Hədiyyə kart səhifəsinə daxil olun.${hglSuffix}`;
           if (gameFulfillmentSentence) {
             text = `${text.trim()} ${gameFulfillmentSentence}`;
           }
@@ -470,6 +488,10 @@ export default function CartView({
   const accountEditLine =
     accountEdit != null
       ? items.find((i) => i.id === accountEdit.itemId && i.productType === "ACCOUNT_CREATION")
+      : undefined;
+  const platformEditLine =
+    platformEdit != null
+      ? items.find((i) => i.id === platformEdit.itemId && i.productType === "PLATFORM")
       : undefined;
 
   return (
@@ -520,6 +542,11 @@ export default function CartView({
             onRemove={() => remove(item.id)}
             onEditAccountCreation={
               item.productType === "ACCOUNT_CREATION" ? () => openAccountCartEdit(item) : undefined
+            }
+            onEditPlatform={
+              item.productType === "PLATFORM" && item.streaming?.gmail
+                ? () => openPlatformCartEdit(item)
+                : undefined
             }
           />
         ))}
@@ -780,6 +807,15 @@ export default function CartView({
         />
       ) : null}
 
+      {platformEdit && platformEditLine ? (
+        <PlatformCartEditModal
+          key={platformEdit.key}
+          open
+          item={platformEditLine}
+          onClose={() => setPlatformEdit(null)}
+        />
+      ) : null}
+
       {widget ? (
         <EpointWidgetModal
           widgetUrl={widget.url}
@@ -799,12 +835,14 @@ function CartLine({
   onDecrement,
   onRemove,
   onEditAccountCreation,
+  onEditPlatform,
 }: {
   item: CartItem;
   onIncrement: () => void;
   onDecrement: () => void;
   onRemove: () => void;
   onEditAccountCreation?: () => void;
+  onEditPlatform?: () => void;
 }) {
   const isSingleLicense =
     item.productType === "GAME" ||
@@ -812,89 +850,104 @@ function CartLine({
     item.productType === "EA_PLAY" ||
     item.productType === "ACCOUNT_CREATION" ||
     item.productType === "STREAMING";
+  const platformCreds = platformCredentialMeta(item);
   return (
-    <li className="flex gap-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-3 shadow-sm transition hover:border-zinc-700/60 hover:bg-zinc-900/50">
-      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-900 shadow-inner">
+    <li className="flex gap-3 rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-2.5 shadow-sm transition hover:border-zinc-700/60 hover:bg-zinc-900/50">
+      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900 shadow-inner sm:h-16 sm:w-16">
         {item.imageUrl && (
           <Image
             src={item.imageUrl}
             alt={item.title}
             fill
-            sizes="80px"
+            sizes="64px"
             className="object-cover"
           />
         )}
       </div>
 
-      <div className="flex flex-1 flex-col justify-between py-0.5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
+      <div className="flex flex-1 flex-col justify-between gap-1.5 py-0.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
             <p className="line-clamp-2 text-sm font-medium text-zinc-100 leading-snug">{item.title}</p>
-            <p className="mt-1 text-[11px] font-medium tracking-wide text-zinc-500 uppercase">
+            <p className="mt-0.5 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
               {labelForType(item.productType)}
             </p>
             {item.productType === "STREAMING" && item.streaming?.gmail ? (
-              <div className="mt-2 w-full max-w-md rounded-lg border border-fuchsia-500/25 bg-fuchsia-500/[0.07] px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-fuchsia-300">
-                  Gmail ünvanı
-                </p>
-                <p className="mt-0.5 break-all text-xs font-medium text-zinc-200">
+              <div className="mt-1.5 inline-flex max-w-full items-center gap-1.5 rounded-md border border-fuchsia-500/25 bg-fuchsia-500/[0.07] px-2 py-1">
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-fuchsia-300">
+                  Gmail
+                </span>
+                <span className="truncate text-[11px] font-medium text-zinc-200">
                   {item.streaming.gmail}
-                </p>
+                </span>
               </div>
             ) : null}
             {item.productType === "PLATFORM" && item.streaming?.gmail ? (
-              <div className="mt-2 w-full max-w-md space-y-1.5 rounded-lg border border-red-500/25 bg-red-500/[0.07] px-3 py-2">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-red-300">
-                    YouTube hesabı
-                  </p>
-                  <p className="mt-0.5 break-all text-xs font-medium text-zinc-200">
+              <div
+                className={`mt-1.5 flex w-full max-w-md flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-2.5 py-1.5 ${platformCreds.accentClass}`}
+              >
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <span className={`text-[9px] font-semibold uppercase tracking-wider ${platformCreds.labelTextClass}`}>
+                    {platformCreds.emailLabel}
+                  </span>
+                  <span className="truncate text-[11px] font-medium text-zinc-200">
                     {item.streaming.gmail}
-                  </p>
+                  </span>
                 </div>
                 {item.streaming.password && (
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-red-300">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[9px] font-semibold uppercase tracking-wider ${platformCreds.labelTextClass}`}>
                       Şifrə
-                    </p>
-                    <p className="mt-0.5 break-all font-mono text-xs font-medium text-zinc-200">
-                      {"•".repeat(Math.min(item.streaming.password.length, 12))}
-                    </p>
+                    </span>
+                    <span className="font-mono text-[11px] tracking-wider text-zinc-300">
+                      {"•".repeat(Math.min(item.streaming.password.length, 8))}
+                    </span>
                   </div>
                 )}
+                {onEditPlatform ? (
+                  <button
+                    type="button"
+                    onClick={onEditPlatform}
+                    className={`ml-auto inline-flex items-center gap-1 text-[10px] font-semibold ${platformCreds.labelTextClass} transition hover:text-white`}
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Redaktə
+                  </button>
+                ) : null}
               </div>
             ) : null}
             {item.productType === "ACCOUNT_CREATION" ? (
-              <div className="mt-2 w-full max-w-md space-y-2 rounded-lg border border-fuchsia-500/25 bg-fuchsia-500/[0.07] px-3 py-2">
+              <div className="mt-1.5 w-full max-w-md space-y-1 rounded-md border border-fuchsia-500/25 bg-fuchsia-500/[0.07] px-2.5 py-1.5">
                 {item.accountCreation?.fullName ? (
-                  <p className="text-[11px] text-zinc-400">
+                  <p className="text-[10px] text-zinc-400">
                     {item.accountCreation.fullName}
                     {item.accountCreation.birthDate ? ` · ${item.accountCreation.birthDate}` : ""}
                   </p>
                 ) : null}
-                <div className="grid gap-1.5 text-xs">
-                  <p>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px]">
+                  <span>
                     <span className="text-zinc-500">E-poçt:</span>{" "}
                     <span className="break-all font-medium text-zinc-200">
                       {item.accountCreation?.email ?? "—"}
                     </span>
-                  </p>
-                  <p>
+                  </span>
+                  <span>
                     <span className="text-zinc-500">Şifrə:</span>{" "}
-                    <span className="break-all font-mono font-medium text-zinc-200">
-                      {item.accountCreation?.password ?? "—"}
+                    <span className="font-mono font-medium text-zinc-200">
+                      {item.accountCreation?.password
+                        ? "•".repeat(Math.min(item.accountCreation.password.length, 8))
+                        : "—"}
                     </span>
-                  </p>
+                  </span>
                 </div>
                 {onEditAccountCreation ? (
                   <button
                     type="button"
                     onClick={onEditAccountCreation}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-fuchsia-300 transition hover:text-fuchsia-200"
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-fuchsia-300 transition hover:text-fuchsia-200"
                   >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Məlumatları redaktə et
+                    <Pencil className="h-3 w-3" />
+                    Redaktə
                   </button>
                 ) : null}
               </div>
@@ -903,41 +956,39 @@ function CartLine({
           <button
             type="button"
             onClick={onRemove}
-            className="group rounded-lg p-1.5 transition hover:bg-red-500/10"
+            className="group rounded-md p-1 transition hover:bg-red-500/10"
             aria-label="Sil"
           >
-            <Trash2 className="h-4 w-4 text-zinc-500 transition group-hover:text-red-400" />
+            <Trash2 className="h-3.5 w-3.5 text-zinc-500 transition group-hover:text-red-400" />
           </button>
         </div>
 
-        <div className="flex items-end justify-between">
+        <div className="flex items-center justify-between gap-2">
           {isSingleLicense ? (
-            <span className="rounded-md bg-zinc-800/50 px-2 py-1 text-[10px] font-medium text-zinc-400">
-              Tək sifariş
-            </span>
+            <span />
           ) : (
-            <div className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950/50 p-0.5">
+            <div className="inline-flex items-center gap-0.5 rounded-md border border-zinc-800 bg-zinc-950/50 p-0.5">
               <button
                 type="button"
                 onClick={onDecrement}
-                className="rounded-md p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition"
+                className="rounded p-0.5 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition"
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span className="min-w-[1.5rem] text-center text-xs font-semibold tabular-nums text-zinc-200">
+              <span className="min-w-[1.25rem] text-center text-[11px] font-semibold tabular-nums text-zinc-200">
                 {item.qty}
               </span>
               <button
                 type="button"
                 onClick={onIncrement}
-                className="rounded-md p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition"
+                className="rounded p-0.5 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition"
               >
                 <Plus className="h-3 w-3" />
               </button>
             </div>
           )}
 
-          <span className="text-sm font-bold tabular-nums text-white">
+          <span className="ml-auto text-sm font-bold tabular-nums text-white">
             {(item.finalAzn * item.qty).toFixed(2)} AZN
           </span>
         </div>
@@ -966,9 +1017,39 @@ function labelForType(t: string) {
       return "PSN Hesab Açılışı";
     case "STREAMING":
       return "Streaming abunəliyi";
+    case "PLATFORM":
+      return "Platform abunəliyi";
     default:
       return "Digər";
   }
+}
+
+/** PLATFORM (LinkedIn / YouTube / digər) item-i üçün credentials qutusunun rəngi və label-i. */
+function platformCredentialMeta(item: CartItem): {
+  emailLabel: string;
+  accentClass: string;
+  labelTextClass: string;
+} {
+  const kind = item.streaming?.platformKind;
+  if (kind === "LINKEDIN") {
+    return {
+      emailLabel: "LinkedIn email",
+      accentClass: "border-sky-500/25 bg-sky-500/[0.07]",
+      labelTextClass: "text-sky-300",
+    };
+  }
+  if (kind === "YOUTUBE") {
+    return {
+      emailLabel: "YouTube (Gmail)",
+      accentClass: "border-red-500/25 bg-red-500/[0.07]",
+      labelTextClass: "text-red-300",
+    };
+  }
+  return {
+    emailLabel: "Hesab email",
+    accentClass: "border-zinc-700/50 bg-zinc-800/30",
+    labelTextClass: "text-zinc-300",
+  };
 }
 
 function AccountDropdown({

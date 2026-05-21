@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { STREAMING_SERVICE_LABELS, STREAMING_SERVICES, type StreamingService } from "@/lib/streamingCart";
 import { formatAzDate } from "@/lib/streamingLanguages";
+import { useDialog } from "@/lib/dialogs";
 
 export type ReviewItem = {
   id: string;
@@ -82,6 +83,7 @@ export default function StreamingReviewsClient({
   mine: ReviewItem[];
   feed: ReviewItem[];
 }) {
+  const dialog = useDialog();
   const [items, setItems] = useState<ReviewItem[]>(() => [...mine, ...feed]);
   const [formOpen, setFormOpen] = useState(false);
 
@@ -125,7 +127,11 @@ export default function StreamingReviewsClient({
     if (!res.ok) {
       setItems(prev);
       const d = await res.json().catch(() => ({}));
-      alert(d.error ?? "Reaksiya göndərilmədi");
+      await dialog.alert({
+        title: "Reaksiya göndərilmədi",
+        message: d.error ?? "Yenidən cəhd edin.",
+        tone: "danger",
+      });
     }
   }
 
@@ -150,18 +156,34 @@ export default function StreamingReviewsClient({
     if (!res.ok) {
       setItems(prev);
       const d = await res.json().catch(() => ({}));
-      alert(d.error ?? "İzləmə listi yenilənmədi");
+      await dialog.alert({
+        title: "İzləmə listi yenilənmədi",
+        message: d.error ?? "Yenidən cəhd edin.",
+        tone: "danger",
+      });
     }
   }
 
   async function onDelete(id: string) {
-    if (!confirm("Bu icmalı silmək istəyirsən?")) return;
+    if (
+      !(await dialog.confirm({
+        title: "İcmalı sil?",
+        message: "Bu icmal silinəcək.",
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
     const res = await fetch(`/api/streaming/reviews/${id}`, { method: "DELETE" });
     if (res.ok) {
       setItems((arr) => arr.filter((x) => x.id !== id));
     } else {
       const d = await res.json().catch(() => ({}));
-      alert(d.error ?? "Silinmədi");
+      await dialog.alert({
+        title: "Silinmədi",
+        message: d.error ?? "Yenidən cəhd edin.",
+        tone: "danger",
+      });
     }
   }
 

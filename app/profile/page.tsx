@@ -230,14 +230,14 @@ export default async function ProfileOverviewPage() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.18fr_0.94fr]">
-        <div className="relative min-h-[296px] overflow-hidden rounded-[16px] border border-white/10 bg-[linear-gradient(145deg,rgba(21,20,39,0.96),rgba(9,10,21,0.98))] shadow-[0_30px_80px_-50px_rgba(124,58,237,0.8),inset_0_1px_0_rgba(255,255,255,0.06)]">
-          <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/40 to-transparent" />
+        <div className="relative min-h-[296px] overflow-hidden rounded-[16px] border border-zinc-200 dark:border-white/10 bg-white dark:bg-[linear-gradient(145deg,rgba(21,20,39,0.96),rgba(9,10,21,0.98))] shadow-[0_30px_80px_-50px_rgba(124,58,237,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_30px_80px_-50px_rgba(124,58,237,0.8),inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/40 dark:via-violet-300/40 to-transparent" />
           <header className="flex items-center justify-between px-6 pb-3 pt-6">
-            <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
               Son fəaliyyətlər
             </h3>
           </header>
-          <ul className="mx-6 divide-y divide-white/5 border-t border-white/5">
+          <ul className="mx-6 divide-y divide-zinc-200 dark:divide-white/5 border-t border-zinc-200 dark:border-white/5">
             {recentActivity.length === 0 ? (
               <li className="py-8 text-center text-sm text-zinc-500">
                 Hələ fəaliyyət yoxdur
@@ -250,15 +250,15 @@ export default async function ProfileOverviewPage() {
           </ul>
           <Link
             href="/profile/orders"
-            className="inline-flex items-center gap-1.5 px-6 py-4 text-sm font-bold text-violet-300 transition hover:text-violet-200"
+            className="inline-flex items-center gap-1.5 px-6 py-4 text-sm font-bold text-violet-700 dark:text-violet-300 transition hover:text-violet-900 dark:hover:text-violet-200"
           >
             Bütün fəaliyyətlər <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
-        <div className="relative min-h-[296px] overflow-hidden rounded-[16px] border border-white/10 bg-[linear-gradient(145deg,rgba(21,20,39,0.96),rgba(9,10,21,0.98))] p-6 shadow-[0_30px_80px_-50px_rgba(124,58,237,0.8),inset_0_1px_0_rgba(255,255,255,0.06)]">
-          <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/40 to-transparent" />
-          <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+        <div className="relative min-h-[296px] overflow-hidden rounded-[16px] border border-zinc-200 dark:border-white/10 bg-white dark:bg-[linear-gradient(145deg,rgba(21,20,39,0.96),rgba(9,10,21,0.98))] p-6 shadow-[0_30px_80px_-50px_rgba(124,58,237,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_30px_80px_-50px_rgba(124,58,237,0.8),inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/40 dark:via-violet-300/40 to-transparent" />
+          <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
             Sürətli icmal
           </h3>
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -311,7 +311,7 @@ function WelcomeCard({
   memberSince: string | null;
 }) {
   return (
-    <div className="relative min-h-[226px] overflow-hidden rounded-[16px] border border-violet-300/20 bg-[linear-gradient(135deg,rgba(30,17,59,0.98),rgba(14,13,29,0.96)_45%,rgba(8,9,20,0.98))] p-7 shadow-[0_30px_90px_-52px_rgba(124,58,237,0.9),inset_0_1px_0_rgba(255,255,255,0.08)]">
+    <div className="relative min-h-[226px] overflow-hidden rounded-[16px] border border-violet-300/30 dark:border-violet-300/20 bg-gradient-to-br from-white via-violet-50 to-violet-100 dark:bg-[linear-gradient(135deg,rgba(30,17,59,0.98),rgba(14,13,29,0.96)_45%,rgba(8,9,20,0.98))] p-7 shadow-[0_30px_90px_-52px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[0_30px_90px_-52px_rgba(124,58,237,0.9),inset_0_1px_0_rgba(255,255,255,0.08)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_10%,rgba(124,58,237,0.34),transparent_34%),radial-gradient(circle_at_100%_95%,rgba(168,85,247,0.18),transparent_30%)]" />
       <div className="pointer-events-none absolute -right-10 -top-16 h-64 w-64 rounded-full border border-violet-300/10 bg-[radial-gradient(circle_at_35%_35%,rgba(124,58,237,0.45),rgba(35,18,75,0.25)_42%,transparent_68%)] shadow-[inset_24px_-22px_70px_rgba(10,6,30,0.9)]" />
       <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[54%] sm:block">
@@ -331,18 +331,18 @@ function WelcomeCard({
           {initial}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-300">
+          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
             Salam,
           </p>
-          <h2 className="mt-3 flex items-center gap-2 text-3xl font-black tracking-tight text-white sm:text-[32px]">
+          <h2 className="mt-3 flex items-center gap-2 text-3xl font-black tracking-tight text-zinc-900 dark:text-white sm:text-[32px]">
             <span className="truncate">{displayName}</span>
-            <BadgeCheck className="h-5 w-5 shrink-0 fill-violet-500 text-violet-300" />
+            <BadgeCheck className="h-5 w-5 shrink-0 fill-violet-500 text-violet-100 dark:text-violet-300" />
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-300/80">
+          <p className="mt-2 text-sm leading-relaxed text-zinc-700/80 dark:text-zinc-300/80">
             Honsell icmasının dəyərli üzvüsən.
           </p>
           {memberSince && (
-            <p className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs font-medium text-zinc-400">
+            <p className="mt-6 inline-flex items-center gap-2 rounded-full border border-zinc-200 dark:border-white/10 bg-white/60 dark:bg-black/20 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
               <CalendarDays className="h-3.5 w-3.5 text-zinc-500" />
               Üzv olub: {memberSince}
             </p>
@@ -365,28 +365,28 @@ function SavingsCard({
   totalSavingsAzn: number;
 }) {
   return (
-    <div className="relative min-h-[248px] overflow-hidden rounded-[16px] border border-white/10 bg-[linear-gradient(140deg,rgba(21,20,40,0.98),rgba(13,12,29,0.98)_52%,rgba(8,9,20,0.98))] p-7 shadow-[0_32px_90px_-54px_rgba(124,58,237,0.88),inset_0_1px_0_rgba(255,255,255,0.06)]">
+    <div className="relative min-h-[248px] overflow-hidden rounded-[16px] border border-zinc-200 dark:border-white/10 bg-white dark:bg-[linear-gradient(140deg,rgba(21,20,40,0.98),rgba(13,12,29,0.98)_52%,rgba(8,9,20,0.98))] p-7 shadow-[0_32px_90px_-54px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_32px_90px_-54px_rgba(124,58,237,0.88),inset_0_1px_0_rgba(255,255,255,0.06)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_48%_20%,rgba(124,58,237,0.24),transparent_32%),radial-gradient(circle_at_84%_80%,rgba(34,197,94,0.08),transparent_28%)]" />
       <div className="pointer-events-none absolute left-[43%] top-7 hidden h-40 w-40 -translate-x-1/2 rounded-full bg-violet-500/20 blur-3xl sm:block" />
 
       <div className="relative grid min-h-[190px] gap-6 md:grid-cols-[minmax(190px,0.95fr)_minmax(180px,0.8fr)_auto] md:items-end">
         <div className="self-start">
-          <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-violet-200">
+          <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-200">
             <TrendingUp className="h-3.5 w-3.5" />
             Honsell ilə nə qədər qazanmısan
           </p>
           <p className="mt-6 flex items-baseline gap-2">
-            <span className="text-[42px] font-black leading-none tabular-nums text-emerald-300">
+            <span className="text-[42px] font-black leading-none tabular-nums text-emerald-600 dark:text-emerald-300">
               {totalSavingsAzn.toFixed(2)}
             </span>
-            <span className="text-base font-bold text-emerald-200/80">₼</span>
+            <span className="text-base font-bold text-emerald-700/80 dark:text-emerald-200/80">₼</span>
           </p>
-          <p className="mt-3 max-w-[260px] text-sm leading-relaxed text-zinc-400">
+          <p className="mt-3 max-w-[260px] text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
             Endirimlər və cashback-lərlə ümumi qənaətin
           </p>
           <Link
             href="/profile/orders"
-            className="mt-7 inline-flex h-10 items-center gap-2 rounded-[12px] border border-white/10 bg-white/[0.055] px-4 text-xs font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-300/30 hover:bg-white/[0.09]"
+            className="mt-7 inline-flex h-10 items-center gap-2 rounded-[12px] border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.055] px-4 text-xs font-bold text-zinc-900 dark:text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-300/40 hover:bg-zinc-100 dark:hover:border-violet-300/30 dark:hover:bg-white/[0.09]"
           >
             Daha ətraflı statistika <ArrowRight className="h-3.5 w-3.5" />
           </Link>
@@ -395,7 +395,7 @@ function SavingsCard({
         <PiggyIllustration />
 
         <div className="flex items-end justify-between gap-4 md:block">
-          <div className="mb-3 w-fit rounded-[10px] border border-white/10 bg-white/[0.055] px-3 py-2 text-[11px] font-bold tabular-nums text-zinc-200 md:ml-auto">
+          <div className="mb-3 w-fit rounded-[10px] border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.055] px-3 py-2 text-[11px] font-bold tabular-nums text-zinc-700 dark:text-zinc-200 md:ml-auto">
             {latestMonthSavings.toFixed(2)} ₼
           </div>
           <div>
@@ -422,7 +422,7 @@ function SavingsCard({
               {savingsByMonth.map((b, i) => (
                 <span
                   key={i}
-                  className="w-5 text-center text-[11px] font-medium text-zinc-400"
+                  className="w-5 text-center text-[11px] font-medium text-zinc-500 dark:text-zinc-400"
                 >
                   {b.label}
                 </span>
@@ -454,22 +454,22 @@ function PiggyIllustration() {
 
 function ReferralHero() {
   return (
-    <div className="relative min-h-[248px] overflow-hidden rounded-[16px] border border-violet-300/20 bg-[linear-gradient(140deg,rgba(23,17,46,0.98),rgba(12,12,28,0.98)_52%,rgba(8,9,20,0.98))] p-7 shadow-[0_32px_90px_-54px_rgba(124,58,237,0.9),inset_0_1px_0_rgba(255,255,255,0.06)]">
+    <div className="relative min-h-[248px] overflow-hidden rounded-[16px] border border-violet-300/30 dark:border-violet-300/20 bg-gradient-to-br from-white via-violet-50 to-purple-50 dark:bg-[linear-gradient(140deg,rgba(23,17,46,0.98),rgba(12,12,28,0.98)_52%,rgba(8,9,20,0.98))] p-7 shadow-[0_32px_90px_-54px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[0_32px_90px_-54px_rgba(124,58,237,0.9),inset_0_1px_0_rgba(255,255,255,0.06)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_72%_42%,rgba(168,85,247,0.32),transparent_30%),radial-gradient(circle_at_95%_8%,rgba(99,102,241,0.18),transparent_30%)]" />
       <div className="relative grid min-h-[190px] gap-5 md:grid-cols-[minmax(220px,1fr)_240px] md:items-center">
         <div>
-          <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-violet-200">
+          <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-200">
             <Share2 className="h-3.5 w-3.5" />
             Referal proqramı
           </p>
-          <h3 className="mt-6 text-[26px] font-black tracking-tight text-white sm:text-[28px]">
+          <h3 className="mt-6 text-[26px] font-black tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
             Hər dəvətindən qazan
           </h3>
-          <p className="mt-3 max-w-md text-sm leading-relaxed text-zinc-300/80">
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-zinc-700/80 dark:text-zinc-300/80">
             Kodun ilə qeydiyyatdan keçən dostlarının hər alışından komissiya
             qazanırsan.
           </p>
-          <p className="mt-2 max-w-md text-sm text-zinc-400">
+          <p className="mt-2 max-w-md text-sm text-zinc-500 dark:text-zinc-400">
             Qazanc balansı ödənişdə istifadə oluna bilər.
           </p>
           <Link
@@ -523,30 +523,30 @@ function BalanceCard({
     accent === "amber"
       ? {
           shell:
-            "border-amber-400/30 bg-[linear-gradient(145deg,rgba(28,24,28,0.98),rgba(14,13,22,0.99))]",
+            "border-amber-400/30 bg-gradient-to-br from-amber-50 to-orange-50 dark:bg-[linear-gradient(145deg,rgba(28,24,28,0.98),rgba(14,13,22,0.99))]",
           glow: "bg-amber-400/10",
-          chipBg: "bg-amber-400/10",
-          chipText: "text-amber-300",
+          chipBg: "bg-amber-400/15 dark:bg-amber-400/10",
+          chipText: "text-amber-700 dark:text-amber-300",
           chipRing: "ring-amber-400/25",
-          value: "text-amber-100",
-          iconGlow: "text-amber-300",
+          value: "text-amber-900 dark:text-amber-100",
+          iconGlow: "text-amber-600 dark:text-amber-300",
         }
       : {
           shell:
-            "border-white/10 bg-[linear-gradient(145deg,rgba(21,20,39,0.98),rgba(10,10,22,0.99))]",
+            "border-zinc-200 dark:border-white/10 bg-gradient-to-br from-white to-violet-50 dark:bg-[linear-gradient(145deg,rgba(21,20,39,0.98),rgba(10,10,22,0.99))]",
           glow: "bg-violet-500/20",
-          chipBg: "bg-violet-500/10",
-          chipText: "text-violet-200",
+          chipBg: "bg-violet-500/15 dark:bg-violet-500/10",
+          chipText: "text-violet-700 dark:text-violet-200",
           chipRing: "ring-violet-300/25",
-          value: "text-white",
-          iconGlow: "text-violet-200",
+          value: "text-zinc-900 dark:text-white",
+          iconGlow: "text-violet-700 dark:text-violet-200",
         };
 
   return (
     <div
-      className={`relative min-h-[226px] overflow-hidden rounded-[16px] border p-7 shadow-[0_30px_80px_-50px_rgba(124,58,237,0.85),inset_0_1px_0_rgba(255,255,255,0.06)] ${styles.shell}`}
+      className={`relative min-h-[226px] overflow-hidden rounded-[16px] border p-7 shadow-[0_30px_80px_-50px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_30px_80px_-50px_rgba(124,58,237,0.85),inset_0_1px_0_rgba(255,255,255,0.06)] ${styles.shell}`}
     >
-      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-zinc-300 dark:via-white/30 to-transparent" />
       <div
         className={`absolute -right-10 -top-10 h-36 w-36 rounded-full ${styles.glow} blur-[58px]`}
       />
@@ -560,7 +560,7 @@ function BalanceCard({
         <Link
           href={href}
           aria-label={label}
-          className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/[0.055] text-zinc-300 transition hover:border-violet-300/30 hover:bg-white/[0.09] hover:text-white"
+          className="grid h-9 w-9 place-items-center rounded-full border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.055] text-zinc-600 dark:text-zinc-300 transition hover:border-violet-300/40 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:border-violet-300/30 dark:hover:bg-white/[0.09] dark:hover:text-white"
         >
           <ArrowUpRight className="h-4 w-4" />
         </Link>
@@ -572,9 +572,9 @@ function BalanceCard({
         >
           {value.toFixed(2)}
         </span>
-        <span className="text-base font-bold text-zinc-300">₼</span>
+        <span className="text-base font-bold text-zinc-600 dark:text-zinc-300">₼</span>
       </p>
-      <p className="relative mt-4 text-sm leading-relaxed text-zinc-400">
+      <p className="relative mt-4 text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
         {subtitle}
       </p>
 
@@ -607,17 +607,17 @@ function QuickStat({
   return (
     <Link
       href={href}
-      className="group relative min-h-[96px] overflow-hidden rounded-[12px] border border-white/10 bg-white/[0.045] p-4 transition hover:border-violet-300/25 hover:bg-white/[0.07]"
+      className="group relative min-h-[96px] overflow-hidden rounded-[12px] border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.045] p-4 transition hover:border-violet-300/35 hover:bg-zinc-100 dark:hover:border-violet-300/25 dark:hover:bg-white/[0.07]"
     >
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.035] to-transparent opacity-80" />
-      <ArrowUpRight className="absolute right-4 top-4 h-4 w-4 text-zinc-500 transition group-hover:text-white" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-zinc-100 dark:from-white/[0.035] to-transparent opacity-80" />
+      <ArrowUpRight className="absolute right-4 top-4 h-4 w-4 text-zinc-500 transition group-hover:text-zinc-900 dark:group-hover:text-white" />
       <div className="relative flex items-center gap-4 pr-5">
         <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-[12px] ring-1 ${tintBg}`}>
           {icon}
         </span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-zinc-400">{label}</p>
-          <p className="mt-1 text-[26px] font-black leading-none tabular-nums text-white">
+          <p className="truncate text-sm font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
+          <p className="mt-1 text-[26px] font-black leading-none tabular-nums text-zinc-900 dark:text-white">
             {value}
           </p>
           <p className="mt-2 text-[12px] leading-snug text-zinc-500">{hint}</p>
@@ -632,8 +632,8 @@ function ActivityItem({ row }: { row: ActivityRow }) {
   const amountAzn = Math.abs(row.amountAznCents) / 100;
 
   let title = "Əməliyyat";
-  let icon: React.ReactNode = <CreditCard className="h-5 w-5 text-zinc-400" />;
-  let iconBg = "bg-white/5";
+  let icon: React.ReactNode = <CreditCard className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />;
+  let iconBg = "bg-zinc-100 dark:bg-white/5";
 
   if (row.type === "PURCHASE") {
     title = row.game?.title ?? "Silinmiş oyun";
@@ -690,7 +690,7 @@ function ActivityItem({ row }: { row: ActivityRow }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-semibold text-white">{title}</p>
+          <p className="truncate text-sm font-semibold text-zinc-900 dark:text-white">{title}</p>
           <span
             className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
               row.status === "PENDING"
@@ -707,7 +707,7 @@ function ActivityItem({ row }: { row: ActivityRow }) {
       </div>
       <p
         className={`shrink-0 text-sm font-bold tabular-nums ${
-          isCredit ? "text-emerald-400" : "text-zinc-200"
+          isCredit ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-700 dark:text-zinc-200"
         }`}
       >
         {isCredit ? "+" : "-"}

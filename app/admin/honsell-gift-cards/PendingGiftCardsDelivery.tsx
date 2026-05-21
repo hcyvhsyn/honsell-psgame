@@ -1,15 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Clock, Loader2, RefreshCcw, Send } from "lucide-react";
-import {
-  HONSELL_GIFT_CARD_CODE_ALPHABET,
-  HONSELL_GIFT_CARD_CODE_LENGTH,
-  formatHonsellGiftCardCode,
-  isValidHonsellGiftCardFormat,
-  normalizeHonsellGiftCardCode,
-} from "@/lib/honsellGiftCardShared";
+import { Clock, Loader2, Send } from "lucide-react";
 
 type PendingCard = {
   id: string;
@@ -23,15 +16,6 @@ const dateFmt = new Intl.DateTimeFormat("az-AZ", {
   dateStyle: "medium",
   timeStyle: "short",
 });
-
-function randomCode(): string {
-  let out = "";
-  const a = HONSELL_GIFT_CARD_CODE_ALPHABET;
-  for (let i = 0; i < HONSELL_GIFT_CARD_CODE_LENGTH; i++) {
-    out += a[Math.floor(Math.random() * a.length)];
-  }
-  return out;
-}
 
 export default function PendingGiftCardsDelivery({ cards }: { cards: PendingCard[] }) {
   if (cards.length === 0) {
@@ -61,7 +45,8 @@ export default function PendingGiftCardsDelivery({ cards }: { cards: PendingCard
           </h2>
         </div>
         <p className="text-[11px] text-amber-200/70">
-          Hər kart üçün 11 simvollu kodu daxil edib təslim edin. Müştəriyə avtomatik email göndəriləcək.
+          Hər kart üçün “Təslim et” düyməsinə basın — sistem unikal kodu avtomatik yaradacaq,
+          müştəriyə email və WhatsApp ilə təsdiq göndəriləcək.
         </p>
       </header>
 
@@ -76,25 +61,18 @@ export default function PendingGiftCardsDelivery({ cards }: { cards: PendingCard
 
 function DeliveryRow({ card }: { card: PendingCard }) {
   const router = useRouter();
-  const [raw, setRaw] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const normalized = useMemo(() => normalizeHonsellGiftCardCode(raw), [raw]);
-  const valid = isValidHonsellGiftCardFormat(normalized);
-  const preview = formatHonsellGiftCardCode(
-    normalized.padEnd(HONSELL_GIFT_CARD_CODE_LENGTH, "•").slice(0, HONSELL_GIFT_CARD_CODE_LENGTH),
-  );
-
   async function submit() {
-    if (!valid || busy) return;
+    if (busy) return;
     setBusy(true);
     setError(null);
     try {
       const res = await fetch("/api/admin/honsell-gift-cards/deliver", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ cardId: card.id, code: normalized }),
+        body: JSON.stringify({ cardId: card.id }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -127,52 +105,24 @@ function DeliveryRow({ card }: { card: PendingCard }) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={raw}
-              onChange={(e) => {
-                setRaw(e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder="AAAA-BBB-CCCC"
-              maxLength={20}
-              spellCheck={false}
-              autoCapitalize="characters"
-              className="w-44 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 font-mono text-sm tracking-widest text-white outline-none focus:border-violet-500/60"
-            />
-            <button
-              type="button"
-              onClick={() => setRaw(randomCode())}
-              title="Avtomatik kod yarat"
-              className="rounded-lg border border-zinc-800 bg-zinc-900 p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-            >
-              <RefreshCcw className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={!valid || busy}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Send className="h-3.5 w-3.5" />
-            )}
-            Təslim et
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={submit}
+          disabled={busy}
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {busy ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Send className="h-3.5 w-3.5" />
+          )}
+          Təslim et
+        </button>
       </div>
 
-      <div className="mt-2 flex items-center justify-between gap-2 text-[11px]">
-        <span className={valid ? "font-mono text-emerald-300/90" : "font-mono text-zinc-600"}>
-          {raw ? preview : "—"}
-        </span>
-        {error ? <span className="text-rose-400">{error}</span> : null}
-      </div>
+      {error ? (
+        <div className="mt-2 text-[11px] text-rose-400">{error}</div>
+      ) : null}
     </div>
   );
 }

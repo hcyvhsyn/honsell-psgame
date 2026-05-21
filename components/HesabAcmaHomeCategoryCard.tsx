@@ -36,7 +36,7 @@ export default function HesabAcmaHomeCategoryCard({
     return (
       <Link
         href="/hesab-acma"
-        className="group relative flex min-h-[210px] overflow-hidden rounded-[24px] border border-white/10 bg-[#150A21] p-5 shadow-2xl transition hover:-translate-y-1 hover:border-indigo-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A78BFA]/60"
+        className="group relative flex min-h-[210px] overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-indigo-400/50 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A78BFA]/60 dark:border-white/10 dark:bg-[#150A21] dark:shadow-2xl dark:hover:border-indigo-500/40"
       >
         <CategoryCardBackdrop imageUrl={imageUrl} />
         <div className="relative z-10 flex flex-1 flex-col justify-between">
@@ -44,13 +44,13 @@ export default function HesabAcmaHomeCategoryCard({
             <span className={`grid h-11 w-11 place-items-center rounded-2xl border bg-gradient-to-br backdrop-blur-sm ${accentClass}`}>
               {icon}
             </span>
-            <ArrowRight className="h-5 w-5 text-white/45 transition group-hover:translate-x-1 group-hover:text-white" />
+            <ArrowRight className="h-5 w-5 text-zinc-400 transition group-hover:translate-x-1 group-hover:text-zinc-950 dark:text-white/45 dark:group-hover:text-white" />
           </div>
 
           <div>
-            <h3 className="text-lg font-black leading-tight text-white">{label}</h3>
-            <p className="mt-2 min-h-[42px] text-sm leading-relaxed text-zinc-300">{sub}</p>
-            <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-[#A78BFA] transition group-hover:text-white">
+            <h3 className="text-lg font-black leading-tight text-zinc-950 dark:text-white">{label}</h3>
+            <p className="mt-2 min-h-[42px] text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">{sub}</p>
+            <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-violet-600 transition group-hover:text-zinc-950 dark:text-[#A78BFA] dark:group-hover:text-white">
               Keçid et <ArrowRight className="h-4 w-4" />
             </span>
           </div>
@@ -64,7 +64,7 @@ export default function HesabAcmaHomeCategoryCard({
       <button
         type="button"
         onClick={openModal}
-        className="group relative flex min-h-[210px] w-full overflow-hidden rounded-[24px] border border-white/10 bg-[#150A21] p-5 text-left shadow-2xl transition hover:-translate-y-1 hover:border-indigo-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A78BFA]/60"
+        className="group relative flex min-h-[210px] w-full overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-indigo-400/50 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A78BFA]/60 dark:border-white/10 dark:bg-[#150A21] dark:shadow-2xl dark:hover:border-indigo-500/40"
       >
         <CategoryCardBackdrop imageUrl={imageUrl} />
         <div className="relative z-10 flex flex-1 flex-col justify-between">
@@ -72,13 +72,13 @@ export default function HesabAcmaHomeCategoryCard({
             <span className={`grid h-11 w-11 place-items-center rounded-2xl border bg-gradient-to-br backdrop-blur-sm ${accentClass}`}>
               {icon}
             </span>
-            <ArrowRight className="h-5 w-5 text-white/45 transition group-hover:translate-x-1 group-hover:text-white" />
+            <ArrowRight className="h-5 w-5 text-zinc-400 transition group-hover:translate-x-1 group-hover:text-zinc-950 dark:text-white/45 dark:group-hover:text-white" />
           </div>
 
           <div>
-            <h3 className="text-lg font-black leading-tight text-white">{label}</h3>
-            <p className="mt-2 min-h-[42px] text-sm leading-relaxed text-zinc-300">{sub}</p>
-            <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-[#A78BFA] transition group-hover:text-white">
+            <h3 className="text-lg font-black leading-tight text-zinc-950 dark:text-white">{label}</h3>
+            <p className="mt-2 min-h-[42px] text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">{sub}</p>
+            <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-violet-600 transition group-hover:text-zinc-950 dark:text-[#A78BFA] dark:group-hover:text-white">
               Keçid et <ArrowRight className="h-4 w-4" />
             </span>
           </div>
@@ -102,13 +102,13 @@ function CategoryCardBackdrop({ imageUrl }: { imageUrl?: string | null }) {
           alt=""
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 16vw"
-          className="object-cover opacity-20 saturate-125 transition duration-700 group-hover:scale-105 group-hover:opacity-25"
+          className="object-cover opacity-15 saturate-125 transition duration-700 group-hover:scale-105 group-hover:opacity-20 dark:opacity-20 dark:group-hover:opacity-25"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-[#201032] via-[#150A21] to-[#0A0A0F]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-50 via-white to-zinc-100 dark:from-[#201032] dark:via-[#150A21] dark:to-[#0A0A0F]" />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#150A21] via-[#150A21]/85 to-[#150A21]/35" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(167,139,250,0.20),transparent_34%)] opacity-80" />
+      <div className="absolute inset-0 bg-gradient-to-t from-white via-white/85 to-white/35 dark:from-[#150A21] dark:via-[#150A21]/85 dark:to-[#150A21]/35" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(124,58,237,0.12),transparent_34%)] opacity-80 dark:bg-[radial-gradient(circle_at_20%_15%,rgba(167,139,250,0.20),transparent_34%)]" />
     </>
   );
 }

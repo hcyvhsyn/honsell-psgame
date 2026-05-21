@@ -3,6 +3,9 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { CartProvider } from "@/lib/cart";
 import { ModalProvider } from "@/lib/modals";
+import { DialogProvider } from "@/lib/dialogs";
+import { ThemeProvider, THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme";
+import ThemeToggle from "@/components/ThemeToggle";
 import AppModals from "@/components/AppModals";
 import FavoritesBootstrap from "@/components/FavoritesBootstrap";
 import FavoriteIntroModal from "@/components/FavoriteIntroModal";
@@ -88,7 +91,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#0A0A0F",
-  colorScheme: "dark",
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({
@@ -97,30 +100,40 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="az" className="dark">
+    <html lang="az" suppressHydrationWarning>
+      <head>
+        {/* Sync ilkin tema seçimi (localStorage / system pref) — render-dən
+            əvvəl <html> üzərinə .dark / .light qoyub palet flash-ını qarşılayır. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }} />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} bg-[#0A0A0F] text-zinc-100 antialiased min-h-screen relative`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-[var(--background)] text-[var(--foreground)] antialiased relative`}
       >
         {/* Global deep purple ambient glow */}
         <div className="pointer-events-none fixed inset-0 z-[-1] overflow-hidden">
-          <div className="absolute -right-[20%] top-[20%] h-[800px] w-[800px] rounded-full bg-[radial-gradient(circle_at_center,rgba(88,28,135,0.15)_0%,transparent_60%)] blur-[100px]" />
-          <div className="absolute -bottom-[20%] -left-[10%] h-[600px] w-[600px] rounded-full bg-[radial-gradient(circle_at_center,rgba(88,28,135,0.12)_0%,transparent_60%)] blur-[100px]" />
+          <div className="absolute -right-[20%] top-[20%] h-[800px] w-[800px] rounded-full bg-[radial-gradient(circle_at_center,var(--ambient-1)_0%,transparent_60%)] blur-[100px]" />
+          <div className="absolute -bottom-[20%] -left-[10%] h-[600px] w-[600px] rounded-full bg-[radial-gradient(circle_at_center,var(--ambient-2)_0%,transparent_60%)] blur-[100px]" />
         </div>
 
         <Suspense fallback={null}>
           <TopLoader />
         </Suspense>
 
-        <ModalProvider>
-          <FavoritesBootstrap>
-            <CartProvider>
-              {children}
-              <AppModals />
-              <FavoriteIntroModal />
-              <WhatsAppFloat />
-            </CartProvider>
-          </FavoritesBootstrap>
-        </ModalProvider>
+        <ThemeProvider>
+          <DialogProvider>
+            <ModalProvider>
+              <FavoritesBootstrap>
+                <CartProvider>
+                  {children}
+                  <AppModals />
+                  <FavoriteIntroModal />
+                  <WhatsAppFloat />
+                  <ThemeToggle />
+                </CartProvider>
+              </FavoritesBootstrap>
+            </ModalProvider>
+          </DialogProvider>
+        </ThemeProvider>
         <Analytics />
         <SpeedInsights />
       </body>

@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Copy, Check, Pencil, Trash2, AlertTriangle, X, MessageCircle, Send, Ban, ShieldCheck } from "lucide-react";
+import { useDialog } from "@/lib/dialogs";
 
 export function CopyPhoneButton({ phone }: { phone: string }) {
   const [copied, setCopied] = useState(false);
@@ -187,13 +188,22 @@ function DisableButton({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const dialog = useDialog();
   const isDisabled = !!disabled;
 
-  function toggle(e: React.MouseEvent) {
+  async function toggle(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
     const verb = isDisabled ? "aktiv etmək" : "bloklamaq";
-    if (!confirm(`Bu istifadəçini ${verb} istədiyinizə əminsiniz?`)) return;
+    if (
+      !(await dialog.confirm({
+        title: isDisabled ? "İstifadəçini aktiv et?" : "İstifadəçini blokla?",
+        message: `Bu istifadəçini ${verb} istədiyinizə əminsiniz?`,
+        confirmLabel: isDisabled ? "Aktiv et" : "Blokla",
+        tone: isDisabled ? "default" : "danger",
+      }))
+    )
+      return;
     startTransition(async () => {
       const res = await fetch(`/api/admin/users/${userId}/disable`, {
         method: "POST",
@@ -202,7 +212,11 @@ function DisableButton({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.error ?? "Əməliyyat alınmadı");
+        void dialog.alert({
+          title: "Əməliyyat alınmadı",
+          message: data.error ?? "Əməliyyat alınmadı",
+          tone: "danger",
+        });
         return;
       }
       router.refresh();

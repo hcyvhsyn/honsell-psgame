@@ -91,12 +91,12 @@ export default function AccountCreationOfferModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="ac-modal-title"
-        className="max-h-[min(92vh,640px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl"
+        className="max-h-[min(92vh,640px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-zinc-800 p-5">
+        <div className="flex items-start justify-between gap-3 border-b border-zinc-200 p-5 dark:border-zinc-800">
           <div className="flex min-w-0 flex-1 gap-4">
-            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-900">
+            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-900">
               {product.imageUrl ? (
                 <Image
                   src={product.imageUrl}
@@ -108,10 +108,10 @@ export default function AccountCreationOfferModal({
               ) : null}
             </div>
             <div className="min-w-0">
-              <p id="ac-modal-title" className="font-semibold text-white">
+              <p id="ac-modal-title" className="font-semibold text-zinc-950 dark:text-white">
                 {product.title}
               </p>
-              <p className="mt-1 text-sm tabular-nums text-fuchsia-300">
+              <p className="mt-1 text-sm tabular-nums text-fuchsia-700 dark:text-fuchsia-300">
                 {(product.priceAznCents / 100).toFixed(2)} AZN
               </p>
             </div>
@@ -120,45 +120,45 @@ export default function AccountCreationOfferModal({
             type="button"
             aria-label="Bağla"
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+            className="rounded-lg p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <form className="space-y-4 p-5" onSubmit={submit}>
-          <p className="text-xs leading-relaxed text-zinc-500">
+          <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-500">
             Türkiyə PSN hesabı üçün tələb olunan məlumatları daxil edin. Hesab aktivləşdikdə bu e-poçt və şifrədən istifadə
             olunacaq; e-poçt başqa ölkə və ya növbəti PS Store-da istifadə olunmamalıdır.
           </p>
 
-          <label className="block text-sm text-zinc-300">
+          <label className="block text-sm text-zinc-700 dark:text-zinc-300">
             Ad və soyad
             <input
               autoComplete="name"
-              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-fuchsia-500 focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-950 focus:border-fuchsia-500 focus:bg-white focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Məs.: Əli Əliyev"
             />
           </label>
 
-          <label className="block text-sm text-zinc-300">
+          <label className="block text-sm text-zinc-700 dark:text-zinc-300">
             Doğum tarixi
             <input
               type="date"
-              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-fuchsia-500 focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-950 focus:border-fuchsia-500 focus:bg-white focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
               value={birthDate}
               onChange={(e) => setBirthDate(e.target.value)}
             />
           </label>
 
-          <label className="block text-sm text-zinc-300">
+          <label className="block text-sm text-zinc-700 dark:text-zinc-300">
             E-poçt (yeni PSN üçün)
             <input
               type="email"
               autoComplete="email"
-              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-fuchsia-500 focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-950 focus:border-fuchsia-500 focus:bg-white focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="hesab@gmail.com"
@@ -168,7 +168,7 @@ export default function AccountCreationOfferModal({
             </span>
           </label>
 
-          <label className="block text-sm text-zinc-300">
+          <label className="block text-sm text-zinc-700 dark:text-zinc-300">
             Şifrə (ən azı 8 simvol, görünür)
             <input
               type="text"
@@ -176,7 +176,7 @@ export default function AccountCreationOfferModal({
               spellCheck={false}
               inputMode="text"
               minLength={8}
-              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm tracking-wide text-white focus:border-fuchsia-500 focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 font-mono text-sm tracking-wide text-zinc-950 focus:border-fuchsia-500 focus:bg-white focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Minimum 8 simvol"
@@ -187,7 +187,7 @@ export default function AccountCreationOfferModal({
           </label>
 
           {err && (
-            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{err}</p>
+            <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">{err}</p>
           )}
 
           <button
