@@ -356,7 +356,10 @@ export default function SiteHeader({
     <>
       <header ref={headerRef} className="sticky top-0 z-50 bg-white/85 dark:bg-[#03030A]/85 px-4 py-3 backdrop-blur-xl sm:px-6">
         <div className="honsell-navbar-shell mx-auto flex w-full max-w-7xl flex-col rounded-[24px]">
-          <div className="grid min-h-[66px] grid-cols-[auto_1fr] items-center gap-3 px-4 py-3 md:grid-cols-[150px_minmax(220px,1fr)_auto] md:px-5 xl:grid-cols-[170px_minmax(260px,1fr)_auto] xl:gap-4 xl:px-6">
+          <div
+            className="grid min-h-[66px] grid-cols-[auto_1fr] items-center gap-3 px-4 py-3 md:grid-cols-[150px_minmax(220px,1fr)_auto] md:px-5 xl:grid-cols-[170px_minmax(260px,1fr)_auto] xl:gap-4 xl:px-6"
+            style={{ zIndex: 30 }}
+          >
             <div className="flex min-w-0 items-center">
               <Logo href="/" height={28} priority className="h-6 w-auto xl:h-7" />
             </div>
@@ -371,7 +374,6 @@ export default function SiteHeader({
               <Link
                 href="/hediyye-kartlari/honsell"
                 className="hidden h-10 items-center gap-2 rounded-[18px] border border-violet-300/40 bg-violet-50 px-3 text-sm font-bold text-violet-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition hover:bg-violet-100 dark:border-violet-400/30 dark:bg-violet-950/30 dark:text-white dark:hover:bg-violet-900/40 sm:inline-flex"
-                title="Hədiyyə kartları"
               >
                 <Gift className="h-4 w-4" />
                 <span>Hədiyyə kartları</span>
@@ -415,7 +417,10 @@ export default function SiteHeader({
             </div>
           </div>
 
-          <div className="hidden min-h-[64px] items-center justify-between gap-4 border-t border-zinc-200 dark:border-violet-300/15 px-6 xl:flex">
+          <div
+            className="hidden min-h-[64px] items-center justify-between gap-4 border-t border-zinc-200 px-6 dark:border-violet-300/15 xl:flex"
+            style={{ zIndex: 20 }}
+          >
             <nav className="flex min-w-0 items-center gap-5" aria-label="Əsas naviqasiya">
               {navGroups.map((g) => (
                 <NavDropdown key={g.label} group={g} active={isGroupActive(g, pathname)} pathname={pathname} />
@@ -791,7 +796,7 @@ function UserAccountDropdown({
       <Link
         href="/profile"
         className="flex h-10 max-w-[180px] items-center gap-2 rounded-[18px] border border-zinc-200 bg-white/75 px-3 text-sm font-bold text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition hover:border-violet-400/35 hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:bg-white/[0.075]"
-        title="Hesab"
+        aria-label="Hesab menyusu"
       >
         <span className="grid h-7 w-7 place-items-center rounded-xl bg-violet-50 text-violet-700 dark:bg-white/5 dark:text-zinc-200">
           <User className="h-4 w-4" />
@@ -801,79 +806,109 @@ function UserAccountDropdown({
       </Link>
 
       <div
-        className={`absolute right-0 top-full z-50 w-[280px] pt-2 transition-opacity duration-150 ${
+        className={`absolute right-0 top-full z-[80] w-[330px] max-w-[calc(100vw-2rem)] pt-3 transition-opacity duration-150 ${
           open ? "visible opacity-100" : "pointer-events-none invisible opacity-0"
         }`}
       >
-        <div className="overflow-hidden rounded-2xl border border-violet-300/45 bg-white shadow-[0_22px_70px_-32px_rgba(124,58,237,0.55)] dark:border-violet-400/[0.45] dark:bg-[#0B0B14]">
-          {wallet !== null && (
-            <Link
-              href="/profile/wallet"
-              className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 transition hover:bg-violet-50 dark:border-white/10 dark:hover:bg-white/[0.04]"
-            >
-              <span className="flex items-center gap-3">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-200">
-                  <Wallet className="h-4 w-4" />
-                </span>
-                <span className="flex flex-col">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                    Cüzdan
-                  </span>
-                  <span className="text-base font-black tabular-nums text-zinc-900 dark:text-white">
-                    {wallet.toFixed(2)} ₼
-                  </span>
-                </span>
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
-            </Link>
-          )}
+        <div className="relative overflow-hidden rounded-[20px] border border-violet-300/45 bg-[radial-gradient(circle_at_12%_0%,rgba(168,85,247,0.10),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.97))] p-3 shadow-[0_22px_70px_-34px_rgba(124,58,237,0.45)] backdrop-blur-2xl dark:border-violet-400/[0.45] dark:bg-[radial-gradient(circle_at_12%_0%,rgba(168,85,247,0.22),transparent_34%),linear-gradient(135deg,rgba(17,19,32,0.98),rgba(5,7,15,0.97))] dark:shadow-[0_22px_70px_-34px_rgba(168,85,247,0.78)]">
+          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/70 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-8 bottom-0 h-14 bg-violet-700/10 blur-3xl" />
 
-          {cashback !== null && cashback > 0 && (
-            <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-white/10">
-              <span className="flex items-center gap-3">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
-                  <Gem className="h-4 w-4" />
-                </span>
-                <span className="flex flex-col">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                    Cashback
-                  </span>
-                  <span className="text-base font-black tabular-nums text-zinc-900 dark:text-white">
-                    {cashback.toFixed(2)} ₼
-                  </span>
-                </span>
+          <div className="relative">
+            <div className="flex items-center gap-3 px-1 pb-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-violet-300/45 bg-violet-100 text-violet-700 shadow-[0_0_28px_-18px_rgba(168,85,247,0.65)] dark:border-violet-400/[0.45] dark:bg-violet-950/30 dark:text-white">
+                <User className="h-5 w-5" />
               </span>
+              <div className="min-w-0">
+                <p className="truncate text-base font-black text-zinc-950 dark:text-white">
+                  {user.name?.split(" ")[0] ?? "Hesab"}
+                </p>
+                <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                  Hesab paneli
+                </p>
+              </div>
             </div>
-          )}
 
-          <Link
-            href="/profile"
-            className="flex items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-violet-50 dark:text-zinc-200 dark:hover:bg-white/[0.04]"
-          >
-            <span className="flex items-center gap-3">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-zinc-100 text-zinc-700 dark:bg-white/5 dark:text-zinc-200">
-                <User className="h-4 w-4" />
-              </span>
-              <span>Hesabım</span>
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
-          </Link>
+            {(wallet !== null || (cashback !== null && cashback > 0)) && (
+              <div className="mb-3 grid gap-2 sm:grid-cols-2">
+                {wallet !== null && (
+                  <Link
+                    href="/profile/wallet"
+                    onClick={() => setOpen(false)}
+                    className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 transition hover:border-violet-300/40 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.035] dark:hover:bg-white/[0.065]"
+                  >
+                    <span className="flex items-center gap-2 text-[11px] font-black uppercase text-violet-600 dark:text-violet-300">
+                      <Wallet className="h-3.5 w-3.5" />
+                      Cüzdan
+                    </span>
+                    <span className="mt-1 block text-base font-black tabular-nums text-zinc-950 dark:text-white">
+                      {wallet.toFixed(2)} ₼
+                    </span>
+                  </Link>
+                )}
 
-          <Link
-            href="/profile/favorites"
-            className="flex items-center justify-between gap-3 border-t border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-violet-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/[0.04]"
-          >
-            <span className="flex items-center gap-3">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-200">
-                <Heart className="h-4 w-4" />
-              </span>
-              <span>Favoritlərim</span>
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
-          </Link>
+                {cashback !== null && cashback > 0 && (
+                  <div className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-white/[0.035]">
+                    <span className="flex items-center gap-2 text-[11px] font-black uppercase text-emerald-600 dark:text-emerald-300">
+                      <Gem className="h-3.5 w-3.5" />
+                      Cashback
+                    </span>
+                    <span className="mt-1 block text-base font-black tabular-nums text-zinc-950 dark:text-white">
+                      {cashback.toFixed(2)} ₼
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              <AccountMenuItem href="/profile" icon={User} label="Hesabım" onClick={() => setOpen(false)} />
+              <AccountMenuItem href="/profile/favorites" icon={Heart} label="Favoritlərim" featured onClick={() => setOpen(false)} />
+            </div>
+          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function AccountMenuItem({
+  href,
+  icon: Icon,
+  label,
+  featured = false,
+  onClick,
+}: {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  featured?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`group/item flex min-h-[48px] items-center gap-2.5 rounded-xl border px-2.5 py-2 transition ${
+        featured
+          ? "border-rose-400/55 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-100 dark:hover:bg-rose-500/[0.15]"
+          : "border-zinc-200 bg-white text-zinc-700 hover:border-violet-300/40 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-100 dark:hover:bg-white/[0.065]"
+      }`}
+    >
+      <span
+        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${
+          featured
+            ? "border-rose-300/30 bg-rose-100 text-rose-600 dark:bg-rose-300/[0.15] dark:text-rose-200"
+            : "border-zinc-200 bg-violet-50 text-violet-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-violet-100"
+        }`}
+      >
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className={`min-w-0 flex-1 truncate text-sm font-black ${featured ? "text-rose-600 dark:text-rose-200" : "text-zinc-950 dark:text-white"}`}>
+        {label}
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 transition group-hover/item:translate-x-1 group-hover/item:text-zinc-950 dark:text-zinc-300 dark:group-hover/item:text-white" />
+    </Link>
   );
 }
 

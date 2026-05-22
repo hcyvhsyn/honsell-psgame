@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, ShoppingCart, Check, Gift, Heart } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, Check, Heart } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { useFavorites } from "@/lib/favorites";
 
@@ -114,13 +114,13 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
 
   return (
     <div
-      className="grid w-full gap-3 lg:grid-cols-[minmax(0,1fr)_280px]"
+      className="grid w-full items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_280px]"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
       {/* Hero */}
       <div
-        className="media-hero group relative w-full overflow-hidden rounded-2xl aspect-[4/5] sm:aspect-[16/8] lg:aspect-[21/9]"
+        className="media-hero group relative w-full overflow-hidden rounded-2xl aspect-[4/5] sm:aspect-[16/8] lg:h-full lg:min-h-[500px] lg:aspect-auto xl:min-h-[540px]"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -160,9 +160,14 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
               </div>
               <div className="media-hero-overlay absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent sm:bg-gradient-to-r sm:from-black/85 sm:via-black/35 sm:to-transparent" />
               {bGame?.discountPct != null && (
-                <div className="absolute right-4 top-4 sm:left-4 sm:right-auto">
-                  <span className="inline-flex items-center rounded-full bg-[#22d3ee] px-3 py-1 text-sm font-bold text-zinc-900 shadow-lg">
-                    -%{bGame.discountPct}
+                <div className="absolute right-4 top-4 sm:right-5 sm:top-5">
+                  <span className="flex flex-col items-center rounded-2xl bg-gradient-to-br from-rose-500 via-orange-400 to-amber-300 px-4 py-2 text-white shadow-[0_18px_42px_-16px_rgba(251,113,133,0.95)] ring-2 ring-white/35">
+                    <span className="text-[10px] font-black uppercase leading-none tracking-[0.18em] text-white/85">
+                      Endirim
+                    </span>
+                    <span className="mt-0.5 text-xl font-black leading-none tracking-tight">
+                      -%{bGame.discountPct}
+                    </span>
                   </span>
                 </div>
               )}
@@ -171,76 +176,82 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
         })}
 
         {/* Content overlay (only for current banner) */}
-        <div className="absolute inset-x-0 bottom-0 p-5 pb-12 sm:bottom-0 sm:right-auto sm:max-w-[60%] sm:p-8 sm:pb-10 lg:p-10 lg:pb-12">
+        <div className="absolute inset-x-0 bottom-0 px-5 pb-12 pt-20 sm:right-auto sm:max-w-[68%] sm:px-8 sm:pb-10 lg:left-14 lg:bottom-12 lg:max-w-[560px] lg:p-0 xl:max-w-[620px]">
+          <div className="flex flex-wrap items-center gap-2">
+            {game && (
+              <p className="rounded-full border border-white/20 bg-black/35 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-200 backdrop-blur-md">
+                İndi mağazada
+              </p>
+            )}
+
+            {platforms.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {platforms.map((p) => (
+                  <span
+                    key={p}
+                    className="rounded-full border border-white/35 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-md"
+                  >
+                    {p}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
           {title && (
             detailHref ? (
               <Link href={detailHref} className="block">
-                <h2 className="text-2xl font-black leading-tight text-white drop-shadow-lg sm:text-3xl lg:text-5xl">
+                <h2 className="mt-3 max-w-[12ch] text-3xl font-black leading-[1.02] text-white drop-shadow-lg sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl">
                   {title}
                 </h2>
               </Link>
             ) : linkHref ? (
               <Link href={linkHref} className="block">
-                <h2 className="text-2xl font-black leading-tight text-white drop-shadow-lg sm:text-3xl lg:text-5xl">
+                <h2 className="mt-3 max-w-[12ch] text-3xl font-black leading-[1.02] text-white drop-shadow-lg sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl">
                   {title}
                 </h2>
               </Link>
             ) : (
-              <h2 className="text-2xl font-black leading-tight text-white drop-shadow-lg sm:text-3xl lg:text-5xl">
+              <h2 className="mt-3 max-w-[12ch] text-3xl font-black leading-[1.02] text-white drop-shadow-lg sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl">
                 {title}
               </h2>
             )
           )}
 
-          {platforms.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              {platforms.map((p) => (
-                <span
-                  key={p}
-                  className="rounded-full border border-white/40 bg-black/30 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-white backdrop-blur-md"
-                >
-                  {p}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {subtitle ? (
-            <p className="mt-3 max-w-xl text-sm leading-snug text-zinc-200 drop-shadow sm:text-base">{subtitle}</p>
-          ) : (
-            game && (
-              <p className="mt-3 text-xs uppercase tracking-widest text-zinc-300 drop-shadow sm:text-sm">
-                İndi mağazada
-              </p>
-            )
+          {subtitle && (
+            <p className="mt-3 max-w-md text-sm leading-snug text-zinc-200 drop-shadow sm:text-base">{subtitle}</p>
           )}
 
           {/* Price */}
-          {game && (
-            <div className="mt-4 flex items-baseline gap-3">
-              {game.originalAzn != null && (
-                <span className="relative text-base font-medium text-zinc-300 sm:text-lg">
-                  {game.originalAzn.toFixed(2)}₼
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 -rotate-6 bg-rose-500"
-                  />
-                </span>
+          {(game || countdownText) && (
+            <div className="mt-5 flex flex-wrap items-end gap-x-5 gap-y-2">
+              {game && (
+                <div className="flex items-baseline gap-3">
+                  {game.originalAzn != null && (
+                    <span className="relative text-base font-medium text-zinc-300 sm:text-lg">
+                      {game.originalAzn.toFixed(2)}₼
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 -rotate-6 bg-rose-500"
+                      />
+                    </span>
+                  )}
+                  <span className="text-2xl font-extrabold text-white sm:text-3xl">
+                    {game.finalAzn.toFixed(2)}₼
+                  </span>
+                </div>
               )}
-              <span className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-                {game.finalAzn.toFixed(2)}₼
-              </span>
+
+              {countdownText && (
+                <p className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs text-zinc-200 backdrop-blur-md sm:text-sm">
+                  Bitir: <span className="font-bold tabular-nums text-cyan-200">{countdownText}</span>
+                </p>
+              )}
             </div>
           )}
 
-          {countdownText && (
-            <p className="mt-1 text-xs text-zinc-300 sm:text-sm">
-              Kampaniyanın bitişinə: <span className="font-semibold tabular-nums text-cyan-300">{countdownText}</span>
-            </p>
-          )}
-
           {/* Actions */}
-          <div className="mt-5 flex flex-wrap items-center gap-2">
+          <div className="mt-6 flex flex-wrap items-center gap-3">
             {isCartAction ? (
               <button
                 type="button"
@@ -264,7 +275,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                 {inCart ? (
                   <><Check className="h-4 w-4" /> Səbətdədir</>
                 ) : (
-                  <><ShoppingCart className="h-4 w-4" /> Hemen Satın Al</>
+                  <><ShoppingCart className="h-4 w-4" /> Səbətə Əlavə Et</>
                 )}
               </button>
             ) : linkHref ? (
@@ -275,14 +286,6 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                 Kəşfet →
               </Link>
             ) : null}
-
-            <Link
-              href="/hediyye-kartlari"
-              aria-label="Hədiyyə kartları"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-md ring-1 ring-white/25 transition hover:bg-white/25"
-            >
-              <Gift className="h-4 w-4" />
-            </Link>
 
             {game && (
               <button
@@ -342,7 +345,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
       {/* Right side vertical list (desktop only) */}
       {banners.length > 1 && (
         <ul
-          className="hidden flex-col gap-2 overflow-y-auto pr-1 lg:flex"
+          className="hidden h-full flex-col justify-between gap-2 overflow-y-auto pr-1 lg:flex"
           style={{ maxHeight: "100%" }}
         >
           {banners.map((b, i) => {

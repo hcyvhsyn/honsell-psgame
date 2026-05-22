@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { ShoppingCart, Trash2 } from "lucide-react";
 import { useCart } from "@/lib/cart";
 
 type Props = {
@@ -22,9 +22,9 @@ export default function AddToCartButton({ game }: Props) {
       <button
         type="button"
         onClick={() => remove(game.id)}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-3.5 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20"
+        className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-5 text-base font-bold text-rose-700 transition hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
       >
-        <Trash2 className="h-4 w-4" /> Səbətdən sil
+        <Trash2 className="h-5 w-5" /> Səbətdən sil
       </button>
     );
   }
@@ -33,9 +33,9 @@ export default function AddToCartButton({ game }: Props) {
     <button
       type="button"
       onClick={() => add(game)}
-      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#6D28D9] px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition hover:bg-[#5B21B6]"
+      className="inline-flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[#6D28D9] px-5 text-base font-bold text-white shadow-[0_18px_42px_-22px_rgba(109,40,217,0.9)] transition hover:bg-[#5B21B6]"
     >
-      <Plus className="h-4 w-4" /> Səbətə əlavə et
+      <ShoppingCart className="h-5 w-5" /> Səbətə əlavə et
     </button>
   );
 }

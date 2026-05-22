@@ -22,6 +22,7 @@ import AccountCreationCartEditModal from "@/components/AccountCreationCartEditMo
 import PlatformCartEditModal from "@/components/PlatformCartEditModal";
 import EpointWidgetModal from "@/components/EpointWidgetModal";
 import ReferralShareButtons from "@/components/ReferralShareButtons";
+import CartSimilarGames from "@/components/CartSimilarGames";
 import { Share2 } from "lucide-react";
 
 /** Dəstək xətti — WhatsApp (ulduzlu format, + prefiksi olmadan). */
@@ -657,40 +658,20 @@ export default function CartView({
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="space-y-2 rounded-xl border border-zinc-800/70 bg-zinc-950/50 p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                  Ödəniş növləri
-                </p>
-
-                <div className="rounded-lg bg-indigo-500/10 p-3 ring-1 ring-indigo-500/25">
-                  <span className="block text-sm font-medium text-zinc-200">
-                    1. Balansla ödə
-                  </span>
-                  <span className="text-xs text-zinc-500">
-                    Əvvəl balans artır, sonra cüzdanla alışı tamamla.
-                  </span>
-                  <span
-                    className={`mt-1 block text-xs font-semibold tabular-nums ${
-                      insufficientWallet ? "text-red-400" : "text-emerald-400"
-                    }`}
-                  >
-                    Cüzdan: {walletBalanceAzn.toFixed(2)} AZN
-                  </span>
-                </div>
-
-                <div className="rounded-lg bg-emerald-500/10 p-3 ring-1 ring-emerald-500/25">
-                  <span className="block text-sm font-medium text-zinc-200">
-                    2. Kartla birbaşa ödə
-                  </span>
-                  <span className="text-xs text-zinc-500">
-                    Bu sifarişi balans yükləmədən Epoint kart ödənişi ilə tamamla.
-                  </span>
-                </div>
+              {/* Compact wallet line — the explanatory "Ödəniş növləri" card
+                  group was redundant with the action buttons below, so it was
+                  removed. We still surface the wallet balance because users
+                  need to know whether they have enough to pay with it. */}
+              <div className="flex items-center justify-between rounded-xl border border-zinc-800/70 bg-zinc-950/50 px-3 py-2.5 text-sm">
+                <span className="text-zinc-400">Cüzdan balansı</span>
+                <span
+                  className={`font-semibold tabular-nums ${
+                    insufficientWallet ? "text-red-400" : "text-emerald-400"
+                  }`}
+                >
+                  {walletBalanceAzn.toFixed(2)} AZN
+                </span>
               </div>
-
-              <p className="text-[10px] leading-relaxed text-zinc-500">
-                Loyalty cashback alış başa çatdıqda ayrıca cashback balansınıza yazılır (ümumi cüzdandan ayrı).
-              </p>
 
               {insufficientWallet ? (
                 <Link
@@ -797,6 +778,12 @@ export default function CartView({
         </div>
       </aside>
     </div>
+
+    <CartSimilarGames
+      cartGameIds={items
+        .filter((i) => i.productType === "GAME" || i.productType === "ADDON")
+        .map((i) => i.id)}
+    />
 
       {accountEdit && accountEditLine ? (
         <AccountCreationCartEditModal

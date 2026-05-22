@@ -51,25 +51,25 @@ export default function FavoriteButton({
 
   if (variant === "detail") {
     return (
-      <div className="relative flex items-center gap-2">
+      <div className="relative flex items-center gap-3">
         <button
           type="button"
           onClick={onClick}
           disabled={busy}
           aria-pressed={fav}
           aria-label={tooltip}
-          className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl border px-5 py-3.5 text-sm font-semibold transition ${
+          className={`inline-flex h-14 min-w-0 flex-1 items-center justify-center gap-3 rounded-2xl border px-5 text-base font-bold transition ${
             fav
-              ? "border-rose-500/40 bg-rose-500/15 text-rose-200 hover:bg-rose-500/20"
-              : "border-zinc-800 bg-zinc-900/60 text-zinc-200 hover:border-rose-500/40 hover:text-rose-200"
+              ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-200 dark:hover:bg-rose-500/20"
+              : "border-zinc-200 bg-white/75 text-zinc-800 hover:border-rose-300 hover:text-rose-600 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-200 dark:hover:border-rose-500/40 dark:hover:text-rose-200"
           } ${busy ? "opacity-60" : ""}`}
         >
           <Heart
-            className={`h-4 w-4 transition ${
+            className={`h-5 w-5 shrink-0 transition ${
               fav ? "fill-rose-400 text-rose-400" : ""
             }`}
           />
-          {fav ? "Favorilərdə" : "Favorilərə əlavə et"}
+          <span className="truncate">{fav ? "Favorilərdə" : "Favorilərə əlavə et"}</span>
         </button>
 
         <FavTip open={tipOpen} setOpen={setTipOpen} placement="left" />
@@ -141,20 +141,23 @@ function FavTip({
         }}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        aria-expanded={open}
         aria-label="Favorilər nə üçündür?"
-        className="grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-black/40 text-zinc-300 backdrop-blur-md transition hover:bg-black/60 hover:text-white"
+        className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-zinc-200 bg-white/75 text-zinc-600 shadow-sm backdrop-blur-md transition hover:border-violet-200 hover:bg-white hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-300 dark:hover:border-violet-400/40 dark:hover:bg-zinc-900 dark:hover:text-white"
       >
-        <Info className="h-3.5 w-3.5" />
+        <Info className="h-5 w-5" />
       </button>
       {open && (
         <div
           role="tooltip"
-          className={`absolute top-full z-30 mt-2 w-64 rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-xs leading-relaxed text-zinc-300 shadow-2xl ${
+          className={`absolute top-full z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white p-3.5 text-xs leading-relaxed text-zinc-600 shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 ${
             placement === "right" ? "left-0" : "right-0"
           }`}
         >
-          <p className="font-semibold text-white">Favorilər niyə var?</p>
-          <p className="mt-1 text-zinc-400">
+          <p className="font-semibold text-zinc-950 dark:text-white">Favorilər niyə var?</p>
+          <p className="mt-1 text-zinc-500 dark:text-zinc-400">
             Oyunu favorilərə əlavə edəndə həmin oyun yenidən endirimə düşəndə
             sənə email göndəririk — bütün favorilər profilindəki{" "}
             <i>Favorilər</i> bölməsində toplanır.

@@ -170,6 +170,14 @@ model Game {
   isFeatured    Boolean  @default(false)
   lastScrapedAt DateTime @default(now())
 
+  // 512-dim vector from OpenAI `text-embedding-3-small` (dimensions=512). Powers
+  // semantic search and "similar games" recommendations in the cart. NULL until
+  // the backfill job or scraper post-step populates it. `embeddingHash` is a
+  // short fingerprint of the text we embedded (title + edition + platform);
+  // when it changes, the row is re-embedded.
+  embedding     Float[]
+  embeddingHash String?
+
   transactions Transaction[]
   banners      Banner[]
   collections  CollectionGame[]
@@ -183,6 +191,20 @@ model Game {
   @@index([productType])
   @@index([title])
   @@index([isFeatured])
+}
+
+// Caches LLM-generated "Bunu nəzərdə tutdunuz?" corrections so repeated typos
+// don't pay the OpenAI cost twice. Lookup key is the lowercased, trimmed
+// query. Distinct from the admin-curated SearchSuggestion popular pills.
+model SearchTypoSuggestion {
+  id         String   @id @default(cuid())
+  queryNorm  String   @unique
+  suggestion String
+  hits       Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([queryNorm])
 }
 
 // ─── Collections (curated game lists) ─────────────────────────────────────────

@@ -35,6 +35,8 @@ export const revalidate = 1800;
 
 const HOMEPAGE_LIMIT = 4;
 const DEFAULT_TYPE = "GAME";
+const SECTION_LINK_CLASS =
+  "group inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white dark:shadow-none dark:hover:border-white/20 dark:hover:bg-white/10";
 
 export const metadata: Metadata = {
   title: "PlayStation — Oyunlar, PS Plus, Hədiyyə Kartları | Honsell",
@@ -166,7 +168,7 @@ export default async function PlayStationPage() {
   };
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-zinc-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
@@ -180,16 +182,16 @@ export default async function PlayStationPage() {
         {bannerSlides.length > 0 ? (
           <HomeBannerSlider banners={bannerSlides} />
         ) : (
-          <div className="relative overflow-hidden rounded-3xl border border-zinc-800/60">
-            <div className="relative aspect-[4/5] bg-gradient-to-br from-indigo-950 via-zinc-900 to-zinc-950 sm:aspect-[16/8] lg:aspect-[21/7]">
-              <div className="pointer-events-none absolute -left-20 top-0 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
-              <div className="pointer-events-none absolute right-0 bottom-0 h-64 w-64 rounded-full bg-fuchsia-700/20 blur-3xl" />
+          <div className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-[0_24px_90px_-64px_rgba(79,70,229,0.5)] dark:border-zinc-800/60 dark:bg-transparent dark:shadow-none">
+            <div className="relative aspect-[4/5] bg-gradient-to-br from-violet-50 via-white to-sky-50 dark:from-indigo-950 dark:via-zinc-900 dark:to-zinc-950 sm:aspect-[16/8] lg:aspect-[21/7]">
+              <div className="pointer-events-none absolute -left-20 top-0 h-96 w-96 rounded-full bg-indigo-500/15 blur-3xl dark:bg-indigo-600/20" />
+              <div className="pointer-events-none absolute bottom-0 right-0 h-64 w-64 rounded-full bg-fuchsia-500/14 blur-3xl dark:bg-fuchsia-700/20" />
               <div className="relative flex h-full flex-col items-start justify-center px-8 sm:px-14">
-                <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-200">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-400" />
+                <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white/75 px-3 py-1 text-xs font-medium text-indigo-700 shadow-sm dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-200 dark:shadow-none">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-500 dark:bg-indigo-400" />
                   {totals.GAME.toLocaleString("az-AZ")} oyun · canlı kataloq
                 </span>
-                <p className="text-3xl font-black tracking-tight text-white sm:text-5xl">
+                <p className="text-3xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-5xl">
                   PlayStation oyunları
                   <br />
                   ən sərfəli qiymətlə
@@ -207,8 +209,8 @@ export default async function PlayStationPage() {
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <CategoryGroup
             label="PlayStation kateqoriyaları"
-            icon={<Gamepad2 className="h-5 w-5 text-white" />}
-            accentClass="from-indigo-500/30 to-fuchsia-500/20"
+            icon={<Gamepad2 className="h-5 w-5 text-indigo-700 dark:text-white" />}
+            accentClass="border-indigo-200 from-indigo-100 to-fuchsia-100 dark:from-indigo-500/30 dark:to-fuchsia-500/20"
             description="Oyunlar, abunəliklər, balans, hesab və endirimlər"
           >
             <SubCategoryCard
@@ -301,7 +303,7 @@ export default async function PlayStationPage() {
           <div className="mt-8 flex justify-center">
             <Link
               href="/oyunlar"
-              className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 hover:border-white/20"
+              className={SECTION_LINK_CLASS}
             >
               Daha çox yüklə <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
             </Link>
@@ -325,7 +327,7 @@ export default async function PlayStationPage() {
                   <Link
                     key={c.id}
                     href={`/kolleksiya/${c.slug}`}
-                    className="group relative aspect-[5/3] overflow-hidden rounded-3xl border border-white/10 bg-zinc-900 transition hover:-translate-y-1 hover:border-indigo-500/40"
+                    className="group relative aspect-[5/3] overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-indigo-400/45 hover:shadow-xl dark:border-white/10 dark:bg-zinc-900 dark:shadow-none dark:hover:border-indigo-500/40"
                   >
                     {cover ? (
                       <Image
@@ -336,7 +338,7 @@ export default async function PlayStationPage() {
                         className="object-cover transition-transform duration-700 group-hover:scale-105"
                       />
                     ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-fuchsia-700/20" />
+                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-100 to-fuchsia-100 dark:from-indigo-600/20 dark:to-fuchsia-700/20" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 p-6">
@@ -352,7 +354,7 @@ export default async function PlayStationPage() {
             <div className="mt-8 flex justify-center">
               <Link
                 href="/kolleksiyalar"
-                className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 hover:border-white/20"
+                className={SECTION_LINK_CLASS}
               >
                 Bütün kolleksiyalar <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
               </Link>
@@ -394,7 +396,7 @@ export default async function PlayStationPage() {
           <div className="flex justify-center mt-8">
             <Link
               href="/ps-plus"
-              className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 hover:border-white/20"
+              className={SECTION_LINK_CLASS}
             >
               Daha çox yüklə <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
             </Link>
@@ -419,7 +421,7 @@ export default async function PlayStationPage() {
           <div className="mt-8 flex justify-center">
             <Link
               href="/hediyye-kartlari"
-              className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10 hover:border-white/20"
+              className={SECTION_LINK_CLASS}
             >
               Daha çox yüklə <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
             </Link>
@@ -442,11 +444,11 @@ export default async function PlayStationPage() {
                   }
                 : null
             }
-            icon={<UserPlus className="h-5 w-5 text-white" />}
+            icon={<UserPlus className="h-5 w-5 text-violet-700 dark:text-white" />}
             label="Hesab Açma"
             sub="Türkiyə PSN hesabı"
             imageUrl={accountCreationProduct?.imageUrl ?? null}
-            accentClass="border-violet-300/25 from-violet-300/20 to-white/[0.03]"
+            accentClass="border-violet-200 from-violet-100 to-white dark:border-violet-300/25 dark:from-violet-300/20 dark:to-white/[0.03]"
           />
         </div>
       </section>
@@ -469,23 +471,23 @@ export default async function PlayStationPage() {
       )}
 
       {/* Referral CTA */}
-      <section className="relative overflow-hidden border-y border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-700/30 via-purple-700/20 to-fuchsia-700/30 py-12">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(232,121,249,0.25),transparent_60%)]" />
+      <section className="relative overflow-hidden border-y border-fuchsia-200 bg-gradient-to-r from-fuchsia-100 via-white to-violet-100 py-12 dark:border-fuchsia-500/30 dark:from-fuchsia-700/30 dark:via-purple-700/20 dark:to-fuchsia-700/30">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(217,70,239,0.18),transparent_60%)] dark:bg-[radial-gradient(circle_at_50%_-20%,rgba(232,121,249,0.25),transparent_60%)]" />
         <div className="relative mx-auto max-w-5xl px-6 text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.3em] text-fuchsia-300">
+          <p className="text-xs font-bold uppercase tracking-[0.3em] text-fuchsia-700 dark:text-fuchsia-300">
             Referal proqramı
           </p>
-          <h2 className="mt-3 text-3xl font-black text-white sm:text-4xl">
+          <h2 className="mt-3 text-3xl font-black text-zinc-950 dark:text-white sm:text-4xl">
             Dostunu dəvət et — hər alışından AZN qazan
           </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-fuchsia-50/80 sm:text-base">
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-zinc-600 dark:text-fuchsia-50/80 sm:text-base">
             Kodunla qeydiyyatdan keçən hər dost üçün siz hər oyun, PS Plus və streaming
             alışından komissiya qazanırsız. 5/10/25 uğurlu dəvət üçün bonus AZN.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/qazan"
-              className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-fuchsia-900 transition hover:bg-fuchsia-50"
+              className="inline-flex items-center gap-2 rounded-full bg-fuchsia-700 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-fuchsia-900/15 transition hover:bg-fuchsia-600 dark:bg-white dark:text-fuchsia-900 dark:hover:bg-fuchsia-50"
             >
               Necə qazanıram? <ArrowRight className="h-4 w-4" />
             </Link>

@@ -163,6 +163,31 @@ export function tryCentsToAznWithMargin(
 }
 
 /**
+ * Reverse of `tryCentsToAznWithMargin`: given a target AZN price, return the
+ * integer TRY-cents threshold that would map to it under the games margin.
+ * Used by the catalog price-range filter to translate AZN UI bounds into
+ * the integer column comparisons the DB can do efficiently.
+ *
+ * For `mode: "floor"` we round DOWN so a "max 50 AZN" filter doesn't exclude
+ * rows that round to exactly 50.00 AZN at display time; for `mode: "ceil"`
+ * we round UP for the same reason on the min side. The half-step margin is
+ * negligible at TRY-cent precision but keeps the boundary inclusive.
+ */
+export function aznToTryCents(
+  azn: number,
+  settings: PricingSettings,
+  mode: "floor" | "ceil" = "floor"
+): number {
+  if (!Number.isFinite(azn) || azn <= 0) return 0;
+  const margin = settings.profitMarginGamesPct ?? settings.profitMarginPct;
+  const rate = settings.tryToAznRate;
+  if (rate <= 0) return 0;
+  const tryAmount = azn / rate / (1 + margin / 100);
+  const cents = tryAmount * 100;
+  return mode === "floor" ? Math.floor(cents) : Math.ceil(cents);
+}
+
+/**
  * Compute the display price for a game. If a discount is active, the final
  * price uses the discounted TRY amount and `originalAzn` carries the
  * strike-through original.

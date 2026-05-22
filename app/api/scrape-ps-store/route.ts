@@ -4,6 +4,12 @@ import { requireAdmin } from "@/lib/auth";
 import { revalidateGames } from "@/lib/revalidate";
 import { sendFavoriteOnSaleEmail } from "@/lib/resend";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
+import {
+  buildEmbeddingHash,
+  buildEmbeddingText,
+  embedBatch,
+} from "@/lib/embeddings";
+import { isOpenAIConfigured } from "@/lib/openai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -853,6 +859,79 @@ export async function GET(req: Request) {
           }
 
           emit({ type: "upsertProgress", done: upserts, total, failures: upsertFailures });
+        }
+
+        // Phase 3.4: embed new/changed rows for semantic search.
+        // We only embed rows whose canonical text (title/edition/platform/type)
+        // changed since the last embed — most rescrapes only touch pricing
+        // fields and don't need a fresh vector. The scrape route caps the work
+        // at EMBED_PER_RUN to keep the run inside maxDuration; any overflow is
+        // handled by the admin backfill endpoint on demand.
+        if (isOpenAIConfigured()) {
+          try {
+            // 2000/run keeps the worst-case scrape inside maxDuration while
+            // letting a one-time text-format change (e.g. franchise context
+            // added to buildEmbeddingText) propagate in 3-5 scrapes instead of
+            // 10+. Lower this if scrapes start timing out.
+            const EMBED_PER_RUN = 2000;
+            // `all` is in scrape order; pull the just-upserted rows back from
+            // DB so we have their ids and current embeddingHash to compare.
+            const productIdsToCheck = all.map((g) => g.productId);
+            const dbRows = await prisma.game.findMany({
+              where: { productId: { in: productIdsToCheck } },
+              select: {
+                id: true,
+                title: true,
+                editionLabel: true,
+                platform: true,
+                productType: true,
+                embeddingHash: true,
+              },
+            });
+
+            const work = dbRows
+              .map((r) => {
+                const text = buildEmbeddingText(r);
+                const hash = buildEmbeddingHash(text);
+                return { id: r.id, text, hash, prevHash: r.embeddingHash };
+              })
+              .filter((r) => r.hash !== r.prevHash)
+              .slice(0, EMBED_PER_RUN);
+
+            if (work.length > 0) {
+              emit({ type: "embedStart", total: work.length });
+              const EMBED_CHUNK = 100;
+              let embedded = 0;
+              for (let i = 0; i < work.length; i += EMBED_CHUNK) {
+                const chunk = work.slice(i, i + EMBED_CHUNK);
+                try {
+                  const vectors = await embedBatch(chunk.map((r) => r.text));
+                  await Promise.all(
+                    chunk.map((row, idx) =>
+                      prisma.game.update({
+                        where: { id: row.id },
+                        data: {
+                          embedding: vectors[idx],
+                          embeddingHash: row.hash,
+                        },
+                      })
+                    )
+                  );
+                  embedded += chunk.length;
+                } catch (e) {
+                  console.error("scrape-ps-store: embed chunk failed", e);
+                }
+                emit({ type: "embedProgress", embedded, total: work.length });
+              }
+              emit({ type: "embedDone", embedded, total: work.length });
+            }
+          } catch (e) {
+            console.error("scrape-ps-store: embedding phase failed", e);
+            emit({
+              type: "embedError",
+              error: e instanceof Error ? e.message : "embed error",
+            });
+          }
         }
 
         // Phase 3.5: clear stale discount rows.

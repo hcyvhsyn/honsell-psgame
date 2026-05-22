@@ -77,44 +77,44 @@ const ACCENT_STYLES: Record<
   }
 > = {
   violet: {
-    activeWrap: "border-violet-500/60 bg-gradient-to-br from-violet-500/20 via-violet-500/10 to-transparent",
-    activeIcon: "bg-violet-500/25 text-violet-200 ring-violet-400/40",
-    activeBadge: "bg-violet-500/25 text-violet-100",
-    activeText: "text-violet-100",
+    activeWrap: "border-violet-300 bg-violet-50 text-violet-800 shadow-[0_8px_28px_-18px_rgba(124,58,237,0.45)] dark:border-violet-500/60 dark:bg-gradient-to-br dark:from-violet-500/20 dark:via-violet-500/10 dark:to-transparent",
+    activeIcon: "bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-500/25 dark:text-violet-200 dark:ring-violet-400/40",
+    activeBadge: "bg-violet-100 text-violet-800 dark:bg-violet-500/25 dark:text-violet-100",
+    activeText: "text-violet-700 dark:text-violet-100",
     glow: "shadow-[0_8px_28px_-12px_rgba(139,92,246,0.6)]",
-    hoverIcon: "group-hover:text-violet-300",
+    hoverIcon: "group-hover:text-violet-600 dark:group-hover:text-violet-300",
   },
   indigo: {
-    activeWrap: "border-indigo-500/60 bg-gradient-to-br from-indigo-500/20 via-indigo-500/10 to-transparent",
-    activeIcon: "bg-indigo-500/25 text-indigo-200 ring-indigo-400/40",
-    activeBadge: "bg-indigo-500/25 text-indigo-100",
-    activeText: "text-indigo-100",
+    activeWrap: "border-indigo-300 bg-indigo-50 text-indigo-800 shadow-[0_8px_28px_-18px_rgba(99,102,241,0.45)] dark:border-indigo-500/60 dark:bg-gradient-to-br dark:from-indigo-500/20 dark:via-indigo-500/10 dark:to-transparent",
+    activeIcon: "bg-indigo-100 text-indigo-700 ring-indigo-200 dark:bg-indigo-500/25 dark:text-indigo-200 dark:ring-indigo-400/40",
+    activeBadge: "bg-indigo-100 text-indigo-800 dark:bg-indigo-500/25 dark:text-indigo-100",
+    activeText: "text-indigo-700 dark:text-indigo-100",
     glow: "shadow-[0_8px_28px_-12px_rgba(99,102,241,0.6)]",
-    hoverIcon: "group-hover:text-indigo-300",
+    hoverIcon: "group-hover:text-indigo-600 dark:group-hover:text-indigo-300",
   },
   fuchsia: {
-    activeWrap: "border-fuchsia-500/60 bg-gradient-to-br from-fuchsia-500/20 via-fuchsia-500/10 to-transparent",
-    activeIcon: "bg-fuchsia-500/25 text-fuchsia-200 ring-fuchsia-400/40",
-    activeBadge: "bg-fuchsia-500/25 text-fuchsia-100",
-    activeText: "text-fuchsia-100",
+    activeWrap: "border-fuchsia-300 bg-fuchsia-50 text-fuchsia-800 shadow-[0_8px_28px_-18px_rgba(217,70,239,0.45)] dark:border-fuchsia-500/60 dark:bg-gradient-to-br dark:from-fuchsia-500/20 dark:via-fuchsia-500/10 dark:to-transparent",
+    activeIcon: "bg-fuchsia-100 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-500/25 dark:text-fuchsia-200 dark:ring-fuchsia-400/40",
+    activeBadge: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-500/25 dark:text-fuchsia-100",
+    activeText: "text-fuchsia-700 dark:text-fuchsia-100",
     glow: "shadow-[0_8px_28px_-12px_rgba(217,70,239,0.6)]",
-    hoverIcon: "group-hover:text-fuchsia-300",
+    hoverIcon: "group-hover:text-fuchsia-600 dark:group-hover:text-fuchsia-300",
   },
   emerald: {
-    activeWrap: "border-emerald-500/60 bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-transparent",
-    activeIcon: "bg-emerald-500/25 text-emerald-200 ring-emerald-400/40",
-    activeBadge: "bg-emerald-500/25 text-emerald-100",
-    activeText: "text-emerald-100",
+    activeWrap: "border-emerald-300 bg-emerald-50 text-emerald-800 shadow-[0_8px_28px_-18px_rgba(16,185,129,0.45)] dark:border-emerald-500/60 dark:bg-gradient-to-br dark:from-emerald-500/20 dark:via-emerald-500/10 dark:to-transparent",
+    activeIcon: "bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/25 dark:text-emerald-200 dark:ring-emerald-400/40",
+    activeBadge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/25 dark:text-emerald-100",
+    activeText: "text-emerald-700 dark:text-emerald-100",
     glow: "shadow-[0_8px_28px_-12px_rgba(16,185,129,0.6)]",
-    hoverIcon: "group-hover:text-emerald-300",
+    hoverIcon: "group-hover:text-emerald-600 dark:group-hover:text-emerald-300",
   },
   sky: {
-    activeWrap: "border-sky-500/60 bg-gradient-to-br from-sky-500/20 via-sky-500/10 to-transparent",
-    activeIcon: "bg-sky-500/25 text-sky-200 ring-sky-400/40",
-    activeBadge: "bg-sky-500/25 text-sky-100",
-    activeText: "text-sky-100",
+    activeWrap: "border-sky-300 bg-sky-50 text-sky-800 shadow-[0_8px_28px_-18px_rgba(14,165,233,0.45)] dark:border-sky-500/60 dark:bg-gradient-to-br dark:from-sky-500/20 dark:via-sky-500/10 dark:to-transparent",
+    activeIcon: "bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/25 dark:text-sky-200 dark:ring-sky-400/40",
+    activeBadge: "bg-sky-100 text-sky-800 dark:bg-sky-500/25 dark:text-sky-100",
+    activeText: "text-sky-700 dark:text-sky-100",
     glow: "shadow-[0_8px_28px_-12px_rgba(14,165,233,0.6)]",
-    hoverIcon: "group-hover:text-sky-300",
+    hoverIcon: "group-hover:text-sky-600 dark:group-hover:text-sky-300",
   },
 };
 
@@ -125,9 +125,17 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [platform, setPlatform] = useState<Platform>(DEFAULT_PLATFORM);
   const [onSale, setOnSale] = useState(false);
+  // Price range filter — stored as the raw input strings so the user can
+  // clear / partially type without us coercing to 0. We parse to numbers
+  // only when building the request.
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
   const [loading, setLoading] = useState(false);
+  const [aiSemantic, setAiSemantic] = useState(false);
+  const [interpretedAs, setInterpretedAs] = useState<string | null>(null);
   const pageSize = initial.pageSize ?? DEFAULT_PAGE_SIZE;
   const [page, setPage] = useState<number>(initial.page ?? 1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const reqId = useRef(0);
   const hasMounted = useRef(false);
@@ -144,19 +152,39 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
     const handle = setTimeout(async () => {
       const params = new URLSearchParams();
       const q = query.trim();
-      if (q.length >= 2) params.set("q", q);
-      params.set("sort", sort);
+      const isSearching = q.length >= 2;
+
+      if (isSearching) params.set("q", q);
       params.set("type", productType);
       if (platform !== "ALL") params.set("platform", platform);
       if (onSale) params.set("onSale", "1");
+      const pMin = Number(priceMin);
+      const pMax = Number(priceMax);
+      if (Number.isFinite(pMin) && pMin > 0) params.set("priceMin", String(pMin));
+      if (Number.isFinite(pMax) && pMax > 0) params.set("priceMax", String(pMax));
       params.set("limit", String(pageSize));
       params.set("offset", String((page - 1) * pageSize));
 
+      // While actively searching, hit the hybrid AI endpoint (semantic +
+      // keyword). Browsing without a query keeps using /api/games so sort
+      // and totals continue to work unchanged.
+      const endpoint = isSearching ? "/api/search/ai" : "/api/games";
+      if (!isSearching) params.set("sort", sort);
+
       try {
-        const res = await fetch(`/api/games?${params.toString()}`);
-        const json: ListingResponse = await res.json();
+        const res = await fetch(`${endpoint}?${params.toString()}`);
+        const json = (await res.json()) as Partial<ListingResponse> & {
+          semantic?: boolean;
+          interpretedAs?: string | null;
+        };
         if (myReq !== reqId.current) return;
-        setData(json);
+        // /api/search/ai returns a subset of fields (no totalAll/totalOnSale/
+        // totals — those are catalog-wide stats unrelated to the search). Merge
+        // onto the previous state so the type pill counts and headline stats
+        // remain populated while the user types.
+        setData((prev) => ({ ...prev, ...json } as ListingResponse));
+        setAiSemantic(Boolean(json.semantic));
+        setInterpretedAs(isSearching ? json.interpretedAs ?? null : null);
       } catch {
         if (myReq === reqId.current) {
           setData((d) => ({ ...d, total: 0, count: 0, results: [] }));
@@ -167,24 +195,39 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
     }, 250);
 
     return () => clearTimeout(handle);
-  }, [query, sort, platform, onSale, productType, page, pageSize]);
+  }, [query, sort, platform, onSale, productType, page, pageSize, priceMin, priceMax]);
 
   // Filtrlər dəyişəndə ilk səhifəyə qayıt.
   useEffect(() => {
     setPage(1);
-  }, [query, sort, platform, onSale, productType]);
+  }, [query, sort, platform, onSale, productType, priceMin, priceMax]);
+
+  const priceMinNum = Number(priceMin);
+  const priceMaxNum = Number(priceMax);
+  const hasPriceMin = Number.isFinite(priceMinNum) && priceMinNum > 0;
+  const hasPriceMax = Number.isFinite(priceMaxNum) && priceMaxNum > 0;
+
+  // While the search bar is active, results come from /api/search/ai with
+  // relevance ranking — the user-selected sort is intentionally ignored.
+  // Surfacing this in the UI prevents the "Ən populyar" pill from looking
+  // like it's filtering search hits.
+  const isSearching = query.trim().length >= 2;
 
   const hasActiveFilter =
     query.trim().length >= 2 ||
     platform !== DEFAULT_PLATFORM ||
     onSale ||
-    sort !== DEFAULT_SORT;
+    sort !== DEFAULT_SORT ||
+    hasPriceMin ||
+    hasPriceMax;
 
   const clearFilters = () => {
     setQuery("");
     setSort(DEFAULT_SORT);
     setPlatform(DEFAULT_PLATFORM);
     setOnSale(false);
+    setPriceMin("");
+    setPriceMax("");
   };
 
   const showingCount = useMemo(() => {
@@ -223,182 +266,314 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
       onRemove: () => setSort(DEFAULT_SORT),
     });
   }
+  if (hasPriceMin || hasPriceMax) {
+    // Single chip for the whole range — clearing it wipes both bounds at
+    // once, which matches what users expect when they "remove" the range.
+    const fromTxt = hasPriceMin ? `${priceMinNum} ₼` : "0 ₼";
+    const toTxt = hasPriceMax ? `${priceMaxNum} ₼` : "∞";
+    activeFilterChips.push({
+      key: "price",
+      label: `${fromTxt} – ${toTxt}`,
+      onRemove: () => {
+        setPriceMin("");
+        setPriceMax("");
+      },
+    });
+  }
+  const advancedFilterCount = [
+    platform !== DEFAULT_PLATFORM,
+    onSale,
+    sort !== DEFAULT_SORT,
+    hasPriceMin || hasPriceMax,
+  ].filter(Boolean).length;
 
   return (
     <>
-      <div className="mb-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        {TYPE_TABS.map((tab) => {
-          const count =
-            tab.value === "ALL"
-              ? Object.values(data.totals ?? {}).reduce(
-                  (acc, n) => acc + (typeof n === "number" ? n : 0),
-                  0
-                )
-              : data.totals?.[tab.value] ?? 0;
-          const active = tab.value === productType;
-          const a = ACCENT_STYLES[tab.accent];
-          return (
+      <section className="relative z-40 mb-5 overflow-visible rounded-[22px] border border-violet-200 bg-[radial-gradient(circle_at_5%_0%,rgba(124,58,237,0.10),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] p-2.5 shadow-[0_18px_60px_-48px_rgba(124,58,237,0.36)] backdrop-blur-xl dark:border-violet-400/20 dark:bg-[radial-gradient(circle_at_5%_0%,rgba(124,58,237,0.14),transparent_28%),linear-gradient(135deg,rgba(24,24,36,0.86),rgba(9,9,14,0.94))] dark:shadow-[0_18px_60px_-48px_rgba(124,58,237,0.62)] sm:p-3">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="-mx-1 overflow-x-auto px-1 pb-1">
+              <div className="flex min-w-max gap-2">
+                {TYPE_TABS.map((tab) => {
+                  const count =
+                    tab.value === "ALL"
+                      ? Object.values(data.totals ?? {}).reduce(
+                          (acc, n) => acc + (typeof n === "number" ? n : 0),
+                          0,
+                        )
+                      : data.totals?.[tab.value] ?? 0;
+                  const active = tab.value === productType;
+                  const a = ACCENT_STYLES[tab.accent];
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      onClick={() => setProductType(tab.value)}
+                      className={`group relative inline-flex h-11 shrink-0 items-center gap-2 overflow-hidden rounded-2xl border px-3 text-sm font-semibold transition-all duration-200 ${
+                        active
+                          ? `${a.activeWrap} ${a.activeText} ${a.glow}`
+                          : "border-zinc-200 bg-white/70 text-zinc-700 hover:-translate-y-0.5 hover:border-violet-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300 dark:hover:border-violet-400/35 dark:hover:bg-white/[0.065]"
+                      }`}
+                    >
+                      <span
+                        className={`grid h-7 w-7 place-items-center rounded-xl ring-1 transition ${
+                          active
+                            ? a.activeIcon
+                            : `bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-white/[0.055] dark:text-zinc-400 dark:ring-white/10 ${a.hoverIcon}`
+                        }`}
+                      >
+                        {tab.icon}
+                      </span>
+                      <span className="tracking-tight">{tab.label}</span>
+                      <span
+                        className={`rounded-lg px-2 py-1 text-xs font-black tabular-nums ${
+                          active ? a.activeBadge : "bg-zinc-100 text-zinc-500 dark:bg-white/[0.07] dark:text-zinc-400"
+                        }`}
+                      >
+                        {count.toLocaleString("en-US")}
+                      </span>
+                      {active && (
+                        <span
+                          aria-hidden
+                          className={`absolute inset-x-4 -bottom-px h-px bg-gradient-to-r from-transparent via-current to-transparent ${a.activeText} opacity-70`}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Single inline status line. Replaces 4 different "badge" pills
+                that used to compete with the actual filter controls visually
+                — these are passive counts, they don't need full chips. */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600 dark:text-zinc-500">
+              {hasActiveFilter && (
+                <span>
+                  <strong className="text-zinc-900 tabular-nums dark:text-zinc-100">
+                    {showingCount.toLocaleString("en-US")}
+                  </strong>
+                  {" nəticə"}
+                </span>
+              )}
+              <span>
+                <strong className="text-zinc-800 tabular-nums dark:text-zinc-300">
+                  {data.totalAll.toLocaleString("en-US")}
+                </strong>
+                {" oyun kataloqda"}
+              </span>
+              {data.totalOnSale > 0 && (
+                <span className="text-emerald-600 dark:text-emerald-300/80">
+                  <strong className="tabular-nums">
+                    {data.totalOnSale.toLocaleString("en-US")}
+                  </strong>
+                  {" endirimdə"}
+                </span>
+              )}
+              {aiSemantic && query.trim().length >= 2 && (
+                <span className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-300">
+                  <Sparkles className="h-3 w-3" />
+                  AI axtarış aktiv
+                </span>
+              )}
+              {loading && (
+                <span className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-300">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Yüklənir
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(280px,1fr)_auto]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-zinc-500" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={`${activeTab.singular} axtar...`}
+                className="h-11 w-full rounded-2xl border border-zinc-200 bg-white pl-11 pr-11 text-sm text-zinc-950 outline-none transition placeholder:text-slate-400 focus:border-violet-400/70 focus:bg-white focus:ring-4 focus:ring-violet-500/10 dark:border-white/10 dark:bg-black/25 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-violet-400/60 dark:focus:bg-black/35"
+              />
+              {loading ? (
+                <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-indigo-400" />
+              ) : query.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  aria-label="Axtarışı təmizlə"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-zinc-200"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+
             <button
-              key={tab.value}
               type="button"
-              onClick={() => setProductType(tab.value)}
-              className={`group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl border px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
-                active
-                  ? `${a.activeWrap} ${a.activeText} ${a.glow}`
-                  : "border-zinc-800 bg-zinc-900/40 text-zinc-300 hover:-translate-y-0.5 hover:border-zinc-700 hover:bg-zinc-900/70"
+              onClick={() => setFiltersOpen((v) => !v)}
+              aria-expanded={filtersOpen}
+              className={`inline-flex h-11 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-black transition ${
+                filtersOpen
+                  ? "border-violet-300 bg-violet-50 text-violet-800 ring-4 ring-violet-500/10 dark:border-violet-400/60 dark:bg-violet-500/15 dark:text-violet-100"
+                  : "border-zinc-200 bg-white text-zinc-800 hover:border-violet-300 hover:bg-violet-50 dark:border-white/10 dark:bg-black/25 dark:text-zinc-200 dark:hover:border-violet-400/35 dark:hover:bg-white/[0.055]"
               }`}
             >
-              <span
-                className={`grid h-7 w-7 place-items-center rounded-md ring-1 transition ${
-                  active
-                    ? a.activeIcon
-                    : `bg-zinc-800/70 text-zinc-400 ring-zinc-700/60 ${a.hoverIcon}`
-                }`}
-              >
-                {tab.icon}
-              </span>
-              <span className="font-semibold tracking-tight">{tab.label}</span>
-              <span
-                className={`rounded-md px-1.5 py-0.5 text-xs font-bold tabular-nums ${
-                  active ? a.activeBadge : "bg-zinc-800 text-zinc-400"
-                }`}
-              >
-                {count.toLocaleString("en-US")}
-              </span>
-              {active && (
-                <span
-                  aria-hidden
-                  className={`absolute inset-x-3 -bottom-px h-px bg-gradient-to-r from-transparent via-current to-transparent ${a.activeText} opacity-60`}
-                />
+              <Filter className="h-4 w-4 text-violet-600 dark:text-violet-300" />
+              Filter et
+              {advancedFilterCount > 0 && (
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-violet-500 px-1.5 text-[11px] text-white">
+                  {advancedFilterCount}
+                </span>
               )}
+              <ChevronDown
+                className={`h-4 w-4 text-zinc-500 transition-transform ${
+                  filtersOpen ? "rotate-180 text-violet-600 dark:text-violet-300" : ""
+                }`}
+              />
             </button>
-          );
-        })}
-      </div>
-
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs">
-            <Library className="h-3.5 w-3.5 text-zinc-500" />
-            <span className="font-bold tabular-nums text-white">
-              {data.totalAll.toLocaleString("en-US")}
-            </span>
-            <span className="text-zinc-500">kataloqda</span>
-          </span>
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs">
-            <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-            <span className="font-bold tabular-nums text-emerald-200">
-              {data.totalOnSale.toLocaleString("en-US")}
-            </span>
-            <span className="text-emerald-300/70">endirimdə</span>
-          </span>
-        </div>
-        {loading ? (
-          <span className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs text-indigo-200">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Yüklənir…
-          </span>
-        ) : hasActiveFilter ? (
-          <span className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs text-zinc-300">
-            <span className="font-bold tabular-nums text-white">
-              {showingCount.toLocaleString("en-US")}
-            </span>
-            nəticə
-          </span>
-        ) : null}
-      </div>
-
-      <div className="relative z-40 mb-3 rounded-2xl border border-zinc-800/80 bg-gradient-to-br from-zinc-900/70 via-zinc-900/30 to-zinc-900/70 p-2 shadow-inner shadow-black/40 backdrop-blur">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto_auto_auto]">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={`${activeTab.singular} axtar…`}
-              className="w-full rounded-lg border border-transparent bg-zinc-950/60 py-2.5 pl-10 pr-10 text-sm placeholder:text-zinc-500 focus:border-indigo-500/60 focus:bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
-            {loading ? (
-              <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-indigo-400" />
-            ) : query.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                aria-label="Axtarışı təmizlə"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            ) : null}
           </div>
 
-          <Dropdown
-            icon={<Filter className="h-4 w-4" />}
-            value={sort}
-            onChange={(v) => setSort(v as Sort)}
-            options={SORT_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
-            ariaLabel="Sıralama"
-          />
-
-          <div className="flex items-center gap-1.5">
-            <Dropdown
-              icon={<Gamepad2 className="h-4 w-4" />}
-              value={platform}
-              onChange={(v) => setPlatform(v as Platform)}
-              options={[
-                { value: "ALL", label: "Bütün platformalar" },
-                { value: "PS5", label: "PS5" },
-                { value: "PS4", label: "PS4" },
-              ]}
-              ariaLabel="Platforma"
-              align="end"
-            />
-            <PlatformInfoButton />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setOnSale((v) => !v)}
-            className={`inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
-              onSale
-                ? "border-emerald-500/60 bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 text-emerald-200 shadow-[0_6px_24px_-10px_rgba(16,185,129,0.6)]"
-                : "border-transparent bg-zinc-950/60 text-zinc-300 hover:bg-zinc-900"
-            }`}
-          >
-            <Tag className={`h-4 w-4 ${onSale ? "text-emerald-300" : ""}`} />
-            Endirimdə
-            {onSale && (
-              <span className="ml-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {activeFilterChips.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          {activeFilterChips.map((chip) => (
-            <span
-              key={chip.key}
-              className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-xs text-indigo-200"
-            >
-              {chip.label}
+          {activeFilterChips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {activeFilterChips.map((chip) => (
+                <span
+                  key={chip.key}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-2.5 text-xs font-semibold text-violet-800 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-100"
+                >
+                  {chip.label}
+                  <button
+                    type="button"
+                    onClick={chip.onRemove}
+                    aria-label={`${chip.label} filtrini sil`}
+                    className="rounded-full p-0.5 transition hover:bg-violet-100 dark:hover:bg-violet-500/20"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
               <button
                 type="button"
-                onClick={chip.onRemove}
-                aria-label={`${chip.label} filtrini sil`}
-                className="rounded-full p-0.5 hover:bg-indigo-500/20"
+                onClick={clearFilters}
+                className="inline-flex h-8 items-center rounded-full px-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-200"
               >
-                <X className="h-3 w-3" />
+                Hamısını təmizlə
               </button>
-            </span>
-          ))}
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200"
-          >
-            Hamısını təmizlə
-          </button>
+            </div>
+          )}
+
+          {filtersOpen && (
+            <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white/78 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] dark:border-white/10 dark:bg-black/[0.18] dark:shadow-none">
+              {/* Each control gets an explicit Azerbaijani label above it so a
+                  first-time visitor doesn't have to guess what each dropdown
+                  does. The label-on-top layout also reads well on mobile. */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <FilterField label="Sıralama">
+                  {isSearching ? (
+                    <span
+                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-semibold text-violet-800 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200"
+                      title="Axtarış zamanı nəticələr AI uyğunluğuna görə sıralanır"
+                    >
+                      <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-300" />
+                      Uyğunluğa görə
+                    </span>
+                  ) : (
+                    <Dropdown
+                      value={sort}
+                      onChange={(v) => setSort(v as Sort)}
+                      options={SORT_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
+                      ariaLabel="Sıralama"
+                    />
+                  )}
+                </FilterField>
+
+                <FilterField label="Platforma">
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <Dropdown
+                      value={platform}
+                      onChange={(v) => setPlatform(v as Platform)}
+                      options={[
+                        { value: "ALL", label: "Bütün platformalar" },
+                        { value: "PS5", label: "PS5" },
+                        { value: "PS4", label: "PS4" },
+                      ]}
+                      ariaLabel="Platforma"
+                      align="end"
+                    />
+                    <PlatformInfoButton className="h-11 w-11 rounded-xl border-zinc-200 bg-white text-zinc-600 hover:bg-violet-50 hover:text-violet-700 dark:border-white/10 dark:bg-black/25 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white" />
+                  </div>
+                </FilterField>
+
+                <FilterField label="Endirim">
+                  <button
+                    type="button"
+                    onClick={() => setOnSale((v) => !v)}
+                    className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition ${
+                      onSale
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/55 dark:bg-emerald-500/15 dark:text-emerald-200"
+                        : "border-zinc-200 bg-white text-zinc-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-white/10 dark:bg-black/25 dark:text-zinc-300 dark:hover:border-emerald-400/30 dark:hover:bg-white/[0.055] dark:hover:text-emerald-200"
+                    }`}
+                  >
+                    <Tag className={`h-4 w-4 ${onSale ? "text-emerald-600 dark:text-emerald-300" : "text-zinc-500"}`} />
+                    {onSale ? "Yalnız endirimlilər" : "Bütün oyunlar"}
+                    {onSale && <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />}
+                  </button>
+                </FilterField>
+              </div>
+
+              <FilterField label="Qiymət (AZN)">
+                <div className="flex flex-wrap items-center gap-2">
+                  <PriceInput
+                    value={priceMin}
+                    onChange={setPriceMin}
+                    placeholder="Min"
+                    ariaLabel="Minimum qiymət (AZN)"
+                  />
+                  <span className="text-zinc-400 dark:text-zinc-600">–</span>
+                  <PriceInput
+                    value={priceMax}
+                    onChange={setPriceMax}
+                    placeholder="Max"
+                    ariaLabel="Maksimum qiymət (AZN)"
+                  />
+                  {(hasPriceMin || hasPriceMax) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPriceMin("");
+                        setPriceMax("");
+                      }}
+                      className="rounded-lg px-2 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-200"
+                    >
+                      Sıfırla
+                    </button>
+                  )}
+                </div>
+              </FilterField>
+
+              {hasActiveFilter && (
+                <div className="flex justify-end border-t border-zinc-200 pt-3 dark:border-white/5">
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-950 dark:border-white/10 dark:bg-black/25 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Bütün filtrləri təmizlə
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {interpretedAs && query.trim().length >= 2 && !loading && (
+        <div className="mb-3 flex items-center gap-1.5 px-1 text-xs text-zinc-600 dark:text-zinc-400">
+          <Sparkles className="h-3 w-3 text-violet-600 dark:text-violet-300" />
+          <span>
+            <span className="text-zinc-500">“{query.trim()}”</span> →{" "}
+            <span className="font-medium text-zinc-900 dark:text-zinc-200">{interpretedAs}</span>
+          </span>
         </div>
       )}
 
@@ -430,6 +605,69 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
         onPageChange={setPage}
       />
     </>
+  );
+}
+
+/**
+ * Vertical "label above input" wrapper for filter controls. The point of this
+ * tiny abstraction is consistency: every filter in the open panel uses the
+ * same label styling, so users learn the pattern once and can scan all the
+ * controls quickly. Replaces the previous icon-only dropdowns where it
+ * wasn't obvious what each control did.
+ */
+function FilterField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-600 dark:text-zinc-500">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+/**
+ * Compact numeric input used for the price-range bounds. `inputMode="decimal"`
+ * surfaces the right phone keypad on mobile; `type="text"` (not "number") lets
+ * us keep the value as a string so the user can clear/partially-type without
+ * the browser coercing or stripping leading zeros. Sanitization is permissive:
+ * digits and one dot only.
+ */
+function PriceInput({
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  ariaLabel: string;
+}) {
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={value}
+      onChange={(e) => {
+        // Permit digits, a single dot/comma, and an empty string. Normalize
+        // comma → dot so AZ locale input still parses to Number() cleanly.
+        const raw = e.target.value.replace(/,/g, ".").replace(/[^\d.]/g, "");
+        // Collapse multiple dots — keep only the first.
+        const parts = raw.split(".");
+        const clean = parts.length > 1 ? `${parts[0]}.${parts.slice(1).join("")}` : raw;
+        onChange(clean);
+      }}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      className="h-10 w-24 rounded-xl border border-zinc-200 bg-white px-3 text-sm tabular-nums text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-violet-400/70 focus:bg-white focus:ring-4 focus:ring-violet-500/10 dark:border-white/10 dark:bg-black/25 dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:border-violet-400/60 dark:focus:bg-black/35"
+    />
   );
 }
 
@@ -489,7 +727,9 @@ function Dropdown({
   ariaLabel,
   align = "start",
 }: {
-  icon: React.ReactNode;
+  /** Optional leading icon. With explicit text labels now sitting ABOVE each
+   * dropdown via FilterField, the icon is redundant and we can drop it. */
+  icon?: React.ReactNode;
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
@@ -551,17 +791,19 @@ function Dropdown({
         aria-expanded={open}
         aria-label={ariaLabel}
         onClick={() => setOpen((o) => !o)}
-        className={`group inline-flex w-full min-w-[10rem] items-center gap-2 rounded-lg border bg-zinc-950/60 py-2.5 pl-3 pr-2 text-sm text-zinc-100 transition hover:bg-zinc-900 ${
+        className={`group inline-flex h-11 w-full min-w-[10rem] items-center gap-2 rounded-xl border bg-white pl-3 pr-3 text-sm font-semibold text-zinc-950 transition hover:border-violet-300 hover:bg-violet-50 dark:bg-black/25 dark:text-zinc-100 dark:hover:border-violet-400/30 dark:hover:bg-white/[0.055] ${
           open
-            ? "border-indigo-500/60 bg-zinc-950 ring-2 ring-indigo-500/20"
-            : "border-transparent"
+            ? "border-violet-400/70 bg-violet-50 ring-4 ring-violet-500/10 dark:border-violet-400/60 dark:bg-black/35"
+            : "border-zinc-200 dark:border-white/10"
         }`}
       >
-        <span className="text-zinc-500">{icon}</span>
+        {icon && (
+          <span className="text-zinc-500 transition group-hover:text-violet-600 dark:group-hover:text-violet-300">{icon}</span>
+        )}
         <span className="flex-1 truncate text-left">{selected?.label}</span>
         <ChevronDown
           className={`h-4 w-4 text-zinc-500 transition-transform duration-200 ${
-            open ? "rotate-180 text-indigo-400" : ""
+            open ? "rotate-180 text-violet-300" : ""
           }`}
         />
       </button>
@@ -571,7 +813,7 @@ function Dropdown({
           ref={listRef}
           role="listbox"
           aria-label={ariaLabel}
-          className={`absolute z-[60] mt-2 min-w-full origin-top overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/95 p-1 shadow-2xl shadow-black/60 ring-1 ring-black/40 backdrop-blur ${
+          className={`absolute z-[60] mt-2 min-w-full origin-top overflow-hidden rounded-2xl border border-violet-200 bg-white/95 p-1.5 shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/5 backdrop-blur dark:border-violet-400/25 dark:bg-zinc-950/95 dark:shadow-black/60 dark:ring-black/40 ${
             align === "end" ? "right-0" : "left-0"
           }`}
           style={{ animation: "dropdown-in 140ms ease-out" }}
@@ -590,17 +832,17 @@ function Dropdown({
                   onChange(o.value);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center justify-between gap-3 whitespace-nowrap rounded-md px-3 py-2 text-left text-sm transition ${
+                className={`flex w-full items-center justify-between gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-left text-sm transition ${
                   isSelected
-                    ? "bg-indigo-500/15 text-indigo-100"
+                    ? "bg-violet-50 text-violet-800 dark:bg-violet-500/15 dark:text-violet-100"
                     : isActive
-                      ? "bg-zinc-800/70 text-zinc-100"
-                      : "text-zinc-300"
+                      ? "bg-zinc-100 text-zinc-950 dark:bg-white/[0.07] dark:text-zinc-100"
+                      : "text-zinc-700 dark:text-zinc-300"
                 }`}
               >
                 <span>{o.label}</span>
                 {isSelected ? (
-                  <Check className="h-4 w-4 text-indigo-300" />
+                  <Check className="h-4 w-4 text-violet-600 dark:text-violet-300" />
                 ) : (
                   <span className="h-4 w-4" />
                 )}

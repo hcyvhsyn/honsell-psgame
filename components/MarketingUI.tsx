@@ -73,7 +73,7 @@ export function SubCategoryCard({
 
       <div className="relative z-10 flex flex-1 flex-col justify-between">
         <div className="flex items-start justify-between gap-3">
-          <span className={`grid h-9 w-9 place-items-center rounded-xl border bg-gradient-to-br text-white backdrop-blur-sm ${accentClass}`}>
+          <span className={`grid h-9 w-9 place-items-center rounded-xl border bg-gradient-to-br text-zinc-900 backdrop-blur-sm dark:text-white ${accentClass}`}>
             {icon}
           </span>
           <ArrowRight className="h-4 w-4 text-zinc-400 transition group-hover:translate-x-1 group-hover:text-zinc-900 dark:text-white/40 dark:group-hover:text-white" />
@@ -130,7 +130,7 @@ export function PlatformCard({
             {icon}
           </span>
           {badge && (
-            <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200 ring-1 ring-amber-300/30">
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-amber-200 dark:bg-amber-400/20 dark:text-amber-200 dark:ring-amber-300/30">
               {badge}
             </span>
           )}

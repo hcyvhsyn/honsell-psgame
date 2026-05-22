@@ -77,7 +77,7 @@ export default function NewsSectionClient({
 
       {/* Header */}
       <header className="mb-10 flex flex-col gap-3 sm:mb-14">
-        <div className="inline-flex items-center gap-2 self-start rounded-full border border-rose-400/30 bg-rose-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-rose-200">
+        <div className="inline-flex items-center gap-2 self-start rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-rose-700 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200">
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
@@ -86,12 +86,12 @@ export default function NewsSectionClient({
         </div>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="text-balance text-3xl font-black leading-tight tracking-tight text-white sm:text-5xl">
+            <h2 className="text-balance text-3xl font-black leading-tight tracking-tight text-zinc-950 dark:text-white sm:text-5xl">
               {title}
             </h2>
-            <p className="mt-3 max-w-2xl text-sm text-zinc-400 sm:text-base">{subtitle}</p>
+            <p className="mt-3 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400 sm:text-base">{subtitle}</p>
           </div>
-          <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-400 sm:inline-flex">
+          <div className="hidden items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500 shadow-sm dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-400 dark:shadow-none sm:inline-flex">
             <Newspaper className="h-3.5 w-3.5" />
             {items.length} yazı
           </div>
@@ -123,7 +123,7 @@ function FeaturedCard({ item, onOpen }: { item: NewsCardData; onOpen: () => void
     <button
       type="button"
       onClick={onOpen}
-      className="group relative block w-full overflow-hidden rounded-3xl border border-white/10 bg-zinc-900 text-left shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)] transition hover:border-white/20"
+      className="group relative block w-full overflow-hidden rounded-3xl border border-zinc-200 bg-white text-left shadow-[0_40px_120px_-60px_rgba(15,23,42,0.45)] transition hover:border-zinc-300 hover:shadow-[0_40px_120px_-56px_rgba(124,58,237,0.45)] dark:border-white/10 dark:bg-zinc-900 dark:shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)] dark:hover:border-white/20"
     >
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-zinc-950 sm:aspect-[21/9]">
         {item.coverImageUrl ? (
@@ -186,9 +186,9 @@ function NewsCard({ item, onOpen }: { item: NewsCardData; onOpen: () => void }) 
     <button
       type="button"
       onClick={onOpen}
-      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#0e1119] to-[#0a0c12] text-left shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] transition hover:-translate-y-1 hover:border-white/20 hover:shadow-[0_30px_70px_-30px_rgba(99,1,243,0.4)]"
+      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:border-violet-300 hover:shadow-xl dark:border-white/[0.08] dark:bg-gradient-to-br dark:from-[#0e1119] dark:to-[#0a0c12] dark:shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] dark:hover:border-white/20 dark:hover:shadow-[0_30px_70px_-30px_rgba(99,1,243,0.4)]"
     >
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-950">
+      <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950">
         {item.coverImageUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -197,8 +197,8 @@ function NewsCard({ item, onOpen }: { item: NewsCardData; onOpen: () => void }) 
             className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.06]"
           />
         ) : (
-          <div className="grid h-full place-items-center bg-gradient-to-br from-indigo-900/30 to-fuchsia-900/30">
-            <Newspaper className="h-10 w-10 text-zinc-700" />
+          <div className="grid h-full place-items-center bg-gradient-to-br from-indigo-100 to-fuchsia-100 dark:from-indigo-900/30 dark:to-fuchsia-900/30">
+            <Newspaper className="h-10 w-10 text-zinc-400 dark:text-zinc-700" />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
@@ -219,13 +219,13 @@ function NewsCard({ item, onOpen }: { item: NewsCardData; onOpen: () => void }) 
           <Calendar className="h-3 w-3" />
           {formatDate(item.publishedAt)}
         </div>
-        <h3 className="text-balance text-lg font-bold leading-snug text-white line-clamp-2 transition group-hover:text-amber-200">
+        <h3 className="line-clamp-2 text-balance text-lg font-bold leading-snug text-zinc-950 transition group-hover:text-violet-700 dark:text-white dark:group-hover:text-amber-200">
           {item.title}
         </h3>
         {item.excerpt && (
-          <p className="text-sm leading-relaxed text-zinc-400 line-clamp-3">{item.excerpt}</p>
+          <p className="line-clamp-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{item.excerpt}</p>
         )}
-        <span className="mt-auto inline-flex items-center gap-1 pt-2 text-xs font-bold uppercase tracking-wider text-amber-300 transition group-hover:gap-2">
+        <span className="mt-auto inline-flex items-center gap-1 pt-2 text-xs font-bold uppercase tracking-wider text-violet-600 transition group-hover:gap-2 dark:text-amber-300">
           Oxu <ArrowRight className="h-3.5 w-3.5" />
         </span>
       </div>
@@ -244,13 +244,13 @@ function ArticleModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/80 p-0 backdrop-blur-md sm:items-center sm:p-6"
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-zinc-950/75 p-0 backdrop-blur-md sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <article
-        className="relative max-h-[92vh] w-full max-w-3xl overflow-hidden overflow-y-auto rounded-t-3xl border border-white/10 bg-gradient-to-b from-[#0c0e16] to-[#070910] shadow-[0_40px_120px_-30px_rgba(0,0,0,0.95)] sm:rounded-3xl"
+        className="relative max-h-[92vh] w-full max-w-3xl overflow-hidden overflow-y-auto rounded-t-3xl border border-zinc-200 bg-white shadow-[0_40px_120px_-42px_rgba(15,23,42,0.7)] dark:border-white/10 dark:bg-gradient-to-b dark:from-[#0c0e16] dark:to-[#070910] dark:shadow-[0_40px_120px_-30px_rgba(0,0,0,0.95)] sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -270,14 +270,14 @@ function ArticleModal({
               alt={item.title}
               className="h-full w-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0c0e16] via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent dark:from-[#0c0e16]" />
           </div>
         )}
 
         <div className="px-5 pb-10 pt-6 sm:px-10 sm:pt-8">
           <div className="flex flex-wrap items-center gap-2">
             {item.category && (
-              <span className="inline-flex items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-200">
+              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
                 {item.category}
               </span>
             )}
@@ -286,14 +286,14 @@ function ArticleModal({
               {formatDate(item.publishedAt)}
             </span>
           </div>
-          <h1 className="mt-4 text-balance text-3xl font-black leading-tight text-white sm:text-4xl">
+          <h1 className="mt-4 text-balance text-3xl font-black leading-tight text-zinc-950 dark:text-white sm:text-4xl">
             {item.title}
           </h1>
           {item.excerpt && (
-            <p className="mt-3 text-base leading-relaxed text-zinc-300">{item.excerpt}</p>
+            <p className="mt-3 text-base leading-relaxed text-zinc-600 dark:text-zinc-300">{item.excerpt}</p>
           )}
-          <div className="my-6 h-px bg-white/10" />
-          <div className="whitespace-pre-line text-[15px] leading-relaxed text-zinc-200 sm:text-base">
+          <div className="my-6 h-px bg-zinc-200 dark:bg-white/10" />
+          <div className="whitespace-pre-line text-[15px] leading-relaxed text-zinc-700 dark:text-zinc-200 sm:text-base">
             {item.body}
           </div>
         </div>

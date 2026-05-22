@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { computeDisplayPrice, getSettings } from "@/lib/pricing";
+import { aznToTryCents, computeDisplayPrice, getSettings } from "@/lib/pricing";
 import type { Game, Prisma } from "@/lib/generated/prisma/client";
 import { Prisma as PrismaSql } from "@/lib/generated/prisma/client";
 
@@ -56,6 +56,11 @@ export async function GET(req: Request) {
   const platform = url.searchParams.get("platform"); // PS4 | PS5 | null
   const onSale = url.searchParams.get("onSale") === "1";
 
+  const priceMinRaw = Number(url.searchParams.get("priceMin"));
+  const priceMaxRaw = Number(url.searchParams.get("priceMax"));
+  const priceMinAzn = Number.isFinite(priceMinRaw) && priceMinRaw > 0 ? priceMinRaw : null;
+  const priceMaxAzn = Number.isFinite(priceMaxRaw) && priceMaxRaw > 0 ? priceMaxRaw : null;
+
   const limit = Math.max(1, Math.min(200, Number(url.searchParams.get("limit")) || 100));
   const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
   const page = Math.max(1, Math.floor(offset / limit) + 1);
@@ -97,8 +102,30 @@ export async function GET(req: Request) {
     getSettings(),
   ]);
 
+  // Translate the AZN price-range UI inputs into TRY-cent thresholds the DB
+  // can compare directly. We use floor for the lower bound and ceil for the
+  // upper bound so the boundary stays inclusive at AZN-cent granularity.
+  const priceMinTryCents =
+    priceMinAzn != null ? aznToTryCents(priceMinAzn, settings, "ceil") : null;
+  const priceMaxTryCents =
+    priceMaxAzn != null ? aznToTryCents(priceMaxAzn, settings, "floor") : null;
+  const priceFilter = buildPriceFilter(priceMinTryCents, priceMaxTryCents);
+  if (priceFilter) {
+    where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), priceFilter];
+  }
+
   const { filteredCount, rows } = useFuzzy
-    ? await fetchFuzzy({ q, sort, productType: filterByType ? productType : null, platform, onSale, limit, offset })
+    ? await fetchFuzzy({
+        q,
+        sort,
+        productType: filterByType ? productType : null,
+        platform,
+        onSale,
+        limit,
+        offset,
+        priceMinTryCents,
+        priceMaxTryCents,
+      })
     : {
         filteredCount: await prisma.game.count({ where }),
         rows: await fetchSorted(where, sort, limit, offset),
@@ -211,6 +238,8 @@ async function fetchFuzzy({
   onSale,
   limit,
   offset,
+  priceMinTryCents,
+  priceMaxTryCents,
 }: {
   q: string;
   sort: Sort;
@@ -220,12 +249,21 @@ async function fetchFuzzy({
   onSale: boolean;
   limit: number;
   offset: number;
+  priceMinTryCents: number | null;
+  priceMaxTryCents: number | null;
 }): Promise<{ filteredCount: number; rows: Game[] }> {
   // Prefer typo-tolerant fuzzy search on Postgres when available (pg_trgm).
   // If the extension is not enabled (or the DB blocks it), fall back to
   // the original `contains` behavior so search still works.
   try {
-    let whereSql = buildGameWhereSql({ q, productType, platform, onSale });
+    let whereSql = buildGameWhereSql({
+      q,
+      productType,
+      platform,
+      onSale,
+      priceMinTryCents,
+      priceMaxTryCents,
+    });
     // Axtarış aktiv olduqda popular filtri tətbiq olunmur — axtarılan məhsul
     // featured olmasa belə tapılmalıdır.
     if (sort === "popular" && !q) whereSql = PrismaSql.sql`${whereSql} AND g."isFeatured" = true`;
@@ -269,6 +307,8 @@ async function fetchFuzzy({
     }
     if (onSale) where.discountTryCents = { not: null };
     if (sort === "popular" && !q) where.isFeatured = true;
+    const priceFilter = buildPriceFilter(priceMinTryCents, priceMaxTryCents);
+    if (priceFilter) where.AND = [priceFilter];
 
     const [filteredCount, rows] = await Promise.all([
       prisma.game.count({ where }),
@@ -283,12 +323,16 @@ function buildGameWhereSql({
   productType,
   platform,
   onSale,
+  priceMinTryCents,
+  priceMaxTryCents,
 }: {
   q: string;
   /** null when type=ALL (no productType filter applied) */
   productType: string | null;
   platform: string | null;
   onSale: boolean;
+  priceMinTryCents: number | null;
+  priceMaxTryCents: number | null;
 }) {
   // Base filters.
   const parts: PrismaSql.Sql[] = [PrismaSql.sql`g."isActive" = true`];
@@ -299,6 +343,21 @@ function buildGameWhereSql({
   if (platform === "PS4" || platform === "PS5") {
     parts.push(
       PrismaSql.sql`(g."platform" ILIKE ${`%${platform}%`} OR g."platform" IS NULL)`
+    );
+  }
+
+  // Price range — filter on the effective price (discount when present, else
+  // base price). COALESCE keeps the comparison single-column on the DB side,
+  // so the planner can still use index-only scans when no other filter is
+  // selective.
+  if (priceMinTryCents != null) {
+    parts.push(
+      PrismaSql.sql`COALESCE(g."discountTryCents", g."priceTryCents") >= ${priceMinTryCents}`
+    );
+  }
+  if (priceMaxTryCents != null) {
+    parts.push(
+      PrismaSql.sql`COALESCE(g."discountTryCents", g."priceTryCents") <= ${priceMaxTryCents}`
     );
   }
 
@@ -341,4 +400,35 @@ function buildFuzzyOrderSql(sort: Sort, q: string) {
       // handled above
       return PrismaSql.sql`${relevance}`;
   }
+}
+
+/**
+ * Build a Prisma `WhereInput` fragment that filters rows by the effective
+ * price (discount when present and not expired in display logic, else base
+ * price). Returns null when neither bound is set so callers can skip the
+ * AND clause entirely.
+ *
+ * The OR shape lets the planner push the bound into the right column index
+ * — discount-bearing rows hit a `discountTryCents BETWEEN` scan, the rest
+ * fall back to the `priceTryCents` index.
+ */
+function buildPriceFilter(
+  minTryCents: number | null,
+  maxTryCents: number | null
+): Prisma.GameWhereInput | null {
+  if (minTryCents == null && maxTryCents == null) return null;
+
+  const range = (col: "discountTryCents" | "priceTryCents") => {
+    const r: Prisma.IntFilter = {};
+    if (minTryCents != null) r.gte = minTryCents;
+    if (maxTryCents != null) r.lte = maxTryCents;
+    return { [col]: r } as Prisma.GameWhereInput;
+  };
+
+  return {
+    OR: [
+      { discountTryCents: { not: null }, ...range("discountTryCents") },
+      { discountTryCents: null, ...range("priceTryCents") },
+    ],
+  };
 }
