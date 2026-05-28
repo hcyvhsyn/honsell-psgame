@@ -71,8 +71,17 @@ model User {
   referredBy   User?   @relation("Referrals", fields: [referredById], references: [id])
   referrals    User[]  @relation("Referrals")
 
+  // "Sponsorlu" müştəri — admin tərəfindən təyin edilir. Bu müştərinin referal
+  // linkiylə qeydiyyatdan keçən istifadəçilərin OYUN alışlarından artırılmış
+  // komissiya faizi (sponsored referral rate, default 8%) bu müştəriyə yazılır.
+  // Yalnız oyun alışlarına aiddir — digər məhsul tiplərinə təsir etmir.
+  isSponsored Boolean   @default(false)
+  sponsoredAt DateTime?
+
   // PSN delivery accounts (one user can have many; one is marked default).
   psnAccounts PsnAccount[]
+  // Epic Games (Türkiye) delivery accounts we created for the user.
+  epicAccounts EpicAccount[]
 
   transactions Transaction[] @relation("UserTransactions")
   commissions  Transaction[] @relation("CommissionBeneficiary")
@@ -135,17 +144,57 @@ model PsnAccount {
   @@index([userId])
 }
 
+/// A customer's Epic Games (Türkiye) account — created by us on their behalf
+/// when they buy the Epic account-creation service, then used to deliver Epic
+/// game purchases. Mirrors PsnAccount but with Epic-specific fields.
+model EpicAccount {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Friendly nickname shown in dropdowns (defaults to the display name).
+  label        String
+  firstName    String
+  lastName     String
+  /// YYYY-MM-DD as entered by the customer.
+  birthDate    String
+  epicEmail    String
+  epicPassword String // encrypt at rest in production
+  /// Requested Epic display name. Epic display names are unique, so the final
+  /// one may differ slightly from what the customer asked for.
+  displayName  String
+
+  isDefault Boolean @default(false)
+
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
 // ─── Catalog ──────────────────────────────────────────────────────────────────
 
 model Game {
   id         String  @id @default(cuid())
-  // Stable PS Store product id (used to upsert during scraping)
+  // Stable product id used to upsert during scraping. For PS Store this is the
+  // raw PS product id; for Epic it is namespaced as `epic:<namespace>:<offerId>`
+  // so the two storefronts never collide on this @unique column.
   productId  String  @unique
   title      String
   imageUrl   String?
   productUrl String?
 
-  // PS4 | PS5 — derived from the productId code (CUSA/PPSA)
+  // Which storefront this row was scraped from. "PS" | "EPIC".
+  store String @default("PS")
+  // Epic catalog namespace (needed to build the product page link). NULL for PS.
+  namespace String?
+  // Epic genre tag names (e.g. ["Action","RPG"]). Powers the PC category filter.
+  // Empty for PS rows. Populated from Epic `tags` where groupName = "genre".
+  genres String[] @default([])
+
+  // PS4 | PS5 — derived from the productId code (CUSA/PPSA). "PC" for Epic.
   platform String?
 
   // GAME | ADDON | CURRENCY | OTHER — derived from storeDisplayClassification
@@ -156,9 +205,16 @@ model Game {
   productType String @default("GAME")
 
   // Source prices in TRY, scaled by 100 (kuruş). Never shown to users.
+  // For Epic rows this holds the Türkiye (country=TR) price.
   priceTryCents    Int
   discountTryCents Int? // null when no discount is active
   discountEndAt    DateTime? // when the active discount expires (from PS Store)
+
+  // Epic only: Azərbaycan (country=AZ) prices in USD, scaled by 100 (cents).
+  // NULL for PS rows. Stored alongside TRY so the dual-currency sale logic can
+  // be decided later; v1 still prices off priceTryCents.
+  priceUsdCents    Int?
+  discountUsdCents Int?
 
   // Rich media + metadata scraped from PS Store listing pages
   heroImageUrl String? // BACKGROUND-role media (wide hero/cover)
@@ -191,6 +247,7 @@ model Game {
   @@index([productType])
   @@index([title])
   @@index([isFeatured])
+  @@index([store])
 }
 
 // Caches LLM-generated "Bunu nəzərdə tutdunuz?" corrections so repeated typos
@@ -371,6 +428,11 @@ model Transaction {
   // rows (DEPOSIT, COMMISSION) and for legacy data created before multi-PSN.
   psnAccountId String?
   psnAccount   PsnAccount? @relation(fields: [psnAccountId], references: [id])
+
+  // Which Epic account this purchase is for (PC games), or the account created
+  // by an EPIC_ACCOUNT_CREATION order. NULL for everything else.
+  epicAccountId String?
+  epicAccount   EpicAccount? @relation(fields: [epicAccountId], references: [id])
 
   // For COMMISSION rows: the user who earned the commission
   beneficiaryId String?
@@ -672,6 +734,15 @@ model Settings {
   id                              String @id @default("global")
   // Multiplier applied to TRY prices. Stored as float for simplicity.
   tryToAznRate                    Float  @default(0.053)
+  // Multiplier applied to Epic Azərbaycan (USD) prices → AZN. Used only by
+  // Epic positional pricing (USD reference price → AZN).
+  usdToAznRate                    Float  @default(1.7)
+  // Epic qiymət mövqeyi (%): maya (TR) ilə referans (AZ) arasında.
+  // 0 = maya qiyməti, 100 = AZ referans qiyməti, 50 = orta nöqtə.
+  epicPositionPct                 Float  @default(50)
+  // Epic döşəmə hesabında tələb olunan minimal mənfəət buferi (%). Final qiymət
+  // heç vaxt maya + referal + bu bufer-dən aşağı düşmür.
+  epicMinProfitPct                Float  @default(10)
   // Legacy: global profit margin in percent, e.g. 20 means +20%.
   profitMarginPct                 Float  @default(20)
   // Per-category profit margins (%)
@@ -687,6 +758,10 @@ model Settings {
   // PS Store alt kateqoriyaları üçün final satış məbləği üzərindən referal faizi.
   // 0 yazıldıqda həmin məhsul tipində referal komissiyası bağlanır.
   referralGamesPct                Float  @default(0)
+  // "Sponsorlu" müştərilər üçün oyun referal faizi. Sponsorlu müştərinin dəvət
+  // etdiyi istifadəçilərin oyun alışlarına standart referralGamesPct əvəzinə bu
+  // tətbiq olunur. Default 8%.
+  sponsoredReferralGamesPct       Float  @default(8)
   referralPsPlusPct               Float  @default(0)
   referralGiftCardsPct            Float  @default(0)
   referralAccountCreationPct      Float  @default(0)

@@ -47,6 +47,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
     iconName: "Gamepad2",
     items: [
       { href: "/admin/games", label: "Oyunlar", iconName: "Gamepad2" },
+      { href: "/admin/sales", label: "Satışlar", iconName: "TrendingUp" },
       { href: "/admin/collections", label: "Kolleksiyalar", iconName: "LayoutGrid" },
       { href: "/admin/ps-plus", label: "PS Plus", iconName: "Crown" },
       { href: "/admin/ea-play", label: "EA Play", iconName: "Gamepad2" },
@@ -57,6 +58,13 @@ const NAV_GROUPS: NavGroupSpec[] = [
     ],
   },
   {
+    label: "Epic Games (PC)",
+    iconName: "Monitor",
+    items: [
+      { href: "/admin/epic-games", label: "Epic kataloqu", iconName: "Monitor" },
+    ],
+  },
+  {
     label: "Yayım",
     iconName: "Tv",
     items: [
@@ -64,6 +72,14 @@ const NAV_GROUPS: NavGroupSpec[] = [
       { href: "/admin/streaming/titles", label: "Posterlər", iconName: "Tv" },
       { href: "/admin/streaming/scrape", label: "Kataloq Yığımı", iconName: "RefreshCw" },
       { href: "/admin/streaming-reviews", label: "İcmallar", iconName: "MessageSquare" },
+    ],
+  },
+  {
+    label: "Oyun-içi Vahid",
+    iconName: "Coins",
+    items: [
+      { href: "/admin/pubg-uc", label: "PUBG UC", iconName: "Coins" },
+      { href: "/admin/point-blank", label: "Point Blank TG", iconName: "Coins" },
     ],
   },
   {

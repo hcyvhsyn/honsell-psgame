@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { getSettings, tryCentsToAznWithMargin } from "@/lib/pricing";
 import { revalidateServices } from "@/lib/revalidate";
 
 export const runtime = "nodejs";
@@ -65,7 +64,7 @@ export async function POST(req: Request) {
     }
 
     if (action === "UPSERT_PRODUCT") {
-      const { id, type, title, description, imageUrl, isActive, metadata, sortOrder } = body;
+      const { id, type, title, description, imageUrl, isActive, metadata, sortOrder, aznPrice } = body;
 
       if (String(type) !== "TRY_BALANCE") {
         return NextResponse.json(
@@ -73,22 +72,17 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-      
+
       const tryAmount = Number((metadata as { tryAmount?: unknown } | null)?.tryAmount);
       if (!Number.isFinite(tryAmount) || tryAmount <= 0) {
         return NextResponse.json({ error: "TRY məbləği düzgün deyil!" }, { status: 400 });
       }
 
-      const s = await getSettings();
-      const rate = s.tryToAznRate;
-      const margin = s.profitMarginGiftCardsPct ?? s.profitMarginPct;
-
-      const computedAzn = tryCentsToAznWithMargin(
-        Math.round(tryAmount * 100),
-        rate,
-        margin
-      );
-      const priceAznCents = Math.round(computedAzn * 100);
+      const aznPriceNum = Number(aznPrice);
+      if (!Number.isFinite(aznPriceNum) || aznPriceNum <= 0) {
+        return NextResponse.json({ error: "AZN satış qiyməti düzgün deyil!" }, { status: 400 });
+      }
+      const priceAznCents = Math.round(aznPriceNum * 100);
 
       const payload = {
         type,

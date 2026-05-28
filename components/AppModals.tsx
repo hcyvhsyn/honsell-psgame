@@ -7,7 +7,7 @@ import { useModals } from "@/lib/modals";
 import LoginForm from "./auth/LoginForm";
 import RegisterForm from "./auth/RegisterForm";
 import ForgotPasswordForm from "./auth/ForgotPasswordForm";
-import CartView, { type PsnOption } from "./CartView";
+import CartView, { type PsnOption, type EpicOption } from "./CartView";
 import ReviewModalBody from "./ReviewModalBody";
 
 export default function AppModals() {
@@ -71,6 +71,8 @@ function CartModalBody({
     cashbackBalanceAzn: number;
     referralBalanceAzn: number;
     psnAccounts: PsnOption[];
+    epicAccounts: EpicOption[];
+    epicAccountProduct: { id: string; title: string; imageUrl: string | null; priceAznCents: number } | null;
     loyaltyCashbackPct: number;
     referralCode: string | null;
   } | null>(null);
@@ -88,6 +90,8 @@ function CartModalBody({
             referralCode?: string | null;
           } | null;
           psnAccounts: PsnOption[];
+          epicAccounts?: EpicOption[];
+          epicAccountProduct?: { id: string; title: string; imageUrl: string | null; priceAznCents: number } | null;
           loyalty?: { cashbackPct: number; label: string } | null;
         }) => {
           if (cancelled) return;
@@ -99,6 +103,8 @@ function CartModalBody({
             cashbackBalanceAzn: cbCent / 100,
             referralBalanceAzn: refCent / 100,
             psnAccounts: d.psnAccounts ?? [],
+            epicAccounts: d.epicAccounts ?? [],
+            epicAccountProduct: d.epicAccountProduct ?? null,
             loyaltyCashbackPct: d.loyalty?.cashbackPct ?? 0,
             referralCode: d.user?.referralCode ?? null,
           });
@@ -112,6 +118,8 @@ function CartModalBody({
           cashbackBalanceAzn: 0,
           referralBalanceAzn: 0,
           psnAccounts: [],
+          epicAccounts: [],
+          epicAccountProduct: null,
           loyaltyCashbackPct: 0,
           referralCode: null,
         });
@@ -137,6 +145,8 @@ function CartModalBody({
           walletBalanceAzn={data.walletBalanceAzn}
           cashbackBalanceAzn={data.cashbackBalanceAzn}
           psnAccounts={data.psnAccounts}
+          epicAccounts={data.epicAccounts}
+          epicAccountProduct={data.epicAccountProduct}
           loyaltyCashbackPct={data.loyaltyCashbackPct}
           referralCode={data.referralCode}
           onRequestLogin={onRequestLogin}

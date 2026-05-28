@@ -2,6 +2,12 @@ import { prisma } from "./prisma";
 
 export type PricingSettings = {
   tryToAznRate: number;
+  /** Epic Azərbaycan (USD) price → AZN multiplier. */
+  usdToAznRate: number;
+  /** Epic sale-price position (%) between TR cost (0) and AZ reference (100). */
+  epicPositionPct: number;
+  /** Minimum profit buffer (%) the Epic referral-aware price floor enforces. */
+  epicMinProfitPct: number;
   /** Legacy global margin (kept for back-compat) */
   profitMarginPct: number;
   profitMarginGamesPct: number;
@@ -12,6 +18,8 @@ export type PricingSettings = {
   referralProfitSharePct: number;
   /** PS Store oyunları üçün final satış məbləği üzərindən referal faizi. */
   referralGamesPct: number;
+  /** "Sponsorlu" müştərilərin dəvət etdiyi istifadəçilərin oyun alışları üçün artırılmış referal faizi. */
+  sponsoredReferralGamesPct: number;
   /** PS Plus üçün final satış məbləği üzərindən referal faizi. */
   referralPsPlusPct: number;
   /** TRY hədiyyə kartları üçün final satış məbləği üzərindən referal faizi. */
@@ -38,6 +46,10 @@ function roundPct(value: number) {
   return Math.round(value * 10) / 10;
 }
 
+function round2(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 export function computeLegacyGameReferralRatePct(
   referralProfitSharePct: number,
   marginPct: number,
@@ -60,6 +72,9 @@ export async function getSettings(): Promise<PricingSettings> {
     );
     return {
       tryToAznRate: s.tryToAznRate,
+      usdToAznRate: s.usdToAznRate ?? 1.7,
+      epicPositionPct: s.epicPositionPct ?? 50,
+      epicMinProfitPct: s.epicMinProfitPct ?? 10,
       profitMarginPct: s.profitMarginPct,
       profitMarginGamesPct: s.profitMarginGamesPct ?? s.profitMarginPct,
       profitMarginGiftCardsPct: s.profitMarginGiftCardsPct ?? s.profitMarginPct,
@@ -67,6 +82,7 @@ export async function getSettings(): Promise<PricingSettings> {
       affiliateRatePct: s.affiliateRatePct,
       referralProfitSharePct: s.referralProfitSharePct,
       referralGamesPct: s.referralGamesPct ?? legacyGameReferralPct,
+      sponsoredReferralGamesPct: s.sponsoredReferralGamesPct ?? 8,
       referralPsPlusPct: s.referralPsPlusPct ?? 0,
       referralGiftCardsPct: s.referralGiftCardsPct ?? 0,
       referralAccountCreationPct: s.referralAccountCreationPct ?? 0,
@@ -77,10 +93,14 @@ export async function getSettings(): Promise<PricingSettings> {
     // Prod DB might not be migrated yet (missing new Settings columns).
     const msg = err instanceof Error ? err.message : String(err);
     const missingNewColumns =
+      msg.includes("usdToAznRate") ||
+      msg.includes("epicPositionPct") ||
+      msg.includes("epicMinProfitPct") ||
       msg.includes("profitMarginGamesPct") ||
       msg.includes("profitMarginGiftCardsPct") ||
       msg.includes("profitMarginPsPlusPct") ||
       msg.includes("referralGamesPct") ||
+      msg.includes("sponsoredReferralGamesPct") ||
       msg.includes("referralPsPlusPct") ||
       msg.includes("referralGiftCardsPct") ||
       msg.includes("referralAccountCreationPct") ||
@@ -109,6 +129,9 @@ export async function getSettings(): Promise<PricingSettings> {
     };
     return {
       tryToAznRate: s.tryToAznRate,
+      usdToAznRate: 1.7,
+      epicPositionPct: 50,
+      epicMinProfitPct: 10,
       profitMarginPct: s.profitMarginPct,
       profitMarginGamesPct: s.profitMarginPct,
       profitMarginGiftCardsPct: s.profitMarginPct,
@@ -119,6 +142,7 @@ export async function getSettings(): Promise<PricingSettings> {
         s.referralProfitSharePct,
         s.profitMarginPct,
       ),
+      sponsoredReferralGamesPct: 8,
       referralPsPlusPct: 0,
       referralGiftCardsPct: 0,
       referralAccountCreationPct: 0,
@@ -202,9 +226,25 @@ export function computeDisplayPrice(
     priceTryCents: number;
     discountTryCents: number | null;
     discountEndAt?: Date | string | null;
+    /** When "EPIC", pricing is delegated to the positional Epic model. */
+    store?: string | null;
+    priceUsdCents?: number | null;
+    discountUsdCents?: number | null;
   },
   settings: PricingSettings
 ): DisplayPrice {
+  // Epic rows use positional pricing (TR cost ↔ AZ reference), not the PS
+  // margin model. Delegate so every caller — catalog, cart, checkout, purchase
+  // — prices Epic games consistently and correctly.
+  if (game.store === "EPIC") {
+    const e = computeEpicDisplayPrice(game, settings);
+    return {
+      finalAzn: e.finalAzn,
+      originalAzn: e.originalAzn,
+      discountPct: e.discountPct,
+    };
+  }
+
   const originalAzn = tryCentsToAznWithMargin(
     game.priceTryCents,
     settings.tryToAznRate,
@@ -236,4 +276,93 @@ export function computeDisplayPrice(
   }
 
   return { finalAzn: originalAzn, originalAzn: null, discountPct: null };
+}
+
+export type EpicPriceBreakdown = DisplayPrice & {
+  /** Our cost — effective TR (Türkiye) price converted to AZN. */
+  costAzn: number;
+  /** Epic Azərbaycan reference price in AZN (null when no USD price scraped). */
+  referenceAzn: number | null;
+  /** Gross profit at the final price (final − cost). */
+  profitAzn: number;
+  /** Net profit after the games referral commission is paid from the sale. */
+  netProfitAzn: number;
+  /** True when the referral-aware floor lifted the price above the positioned value. */
+  floored: boolean;
+};
+
+/**
+ * Epic pricing is positional, not margin-based: the sale price is placed
+ * between our TR cost (`epicPositionPct = 0`) and the Azərbaycan USD reference
+ * (`= 100`). A referral-aware floor guarantees the final price still covers
+ * cost + the games referral payout + a minimum profit buffer, so referred
+ * sales can't run at a loss. The AZ reference doubles as the struck-through
+ * "original" so the customer sees their saving vs buying on Epic directly.
+ */
+export function computeEpicDisplayPrice(
+  game: {
+    priceTryCents: number;
+    discountTryCents: number | null;
+    priceUsdCents?: number | null;
+    discountUsdCents?: number | null;
+  },
+  settings: PricingSettings
+): EpicPriceBreakdown {
+  // Effective source prices — use the discounted figure when one is active.
+  const effTry = game.discountTryCents ?? game.priceTryCents;
+  const costAzn = round2((effTry / 100) * settings.tryToAznRate);
+
+  const effUsd =
+    game.discountUsdCents != null
+      ? game.discountUsdCents
+      : game.priceUsdCents ?? null;
+  const referenceAzn =
+    effUsd != null && effUsd > 0
+      ? round2((effUsd / 100) * settings.usdToAznRate)
+      : null;
+
+  const refPct = Math.max(0, settings.referralGamesPct ?? 0);
+  const minProfit = Math.max(0, settings.epicMinProfitPct ?? 0);
+
+  // Floor: gross up the cost so that, after paying `refPct` of the final price
+  // as referral, what's left still covers cost plus the min profit buffer.
+  const floor =
+    refPct >= 100
+      ? Number.POSITIVE_INFINITY
+      : round2((costAzn * (1 + minProfit / 100)) / (1 - refPct / 100));
+
+  // Position between cost and reference. With no usable AZ reference we can't
+  // position, so fall back to the floor.
+  let positioned: number;
+  if (referenceAzn != null && referenceAzn > costAzn) {
+    const pos = Math.min(100, Math.max(0, settings.epicPositionPct ?? 50));
+    positioned = round2(costAzn + (pos / 100) * (referenceAzn - costAzn));
+  } else {
+    positioned = floor;
+  }
+
+  let finalAzn = Math.max(positioned, floor);
+  // Don't price above Epic's own AZ price — unless the floor forces it (selling
+  // below the floor would lose money once referral is paid; margin wins).
+  if (referenceAzn != null && referenceAzn >= floor) {
+    finalAzn = Math.min(finalAzn, referenceAzn);
+  }
+  finalAzn = round2(finalAzn);
+
+  const showSaving = referenceAzn != null && finalAzn < referenceAzn;
+  const originalAzn = showSaving ? referenceAzn : null;
+  const discountPct = showSaving
+    ? Math.round(((referenceAzn! - finalAzn) / referenceAzn!) * 100)
+    : null;
+
+  return {
+    finalAzn,
+    originalAzn,
+    discountPct,
+    costAzn,
+    referenceAzn,
+    profitAzn: round2(finalAzn - costAzn),
+    netProfitAzn: round2(finalAzn * (1 - refPct / 100) - costAzn),
+    floored: finalAzn > positioned + 0.001,
+  };
 }

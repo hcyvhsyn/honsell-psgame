@@ -17,6 +17,9 @@ type Settings = {
   profitMarginGamesPct: number;
   profitMarginGiftCardsPct: number;
   profitMarginPsPlusPct: number;
+  usdToAznRate: number;
+  epicPositionPct: number;
+  epicMinProfitPct: number;
 };
 
 type ScrapeRun = {
@@ -78,6 +81,52 @@ const initialScrape: ScrapeState = {
   log: [],
 };
 
+type EpicScrapeState = {
+  running: boolean;
+  finished: boolean;
+  error: string | null;
+  currentLabel: string;
+  trFetched: number;
+  azFetched: number;
+  upsertDone: number;
+  upsertTotal: number;
+  upserts: number;
+  skipped: number;
+  log: string[];
+};
+
+type EpicScrapeEvent = {
+  type: string;
+  region?: "TR" | "AZ";
+  currency?: string;
+  page?: number;
+  fetched?: number;
+  total?: number;
+  count?: number;
+  done?: number;
+  failures?: number;
+  skippedNoTry?: number;
+  expired?: number;
+  orphaned?: number;
+  scraped?: number;
+  upserts?: number;
+  error?: string;
+};
+
+const initialEpicScrape: EpicScrapeState = {
+  running: false,
+  finished: false,
+  error: null,
+  currentLabel: "",
+  trFetched: 0,
+  azFetched: 0,
+  upsertDone: 0,
+  upsertTotal: 0,
+  upserts: 0,
+  skipped: 0,
+  log: [],
+};
+
 export default function AdminSettingsPage() {
   const [form, setForm] = useState<Settings>({
     tryToAznRate: 0.053,
@@ -85,6 +134,9 @@ export default function AdminSettingsPage() {
     profitMarginGamesPct: 20,
     profitMarginGiftCardsPct: 20,
     profitMarginPsPlusPct: 20,
+    usdToAznRate: 1.7,
+    epicPositionPct: 50,
+    epicMinProfitPct: 10,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -94,6 +146,8 @@ export default function AdminSettingsPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const [scrape, setScrape] = useState<ScrapeState>(initialScrape);
+  const [epicScrape, setEpicScrape] = useState<EpicScrapeState>(initialEpicScrape);
+  const epicAbortRef = useRef<AbortController | null>(null);
   const [history, setHistory] = useState<ScrapeRun[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
@@ -109,6 +163,9 @@ export default function AdminSettingsPage() {
           profitMarginGamesPct: data.profitMarginGamesPct ?? data.profitMarginPct,
           profitMarginGiftCardsPct: data.profitMarginGiftCardsPct ?? data.profitMarginPct,
           profitMarginPsPlusPct: data.profitMarginPsPlusPct ?? data.profitMarginPct,
+          usdToAznRate: data.usdToAznRate ?? 1.7,
+          epicPositionPct: data.epicPositionPct ?? 50,
+          epicMinProfitPct: data.epicMinProfitPct ?? 10,
         });
       })
       .finally(() => setLoading(false));
@@ -281,6 +338,105 @@ export default function AdminSettingsPage() {
     });
   }
 
+  async function triggerEpicScrape() {
+    if (epicScrape.running) return;
+    setEpicScrape({ ...initialEpicScrape, running: true });
+
+    const ctrl = new AbortController();
+    epicAbortRef.current = ctrl;
+
+    try {
+      const res = await fetch("/api/admin/scrape-epic", { signal: ctrl.signal });
+      if (!res.ok || !res.body) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(txt || `HTTP ${res.status}`);
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+
+        for (const evt of events) {
+          const line = evt.split("\n").find((l) => l.startsWith("data:"));
+          if (!line) continue;
+          const json = line.slice(5).trim();
+          if (!json) continue;
+          let payload: EpicScrapeEvent;
+          try {
+            payload = JSON.parse(json);
+          } catch {
+            continue;
+          }
+          applyEpicEvent(payload);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Stream failed";
+      setEpicScrape((s) => ({ ...s, running: false, error: msg }));
+    }
+  }
+
+  function applyEpicEvent(p: EpicScrapeEvent) {
+    setEpicScrape((s) => {
+      const log = [...s.log];
+      const next: EpicScrapeState = { ...s };
+
+      switch (p.type) {
+        case "start":
+          next.currentLabel = "Başlanır…";
+          log.push("Epic kataloqu yığılır (TR + AZ).");
+          break;
+        case "regionStart":
+          next.currentLabel = `${p.region} (${p.currency}) çəkilir…`;
+          break;
+        case "regionPage":
+          if (p.region === "TR") next.trFetched = p.fetched ?? s.trFetched;
+          else next.azFetched = p.fetched ?? s.azFetched;
+          next.currentLabel = `${p.region} · səhifə ${p.page} (${p.fetched ?? 0}/${p.total ?? "—"})`;
+          break;
+        case "regionDone":
+          log.push(`✓ ${p.region}: ${p.count} məhsul.`);
+          break;
+        case "upsertStart":
+          next.upsertTotal = p.total ?? 0;
+          next.upsertDone = 0;
+          next.skipped = p.skippedNoTry ?? 0;
+          next.currentLabel = `${p.total} oyun bazaya yazılır…`;
+          break;
+        case "upsertProgress":
+          next.upsertDone = p.done ?? 0;
+          next.upsertTotal = p.total ?? next.upsertTotal;
+          break;
+        case "discountCleanup":
+          log.push(`Endirim təmizliyi: ${p.expired ?? 0} bitmiş, ${p.orphaned ?? 0} köhnə.`);
+          break;
+        case "done":
+          next.running = false;
+          next.finished = true;
+          next.upserts = p.upserts ?? 0;
+          next.skipped = p.skippedNoTry ?? next.skipped;
+          next.currentLabel = "Tamamlandı";
+          log.push(`✓ ${p.upserts} oyun yadda saxlandı${p.skippedNoTry ? ` · ${p.skippedNoTry} ötürüldü (TRY yox)` : ""}.`);
+          loadHistory();
+          break;
+        case "error":
+          next.running = false;
+          next.error = p.error ?? "Unknown error";
+          loadHistory();
+          break;
+      }
+      next.log = log.slice(-30);
+      return next;
+    });
+  }
+
   if (loading) {
     return (
       <div className="text-sm text-zinc-300">Tənzimləmələr yüklənir…</div>
@@ -341,6 +497,42 @@ export default function AdminSettingsPage() {
             step={0.5}
             onChange={(v) => setForm({ ...form, profitMarginPsPlusPct: v })}
           />
+        </div>
+
+        <div className="space-y-4 rounded-lg border border-zinc-800 bg-zinc-950/40 p-4">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-200">
+              Epic Games qiymətləndirməsi
+            </h3>
+            <p className="text-xs text-zinc-500">
+              Epic-də qiymət faizlə yox, Türkiyə (maya) ilə Azərbaycan (referans)
+              qiyməti arasında mövqe ilə təyin olunur. Döşəmə referal komissiyasını
+              və minimal mənfəəti qoruyur.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field
+              label="USD → AZN məzənnəsi"
+              hint="Epic Azərbaycan (USD) qiymətini AZN-ə çevirir (məs: 1.7)."
+              value={form.usdToAznRate}
+              step={0.01}
+              onChange={(v) => setForm({ ...form, usdToAznRate: v })}
+            />
+            <Field
+              label="Qiymət mövqeyi (%)"
+              hint="0 = maya (TR), 100 = referans (AZ), 50 = orta nöqtə."
+              value={form.epicPositionPct}
+              step={1}
+              onChange={(v) => setForm({ ...form, epicPositionPct: v })}
+            />
+            <Field
+              label="Minimal mənfəət buferi (%)"
+              hint="Döşəmə: qiymət heç vaxt maya + referal + bu buferdən aşağı düşmür."
+              value={form.epicMinProfitPct}
+              step={0.5}
+              onChange={(v) => setForm({ ...form, epicMinProfitPct: v })}
+            />
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -471,6 +663,91 @@ export default function AdminSettingsPage() {
         )}
 
         <ScrapeHistory runs={history} loading={historyLoading} />
+      </section>
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Epic Games kataloq yığımı</h2>
+            <p className="text-sm text-zinc-400">
+              store.epicgames.com saytından oyunları çəkir — TR (TRY) və AZ (USD)
+              qiymətləri ilə.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={triggerEpicScrape}
+            disabled={epicScrape.running}
+            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium hover:bg-zinc-800 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${epicScrape.running ? "animate-spin" : ""}`} />
+            {epicScrape.running ? "Yığılır…" : "Epic yığımını başlat"}
+          </button>
+        </header>
+
+        {(epicScrape.running || epicScrape.finished || epicScrape.error) && (
+          <div className="mt-6 space-y-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Stat label="TR (TRY) tapılan" value={epicScrape.trFetched.toLocaleString()} />
+              <Stat label="AZ (USD) tapılan" value={epicScrape.azFetched.toLocaleString()} />
+              <Stat
+                label="Yadda saxlanılır"
+                value={
+                  epicScrape.upsertTotal
+                    ? `${epicScrape.upsertDone} / ${epicScrape.upsertTotal}`
+                    : "—"
+                }
+              />
+              <Stat
+                label="Son nəticə"
+                value={epicScrape.finished ? epicScrape.upserts.toLocaleString() : "—"}
+              />
+            </div>
+
+            {epicScrape.upsertTotal > 0 && (
+              <Bar
+                value={Math.round((epicScrape.upsertDone / epicScrape.upsertTotal) * 100)}
+                label="Verilənlər bazası"
+                tint="emerald"
+              />
+            )}
+
+            {epicScrape.currentLabel && !epicScrape.error && (
+              <p className="text-sm text-zinc-400">
+                <span className="text-zinc-500">Hazırda: </span>
+                {epicScrape.currentLabel}
+              </p>
+            )}
+
+            {epicScrape.error && (
+              <div className="flex items-start gap-2 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-300 ring-1 ring-rose-500/30">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{epicScrape.error}</span>
+              </div>
+            )}
+
+            {epicScrape.finished && !epicScrape.error && (
+              <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/30">
+                <CheckCircle2 className="h-4 w-4" />
+                Yığım tamamlandı · {epicScrape.upserts.toLocaleString()} oyun yadda saxlandı
+                {epicScrape.skipped > 0 ? ` · ${epicScrape.skipped} ötürüldü (TRY qiyməti yox)` : ""}.
+              </div>
+            )}
+
+            {epicScrape.log.length > 0 && (
+              <details className="rounded-md border border-zinc-800 bg-zinc-950">
+                <summary className="cursor-pointer px-3 py-2 text-xs uppercase tracking-wider text-zinc-500">
+                  Fəaliyyət jurnalı ({epicScrape.log.length})
+                </summary>
+                <ul className="max-h-60 overflow-auto px-3 pb-3 font-mono text-[11px] leading-relaxed text-zinc-400">
+                  {epicScrape.log.map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );

@@ -29,7 +29,10 @@ import {
   Percent,
   RefreshCw,
   Search,
+  TrendingUp,
   ArrowLeft,
+  Coins,
+  Monitor,
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import LogoutButton from "@/components/LogoutButton";
@@ -64,7 +67,10 @@ type IconName =
   | "Music"
   | "Percent"
   | "RefreshCw"
-  | "Search";
+  | "Search"
+  | "TrendingUp"
+  | "Coins"
+  | "Monitor";
 
 export type NavItemSpec = {
   href: string;
@@ -102,6 +108,9 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   Percent,
   RefreshCw,
   Search,
+  TrendingUp,
+  Coins,
+  Monitor,
 };
 
 export default function AdminSidebar({

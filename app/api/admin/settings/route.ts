@@ -83,9 +83,25 @@ export async function POST(req: Request) {
   const profitMarginGamesPct = Number(body.profitMarginGamesPct);
   const profitMarginGiftCardsPct = Number(body.profitMarginGiftCardsPct);
   const profitMarginPsPlusPct = Number(body.profitMarginPsPlusPct);
+  // Epic positional-pricing knobs — default when absent so older clients that
+  // don't post them aren't rejected.
+  const usdToAznRate = body.usdToAznRate != null ? Number(body.usdToAznRate) : 1.7;
+  const epicPositionPct =
+    body.epicPositionPct != null ? Number(body.epicPositionPct) : 50;
+  const epicMinProfitPct =
+    body.epicMinProfitPct != null ? Number(body.epicMinProfitPct) : 10;
 
   if (!Number.isFinite(tryToAznRate) || tryToAznRate <= 0) {
     return NextResponse.json({ error: "Invalid tryToAznRate" }, { status: 400 });
+  }
+  if (!Number.isFinite(usdToAznRate) || usdToAznRate <= 0) {
+    return NextResponse.json({ error: "Invalid usdToAznRate" }, { status: 400 });
+  }
+  if (!Number.isFinite(epicPositionPct) || epicPositionPct < 0 || epicPositionPct > 100) {
+    return NextResponse.json({ error: "Invalid epicPositionPct" }, { status: 400 });
+  }
+  if (!Number.isFinite(epicMinProfitPct) || epicMinProfitPct < 0) {
+    return NextResponse.json({ error: "Invalid epicMinProfitPct" }, { status: 400 });
   }
   if (!Number.isFinite(profitMarginPct) || profitMarginPct < 0) {
     return NextResponse.json({ error: "Invalid profitMarginPct" }, { status: 400 });
@@ -116,6 +132,9 @@ export async function POST(req: Request) {
       profitMarginGamesPct,
       profitMarginGiftCardsPct,
       profitMarginPsPlusPct,
+      usdToAznRate,
+      epicPositionPct,
+      epicMinProfitPct,
       depositCardNumber,
       depositCardHolder,
     };

@@ -83,7 +83,14 @@ export default function TopLoader() {
       }
     };
 
-    const onSubmit = () => start();
+    const onSubmit = (e: Event) => {
+      // Forms that don't navigate (add-to-cart, in-place validation) opt out
+      // via data-no-toploader — otherwise the bar starts and never finishes,
+      // since done() only fires on a route change.
+      const form = e.target as HTMLElement | null;
+      if (form?.closest?.("[data-no-toploader]")) return;
+      start();
+    };
 
     document.addEventListener("click", onClick, true);
     document.addEventListener("submit", onSubmit, true);

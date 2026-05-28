@@ -85,6 +85,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       const buyer = row.user ?? (await ptx.user.findUnique({ where: { id: row.userId } }));
       const referredById = buyer?.referredById ?? null;
 
+      // Sponsorlu müştəri (referans verən) öz dəvət etdiyi istifadəçilərin oyun
+      // alışlarından artırılmış faiz qazanır. Standart referralGamesPct əvəzinə
+      // sponsoredReferralGamesPct tətbiq olunur.
+      const referrer = referredById
+        ? await ptx.user.findUnique({
+            where: { id: referredById },
+            select: { isSponsored: true },
+          })
+        : null;
+      const referralRatePct = referrer?.isSponsored
+        ? settings.sponsoredReferralGamesPct
+        : settings.referralGamesPct;
+
       const price = computeDisplayPrice(gameRow, settings);
       const unitListCents = Math.round(price.finalAzn * 100);
       const tryForCost =
@@ -95,11 +108,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
       if (
         referredById &&
-        settings.referralGamesPct > 0 &&
+        referralRatePct > 0 &&
         !existingCommission
       ) {
         const profitCents = Math.max(0, unitListCents - unitCostCents);
-        const commissionCents = Math.round((unitListCents * settings.referralGamesPct) / 100);
+        const commissionCents = Math.round((unitListCents * referralRatePct) / 100);
         if (commissionCents > 0) {
           await ptx.user.update({
             where: { id: referredById },
@@ -118,7 +131,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
                 kind: "GAME",
                 lineCents: unitListCents,
                 profitCents,
-                shareRate: settings.referralGamesPct,
+                shareRate: referralRatePct,
+                sponsored: Boolean(referrer?.isSponsored),
               }),
             },
           });

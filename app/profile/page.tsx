@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { fmtDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -116,7 +117,7 @@ export default async function ProfileOverviewPage() {
       prisma.transaction.findMany({
         where: { userId: user.id },
         orderBy: { createdAt: "desc" },
-        take: 4,
+        take: 5,
         include: {
           game: { select: { title: true, imageUrl: true } },
           serviceProduct: { select: { title: true } },
@@ -183,12 +184,13 @@ export default async function ProfileOverviewPage() {
   const displayName = user.name ?? user.email.split("@")[0];
 
   return (
-    <div className="space-y-5">
-      <section className="grid gap-4 xl:grid-cols-[minmax(420px,1.65fr)_minmax(260px,0.95fr)_minmax(270px,1fr)]">
+    <div className="space-y-3">
+      <section className="grid gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <WelcomeCard
           displayName={displayName}
           initial={initial}
           memberSince={memberSince}
+          orderCount={orderCount}
         />
 
         <BalanceCard
@@ -201,9 +203,9 @@ export default async function ProfileOverviewPage() {
           cta={
             <Link
               href="/profile/wallet"
-              className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-gradient-to-r from-violet-600 via-purple-600 to-violet-800 px-4 text-sm font-bold text-white shadow-[0_18px_44px_-22px_rgba(124,58,237,0.95)] transition hover:from-violet-500 hover:via-purple-500 hover:to-violet-700"
+              className="mt-4 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-[10px] bg-gradient-to-r from-violet-600 via-purple-600 to-violet-800 px-4 text-xs font-bold text-white shadow-[0_14px_34px_-20px_rgba(124,58,237,0.95)] transition hover:from-violet-500 hover:via-purple-500 hover:to-violet-700"
             >
-              <Plus className="h-4 w-4" /> Balans yüklə
+              <Plus className="h-3.5 w-3.5" /> Balans yüklə
             </Link>
           }
         />
@@ -218,7 +220,7 @@ export default async function ProfileOverviewPage() {
         />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1.18fr_0.94fr]">
+      <section className="grid gap-3 xl:grid-cols-[1.25fr_0.9fr]">
         <SavingsCard
           latestMonthSavings={latestMonthSavings}
           maxMonthlySavings={maxMonthlySavings}
@@ -226,18 +228,23 @@ export default async function ProfileOverviewPage() {
           totalSavingsAzn={totalSavingsAzn}
         />
 
-        <ReferralHero />
+        <ReferralHero refereeCount={refereeCount} />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1.18fr_0.94fr]">
-        <div className="relative min-h-[296px] overflow-hidden rounded-[16px] border border-zinc-200 dark:border-white/10 bg-white dark:bg-[linear-gradient(145deg,rgba(21,20,39,0.96),rgba(9,10,21,0.98))] shadow-[0_30px_80px_-50px_rgba(124,58,237,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_30px_80px_-50px_rgba(124,58,237,0.8),inset_0_1px_0_rgba(255,255,255,0.06)]">
-          <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/40 dark:via-violet-300/40 to-transparent" />
-          <header className="flex items-center justify-between px-6 pb-3 pt-6">
-            <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
+      <section className="grid gap-3 xl:grid-cols-[1.25fr_0.9fr]">
+        <div className="relative overflow-hidden rounded-[14px] border border-zinc-200 dark:border-white/10 bg-white dark:bg-[linear-gradient(145deg,rgba(21,20,39,0.96),rgba(9,10,21,0.98))] shadow-[0_24px_64px_-50px_rgba(124,58,237,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_24px_64px_-50px_rgba(124,58,237,0.8),inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <header className="flex items-center justify-between px-5 pb-2 pt-4">
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
               Son fəaliyyətlər
             </h3>
+            <Link
+              href="/profile/orders"
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-violet-700 dark:text-violet-300 transition hover:text-violet-900 dark:hover:text-violet-200"
+            >
+              Hamısı <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </header>
-          <ul className="mx-6 divide-y divide-zinc-200 dark:divide-white/5 border-t border-zinc-200 dark:border-white/5">
+          <ul className="mx-5 divide-y divide-zinc-200 dark:divide-white/5 border-t border-zinc-200 dark:border-white/5 pb-2">
             {recentActivity.length === 0 ? (
               <li className="py-8 text-center text-sm text-zinc-500">
                 Hələ fəaliyyət yoxdur
@@ -248,49 +255,38 @@ export default async function ProfileOverviewPage() {
               ))
             )}
           </ul>
-          <Link
-            href="/profile/orders"
-            className="inline-flex items-center gap-1.5 px-6 py-4 text-sm font-bold text-violet-700 dark:text-violet-300 transition hover:text-violet-900 dark:hover:text-violet-200"
-          >
-            Bütün fəaliyyətlər <ArrowRight className="h-4 w-4" />
-          </Link>
         </div>
 
-        <div className="relative min-h-[296px] overflow-hidden rounded-[16px] border border-zinc-200 dark:border-white/10 bg-white dark:bg-[linear-gradient(145deg,rgba(21,20,39,0.96),rgba(9,10,21,0.98))] p-6 shadow-[0_30px_80px_-50px_rgba(124,58,237,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_30px_80px_-50px_rgba(124,58,237,0.8),inset_0_1px_0_rgba(255,255,255,0.06)]">
-          <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/40 dark:via-violet-300/40 to-transparent" />
-          <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
+        <div className="relative overflow-hidden rounded-[14px] border border-zinc-200 dark:border-white/10 bg-white dark:bg-[linear-gradient(145deg,rgba(21,20,39,0.96),rgba(9,10,21,0.98))] p-5 shadow-[0_24px_64px_-50px_rgba(124,58,237,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_24px_64px_-50px_rgba(124,58,237,0.8),inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
             Sürətli icmal
           </h3>
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-2.5">
             <QuickStat
-              icon={<ShoppingBag className="h-5 w-5 text-amber-400" />}
+              icon={<ShoppingBag className="h-4 w-4 text-amber-400" />}
               label="Sifarişlər"
               value={orderCount.toString()}
-              hint="Bütün vaxt ərzində"
               href="/profile/orders"
               tint="amber"
             />
             <QuickStat
-              icon={<Heart className="h-5 w-5 text-rose-400" />}
+              icon={<Heart className="h-4 w-4 text-rose-400" />}
               label="Favorilər"
               value={favoritesCount.toString()}
-              hint="Sevdiklərin siyahısı"
               href="/profile/favorites"
               tint="rose"
             />
             <QuickStat
-              icon={<Crown className="h-5 w-5 text-fuchsia-400" />}
-              label="Aktiv abunəliklər"
+              icon={<Crown className="h-4 w-4 text-fuchsia-400" />}
+              label="Abunəliklər"
               value={activeSubscriptionsCount.toString()}
-              hint="Hazırda aktiv"
               href="/profile/subscriptions"
               tint="fuchsia"
             />
             <QuickStat
-              icon={<Users className="h-5 w-5 text-sky-400" />}
-              label="Dəvət etdiklərin"
+              icon={<Users className="h-4 w-4 text-sky-400" />}
+              label="Dəvətlər"
               value={refereeCount.toString()}
-              hint="Üzv olmayan dostların"
               href="/profile/referrals"
               tint="sky"
             />
@@ -305,49 +301,47 @@ function WelcomeCard({
   displayName,
   initial,
   memberSince,
+  orderCount,
 }: {
   displayName: string;
   initial: string;
   memberSince: string | null;
+  orderCount: number;
 }) {
   return (
-    <div className="relative min-h-[226px] overflow-hidden rounded-[16px] border border-violet-300/30 dark:border-violet-300/20 bg-gradient-to-br from-white via-violet-50 to-violet-100 dark:bg-[linear-gradient(135deg,rgba(30,17,59,0.98),rgba(14,13,29,0.96)_45%,rgba(8,9,20,0.98))] p-7 shadow-[0_30px_90px_-52px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[0_30px_90px_-52px_rgba(124,58,237,0.9),inset_0_1px_0_rgba(255,255,255,0.08)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_10%,rgba(124,58,237,0.34),transparent_34%),radial-gradient(circle_at_100%_95%,rgba(168,85,247,0.18),transparent_30%)]" />
-      <div className="pointer-events-none absolute -right-10 -top-16 h-64 w-64 rounded-full border border-violet-300/10 bg-[radial-gradient(circle_at_35%_35%,rgba(124,58,237,0.45),rgba(35,18,75,0.25)_42%,transparent_68%)] shadow-[inset_24px_-22px_70px_rgba(10,6,30,0.9)]" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[54%] sm:block">
-        <Image
-          src="/ps-controller.png"
-          alt=""
-          fill
-          priority
-          sizes="(min-width: 1280px) 430px, 48vw"
-          className="object-cover object-right-bottom opacity-70 saturate-125 [mask-image:linear-gradient(to_left,black_26%,rgba(0,0,0,0.85)_52%,transparent_94%)]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#1b1034] via-[#1b1034]/20 to-transparent" />
-      </div>
+    <div className="relative overflow-hidden rounded-[14px] border border-violet-300/30 dark:border-violet-300/20 bg-gradient-to-br from-white via-violet-50 to-violet-100 dark:bg-[linear-gradient(135deg,rgba(30,17,59,0.98),rgba(14,13,29,0.96)_48%,rgba(8,9,20,0.98))] p-5 shadow-[0_24px_70px_-52px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[0_24px_70px_-52px_rgba(124,58,237,0.9),inset_0_1px_0_rgba(255,255,255,0.08)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_8%,rgba(124,58,237,0.3),transparent_38%),radial-gradient(circle_at_100%_95%,rgba(168,85,247,0.16),transparent_32%)]" />
+      <div className="pointer-events-none absolute -right-12 -top-14 h-44 w-44 rounded-full bg-[radial-gradient(circle_at_35%_35%,rgba(124,58,237,0.4),rgba(35,18,75,0.18)_46%,transparent_70%)] blur-[2px]" />
 
-      <div className="relative flex min-h-[172px] items-center gap-6">
-        <div className="grid h-[90px] w-[90px] shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_35%_28%,rgba(255,255,255,0.12),rgba(124,58,237,0.32)_34%,rgba(32,16,62,0.94)_72%)] text-[42px] font-black text-white shadow-[0_0_0_2px_rgba(168,85,247,0.55),0_0_42px_-8px_rgba(168,85,247,0.95),inset_0_0_22px_rgba(255,255,255,0.08)]">
+      <div className="relative flex items-center gap-4">
+        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_35%_28%,rgba(255,255,255,0.12),rgba(124,58,237,0.34)_36%,rgba(32,16,62,0.94)_74%)] text-[30px] font-black text-white shadow-[0_0_0_2px_rgba(168,85,247,0.55),0_0_34px_-10px_rgba(168,85,247,0.95),inset_0_0_18px_rgba(255,255,255,0.08)]">
           {initial}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
             Salam,
           </p>
-          <h2 className="mt-3 flex items-center gap-2 text-3xl font-black tracking-tight text-zinc-900 dark:text-white sm:text-[32px]">
+          <h2 className="mt-1 flex items-center gap-2 text-2xl font-black tracking-tight text-zinc-900 dark:text-white">
             <span className="truncate">{displayName}</span>
-            <BadgeCheck className="h-5 w-5 shrink-0 fill-violet-500 text-violet-100 dark:text-violet-300" />
+            <BadgeCheck className="h-4 w-4 shrink-0 fill-violet-500 text-violet-100 dark:text-violet-300" />
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-700/80 dark:text-zinc-300/80">
+          <p className="mt-1 truncate text-xs text-zinc-700/80 dark:text-zinc-300/80">
             Honsell icmasının dəyərli üzvüsən.
           </p>
-          {memberSince && (
-            <p className="mt-6 inline-flex items-center gap-2 rounded-full border border-zinc-200 dark:border-white/10 bg-white/60 dark:bg-black/20 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              <CalendarDays className="h-3.5 w-3.5 text-zinc-500" />
-              Üzv olub: {memberSince}
-            </p>
-          )}
         </div>
+      </div>
+
+      <div className="relative mt-4 flex flex-wrap items-center gap-2">
+        {memberSince && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 dark:border-white/10 bg-white/60 dark:bg-black/20 px-3 py-1.5 text-[11px] font-medium text-zinc-600 dark:text-zinc-400">
+            <CalendarDays className="h-3.5 w-3.5 text-zinc-500" />
+            Üzv: {memberSince}
+          </span>
+        )}
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 dark:border-white/10 bg-white/60 dark:bg-black/20 px-3 py-1.5 text-[11px] font-medium text-zinc-600 dark:text-zinc-400">
+          <ShoppingBag className="h-3.5 w-3.5 text-zinc-500" />
+          {orderCount} sifariş
+        </span>
       </div>
     </div>
   );
@@ -365,69 +359,64 @@ function SavingsCard({
   totalSavingsAzn: number;
 }) {
   return (
-    <div className="relative min-h-[248px] overflow-hidden rounded-[16px] border border-zinc-200 dark:border-white/10 bg-white dark:bg-[linear-gradient(140deg,rgba(21,20,40,0.98),rgba(13,12,29,0.98)_52%,rgba(8,9,20,0.98))] p-7 shadow-[0_32px_90px_-54px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_32px_90px_-54px_rgba(124,58,237,0.88),inset_0_1px_0_rgba(255,255,255,0.06)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_48%_20%,rgba(124,58,237,0.24),transparent_32%),radial-gradient(circle_at_84%_80%,rgba(34,197,94,0.08),transparent_28%)]" />
-      <div className="pointer-events-none absolute left-[43%] top-7 hidden h-40 w-40 -translate-x-1/2 rounded-full bg-violet-500/20 blur-3xl sm:block" />
+    <div className="relative overflow-hidden rounded-[14px] border border-zinc-200 dark:border-white/10 bg-white dark:bg-[linear-gradient(140deg,rgba(21,20,40,0.98),rgba(13,12,29,0.98)_52%,rgba(8,9,20,0.98))] p-5 shadow-[0_26px_72px_-54px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_26px_72px_-54px_rgba(124,58,237,0.88),inset_0_1px_0_rgba(255,255,255,0.06)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_18%,rgba(124,58,237,0.2),transparent_36%),radial-gradient(circle_at_92%_88%,rgba(34,197,94,0.08),transparent_30%)]" />
 
-      <div className="relative grid min-h-[190px] gap-6 md:grid-cols-[minmax(190px,0.95fr)_minmax(180px,0.8fr)_auto] md:items-end">
-        <div className="self-start">
-          <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-200">
+      <div className="relative grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] sm:items-center">
+        <div>
+          <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-violet-700 dark:text-violet-200">
             <TrendingUp className="h-3.5 w-3.5" />
-            Honsell ilə nə qədər qazanmısan
+            Nə qədər qazanmısan
           </p>
-          <p className="mt-6 flex items-baseline gap-2">
-            <span className="text-[42px] font-black leading-none tabular-nums text-emerald-600 dark:text-emerald-300">
+          <p className="mt-3 flex items-baseline gap-2">
+            <span className="text-[38px] font-black leading-none tabular-nums text-emerald-600 dark:text-emerald-300">
               {totalSavingsAzn.toFixed(2)}
             </span>
             <span className="text-base font-bold text-emerald-700/80 dark:text-emerald-200/80">₼</span>
           </p>
-          <p className="mt-3 max-w-[260px] text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+          <p className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
             Endirimlər və cashback-lərlə ümumi qənaətin
           </p>
           <Link
             href="/profile/orders"
-            className="mt-7 inline-flex h-10 items-center gap-2 rounded-[12px] border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.055] px-4 text-xs font-bold text-zinc-900 dark:text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-300/40 hover:bg-zinc-100 dark:hover:border-violet-300/30 dark:hover:bg-white/[0.09]"
+            className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.055] px-3 text-xs font-bold text-zinc-900 dark:text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-300/40 hover:bg-zinc-100 dark:hover:border-violet-300/30 dark:hover:bg-white/[0.09]"
           >
-            Daha ətraflı statistika <ArrowRight className="h-3.5 w-3.5" />
+            Ətraflı statistika <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
-        <PiggyIllustration />
-
-        <div className="flex items-end justify-between gap-4 md:block">
-          <div className="mb-3 w-fit rounded-[10px] border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.055] px-3 py-2 text-[11px] font-bold tabular-nums text-zinc-700 dark:text-zinc-200 md:ml-auto">
-            {latestMonthSavings.toFixed(2)} ₼
+        <div className="rounded-[12px] border border-zinc-200 dark:border-white/10 bg-zinc-50/70 dark:bg-white/[0.03] p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              Son 6 ay
+            </span>
+            <span className="rounded-md border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/[0.06] px-2 py-0.5 text-[11px] font-bold tabular-nums text-zinc-700 dark:text-zinc-200">
+              {latestMonthSavings.toFixed(2)} ₼
+            </span>
           </div>
-          <div>
-            <div className="flex h-[92px] items-end gap-3">
-              {savingsByMonth.map((b, i) => {
-                const h = Math.max(
-                  10,
-                  Math.round((b.valueAzn / maxMonthlySavings) * 82),
-                );
-                return (
+          <div className="mt-3 flex h-[88px] items-end gap-2.5">
+            {savingsByMonth.map((b, i) => {
+              const h = Math.max(
+                8,
+                Math.round((b.valueAzn / maxMonthlySavings) * 80),
+              );
+              const isLast = i === savingsByMonth.length - 1;
+              return (
+                <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
                   <div
-                    key={i}
-                    className="flex w-5 flex-col items-center gap-1"
-                  >
-                    <div
-                      className="w-full rounded-t-[5px] rounded-b-sm bg-gradient-to-t from-violet-800 via-violet-500 to-violet-300 shadow-[0_0_18px_-7px_rgba(168,85,247,0.95)]"
-                      style={{ height: `${h}px` }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mt-2 flex gap-3">
-              {savingsByMonth.map((b, i) => (
-                <span
-                  key={i}
-                  className="w-5 text-center text-[11px] font-medium text-zinc-500 dark:text-zinc-400"
-                >
-                  {b.label}
-                </span>
-              ))}
-            </div>
+                    className={`w-full rounded-t-[4px] rounded-b-sm bg-gradient-to-t shadow-[0_0_14px_-7px_rgba(168,85,247,0.95)] ${
+                      isLast
+                        ? "from-emerald-700 via-emerald-500 to-emerald-300"
+                        : "from-violet-800 via-violet-500 to-violet-300"
+                    }`}
+                    style={{ height: `${h}px` }}
+                  />
+                  <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
+                    {b.label}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -435,69 +424,39 @@ function SavingsCard({
   );
 }
 
-function PiggyIllustration() {
+function ReferralHero({ refereeCount }: { refereeCount: number }) {
   return (
-    <div className="pointer-events-none relative mx-auto hidden h-48 w-60 self-end md:block">
-      <div className="absolute bottom-0 left-1/2 h-12 w-44 -translate-x-1/2 rounded-full bg-violet-600/25 blur-xl" />
-      <div className="absolute bottom-2 left-1/2 h-8 w-40 -translate-x-1/2 rounded-full border border-violet-300/20 bg-violet-500/20" />
-      <Image
-        src="/pig.png"
-        alt=""
-        fill
-        sizes="260px"
-        className="object-cover opacity-95 drop-shadow-[0_22px_42px_rgba(168,85,247,0.32)] saturate-125 [mask-image:radial-gradient(ellipse_at_center,black_58%,rgba(0,0,0,0.82)_72%,transparent_91%)]"
-        style={{ objectPosition: "center 55%" }}
-      />
-    </div>
-  );
-}
+    <div className="relative overflow-hidden rounded-[14px] border border-violet-300/30 dark:border-violet-300/20 bg-gradient-to-br from-white via-violet-50 to-purple-50 dark:bg-[linear-gradient(140deg,rgba(23,17,46,0.98),rgba(12,12,28,0.98)_52%,rgba(8,9,20,0.98))] p-5 shadow-[0_26px_72px_-54px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[0_26px_72px_-54px_rgba(124,58,237,0.9),inset_0_1px_0_rgba(255,255,255,0.06)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,rgba(168,85,247,0.26),transparent_34%)]" />
+      <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-fuchsia-500/15 blur-3xl" />
 
-function ReferralHero() {
-  return (
-    <div className="relative min-h-[248px] overflow-hidden rounded-[16px] border border-violet-300/30 dark:border-violet-300/20 bg-gradient-to-br from-white via-violet-50 to-purple-50 dark:bg-[linear-gradient(140deg,rgba(23,17,46,0.98),rgba(12,12,28,0.98)_52%,rgba(8,9,20,0.98))] p-7 shadow-[0_32px_90px_-54px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[0_32px_90px_-54px_rgba(124,58,237,0.9),inset_0_1px_0_rgba(255,255,255,0.06)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_72%_42%,rgba(168,85,247,0.32),transparent_30%),radial-gradient(circle_at_95%_8%,rgba(99,102,241,0.18),transparent_30%)]" />
-      <div className="relative grid min-h-[190px] gap-5 md:grid-cols-[minmax(220px,1fr)_240px] md:items-center">
-        <div>
-          <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-200">
+      <div className="relative flex h-full flex-col">
+        <div className="flex items-center justify-between">
+          <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-violet-700 dark:text-violet-200">
             <Share2 className="h-3.5 w-3.5" />
             Referal proqramı
           </p>
-          <h3 className="mt-6 text-[26px] font-black tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
-            Hər dəvətindən qazan
-          </h3>
-          <p className="mt-3 max-w-md text-sm leading-relaxed text-zinc-700/80 dark:text-zinc-300/80">
-            Kodun ilə qeydiyyatdan keçən dostlarının hər alışından komissiya
-            qazanırsan.
-          </p>
-          <p className="mt-2 max-w-md text-sm text-zinc-500 dark:text-zinc-400">
-            Qazanc balansı ödənişdə istifadə oluna bilər.
-          </p>
-          <Link
-            href="/profile/referrals"
-            className="mt-7 inline-flex h-10 items-center gap-2 rounded-[12px] bg-gradient-to-r from-violet-600 to-purple-800 px-4 text-xs font-bold text-white shadow-[0_18px_42px_-22px_rgba(168,85,247,0.95)] transition hover:from-violet-500 hover:to-purple-700"
-          >
-            Necə işləyir? <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-300/30 dark:border-white/10 bg-white/60 dark:bg-black/20 px-2.5 py-1 text-[11px] font-bold tabular-nums text-violet-700 dark:text-violet-200">
+            <Users className="h-3.5 w-3.5" />
+            {refereeCount} dəvət
+          </span>
         </div>
 
-        <ReferralIllustration />
-      </div>
-    </div>
-  );
-}
+        <h3 className="mt-4 text-xl font-black tracking-tight text-zinc-900 dark:text-white">
+          Hər dəvətindən qazan
+        </h3>
+        <p className="mt-2 text-xs leading-relaxed text-zinc-700/80 dark:text-zinc-300/80">
+          Kodun ilə qeydiyyatdan keçən dostlarının hər alışından komissiya
+          qazanırsan. Qazanc balansı ödənişdə istifadə oluna bilər.
+        </p>
 
-function ReferralIllustration() {
-  return (
-    <div className="pointer-events-none relative hidden h-48 w-full md:block">
-      <div className="absolute inset-x-2 bottom-1 h-24 rounded-[50%] border border-violet-300/10 bg-[radial-gradient(ellipse_at_center,rgba(124,58,237,0.22),transparent_64%)]" />
-      <Image
-        src="/connect.png"
-        alt=""
-        fill
-        sizes="270px"
-        className="object-cover opacity-95 drop-shadow-[0_24px_48px_rgba(168,85,247,0.34)] saturate-125 [mask-image:radial-gradient(ellipse_at_center,black_58%,rgba(0,0,0,0.8)_73%,transparent_92%)]"
-        style={{ objectPosition: "center 63%" }}
-      />
+        <Link
+          href="/profile/referrals"
+          className="mt-4 inline-flex h-9 w-fit items-center gap-1.5 rounded-[10px] bg-gradient-to-r from-violet-600 to-purple-800 px-4 text-xs font-bold text-white shadow-[0_14px_34px_-20px_rgba(168,85,247,0.95)] transition hover:from-violet-500 hover:to-purple-700"
+        >
+          Necə işləyir? <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
     </div>
   );
 }
@@ -544,15 +503,14 @@ function BalanceCard({
 
   return (
     <div
-      className={`relative min-h-[226px] overflow-hidden rounded-[16px] border p-7 shadow-[0_30px_80px_-50px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_30px_80px_-50px_rgba(124,58,237,0.85),inset_0_1px_0_rgba(255,255,255,0.06)] ${styles.shell}`}
+      className={`relative flex flex-col overflow-hidden rounded-[14px] border p-5 shadow-[0_24px_64px_-50px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_24px_64px_-50px_rgba(124,58,237,0.85),inset_0_1px_0_rgba(255,255,255,0.06)] ${styles.shell}`}
     >
-      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-zinc-300 dark:via-white/30 to-transparent" />
       <div
-        className={`absolute -right-10 -top-10 h-36 w-36 rounded-full ${styles.glow} blur-[58px]`}
+        className={`absolute -right-8 -top-8 h-28 w-28 rounded-full ${styles.glow} blur-[48px]`}
       />
       <div className="relative flex items-start justify-between">
         <div
-          className={`inline-flex items-center gap-2 rounded-[10px] ${styles.chipBg} px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] ${styles.chipText} ring-1 ${styles.chipRing}`}
+          className={`inline-flex items-center gap-2 rounded-[9px] ${styles.chipBg} px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${styles.chipText} ring-1 ${styles.chipRing}`}
         >
           <span className={styles.iconGlow}>{icon}</span>
           {label}
@@ -560,25 +518,25 @@ function BalanceCard({
         <Link
           href={href}
           aria-label={label}
-          className="grid h-9 w-9 place-items-center rounded-full border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.055] text-zinc-600 dark:text-zinc-300 transition hover:border-violet-300/40 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:border-violet-300/30 dark:hover:bg-white/[0.09] dark:hover:text-white"
+          className="grid h-8 w-8 place-items-center rounded-full border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.055] text-zinc-600 dark:text-zinc-300 transition hover:border-violet-300/40 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:border-violet-300/30 dark:hover:bg-white/[0.09] dark:hover:text-white"
         >
           <ArrowUpRight className="h-4 w-4" />
         </Link>
       </div>
 
-      <p className="relative mt-8 flex items-baseline gap-2">
+      <p className="relative mt-5 flex items-baseline gap-2">
         <span
-          className={`text-[42px] font-black leading-none tabular-nums ${styles.value} sm:text-[46px]`}
+          className={`text-[34px] font-black leading-none tabular-nums ${styles.value}`}
         >
           {value.toFixed(2)}
         </span>
         <span className="text-base font-bold text-zinc-600 dark:text-zinc-300">₼</span>
       </p>
-      <p className="relative mt-4 text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+      <p className="relative mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
         {subtitle}
       </p>
 
-      {cta && <div className="relative">{cta}</div>}
+      {cta && <div className="relative mt-auto">{cta}</div>}
     </div>
   );
 }
@@ -587,40 +545,37 @@ function QuickStat({
   icon,
   label,
   value,
-  hint,
   href,
   tint,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  hint: string;
   href: string;
   tint: "amber" | "rose" | "fuchsia" | "sky";
 }) {
   const tintBg = {
-    amber: "bg-amber-500/10 text-amber-300 ring-amber-500/25 shadow-[0_0_28px_-12px_rgba(245,158,11,0.8)]",
-    rose: "bg-rose-500/10 text-rose-300 ring-rose-500/25 shadow-[0_0_28px_-12px_rgba(244,63,94,0.8)]",
-    fuchsia: "bg-fuchsia-500/10 text-fuchsia-300 ring-fuchsia-500/25 shadow-[0_0_28px_-12px_rgba(217,70,239,0.8)]",
-    sky: "bg-sky-500/10 text-sky-300 ring-sky-500/25 shadow-[0_0_28px_-12px_rgba(14,165,233,0.8)]",
+    amber: "bg-amber-500/10 text-amber-300 ring-amber-500/25",
+    rose: "bg-rose-500/10 text-rose-300 ring-rose-500/25",
+    fuchsia: "bg-fuchsia-500/10 text-fuchsia-300 ring-fuchsia-500/25",
+    sky: "bg-sky-500/10 text-sky-300 ring-sky-500/25",
   }[tint];
   return (
     <Link
       href={href}
-      className="group relative min-h-[96px] overflow-hidden rounded-[12px] border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.045] p-4 transition hover:border-violet-300/35 hover:bg-zinc-100 dark:hover:border-violet-300/25 dark:hover:bg-white/[0.07]"
+      className="group relative overflow-hidden rounded-[11px] border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.045] p-3 transition hover:border-violet-300/35 hover:bg-zinc-100 dark:hover:border-violet-300/25 dark:hover:bg-white/[0.07]"
     >
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-zinc-100 dark:from-white/[0.035] to-transparent opacity-80" />
-      <ArrowUpRight className="absolute right-4 top-4 h-4 w-4 text-zinc-500 transition group-hover:text-zinc-900 dark:group-hover:text-white" />
-      <div className="relative flex items-center gap-4 pr-5">
-        <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-[12px] ring-1 ${tintBg}`}>
+      <div className="flex items-center gap-3">
+        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[10px] ring-1 ${tintBg}`}>
           {icon}
         </span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
-          <p className="mt-1 text-[26px] font-black leading-none tabular-nums text-zinc-900 dark:text-white">
+          <p className="text-[22px] font-black leading-none tabular-nums text-zinc-900 dark:text-white">
             {value}
           </p>
-          <p className="mt-2 text-[12px] leading-snug text-zinc-500">{hint}</p>
+          <p className="mt-1 truncate text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+            {label}
+          </p>
         </div>
       </div>
     </Link>
@@ -660,28 +615,22 @@ function ActivityItem({ row }: { row: ActivityRow }) {
       ? "Yükləndi"
       : STATUS_LABEL_AZ[row.status] ?? row.status;
 
-  const dateLabel = new Date(row.createdAt).toLocaleString("az-AZ", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const dateLabel = fmtDateTime(row.createdAt);
 
   const useGameImage =
     row.type === "PURCHASE" && row.game?.imageUrl;
 
   return (
-    <li className="flex items-center gap-3 py-3.5">
+    <li className="flex items-center gap-3 py-2.5">
       <div
-        className={`relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl ${useGameImage ? "" : iconBg}`}
+        className={`relative grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg ${useGameImage ? "" : iconBg}`}
       >
         {useGameImage ? (
           <Image
             src={row.game!.imageUrl!}
             alt={row.game!.title}
             fill
-            sizes="40px"
+            sizes="36px"
             className="object-cover"
           />
         ) : (
@@ -703,7 +652,7 @@ function ActivityItem({ row }: { row: ActivityRow }) {
             {statusLabel}
           </span>
         </div>
-        <p className="mt-1 text-[11px] text-zinc-500">{dateLabel}</p>
+        <p className="mt-0.5 text-[11px] text-zinc-500">{dateLabel}</p>
       </div>
       <p
         className={`shrink-0 text-sm font-bold tabular-nums ${

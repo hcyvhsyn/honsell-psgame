@@ -30,7 +30,7 @@ export default function CoffeeFloat() {
   }, []);
 
   return (
-    <div className="fixed bottom-24 right-5 z-50 flex items-end gap-2 sm:bottom-[104px] sm:right-6">
+    <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-[calc(1.25rem+env(safe-area-inset-right))] z-50 flex items-end gap-2 sm:bottom-[calc(6.5rem+env(safe-area-inset-bottom))] sm:right-[calc(1.5rem+env(safe-area-inset-right))]">
       <div
         className={`pointer-events-none mb-3 origin-bottom-right rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-lg shadow-amber-900/20 transition-all duration-300 ${
           showTooltip

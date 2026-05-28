@@ -14,8 +14,12 @@ import type { GameCardData } from "./GameCard";
  */
 export default function CartSimilarGames({
   cartGameIds,
+  store,
 }: {
   cartGameIds: string[];
+  /** Cart's game storefront ("PS" | "EPIC"). null when the cart holds no games
+   *  (services only) — in that case we show no recommendations at all. */
+  store: "PS" | "EPIC" | null;
 }) {
   const [results, setResults] = useState<GameCardData[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -24,11 +28,17 @@ export default function CartSimilarGames({
   const [usedFallback, setUsedFallback] = useState(false);
 
   useEffect(() => {
+    // No game storefront (services-only cart) → nothing to recommend.
+    if (!store) {
+      setResults([]);
+      setLoaded(true);
+      return;
+    }
     let alive = true;
     const ids = cartGameIds.slice(0, 10).join(",");
-    // Always hit the endpoint — the server decides between semantic and
+    // The server stays within `store` and decides between semantic and
     // fallback based on whether `ids` is empty or no embeddings match.
-    fetch(`/api/cart/similar?ids=${encodeURIComponent(ids)}&limit=4`)
+    fetch(`/api/cart/similar?ids=${encodeURIComponent(ids)}&store=${store}&limit=4`)
       .then((r) => r.json())
       .then((j: { results: GameCardData[]; fallback?: boolean }) => {
         if (!alive) return;
@@ -42,7 +52,7 @@ export default function CartSimilarGames({
     return () => {
       alive = false;
     };
-  }, [cartGameIds.join(",")]);
+  }, [cartGameIds.join(","), store]);
 
   if (!loaded || results.length === 0) return null;
 

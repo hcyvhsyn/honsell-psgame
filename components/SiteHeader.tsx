@@ -7,6 +7,8 @@ import {
   BriefcaseBusiness,
   ChevronDown,
   ChevronRight,
+  Coins,
+  Crosshair,
   Flame,
   Gamepad2,
   Gem,
@@ -17,9 +19,10 @@ import {
   LogIn,
   Menu,
   MessageCircle,
+  Monitor,
   Music2,
   Sparkles,
-  Tags,
+  Target,
   type LucideIcon,
   User,
   UserPlus,
@@ -104,14 +107,6 @@ const playstationGroup: NavGroup = {
       section: "products",
     },
     {
-      href: "/endirimler",
-      label: "Endirimlər",
-      description: "Kampaniyalar və ucuz təkliflər",
-      Icon: Tags,
-      section: "helpful",
-      featured: true,
-    },
-    {
       href: "/reyler",
       label: "Rəylər",
       description: "Müştəri təcrübələri",
@@ -124,6 +119,44 @@ const playstationGroup: NavGroup = {
       description: "Sevdiyin məhsullara bax",
       Icon: Heart,
       section: "helpful",
+    },
+  ],
+};
+
+const pcGamesGroup: NavGroup = {
+  label: "PC Oyunları",
+  Icon: Monitor,
+  href: "/epic-games",
+  description: "Epic Games Store rəqəmsal PC oyunları",
+  items: [
+    {
+      href: "/epic-games",
+      label: "Epic Games",
+      description: "Epic Games Store oyun kataloqu",
+      Icon: Monitor,
+      section: "products",
+    },
+  ],
+};
+
+const inGameCreditGroup: NavGroup = {
+  label: "Oyun-içi Vahid",
+  Icon: Coins,
+  description: "Mobil oyunlar üçün UC, TG və digər vahid paketləri",
+  items: [
+    {
+      href: "/pubg-uc",
+      label: "PUBG UC",
+      description: "PUBG Mobile üçün UC paketləri",
+      Icon: Target,
+      section: "products",
+    },
+    {
+      href: "/point-blank",
+      label: "Point Blank TG",
+      description: "Point Blank üçün TG paketləri",
+      Icon: Crosshair,
+      section: "products",
     },
   ],
 };
@@ -268,14 +301,8 @@ const servicesGroup: NavGroup = {
 const otherGroup: NavGroup = {
   label: "Digər",
   Icon: Grid2X2,
-  description: "Bonuslar, bələdçilər və sayt məlumatları",
+  description: "Bələdçilər və sayt məlumatları",
   items: [
-    {
-      href: "/qazan",
-      label: "Qazan",
-      description: "Bonus hesablayıcı",
-      Icon: Gem,
-    },
     {
       href: "/bilmeli-olduglarin",
       label: "Bələdçilər",
@@ -299,6 +326,8 @@ const otherGroup: NavGroup = {
 
 const navGroups: NavGroup[] = [
   playstationGroup,
+  pcGamesGroup,
+  inGameCreditGroup,
   streamingGroup,
   musicGroup,
   workGroup,
@@ -427,22 +456,6 @@ export default function SiteHeader({
               ))}
             </nav>
 
-            <div className="flex shrink-0 items-center gap-5">
-              <Link
-                href="/qazan"
-                className="inline-flex h-11 items-center gap-2 rounded-[20px] border border-violet-500/35 bg-violet-50 px-4 text-sm font-semibold text-violet-700 shadow-[0_0_24px_-16px_rgba(124,58,237,0.45)] transition hover:border-violet-400/60 hover:bg-violet-100 dark:bg-violet-950/25 dark:text-violet-50 dark:shadow-[0_0_24px_-16px_rgba(124,58,237,0.9)] dark:hover:border-violet-300/60 dark:hover:bg-violet-900/35"
-              >
-                <Gem className="h-5 w-5" />
-                Bonus qazan
-              </Link>
-              <Link
-                href="/endirimler"
-                className="inline-flex h-11 items-center gap-2 rounded-[20px] bg-gradient-to-r from-violet-600 via-purple-600 to-violet-800 px-5 text-sm font-black text-white shadow-[0_18px_44px_-22px_rgba(124,58,237,0.95)] transition hover:from-violet-500 hover:via-purple-500 hover:to-violet-700"
-              >
-                <Flame className="h-5 w-5 fill-white/20" />
-                Endirimlər
-              </Link>
-            </div>
           </div>
         </div>
       </header>
@@ -597,6 +610,27 @@ function NavDropdown({
         : "text-zinc-700 dark:text-zinc-200/90 hover:text-zinc-900 dark:hover:text-white"
     }`;
   const Icon = group.Icon;
+
+  // Panel sabit enlidir (520px). Ən sağdakı qruplarda `left-0` ilə açılsa panel
+  // ekranın sağ kənarından kənara çıxır. Triggerin viewport-dakı yerini ölçüb,
+  // sağa daşacaqsa paneli `right-0`-a keçirib sola doğru açırıq.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [alignRight, setAlignRight] = useState(false);
+
+  useLayoutEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    const PANEL_WIDTH = 520;
+    const MARGIN = 24; // max-w-[calc(100vw-3rem)] ilə eyni boşluq
+    const update = () => {
+      const left = node.getBoundingClientRect().left;
+      setAlignRight(left + PANEL_WIDTH > window.innerWidth - MARGIN);
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   const triggerContent = (
     <>
       <Icon className="h-5 w-5 shrink-0 text-zinc-700 dark:text-zinc-100" />
@@ -609,7 +643,7 @@ function NavDropdown({
   );
 
   return (
-    <div className="group relative">
+    <div ref={containerRef} className="group relative">
       {group.href ? (
         <Link href={group.href} className={triggerClass}>
           {triggerContent}
@@ -624,7 +658,7 @@ function NavDropdown({
         hover hədəfidir — kursor triggerdən panelə keçəndə group hover-i
         kəsilmir.
       */}
-      <div className="invisible absolute left-0 top-full z-50 w-[520px] max-w-[calc(100vw-3rem)] pt-3 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+      <div className={`invisible absolute top-full z-50 w-[520px] max-w-[calc(100vw-3rem)] pt-3 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${alignRight ? "right-0" : "left-0"}`}>
         <div className="relative overflow-hidden rounded-[20px] border border-violet-300/45 bg-[radial-gradient(circle_at_7%_7%,rgba(168,85,247,0.10),transparent_31%),radial-gradient(circle_at_94%_10%,rgba(59,130,246,0.08),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.97))] p-4 shadow-[0_22px_70px_-42px_rgba(124,58,237,0.35)] backdrop-blur-2xl dark:border-violet-400/[0.45] dark:bg-[radial-gradient(circle_at_7%_7%,rgba(168,85,247,0.24),transparent_31%),radial-gradient(circle_at_94%_10%,rgba(59,130,246,0.16),transparent_28%),linear-gradient(135deg,rgba(17,19,32,0.98),rgba(5,7,15,0.97))] dark:shadow-[0_22px_70px_-34px_rgba(168,85,247,0.85)]">
           <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/70 to-transparent" />
           <div className="pointer-events-none absolute inset-x-8 bottom-0 h-16 bg-violet-700/10 blur-3xl" />

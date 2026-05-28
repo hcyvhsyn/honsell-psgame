@@ -21,7 +21,7 @@ type ThemeCtx = {
 const Ctx = createContext<ThemeCtx | null>(null);
 
 const STORAGE_KEY = "honsell.theme";
-const THEME_REVEAL_DURATION_MS = 720;
+const THEME_REVEAL_DURATION_MS = 480;
 
 type ViewTransitionHandle = {
   ready: Promise<void>;

@@ -22,10 +22,13 @@ import {
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { fmtAzn, fmtDate } from "@/lib/format";
+import { getSettings } from "@/lib/pricing";
 import RoleToggle from "./RoleToggle";
 import UserAdminActions from "./UserAdminActions";
 import CancelPurchaseButton from "./CancelPurchaseButton";
 import DisableUserButton from "./DisableUserButton";
+import SponsorUserButton from "./SponsorUserButton";
+import { Sparkles } from "lucide-react";
 import AdminNotesSection from "./AdminNotesSection";
 import QuickActionsBar from "./QuickActionsBar";
 import CopyableField from "@/components/CopyableField";
@@ -106,6 +109,8 @@ export default async function AdminUserDetailPage({
   });
 
   if (!user) notFound();
+
+  const settings = await getSettings();
 
   const purchases = user.transactions.filter((t) => t.type === "PURCHASE");
   const servicePurchases = user.transactions.filter(
@@ -296,12 +301,22 @@ export default async function AdminUserDetailPage({
             >
               {user.role}
             </span>
+            {user.isSponsored && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-300 ring-1 ring-amber-500/40">
+                <Sparkles className="h-3 w-3" /> SPONSORLU · {settings.sponsoredReferralGamesPct}%
+              </span>
+            )}
           </div>
         </div>
 
         <div className="flex flex-col items-end gap-2">
           <div className="flex flex-wrap items-center justify-end gap-2">
             <RoleToggle userId={user.id} role={user.role} />
+            <SponsorUserButton
+              userId={user.id}
+              isSponsored={user.isSponsored}
+              pct={settings.sponsoredReferralGamesPct}
+            />
             <DisableUserButton
               userId={user.id}
               disabled={user.disabled}

@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 import AccountCreationCartEditModal from "@/components/AccountCreationCartEditModal";
+import EpicAccountOfferModal from "@/components/EpicAccountOfferModal";
+import EpicAccountLinkModal from "@/components/EpicAccountLinkModal";
 import PlatformCartEditModal from "@/components/PlatformCartEditModal";
 import EpointWidgetModal from "@/components/EpointWidgetModal";
 import ReferralShareButtons from "@/components/ReferralShareButtons";
@@ -44,11 +46,21 @@ export type PsnOption = {
   isDefault: boolean;
 };
 
+export type EpicOption = {
+  id: string;
+  label: string;
+  epicEmail: string;
+  displayName: string;
+  isDefault: boolean;
+};
+
 export default function CartView({
   isAuthed,
   walletBalanceAzn,
   cashbackBalanceAzn = 0,
   psnAccounts,
+  epicAccounts = [],
+  epicAccountProduct = null,
   loyaltyCashbackPct = 0,
   referralCode = null,
   onRequestLogin,
@@ -59,6 +71,10 @@ export default function CartView({
   /** Loyalty tərəfindən toplanmış cashback balansı (deposit cüzdandan ayrı). */
   cashbackBalanceAzn?: number;
   psnAccounts: PsnOption[];
+  /** İstifadəçinin Epic (Türkiye) hesabları. */
+  epicAccounts?: EpicOption[];
+  /** EPIC_ACCOUNT_CREATION məhsulu — Epic hesabı olmayan müştəriyə təklif modalı üçün. */
+  epicAccountProduct?: { id: string; title: string; imageUrl: string | null; priceAznCents: number } | null;
   /** Cashback % the buyer will earn after this purchase. 0 = none. */
   loyaltyCashbackPct?: number;
   /** Login olmuş istifadəçinin referal kodu — uğurlu sifarişdən sonra share blok-da göstərilir. */
@@ -110,6 +126,29 @@ export default function CartView({
   // Default to the user's flagged-default PSN account; fall back to the first.
   const defaultId = psnAccounts.find((a) => a.isDefault)?.id ?? psnAccounts[0]?.id ?? "";
   const [psnAccountId, setPsnAccountId] = useState<string>(defaultId);
+  // Epic hesabları lokal state-də saxlanır ki, müştəri səbətdə mövcud hesabını
+  // əlavə etdikdə (EpicAccountLinkModal) tam reload olmadan dərhal seçilə bilsin.
+  const [epicAccountList, setEpicAccountList] = useState<EpicOption[]>(epicAccounts);
+  useEffect(() => {
+    // Prop yeniləndikdə birləşdir — lokal əlavələri itirmədən serverdən gələni absorb et.
+    setEpicAccountList((prev) => {
+      const byId = new Map(prev.map((a) => [a.id, a]));
+      for (const a of epicAccounts) byId.set(a.id, a);
+      return Array.from(byId.values());
+    });
+  }, [epicAccounts]);
+  const defaultEpicId =
+    epicAccountList.find((a) => a.isDefault)?.id ?? epicAccountList[0]?.id ?? "";
+  const [epicAccountId, setEpicAccountId] = useState<string>(defaultEpicId);
+  const [epicOfferOpen, setEpicOfferOpen] = useState(false);
+  const [epicLinkOpen, setEpicLinkOpen] = useState(false);
+
+  const handleEpicAccountAdded = useCallback((account: EpicOption) => {
+    setEpicAccountList((prev) =>
+      prev.some((a) => a.id === account.id) ? prev : [...prev, account]
+    );
+    setEpicAccountId(account.id);
+  }, []);
 
   useEffect(() => {
     setPsnAccountId(defaultId);
@@ -151,11 +190,24 @@ export default function CartView({
     );
   }
 
-  /** Oyun / PS Plus / TRY üçün PSN seçimi və hesab yükləmə mütləqdir. Hesab-açılışı və streaming PSN tələb etmir. */
-  const deliveryNeedsPsn = items.some((i) =>
-    ["GAME", "PS_PLUS", "EA_PLAY", "TRY_BALANCE"].includes(i.productType)
+  /** Oyun / PS Plus / TRY üçün PSN seçimi mütləqdir. Epic oyunları (store=EPIC)
+   *  PSN yox, Epic hesabı tələb edir — productType hər ikisində "GAME" olduğu üçün
+   *  store ilə ayırırıq. Hesab-açılışı və streaming heç bir hesab tələb etmir. */
+  const deliveryNeedsPsn = items.some(
+    (i) =>
+      (i.productType === "GAME" && i.store !== "EPIC") ||
+      ["PS_PLUS", "EA_PLAY", "TRY_BALANCE"].includes(i.productType)
+  );
+  const deliveryNeedsEpic = items.some(
+    (i) => i.productType === "GAME" && i.store === "EPIC"
+  );
+  // Epic hesab-açılışı artıq səbətdədirsə, hesab yoxluğu bloklamır (alışla birlikdə açılır).
+  const hasEpicCreationInCart = items.some(
+    (i) => i.productType === "EPIC_ACCOUNT_CREATION"
   );
   const blockedNoPsn = isAuthed && deliveryNeedsPsn && psnAccounts.length === 0;
+  const blockedNoEpic =
+    isAuthed && deliveryNeedsEpic && epicAccountList.length === 0 && !hasEpicCreationInCart;
 
   if (items.length === 0) {
     if (message?.kind === "ok") {
@@ -315,7 +367,7 @@ export default function CartView({
     paymentMethod: "wallet" | "epoint" | "epoint-widget",
     widgetBrand: "apple" | "google" = "google",
   ) {
-    if (!isAuthed || blockedNoPsn) return;
+    if (!isAuthed || blockedNoPsn || blockedNoEpic) return;
     if (
       items.some(
         (i) => i.productType === "ACCOUNT_CREATION" && !i.accountCreation
@@ -324,6 +376,17 @@ export default function CartView({
       setMessage({
         kind: "error",
         text: "PSN hesab açılışı üçün məlumatları doldurub yadda saxlayın (Redaktə et).",
+      });
+      return;
+    }
+    if (
+      items.some(
+        (i) => i.productType === "EPIC_ACCOUNT_CREATION" && !i.epicAccountCreation
+      )
+    ) {
+      setMessage({
+        kind: "error",
+        text: "Epic hesab açılışı üçün məlumatları doldurub yadda saxlayın (Redaktə et).",
       });
       return;
     }
@@ -370,8 +433,12 @@ export default function CartView({
             i.streaming
               ? { streaming: i.streaming }
               : {}),
+            ...(i.productType === "EPIC_ACCOUNT_CREATION" && i.epicAccountCreation
+              ? { epicAccountCreation: i.epicAccountCreation }
+              : {}),
           })),
           psnAccountId: deliveryNeedsPsn ? psnAccountId : null,
+          epicAccountId: deliveryNeedsEpic ? epicAccountId : null,
           paymentSource: "wallet",
           paymentMethod,
         }),
@@ -624,6 +691,39 @@ export default function CartView({
           </div>
         )}
 
+        {isAuthed && deliveryNeedsEpic && epicAccountList.length > 0 && (
+          <div className="space-y-2">
+            <label className="flex items-center justify-between text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <span className="flex items-center gap-1.5">
+                <Image src="/epic-white-logo.png" alt="" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
+                Epic hesabı
+              </span>
+              <Link
+                href="/profile/profiles"
+                onClick={onNavigate}
+                className="text-[10px] text-violet-400 hover:text-violet-300"
+              >
+                İdarə et
+              </Link>
+            </label>
+            {epicAccountList.length === 1 ? (
+              <div className="flex items-center justify-between rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-3 py-2 text-sm">
+                <div className="flex flex-col">
+                  <span className="font-medium text-zinc-200">{epicAccountList[0].displayName || epicAccountList[0].label}</span>
+                  <span className="text-xs text-zinc-500">{epicAccountList[0].epicEmail}</span>
+                </div>
+                <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-bold text-zinc-300">PC</span>
+              </div>
+            ) : (
+              <EpicAccountDropdown
+                accounts={epicAccountList}
+                value={epicAccountId}
+                onChange={setEpicAccountId}
+              />
+            )}
+          </div>
+        )}
+
         <div className="pt-2">
           {!isAuthed ? (
             onRequestLogin ? (
@@ -655,6 +755,45 @@ export default function CartView({
               >
                 Hesab əlavə et
               </Link>
+            </div>
+          ) : blockedNoEpic ? (
+            <div className="space-y-3 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3">
+              <p className="flex items-start gap-2 text-xs text-violet-100/90">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" />
+                Epic oyununu almaq üçün Türkiyə Epic hesabı lazımdır. Hesabınız
+                varsa əlavə edin, yoxdursa açılışını sifarişə əlavə edin.
+              </p>
+              <button
+                type="button"
+                onClick={() => setEpicLinkOpen(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-500"
+              >
+                Hesabım var — əlavə et
+              </button>
+
+              <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-violet-300/60">
+                <span className="h-px flex-1 bg-violet-500/20" />
+                <span>və ya</span>
+                <span className="h-px flex-1 bg-violet-500/20" />
+              </div>
+
+              {epicAccountProduct ? (
+                <button
+                  type="button"
+                  onClick={() => setEpicOfferOpen(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-sm font-medium text-violet-100 hover:bg-violet-500/20"
+                >
+                  Yeni hesab aç ({(epicAccountProduct.priceAznCents / 100).toFixed(2)} AZN)
+                </button>
+              ) : (
+                <Link
+                  href="/profile/profiles"
+                  onClick={onNavigate}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-sm font-medium text-violet-100 hover:bg-violet-500/20"
+                >
+                  Profildən hesab aç
+                </Link>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -779,11 +918,26 @@ export default function CartView({
       </aside>
     </div>
 
-    <CartSimilarGames
-      cartGameIds={items
-        .filter((i) => i.productType === "GAME" || i.productType === "ADDON")
-        .map((i) => i.id)}
-    />
+    {(() => {
+      // Recommend within the cart's game storefront: Epic cart → Epic games,
+      // PS cart → PS games. A cart with no games (only streaming / platform /
+      // gift cards) gets store=null → no recommendations.
+      const cartGames = items.filter(
+        (i) => i.productType === "GAME" || i.productType === "ADDON"
+      );
+      const recommendStore: "PS" | "EPIC" | null =
+        cartGames.length === 0
+          ? null
+          : cartGames.some((i) => i.store === "EPIC")
+            ? "EPIC"
+            : "PS";
+      return (
+        <CartSimilarGames
+          cartGameIds={cartGames.map((i) => i.id)}
+          store={recommendStore}
+        />
+      );
+    })()}
 
       {accountEdit && accountEditLine ? (
         <AccountCreationCartEditModal
@@ -812,6 +966,20 @@ export default function CartView({
           onClose={() => setWidget(null)}
         />
       ) : null}
+
+      {epicAccountProduct ? (
+        <EpicAccountOfferModal
+          open={epicOfferOpen}
+          onClose={() => setEpicOfferOpen(false)}
+          product={epicAccountProduct}
+        />
+      ) : null}
+
+      <EpicAccountLinkModal
+        open={epicLinkOpen}
+        onClose={() => setEpicLinkOpen(false)}
+        onAdded={handleEpicAccountAdded}
+      />
     </>
   );
 }
@@ -1151,6 +1319,85 @@ function AccountDropdown({
               }
             }
           `}</style>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EpicAccountDropdown({
+  accounts,
+  value,
+  onChange,
+}: {
+  accounts: EpicOption[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = accounts.find((a) => a.id === value) || accounts[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const handleDocClick = () => setOpen(false);
+    const handleKeydown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    const timer = setTimeout(() => {
+      document.addEventListener("click", handleDocClick);
+      document.addEventListener("keydown", handleKeydown);
+    }, 10);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("click", handleDocClick);
+      document.removeEventListener("keydown", handleKeydown);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`group flex w-full items-center justify-between rounded-lg border bg-zinc-950/50 px-3 py-2.5 text-sm transition ${
+          open ? "border-violet-500/50 ring-1 ring-violet-500/50" : "border-zinc-800/80 hover:border-zinc-700/80"
+        }`}
+      >
+        <div className="flex flex-col text-left">
+          <span className="font-medium text-zinc-200">{selected?.displayName || selected?.label}</span>
+          <span className="text-xs text-zinc-500">{selected?.epicEmail}</span>
+        </div>
+        <ChevronDown
+          className={`h-4 w-4 text-zinc-500 transition-transform duration-200 ${open ? "rotate-180 text-violet-400" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 z-50 mt-2 w-full origin-top overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/95 p-1 shadow-2xl backdrop-blur-xl">
+          <div className="flex max-h-60 flex-col overflow-y-auto">
+            {accounts.map((a) => {
+              const isSelected = a.id === value;
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(a.id);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition ${
+                    isSelected ? "bg-violet-500/10 text-violet-300" : "text-zinc-300 hover:bg-zinc-800/80"
+                  }`}
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">{a.displayName || a.label}</span>
+                    <span className="text-xs opacity-70">{a.epicEmail}</span>
+                  </div>
+                  {isSelected && <Check className="h-4 w-4 shrink-0 text-violet-400" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

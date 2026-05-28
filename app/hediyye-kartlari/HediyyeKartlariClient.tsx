@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
-import { Gift, Plus, Check } from "lucide-react";
+import { Gift, Plus, Check, TrendingDown } from "lucide-react";
 import { useCart } from "@/lib/cart";
 
 type Plan = {
@@ -14,9 +14,27 @@ type Plan = {
   _count: { codes: number };
 };
 
+function tryAmountOf(c: Plan): number {
+  const n = Number((c.metadata as Record<string, unknown> | null)?.tryAmount);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 export default function HediyyeKartlariClient({ cards }: { cards: Plan[] }) {
   const { add, has, hydrated } = useCart();
   const [addedId, setAddedId] = useState<string | null>(null);
+
+  // Baseline = the worst AZN-per-TRY rate among cards (usually the smallest pack).
+  // Savings % on each card is measured against this baseline.
+  const baselineAznPerTry = useMemo(() => {
+    let max = 0;
+    for (const c of cards) {
+      const t = tryAmountOf(c);
+      if (!t) continue;
+      const rate = c.priceAznCents / 100 / t;
+      if (rate > max) max = rate;
+    }
+    return max;
+  }, [cards]);
 
   function addToCart(selected: Plan) {
     add({
@@ -35,6 +53,17 @@ export default function HediyyeKartlariClient({ cards }: { cards: Plan[] }) {
       {cards.map((c) => {
         const inCart = hydrated && has(c.id);
         const isAdded = addedId === c.id;
+
+        const tryAmt = tryAmountOf(c);
+        const azn = c.priceAznCents / 100;
+        let savingsPct = 0;
+        let savingsAzn = 0;
+        if (baselineAznPerTry > 0 && tryAmt > 0) {
+          const expected = baselineAznPerTry * tryAmt;
+          savingsAzn = expected - azn;
+          savingsPct = (savingsAzn / expected) * 100;
+        }
+        const showSavings = savingsPct >= 1;
 
         return (
           <li
@@ -58,7 +87,12 @@ export default function HediyyeKartlariClient({ cards }: { cards: Plan[] }) {
               <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent opacity-80" />
               
               <div className="absolute left-4 top-4 flex gap-1">
-             
+                {showSavings && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[11px] font-bold text-white shadow-lg shadow-emerald-500/30">
+                    <TrendingDown className="h-3 w-3" />
+                    {Math.round(savingsPct)}% sərfəli
+                  </span>
+                )}
               </div>
             </div>
 
@@ -69,10 +103,16 @@ export default function HediyyeKartlariClient({ cards }: { cards: Plan[] }) {
 
               <div className="mt-4 flex items-end gap-3">
                 <span className="text-[2rem] font-bold leading-none tracking-tighter text-zinc-950 dark:text-white">
-                  {(c.priceAznCents / 100).toFixed(2)} AZN
+                  {azn.toFixed(2)} AZN
                 </span>
               </div>
-              <div className="mt-2 h-[24px]" /> {/* Spacer for height consistency with PS Plus */}
+              <div className="mt-2 h-[24px]">
+                {showSavings && (
+                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    {savingsAzn.toFixed(2)} AZN qənaət
+                  </span>
+                )}
+              </div>
 
               <div className="mt-6 flex-1 flex flex-col justify-end">
                 <button

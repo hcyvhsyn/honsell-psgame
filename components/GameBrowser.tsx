@@ -77,52 +77,102 @@ const ACCENT_STYLES: Record<
   }
 > = {
   violet: {
-    activeWrap: "border-violet-300 bg-violet-50 text-violet-800 shadow-[0_8px_28px_-18px_rgba(124,58,237,0.45)] dark:border-violet-500/60 dark:bg-gradient-to-br dark:from-violet-500/20 dark:via-violet-500/10 dark:to-transparent",
-    activeIcon: "bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-500/25 dark:text-violet-200 dark:ring-violet-400/40",
-    activeBadge: "bg-violet-100 text-violet-800 dark:bg-violet-500/25 dark:text-violet-100",
-    activeText: "text-violet-700 dark:text-violet-100",
-    glow: "shadow-[0_8px_28px_-12px_rgba(139,92,246,0.6)]",
+    activeWrap: "border-violet-300 bg-violet-50 text-violet-800 shadow-[0_8px_28px_-18px_rgba(124,58,237,0.45)] dark:border-violet-300/[0.45] dark:bg-violet-400/[0.16] dark:text-violet-50 dark:shadow-[0_12px_36px_-18px_rgba(167,139,250,0.7)]",
+    activeIcon: "bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-300/[0.18] dark:text-violet-50 dark:ring-violet-200/30",
+    activeBadge: "bg-violet-100 text-violet-800 dark:bg-violet-200/[0.16] dark:text-violet-50",
+    activeText: "text-violet-700 dark:text-violet-50",
+    glow: "shadow-[0_8px_28px_-12px_rgba(139,92,246,0.6)] dark:shadow-[0_14px_40px_-22px_rgba(167,139,250,0.9)]",
     hoverIcon: "group-hover:text-violet-600 dark:group-hover:text-violet-300",
   },
   indigo: {
-    activeWrap: "border-indigo-300 bg-indigo-50 text-indigo-800 shadow-[0_8px_28px_-18px_rgba(99,102,241,0.45)] dark:border-indigo-500/60 dark:bg-gradient-to-br dark:from-indigo-500/20 dark:via-indigo-500/10 dark:to-transparent",
-    activeIcon: "bg-indigo-100 text-indigo-700 ring-indigo-200 dark:bg-indigo-500/25 dark:text-indigo-200 dark:ring-indigo-400/40",
-    activeBadge: "bg-indigo-100 text-indigo-800 dark:bg-indigo-500/25 dark:text-indigo-100",
-    activeText: "text-indigo-700 dark:text-indigo-100",
-    glow: "shadow-[0_8px_28px_-12px_rgba(99,102,241,0.6)]",
+    activeWrap: "border-indigo-300 bg-indigo-50 text-indigo-800 shadow-[0_8px_28px_-18px_rgba(99,102,241,0.45)] dark:border-indigo-300/[0.45] dark:bg-indigo-400/[0.16] dark:text-indigo-50 dark:shadow-[0_12px_36px_-18px_rgba(129,140,248,0.7)]",
+    activeIcon: "bg-indigo-100 text-indigo-700 ring-indigo-200 dark:bg-indigo-300/[0.18] dark:text-indigo-50 dark:ring-indigo-200/30",
+    activeBadge: "bg-indigo-100 text-indigo-800 dark:bg-indigo-200/[0.16] dark:text-indigo-50",
+    activeText: "text-indigo-700 dark:text-indigo-50",
+    glow: "shadow-[0_8px_28px_-12px_rgba(99,102,241,0.6)] dark:shadow-[0_14px_40px_-22px_rgba(129,140,248,0.9)]",
     hoverIcon: "group-hover:text-indigo-600 dark:group-hover:text-indigo-300",
   },
   fuchsia: {
-    activeWrap: "border-fuchsia-300 bg-fuchsia-50 text-fuchsia-800 shadow-[0_8px_28px_-18px_rgba(217,70,239,0.45)] dark:border-fuchsia-500/60 dark:bg-gradient-to-br dark:from-fuchsia-500/20 dark:via-fuchsia-500/10 dark:to-transparent",
-    activeIcon: "bg-fuchsia-100 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-500/25 dark:text-fuchsia-200 dark:ring-fuchsia-400/40",
-    activeBadge: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-500/25 dark:text-fuchsia-100",
-    activeText: "text-fuchsia-700 dark:text-fuchsia-100",
-    glow: "shadow-[0_8px_28px_-12px_rgba(217,70,239,0.6)]",
+    activeWrap: "border-fuchsia-300 bg-fuchsia-50 text-fuchsia-800 shadow-[0_8px_28px_-18px_rgba(217,70,239,0.45)] dark:border-fuchsia-300/[0.45] dark:bg-fuchsia-400/[0.16] dark:text-fuchsia-50 dark:shadow-[0_12px_36px_-18px_rgba(232,121,249,0.7)]",
+    activeIcon: "bg-fuchsia-100 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-300/[0.18] dark:text-fuchsia-50 dark:ring-fuchsia-200/30",
+    activeBadge: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-200/[0.16] dark:text-fuchsia-50",
+    activeText: "text-fuchsia-700 dark:text-fuchsia-50",
+    glow: "shadow-[0_8px_28px_-12px_rgba(217,70,239,0.6)] dark:shadow-[0_14px_40px_-22px_rgba(232,121,249,0.9)]",
     hoverIcon: "group-hover:text-fuchsia-600 dark:group-hover:text-fuchsia-300",
   },
   emerald: {
-    activeWrap: "border-emerald-300 bg-emerald-50 text-emerald-800 shadow-[0_8px_28px_-18px_rgba(16,185,129,0.45)] dark:border-emerald-500/60 dark:bg-gradient-to-br dark:from-emerald-500/20 dark:via-emerald-500/10 dark:to-transparent",
-    activeIcon: "bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/25 dark:text-emerald-200 dark:ring-emerald-400/40",
-    activeBadge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/25 dark:text-emerald-100",
-    activeText: "text-emerald-700 dark:text-emerald-100",
-    glow: "shadow-[0_8px_28px_-12px_rgba(16,185,129,0.6)]",
+    activeWrap: "border-emerald-300 bg-emerald-50 text-emerald-800 shadow-[0_8px_28px_-18px_rgba(16,185,129,0.45)] dark:border-emerald-300/[0.45] dark:bg-emerald-400/[0.16] dark:text-emerald-50 dark:shadow-[0_12px_36px_-18px_rgba(52,211,153,0.7)]",
+    activeIcon: "bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-300/[0.18] dark:text-emerald-50 dark:ring-emerald-200/30",
+    activeBadge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-200/[0.16] dark:text-emerald-50",
+    activeText: "text-emerald-700 dark:text-emerald-50",
+    glow: "shadow-[0_8px_28px_-12px_rgba(16,185,129,0.6)] dark:shadow-[0_14px_40px_-22px_rgba(52,211,153,0.9)]",
     hoverIcon: "group-hover:text-emerald-600 dark:group-hover:text-emerald-300",
   },
   sky: {
-    activeWrap: "border-sky-300 bg-sky-50 text-sky-800 shadow-[0_8px_28px_-18px_rgba(14,165,233,0.45)] dark:border-sky-500/60 dark:bg-gradient-to-br dark:from-sky-500/20 dark:via-sky-500/10 dark:to-transparent",
-    activeIcon: "bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/25 dark:text-sky-200 dark:ring-sky-400/40",
-    activeBadge: "bg-sky-100 text-sky-800 dark:bg-sky-500/25 dark:text-sky-100",
-    activeText: "text-sky-700 dark:text-sky-100",
-    glow: "shadow-[0_8px_28px_-12px_rgba(14,165,233,0.6)]",
+    activeWrap: "border-sky-300 bg-sky-50 text-sky-800 shadow-[0_8px_28px_-18px_rgba(14,165,233,0.45)] dark:border-sky-300/[0.45] dark:bg-sky-400/[0.16] dark:text-sky-50 dark:shadow-[0_12px_36px_-18px_rgba(56,189,248,0.7)]",
+    activeIcon: "bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-300/[0.18] dark:text-sky-50 dark:ring-sky-200/30",
+    activeBadge: "bg-sky-100 text-sky-800 dark:bg-sky-200/[0.16] dark:text-sky-50",
+    activeText: "text-sky-700 dark:text-sky-50",
+    glow: "shadow-[0_8px_28px_-12px_rgba(14,165,233,0.6)] dark:shadow-[0_14px_40px_-22px_rgba(56,189,248,0.9)]",
     hoverIcon: "group-hover:text-sky-600 dark:group-hover:text-sky-300",
   },
 };
 
-export default function GameBrowser({ initial }: { initial: ListingResponse }) {
+// Filter state-i sessionStorage-da saxlayır ki, istifadəçi oyunun daxili
+// səhifəsinə keçib geri qayıdanda filterləri itirməsin (komponent unmount/remount
+// edilir). URL-i çirkləndirmir, yeni tab açanda təmiz başlayır.
+type SavedFilters = {
+  productType?: ProductType;
+  query?: string;
+  sort?: Sort;
+  genre?: string;
+  platform?: Platform;
+  onSale?: boolean;
+  priceMin?: string;
+  priceMax?: string;
+  page?: number;
+};
+
+const FILTERS_STORAGE_VERSION = "v1";
+function filtersStorageKey(store: "PS" | "EPIC") {
+  return `honsell.gameBrowser.${store}.${FILTERS_STORAGE_VERSION}`;
+}
+
+function readSavedFilters(store: "PS" | "EPIC"): SavedFilters | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(filtersStorageKey(store));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === "object") return parsed as SavedFilters;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export default function GameBrowser({
+  initial,
+  store = "PS",
+  defaultSort = DEFAULT_SORT,
+  categories = [],
+}: {
+  initial: ListingResponse;
+  /** Storefront scope. "EPIC" routes requests to the Epic-filtered catalog. */
+  store?: "PS" | "EPIC";
+  /** Initial sort. Epic has no `isFeatured` rows yet, so it passes "newest". */
+  defaultSort?: Sort;
+  /** Epic genre/category names for the PC category filter. */
+  categories?: string[];
+}) {
+  // Epic/PC mode: swaps the PlayStation type tabs + platform filter for a
+  // genre/category picker, and routes requests to the Epic catalog.
+  const isEpic = store === "EPIC";
   const [data, setData] = useState<ListingResponse>(initial);
   const [productType, setProductType] = useState<ProductType>(DEFAULT_TYPE);
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
+  const [sort, setSort] = useState<Sort>(defaultSort);
+  const [genre, setGenre] = useState<string>("");
   const [platform, setPlatform] = useState<Platform>(DEFAULT_PLATFORM);
   const [onSale, setOnSale] = useState(false);
   // Price range filter — stored as the raw input strings so the user can
@@ -156,7 +206,9 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
 
       if (isSearching) params.set("q", q);
       params.set("type", productType);
-      if (platform !== "ALL") params.set("platform", platform);
+      if (store !== "PS") params.set("store", store);
+      if (isEpic && genre) params.set("genre", genre);
+      if (!isEpic && platform !== "ALL") params.set("platform", platform);
       if (onSale) params.set("onSale", "1");
       const pMin = Number(priceMin);
       const pMax = Number(priceMax);
@@ -167,9 +219,12 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
 
       // While actively searching, hit the hybrid AI endpoint (semantic +
       // keyword). Browsing without a query keeps using /api/games so sort
-      // and totals continue to work unchanged.
-      const endpoint = isSearching ? "/api/search/ai" : "/api/games";
-      if (!isSearching) params.set("sort", sort);
+      // and totals continue to work unchanged. The AI endpoint isn't
+      // store-scoped, so Epic searches stay on the store-filtered /api/games
+      // keyword path.
+      const useAi = isSearching && store === "PS";
+      const endpoint = useAi ? "/api/search/ai" : "/api/games";
+      if (!useAi) params.set("sort", sort);
 
       try {
         const res = await fetch(`${endpoint}?${params.toString()}`);
@@ -195,12 +250,77 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
     }, 250);
 
     return () => clearTimeout(handle);
-  }, [query, sort, platform, onSale, productType, page, pageSize, priceMin, priceMax]);
+  }, [query, sort, platform, onSale, productType, page, pageSize, priceMin, priceMax, store, genre, isEpic]);
 
-  // Filtrlər dəyişəndə ilk səhifəyə qayıt.
+  // Filtrlər dəyişəndə ilk səhifəyə qayıt. İlk mount-da skip edirik ki,
+  // sessionStorage-dan restore olunan səhifə nömrəsi sıfırlanmasın.
+  const hasFilterChangedAfterMount = useRef(false);
   useEffect(() => {
+    if (!hasFilterChangedAfterMount.current) {
+      hasFilterChangedAfterMount.current = true;
+      return;
+    }
     setPage(1);
-  }, [query, sort, platform, onSale, productType, priceMin, priceMax]);
+  }, [query, sort, platform, onSale, productType, priceMin, priceMax, genre]);
+
+  // Mount-dan sonra sessionStorage-dan filterləri restore et. SSR/hidrasiya
+  // uyğunsuzluğunu önləmək üçün state lazy-initializer-də yox, mount effekt-ində
+  // tətbiq edirik. Saxlanmış filter dəyişiklik edəcəksə, "main fetch" effekti
+  // (yuxarıda) hasMounted=true halında işə düşüb yeni nəticələri çəkir.
+  useEffect(() => {
+    const saved = readSavedFilters(store);
+    if (!saved) return;
+    if (typeof saved.productType === "string") setProductType(saved.productType);
+    if (typeof saved.query === "string") setQuery(saved.query);
+    if (typeof saved.sort === "string") setSort(saved.sort);
+    if (typeof saved.genre === "string") setGenre(saved.genre);
+    if (typeof saved.platform === "string") setPlatform(saved.platform);
+    if (typeof saved.onSale === "boolean") setOnSale(saved.onSale);
+    if (typeof saved.priceMin === "string") setPriceMin(saved.priceMin);
+    if (typeof saved.priceMax === "string") setPriceMax(saved.priceMax);
+    if (typeof saved.page === "number" && saved.page >= 1) setPage(saved.page);
+    // store dəyişməz: yalnız mount-da bir dəfə işləməlidir.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Filterləri sessionStorage-a yaz. Hər şey default-dırsa açarı sil — yeni
+  // sessiyaya təmiz başlamağa imkan verir.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = filtersStorageKey(store);
+    const isDefault =
+      productType === DEFAULT_TYPE &&
+      query === "" &&
+      sort === defaultSort &&
+      genre === "" &&
+      platform === DEFAULT_PLATFORM &&
+      onSale === false &&
+      priceMin === "" &&
+      priceMax === "" &&
+      page === 1;
+    try {
+      if (isDefault) {
+        window.sessionStorage.removeItem(key);
+      } else {
+        window.sessionStorage.setItem(
+          key,
+          JSON.stringify({
+            productType,
+            query,
+            sort,
+            genre,
+            platform,
+            onSale,
+            priceMin,
+            priceMax,
+            page,
+          } satisfies SavedFilters),
+        );
+      }
+    } catch {
+      /* quota / private mode — səssizcə keç */
+    }
+  }, [productType, query, sort, genre, platform, onSale, priceMin, priceMax, page, store, defaultSort]);
 
   const priceMinNum = Number(priceMin);
   const priceMaxNum = Number(priceMax);
@@ -217,17 +337,28 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
     query.trim().length >= 2 ||
     platform !== DEFAULT_PLATFORM ||
     onSale ||
-    sort !== DEFAULT_SORT ||
+    sort !== defaultSort ||
     hasPriceMin ||
-    hasPriceMax;
+    hasPriceMax ||
+    genre !== "";
 
   const clearFilters = () => {
     setQuery("");
-    setSort(DEFAULT_SORT);
+    setSort(defaultSort);
     setPlatform(DEFAULT_PLATFORM);
     setOnSale(false);
     setPriceMin("");
     setPriceMax("");
+    setGenre("");
+    // Save effekti default vəziyyəti onsuz da silir, amma burada explicit
+    // silmək gec-tezliyi aradan qaldırır (back nav-ı dərhal təmiz başladır).
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.removeItem(filtersStorageKey(store));
+      } catch {
+        /* keç */
+      }
+    }
   };
 
   const showingCount = useMemo(() => {
@@ -245,11 +376,18 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
       onRemove: () => setQuery(""),
     });
   }
-  if (platform !== DEFAULT_PLATFORM) {
+  if (!isEpic && platform !== DEFAULT_PLATFORM) {
     activeFilterChips.push({
       key: "platform",
       label: platform,
       onRemove: () => setPlatform(DEFAULT_PLATFORM),
+    });
+  }
+  if (isEpic && genre) {
+    activeFilterChips.push({
+      key: "genre",
+      label: genre,
+      onRemove: () => setGenre(""),
     });
   }
   if (onSale) {
@@ -281,19 +419,20 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
     });
   }
   const advancedFilterCount = [
-    platform !== DEFAULT_PLATFORM,
+    !isEpic && platform !== DEFAULT_PLATFORM,
+    isEpic && genre !== "",
     onSale,
-    sort !== DEFAULT_SORT,
+    sort !== defaultSort,
     hasPriceMin || hasPriceMax,
   ].filter(Boolean).length;
 
   return (
     <>
-      <section className="relative z-40 mb-5 overflow-visible rounded-[22px] border border-violet-200 bg-[radial-gradient(circle_at_5%_0%,rgba(124,58,237,0.10),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] p-2.5 shadow-[0_18px_60px_-48px_rgba(124,58,237,0.36)] backdrop-blur-xl dark:border-violet-400/20 dark:bg-[radial-gradient(circle_at_5%_0%,rgba(124,58,237,0.14),transparent_28%),linear-gradient(135deg,rgba(24,24,36,0.86),rgba(9,9,14,0.94))] dark:shadow-[0_18px_60px_-48px_rgba(124,58,237,0.62)] sm:p-3">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="-mx-1 overflow-x-auto px-1 pb-1">
-              <div className="flex min-w-max gap-2">
+      <section className="relative z-40 mb-3 overflow-visible rounded-[18px] border border-violet-200 bg-[radial-gradient(circle_at_5%_0%,rgba(124,58,237,0.10),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] p-2 shadow-[0_18px_60px_-48px_rgba(124,58,237,0.36)] backdrop-blur-xl dark:border-violet-300/25 dark:bg-[radial-gradient(circle_at_8%_0%,rgba(139,92,246,0.18),transparent_30%),linear-gradient(135deg,rgba(21,18,34,0.96),rgba(8,8,14,0.98))] dark:shadow-[0_18px_70px_-44px_rgba(124,58,237,0.72)] sm:mb-5 sm:rounded-[22px] sm:p-3">
+        <div className="flex flex-col gap-2 sm:gap-3">
+          <div className="flex flex-col gap-2 sm:gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className={`-mx-1 overflow-x-auto px-1 pb-1 ${isEpic ? "hidden" : ""}`}>
+              <div className="flex min-w-max gap-1.5 sm:gap-2">
                 {TYPE_TABS.map((tab) => {
                   const count =
                     tab.value === "ALL"
@@ -309,25 +448,25 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
                       key={tab.value}
                       type="button"
                       onClick={() => setProductType(tab.value)}
-                      className={`group relative inline-flex h-11 shrink-0 items-center gap-2 overflow-hidden rounded-2xl border px-3 text-sm font-semibold transition-all duration-200 ${
+                      className={`group relative inline-flex h-9 shrink-0 items-center gap-1.5 overflow-hidden rounded-xl border px-2 text-xs font-semibold transition-all duration-200 sm:h-11 sm:gap-2 sm:rounded-2xl sm:px-3 sm:text-sm ${
                         active
                           ? `${a.activeWrap} ${a.activeText} ${a.glow}`
-                          : "border-zinc-200 bg-white/70 text-zinc-700 hover:-translate-y-0.5 hover:border-violet-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300 dark:hover:border-violet-400/35 dark:hover:bg-white/[0.065]"
+                          : "border-zinc-200 bg-white/70 text-zinc-700 hover:-translate-y-0.5 hover:border-violet-300 hover:bg-white dark:border-zinc-700/80 dark:bg-zinc-950/[0.45] dark:text-zinc-300 dark:hover:border-violet-300/[0.35] dark:hover:bg-white/[0.07] dark:hover:text-zinc-100"
                       }`}
                     >
                       <span
-                        className={`grid h-7 w-7 place-items-center rounded-xl ring-1 transition ${
+                        className={`grid h-6 w-6 place-items-center rounded-lg ring-1 transition sm:h-7 sm:w-7 sm:rounded-xl ${
                           active
                             ? a.activeIcon
-                            : `bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-white/[0.055] dark:text-zinc-400 dark:ring-white/10 ${a.hoverIcon}`
+                            : `bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-white/[0.06] dark:text-zinc-400 dark:ring-white/10 ${a.hoverIcon}`
                         }`}
                       >
                         {tab.icon}
                       </span>
                       <span className="tracking-tight">{tab.label}</span>
                       <span
-                        className={`rounded-lg px-2 py-1 text-xs font-black tabular-nums ${
-                          active ? a.activeBadge : "bg-zinc-100 text-zinc-500 dark:bg-white/[0.07] dark:text-zinc-400"
+                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-black tabular-nums sm:rounded-lg sm:px-2 sm:py-1 sm:text-xs ${
+                          active ? a.activeBadge : "bg-zinc-100 text-zinc-500 dark:bg-white/[0.08] dark:text-zinc-400"
                         }`}
                       >
                         {count.toLocaleString("en-US")}
@@ -347,23 +486,23 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
             {/* Single inline status line. Replaces 4 different "badge" pills
                 that used to compete with the actual filter controls visually
                 — these are passive counts, they don't need full chips. */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600 dark:text-zinc-500">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-0.5 text-xs text-zinc-600 dark:text-zinc-400">
               {hasActiveFilter && (
                 <span>
-                  <strong className="text-zinc-900 tabular-nums dark:text-zinc-100">
+                  <strong className="text-zinc-900 tabular-nums dark:text-white">
                     {showingCount.toLocaleString("en-US")}
                   </strong>
                   {" nəticə"}
                 </span>
               )}
               <span>
-                <strong className="text-zinc-800 tabular-nums dark:text-zinc-300">
+                <strong className="text-zinc-800 tabular-nums dark:text-zinc-100">
                   {data.totalAll.toLocaleString("en-US")}
                 </strong>
                 {" oyun kataloqda"}
               </span>
               {data.totalOnSale > 0 && (
-                <span className="text-emerald-600 dark:text-emerald-300/80">
+                <span className="text-emerald-600 dark:text-emerald-300">
                   <strong className="tabular-nums">
                     {data.totalOnSale.toLocaleString("en-US")}
                   </strong>
@@ -385,23 +524,23 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(280px,1fr)_auto]">
+          <div className="grid grid-cols-[1fr_auto] gap-2 lg:grid-cols-[minmax(280px,1fr)_auto]">
             <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-zinc-500" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-zinc-400 sm:left-4" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={`${activeTab.singular} axtar...`}
-                className="h-11 w-full rounded-2xl border border-zinc-200 bg-white pl-11 pr-11 text-sm text-zinc-950 outline-none transition placeholder:text-slate-400 focus:border-violet-400/70 focus:bg-white focus:ring-4 focus:ring-violet-500/10 dark:border-white/10 dark:bg-black/25 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-violet-400/60 dark:focus:bg-black/35"
+                className="h-10 w-full rounded-xl border border-zinc-200 bg-white pl-9 pr-9 text-sm text-zinc-950 outline-none transition placeholder:text-slate-400 focus:border-violet-400/70 focus:bg-white focus:ring-4 focus:ring-violet-500/10 dark:border-zinc-700/80 dark:bg-zinc-950/70 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] dark:focus:border-violet-300/60 dark:focus:bg-zinc-950 dark:focus:ring-violet-400/[0.14] sm:h-11 sm:rounded-2xl sm:pl-11 sm:pr-11"
               />
               {loading ? (
-                <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-indigo-400" />
+                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-indigo-400 sm:right-4" />
               ) : query.length > 0 ? (
                 <button
                   type="button"
                   onClick={() => setQuery("")}
                   aria-label="Axtarışı təmizlə"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-zinc-200"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-zinc-200 sm:right-3"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -412,14 +551,15 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
               type="button"
               onClick={() => setFiltersOpen((v) => !v)}
               aria-expanded={filtersOpen}
-              className={`inline-flex h-11 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-black transition ${
+              aria-label="Filter et"
+              className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition sm:h-11 sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm sm:font-black ${
                 filtersOpen
-                  ? "border-violet-300 bg-violet-50 text-violet-800 ring-4 ring-violet-500/10 dark:border-violet-400/60 dark:bg-violet-500/15 dark:text-violet-100"
-                  : "border-zinc-200 bg-white text-zinc-800 hover:border-violet-300 hover:bg-violet-50 dark:border-white/10 dark:bg-black/25 dark:text-zinc-200 dark:hover:border-violet-400/35 dark:hover:bg-white/[0.055]"
+                  ? "border-violet-300 bg-violet-50 text-violet-800 ring-4 ring-violet-500/10 dark:border-violet-300/[0.55] dark:bg-violet-400/[0.16] dark:text-violet-50 dark:ring-violet-300/[0.12]"
+                  : "border-zinc-200 bg-white text-zinc-800 hover:border-violet-300 hover:bg-violet-50 dark:border-zinc-700/80 dark:bg-zinc-950/70 dark:text-zinc-100 dark:hover:border-violet-300/[0.35] dark:hover:bg-white/[0.07]"
               }`}
             >
               <Filter className="h-4 w-4 text-violet-600 dark:text-violet-300" />
-              Filter et
+              <span className="hidden sm:inline">Filter et</span>
               {advancedFilterCount > 0 && (
                 <span className="grid h-5 min-w-5 place-items-center rounded-full bg-violet-500 px-1.5 text-[11px] text-white">
                   {advancedFilterCount}
@@ -462,11 +602,11 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
           )}
 
           {filtersOpen && (
-            <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white/78 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] dark:border-white/10 dark:bg-black/[0.18] dark:shadow-none">
+            <div className="space-y-3 rounded-xl border border-zinc-200 bg-white/[0.78] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] dark:border-white/10 dark:bg-black/[0.18] dark:shadow-none sm:space-y-4 sm:rounded-2xl sm:p-4">
               {/* Each control gets an explicit Azerbaijani label above it so a
                   first-time visitor doesn't have to guess what each dropdown
                   does. The label-on-top layout also reads well on mobile. */}
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
                 <FilterField label="Sıralama">
                   {isSearching ? (
                     <span
@@ -486,22 +626,37 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
                   )}
                 </FilterField>
 
-                <FilterField label="Platforma">
-                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                {isEpic ? (
+                  <FilterField label="Kateqoriya">
                     <Dropdown
-                      value={platform}
-                      onChange={(v) => setPlatform(v as Platform)}
+                      value={genre}
+                      onChange={(v) => setGenre(v)}
                       options={[
-                        { value: "ALL", label: "Bütün platformalar" },
-                        { value: "PS5", label: "PS5" },
-                        { value: "PS4", label: "PS4" },
+                        { value: "", label: "Bütün kateqoriyalar" },
+                        ...categories.map((c) => ({ value: c, label: c })),
                       ]}
-                      ariaLabel="Platforma"
+                      ariaLabel="Kateqoriya"
                       align="end"
                     />
-                    <PlatformInfoButton className="h-11 w-11 rounded-xl border-zinc-200 bg-white text-zinc-600 hover:bg-violet-50 hover:text-violet-700 dark:border-white/10 dark:bg-black/25 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white" />
-                  </div>
-                </FilterField>
+                  </FilterField>
+                ) : (
+                  <FilterField label="Platforma">
+                    <div className="grid grid-cols-[1fr_auto] gap-2">
+                      <Dropdown
+                        value={platform}
+                        onChange={(v) => setPlatform(v as Platform)}
+                        options={[
+                          { value: "ALL", label: "Bütün platformalar" },
+                          { value: "PS5", label: "PS5" },
+                          { value: "PS4", label: "PS4" },
+                        ]}
+                        ariaLabel="Platforma"
+                        align="end"
+                      />
+                      <PlatformInfoButton className="h-11 w-11 rounded-xl border-zinc-200 bg-white text-zinc-600 hover:bg-violet-50 hover:text-violet-700 dark:border-white/10 dark:bg-black/25 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white" />
+                    </div>
+                  </FilterField>
+                )}
 
                 <FilterField label="Endirim">
                   <button
@@ -509,7 +664,7 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
                     onClick={() => setOnSale((v) => !v)}
                     className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition ${
                       onSale
-                        ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/55 dark:bg-emerald-500/15 dark:text-emerald-200"
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-400/[0.55] dark:bg-emerald-500/[0.15] dark:text-emerald-200"
                         : "border-zinc-200 bg-white text-zinc-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-white/10 dark:bg-black/25 dark:text-zinc-300 dark:hover:border-emerald-400/30 dark:hover:bg-white/[0.055] dark:hover:text-emerald-200"
                     }`}
                   >
@@ -586,7 +741,7 @@ export default function GameBrowser({ initial }: { initial: ListingResponse }) {
           <EmptyState query={query} hasActiveFilter={hasActiveFilter} onClear={clearFilters} />
         ) : (
           <ul
-            className={`grid grid-cols-1 gap-5 transition duration-200 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+            className={`grid grid-cols-2 gap-3 transition duration-200 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4 ${
               loading ? "pointer-events-none opacity-50" : "opacity-100"
             }`}
             aria-busy={loading}
@@ -666,7 +821,7 @@ function PriceInput({
       }}
       placeholder={placeholder}
       aria-label={ariaLabel}
-      className="h-10 w-24 rounded-xl border border-zinc-200 bg-white px-3 text-sm tabular-nums text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-violet-400/70 focus:bg-white focus:ring-4 focus:ring-violet-500/10 dark:border-white/10 dark:bg-black/25 dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:border-violet-400/60 dark:focus:bg-black/35"
+      className="h-10 w-24 rounded-xl border border-zinc-200 bg-white px-3 text-sm tabular-nums text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-violet-400/70 focus:bg-white focus:ring-4 focus:ring-violet-500/10 dark:border-white/10 dark:bg-black/25 dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:border-violet-400/60 dark:focus:bg-black/[0.35]"
     />
   );
 }
@@ -699,7 +854,7 @@ function SkeletonGrid() {
   return (
     <ul
       aria-hidden
-      className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4"
     >
       {Array.from({ length: 8 }).map((_, i) => (
         <li
@@ -793,7 +948,7 @@ function Dropdown({
         onClick={() => setOpen((o) => !o)}
         className={`group inline-flex h-11 w-full min-w-[10rem] items-center gap-2 rounded-xl border bg-white pl-3 pr-3 text-sm font-semibold text-zinc-950 transition hover:border-violet-300 hover:bg-violet-50 dark:bg-black/25 dark:text-zinc-100 dark:hover:border-violet-400/30 dark:hover:bg-white/[0.055] ${
           open
-            ? "border-violet-400/70 bg-violet-50 ring-4 ring-violet-500/10 dark:border-violet-400/60 dark:bg-black/35"
+            ? "border-violet-400/70 bg-violet-50 ring-4 ring-violet-500/10 dark:border-violet-400/60 dark:bg-black/[0.35]"
             : "border-zinc-200 dark:border-white/10"
         }`}
       >
@@ -834,7 +989,7 @@ function Dropdown({
                 }}
                 className={`flex w-full items-center justify-between gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-left text-sm transition ${
                   isSelected
-                    ? "bg-violet-50 text-violet-800 dark:bg-violet-500/15 dark:text-violet-100"
+                    ? "bg-violet-50 text-violet-800 dark:bg-violet-500/[0.15] dark:text-violet-100"
                     : isActive
                       ? "bg-zinc-100 text-zinc-950 dark:bg-white/[0.07] dark:text-zinc-100"
                       : "text-zinc-700 dark:text-zinc-300"

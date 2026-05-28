@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
     eaPlayOrders,
     giftCardOrders,
     accountCreationOrders,
+    epicAccountCreationOrders,
     streamingPlatformOrders,
     honsellOrders,
   ] = await Promise.all([
@@ -50,10 +51,13 @@ export async function GET(req: NextRequest) {
         include: {
           user: { select: { id: true, email: true, name: true, phone: true } },
           game: {
-            select: { id: true, title: true, imageUrl: true, platform: true, productUrl: true },
+            select: { id: true, title: true, imageUrl: true, platform: true, productUrl: true, store: true },
           },
           psnAccount: {
             select: { id: true, label: true, psnEmail: true, psnPassword: true, psModel: true },
+          },
+          epicAccount: {
+            select: { id: true, label: true, epicEmail: true, epicPassword: true, displayName: true },
           },
         },
       }),
@@ -120,6 +124,19 @@ export async function GET(req: NextRequest) {
         where: {
           type: "SERVICE_PURCHASE",
           status: "PENDING",
+          serviceProduct: { type: "EPIC_ACCOUNT_CREATION" },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        include: {
+          user: { select: { id: true, email: true, name: true, phone: true } },
+          serviceProduct: { select: { id: true, title: true, type: true } },
+        },
+      }),
+      prisma.transaction.findMany({
+        where: {
+          type: "SERVICE_PURCHASE",
+          status: "PENDING",
           serviceProduct: { type: { in: ["STREAMING", "PLATFORM"] } },
         },
         orderBy: { createdAt: "desc" },
@@ -169,6 +186,7 @@ export async function GET(req: NextRequest) {
     eaPlayOrders,
     giftCardOrders,
     accountCreationOrders,
+    epicAccountCreationOrders,
     streamingOrders,
     aiOrders,
     musicOrders,

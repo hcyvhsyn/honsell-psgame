@@ -56,7 +56,7 @@ export default function Modal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]"
     >
       <div
         aria-hidden
@@ -64,7 +64,7 @@ export default function Modal({
         className="modal-backdrop absolute inset-0 bg-black/70 backdrop-blur-sm"
       />
       <div
-        className={`modal-panel relative max-h-[92vh] w-full overflow-y-auto rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 shadow-2xl shadow-black/60 ${SIZE_CLASSES[size]}`}
+        className={`modal-panel relative max-h-[92vh] max-h-[92dvh] w-full overflow-y-auto rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 shadow-2xl shadow-black/60 ${SIZE_CLASSES[size]}`}
       >
         <button
           type="button"

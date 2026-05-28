@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Loader2, Plus, Edit2, Upload, X, Trash2, Eye } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Loader2, Plus, Edit2, Upload, X, Trash2, Eye, TrendingDown } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { useDialog } from "@/lib/dialogs";
 
@@ -23,7 +23,6 @@ export default function ServicesAdminClient() {
   const [loading, setLoading] = useState(true);
   const [pricing, setPricing] = useState<{
     tryToAznRate: number;
-    profitMarginGiftCardsPct: number;
   } | null>(null);
 
   const [editingId, setEditingId] = useState<string | "NEW" | null>(null);
@@ -47,22 +46,34 @@ export default function ServicesAdminClient() {
       .then((s) => {
         setPricing({
           tryToAznRate: Number(s.tryToAznRate) || 0.053,
-          profitMarginGiftCardsPct:
-            Number(s.profitMarginGiftCardsPct ?? s.profitMarginPct) || 20,
         });
       })
       .catch(() => {});
   }, []);
 
-  function computedAzn(nextTryAmount?: string | number): string {
-    const raw = nextTryAmount ?? editForm.tryAmount;
-    const tryAmount = Number(raw);
-    if (!pricing || !Number.isFinite(tryAmount) || tryAmount <= 0) return "—";
-    const azn =
-      tryAmount *
-      pricing.tryToAznRate *
-      (1 + pricing.profitMarginGiftCardsPct / 100);
-    return (Math.round(azn * 100) / 100).toFixed(2);
+  function profitFromValues(
+    tryAmount: number,
+    aznPrice: number
+  ): { value: string; positive: boolean | null } {
+    if (
+      !pricing ||
+      !Number.isFinite(tryAmount) ||
+      tryAmount <= 0 ||
+      !Number.isFinite(aznPrice) ||
+      aznPrice <= 0
+    ) {
+      return { value: "—", positive: null };
+    }
+    const cost = tryAmount * pricing.tryToAznRate;
+    const profit = aznPrice - cost;
+    return {
+      value: (Math.round(profit * 100) / 100).toFixed(2),
+      positive: profit >= 0,
+    };
+  }
+
+  function computeProfit() {
+    return profitFromValues(Number(editForm.tryAmount), Number(editForm.aznPrice));
   }
 
   async function load() {
@@ -82,6 +93,7 @@ export default function ServicesAdminClient() {
       isActive: p.isActive,
       sortOrder: p.sortOrder,
       tryAmount: String((p.metadata as Record<string, unknown> | null)?.tryAmount ?? ""),
+      aznPrice: p.priceAznCents > 0 ? (p.priceAznCents / 100).toFixed(2) : "",
     });
   }
 
@@ -95,6 +107,7 @@ export default function ServicesAdminClient() {
       isActive: true,
       sortOrder: 0,
       tryAmount: "250",
+      aznPrice: "",
     });
   }
 
@@ -158,6 +171,11 @@ export default function ServicesAdminClient() {
         setSaveError("TRY məbləği düzgün deyil!");
         return;
       }
+      const aznPrice = Number(editForm.aznPrice);
+      if (!Number.isFinite(aznPrice) || aznPrice <= 0) {
+        setSaveError("AZN satış qiyməti düzgün deyil!");
+        return;
+      }
 
       const res = await fetch("/api/admin/services", {
         method: "POST",
@@ -171,6 +189,7 @@ export default function ServicesAdminClient() {
           imageUrl: String(editForm.imageUrl ?? ""),
           isActive: editForm.isActive,
           sortOrder: Number(editForm.sortOrder || 0),
+          aznPrice,
           metadata: { tryAmount },
         }),
       });
@@ -273,6 +292,17 @@ export default function ServicesAdminClient() {
     load();
   }
 
+  const baselineAznPerTry = useMemo(() => {
+    let max = 0;
+    for (const p of products) {
+      const t = Number((p.metadata as Record<string, unknown> | null)?.tryAmount);
+      if (!Number.isFinite(t) || t <= 0) continue;
+      const rate = p.priceAznCents / 100 / t;
+      if (rate > max) max = rate;
+    }
+    return max;
+  }, [products]);
+
   if (loading) return <div className="py-20 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" /></div>;
 
   return (
@@ -291,12 +321,27 @@ export default function ServicesAdminClient() {
               <th className="px-5 py-4 font-medium">TRY</th>
               <th className="px-5 py-4 font-medium">Ad</th>
               <th className="px-5 py-4 font-medium">Qiymət</th>
+              <th className="px-5 py-4 font-medium">Xeyir</th>
+              <th className="px-5 py-4 font-medium">Sərfəli</th>
               <th className="px-5 py-4 font-medium">Stok / Kodlar</th>
               <th className="px-5 py-4 font-medium text-right">Əməliyyat</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800/80">
-            {products.map((p) => (
+            {products.map((p) => {
+              const tryAmount = Number(
+                (p.metadata as Record<string, unknown> | null)?.tryAmount ?? 0
+              );
+              const aznPrice = p.priceAznCents / 100;
+              const profit = profitFromValues(tryAmount, aznPrice);
+              let savingsPct = 0;
+              let savingsAzn = 0;
+              if (baselineAznPerTry > 0 && tryAmount > 0) {
+                const expected = baselineAznPerTry * tryAmount;
+                savingsAzn = expected - aznPrice;
+                savingsPct = (savingsAzn / expected) * 100;
+              }
+              return (
               <tr key={p.id} className="transition hover:bg-zinc-900">
                 <td className="px-5 py-4">
                   {p.imageUrl ? (
@@ -313,7 +358,37 @@ export default function ServicesAdminClient() {
                   {p.title}
                   {!p.isActive && <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-400">Passiv</span>}
                 </td>
-                <td className="px-5 py-4">{(p.priceAznCents / 100).toFixed(2)} AZN</td>
+                <td className="px-5 py-4 tabular-nums">{aznPrice.toFixed(2)} AZN</td>
+                <td className="px-5 py-4 tabular-nums">
+                  <span
+                    className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold ring-1 ${
+                      profit.positive === null
+                        ? "bg-zinc-800 text-zinc-400 ring-zinc-700"
+                        : profit.positive
+                          ? "bg-emerald-500/10 text-emerald-300 ring-emerald-500/30"
+                          : "bg-rose-500/10 text-rose-300 ring-rose-500/30"
+                    }`}
+                  >
+                    {profit.value} AZN
+                  </span>
+                </td>
+                <td className="px-5 py-4 tabular-nums">
+                  {savingsPct >= 1 ? (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="inline-flex w-fit items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-1 text-xs font-bold text-emerald-300 ring-1 ring-emerald-500/30">
+                        <TrendingDown className="h-3 w-3" />
+                        {Math.round(savingsPct)}%
+                      </span>
+                      <span className="text-[11px] text-zinc-500">
+                        {savingsAzn.toFixed(2)} AZN qənaət
+                      </span>
+                    </div>
+                  ) : tryAmount > 0 ? (
+                    <span className="text-xs text-zinc-600">baseline</span>
+                  ) : (
+                    <span className="text-xs text-zinc-600">—</span>
+                  )}
+                </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-2">
                     <button
@@ -340,7 +415,8 @@ export default function ServicesAdminClient() {
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -412,9 +488,10 @@ export default function ServicesAdminClient() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <label className="block text-sm">
-                  TRY qiyməti
+                  TRY (maya)
                   <input
                     type="number"
+                    step="0.01"
                     className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
                     value={String(editForm.tryAmount || "")}
                     onChange={(e) =>
@@ -424,15 +501,38 @@ export default function ServicesAdminClient() {
                   />
                 </label>
                 <label className="block text-sm">
-                  Qiymət (AZN)
+                  AZN (satış)
                   <input
-                    type="text"
-                    readOnly
+                    type="number"
+                    step="0.01"
                     className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
-                    value={computedAzn()}
+                    value={String(editForm.aznPrice || "")}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, aznPrice: e.target.value })
+                    }
+                    placeholder="məs: 14.99"
                   />
                 </label>
               </div>
+              {(() => {
+                const profit = computeProfit();
+                return (
+                  <div className="text-xs text-zinc-500">
+                    Xeyir:{" "}
+                    <span
+                      className={`font-semibold ${
+                        profit.positive === null
+                          ? "text-zinc-200"
+                          : profit.positive
+                            ? "text-emerald-300"
+                            : "text-rose-300"
+                      }`}
+                    >
+                      {profit.value} AZN
+                    </span>
+                  </div>
+                );
+              })()}
               <label className="block text-sm">
                 Sıralama (0 ən öndə)
                 <input type="number" className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white" value={String(editForm.sortOrder || "0")} onChange={(e) => setEditForm({...editForm, sortOrder: e.target.value})} />

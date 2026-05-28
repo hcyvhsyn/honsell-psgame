@@ -32,8 +32,8 @@ export async function sendOrderApprovedWhatsApp(params: {
     `${greeting}\n\n` +
     `${product} üzrə sifarişiniz tamamlandı və tərəfimizdən təsdiqləndi. ✅` +
     `${extra}\n\n` +
-    `Daha ətraflı: honsell.az/profile/orders\n` +
-    `Honsell.az`;
+    `Daha ətraflı: honsell.store/profile/orders\n` +
+    `Honsell.store`;
 
   try {
     const res = await sendWasenderText({ to, text });
@@ -44,6 +44,54 @@ export async function sendOrderApprovedWhatsApp(params: {
     return { ok: true };
   } catch (err) {
     console.error("order whatsapp threw", { kind: params.kind, err });
+    return { ok: false, reason: err instanceof Error ? err.message : "unknown" };
+  }
+}
+
+/**
+ * Müştəri admin tərəfindən "Sponsorlu" statusuna keçirildikdə ona WhatsApp ilə
+ * artırılmış oyun referal faizi barədə məlumat verir. Səssizcə uğursuz olur
+ * (telefon yoxdursa / WaSender konfiqurasiya olunmayıbsa) — admin axınını saxlamır.
+ */
+export async function sendSponsoredWhatsApp(params: {
+  phone: string | null | undefined;
+  userName?: string | null;
+  /** Oyun referal faizi (məs. 8). */
+  pct: number;
+  /** Müştərinin referal kodu — mesaja əlavə olunur. */
+  referralCode?: string | null;
+}): Promise<{ ok: boolean; reason?: string }> {
+  if (!isWasenderConfigured()) {
+    return { ok: false, reason: "WASENDER_NOT_CONFIGURED" };
+  }
+  const to = normalizeToE164(params.phone);
+  if (!to) {
+    return { ok: false, reason: "PHONE_INVALID" };
+  }
+
+  const greeting = params.userName?.trim() ? `Salam, ${params.userName.trim()}!` : "Salam!";
+  const pct = Number.isFinite(params.pct) ? params.pct : 8;
+  const codeLine = params.referralCode?.trim()
+    ? `\n\nReferal kodunuz: ${params.referralCode.trim()}`
+    : "";
+
+  const text =
+    `${greeting}\n\n` +
+    `Təbriklər! 🎉 Hesabınız Honsell.store-da *sponsor* statusu aldı.\n\n` +
+    `Bundan sonra referal linkinizlə qeydiyyatdan keçən istifadəçilərin ` +
+    `*oyun alışlarından* ${pct}% bonus qazanacaqsınız. Bonus referal balansınıza yığılır.` +
+    `${codeLine}\n\n` +
+    `Honsell.store`;
+
+  try {
+    const res = await sendWasenderText({ to, text });
+    if (!res.ok) {
+      console.error("sponsored whatsapp send failed", { reason: res.error });
+      return { ok: false, reason: res.error };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error("sponsored whatsapp threw", { err });
     return { ok: false, reason: err instanceof Error ? err.message : "unknown" };
   }
 }

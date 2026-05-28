@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentCycle, getLastClosedCycle } from "@/lib/referralCycle";
+import { getTestAccountUserIds } from "@/lib/testAccounts";
 
 export type LeaderboardEntry = {
   userId: string;
@@ -63,8 +64,13 @@ async function buildEntries(
  */
 export async function getReferralLeaderboard(limit: number = 10): Promise<LeaderboardEntry[]> {
   const cycle = await getCurrentCycle();
+  const excludeIds = await getTestAccountUserIds();
   const rows = await prisma.referralCycleResult.findMany({
-    where: { cycleId: cycle.id, points: { gt: 0 } },
+    where: {
+      cycleId: cycle.id,
+      points: { gt: 0 },
+      ...(excludeIds.length ? { userId: { notIn: excludeIds } } : {}),
+    },
     orderBy: [
       { points: "desc" },
       { invites: "desc" },
@@ -93,8 +99,13 @@ export async function getLastCycleLeaderboard(limit: number = 10): Promise<{
 }> {
   const cycle = await getLastClosedCycle();
   if (!cycle) return { cycle: null, entries: [] };
+  const excludeIds = await getTestAccountUserIds();
   const rows = await prisma.referralCycleResult.findMany({
-    where: { cycleId: cycle.id, points: { gt: 0 } },
+    where: {
+      cycleId: cycle.id,
+      points: { gt: 0 },
+      ...(excludeIds.length ? { userId: { notIn: excludeIds } } : {}),
+    },
     orderBy: [{ rank: "asc" }, { points: "desc" }],
     take: limit,
     select: {

@@ -50,6 +50,14 @@ type PsnAccountSummary = {
   psModel: string;
 };
 
+type EpicAccountSummary = {
+  id: string;
+  label: string;
+  epicEmail: string;
+  epicPassword: string;
+  displayName: string;
+};
+
 type OrdersPayload = {
   gameOrders: (AnyOrder & {
     user: { id: string; email: string; name: string | null; phone: string | null };
@@ -59,8 +67,10 @@ type OrdersPayload = {
       imageUrl: string | null;
       platform: string | null;
       productUrl: string | null;
+      store: string | null;
     } | null;
     psnAccount: PsnAccountSummary | null;
+    epicAccount: EpicAccountSummary | null;
   })[];
   psPlusOrders: (AnyOrder & {
     user: { id: string; email: string; name: string | null; phone: string | null };
@@ -78,6 +88,10 @@ type OrdersPayload = {
     serviceCode: { id: string; code: string } | null;
   })[];
   accountCreationOrders: (AnyOrder & {
+    user: { id: string; email: string; name: string | null };
+    serviceProduct: { id: string; title: string; type: string } | null;
+  })[];
+  epicAccountCreationOrders: (AnyOrder & {
     user: { id: string; email: string; name: string | null };
     serviceProduct: { id: string; title: string; type: string } | null;
   })[];
@@ -151,6 +165,7 @@ type AccountCreationDetails = {
   birthDate?: string;
   email?: string;
   password?: string;
+  displayName?: string;
 };
 
 function parseAccountCreationDetails(metadata?: string | null): AccountCreationDetails | null {
@@ -165,6 +180,7 @@ function parseAccountCreationDetails(metadata?: string | null): AccountCreationD
       birthDate: pick("birthDate"),
       email: pick("email"),
       password: pick("password"),
+      displayName: pick("displayName"),
     };
     return out.email || out.password || out.firstName || out.lastName || out.birthDate ? out : null;
   } catch {
@@ -192,6 +208,7 @@ const TABS = [
   { id: "gift", label: "Hədiyyə kart (TRY)" },
   { id: "honsell", label: "Honsell Hədiyyə kart" },
   { id: "account", label: "Hesab açma" },
+  { id: "epic", label: "Epic hesab açma" },
   { id: "streaming", label: "Streaming" },
   { id: "ai", label: "Süni İntellekt" },
   { id: "music", label: "Musiqi" },
@@ -208,6 +225,7 @@ const TAB_DESCRIPTIONS: Record<TabId, string> = {
   gift: "TRY Balance kodu modal-da daxil edilir və müştəriyə göndərilir.",
   honsell: "Honsell Hədiyyə kartları — kod avtomatik yaradılır, müştəriyə email + WhatsApp göndərilir.",
   account: "Yeni PSN hesab açma sorğuları.",
+  epic: "Yeni Türkiyə Epic Games hesab açma sorğuları — təsdiqlədikdə hesab yaradılır.",
   streaming: "Netflix, YouTube TV və s. — profil təhvili.",
   ai: "ChatGPT, Claude və digər süni intellekt platformaları.",
   music: "Spotify, YouTube Premium və digər musiqi servisləri.",
@@ -321,6 +339,7 @@ export default function OrdersAdminClient() {
           | "eaPlayOrders"
           | "giftCardOrders"
           | "accountCreationOrders"
+          | "epicAccountCreationOrders"
           | "streamingOrders"
           | "aiOrders"
           | "musicOrders"
@@ -510,6 +529,7 @@ export default function OrdersAdminClient() {
       gift: data?.giftCardOrders.length ?? 0,
       honsell: data?.honsellOrders?.length ?? 0,
       account: data?.accountCreationOrders.length ?? 0,
+      epic: data?.epicAccountCreationOrders?.length ?? 0,
       streaming: data?.streamingOrders?.length ?? 0,
       ai: data?.aiOrders?.length ?? 0,
       music: data?.musicOrders?.length ?? 0,
@@ -517,6 +537,19 @@ export default function OrdersAdminClient() {
       cancelled: cancelledOrders?.length ?? 0,
     };
   }, [data, cancelledOrders]);
+
+  // Order codes that also contain a pending Epic account-creation order. An
+  // Epic game order with no account attached but a matching code means the
+  // customer ordered account creation in the same purchase — the game should
+  // be loaded onto that account once we create it (not an error).
+  const epicCreationOrderCodes = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of data?.epicAccountCreationOrders ?? []) {
+      const code = parseGameOrderMeta(o.metadata ?? null).orderCode;
+      if (code) set.add(code);
+    }
+    return set;
+  }, [data]);
 
   async function loadCancelled(opts: { silent?: boolean } = {}) {
     if (!opts.silent) setCancelledLoading(true);
@@ -567,6 +600,7 @@ export default function OrdersAdminClient() {
       | "eaPlayOrders"
       | "giftCardOrders"
       | "accountCreationOrders"
+      | "epicAccountCreationOrders"
       | "streamingOrders"
       | "aiOrders"
       | "musicOrders"
@@ -636,6 +670,7 @@ export default function OrdersAdminClient() {
       | "eaPlayOrders"
       | "giftCardOrders"
       | "accountCreationOrders"
+      | "epicAccountCreationOrders"
       | "streamingOrders"
       | "aiOrders"
       | "musicOrders"
@@ -743,6 +778,14 @@ export default function OrdersAdminClient() {
                 onClick={setTab}
               />
               <NavItem
+                id="epic"
+                active={tab === "epic"}
+                icon={<UserPlus className="h-4 w-4" />}
+                label="Epic hesab açma"
+                count={counts.epic}
+                onClick={setTab}
+              />
+              <NavItem
                 id="streaming"
                 active={tab === "streaming"}
                 icon={<Tv className="h-4 w-4" />}
@@ -844,6 +887,7 @@ export default function OrdersAdminClient() {
                       })
                     }
                     paymentSource={getPaymentSource(o.metadata)}
+                    epicCreationOrderCodes={epicCreationOrderCodes}
                   />
                 ))}
               </ul>
@@ -988,6 +1032,43 @@ export default function OrdersAdminClient() {
                           o.id,
                           o.serviceProduct?.title ?? "Hesab açma",
                           "accountCreationOrders"
+                        )
+                      }
+                    />
+                  ),
+                };
+              })}
+            />
+          )}
+
+          {tab === "epic" && (
+            <OrdersTable
+              empty="Gözləyən Epic hesab açma sifarişi yoxdur."
+              rows={data.epicAccountCreationOrders.map((o) => {
+                const details = parseAccountCreationDetails(o.metadata);
+                return {
+                  id: o.id,
+                  userId: o.user.id,
+                  userLabel: o.user.name ?? o.user.email,
+                  userSub: o.user.email,
+                  item: o.serviceProduct?.title ?? "Epic hesab açma",
+                  itemSub: details ? (
+                    <AccountCreationDetailsBlock details={details} />
+                  ) : (
+                    "Detallar metadata-dadır"
+                  ),
+                  paymentSource: getPaymentSource(o.metadata),
+                  amount: fmtAzn(o.amountAznCents),
+                  date: fmtDate(o.createdAt),
+                  actions: (
+                    <RowActions
+                      pending={pending}
+                      onApprove={() => actService(o.id, "SUCCESS", "epicAccountCreationOrders")}
+                      onReject={() =>
+                        rejectService(
+                          o.id,
+                          o.serviceProduct?.title ?? "Epic hesab açma",
+                          "epicAccountCreationOrders"
                         )
                       }
                     />
@@ -1295,6 +1376,7 @@ function GameOrderCard({
   onAction,
   onReject,
   paymentSource,
+  epicCreationOrderCodes,
 }: {
   o: OrdersPayload["gameOrders"][number];
   expanded: boolean;
@@ -1303,11 +1385,18 @@ function GameOrderCard({
   onAction: (body: object) => void;
   onReject: () => void;
   paymentSource: string;
+  epicCreationOrderCodes: Set<string>;
 }) {
   const dialog = useDialog();
   const meta = parseGameOrderMeta(o.metadata ?? null);
   const stage = meta.fulfillmentStage ?? ("NEW" as GameOrderStage);
   const amount = Math.abs(o.amountAznCents / 100).toFixed(2);
+  // Epic (PC) order → deliver to the customer's Epic account, not a PSN one.
+  const isEpic = o.game?.store === "EPIC" || Boolean(o.epicAccount);
+  // No account attached, but the same order also created an Epic account →
+  // load the game onto that to-be-created account (not a missing-account error).
+  const epicPendingCreation =
+    isEpic && !o.epicAccount && Boolean(meta.orderCode && epicCreationOrderCodes.has(meta.orderCode));
 
   return (
     <li className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
@@ -1356,7 +1445,12 @@ function GameOrderCard({
         {o.game?.platform && (
           <span className="rounded bg-zinc-800 px-2 py-0.5">Platform: {o.game.platform}</span>
         )}
-        {o.psnAccount && (
+        {isEpic && o.epicAccount && (
+          <span className="rounded bg-zinc-800 px-2 py-0.5">
+            Epic: {o.epicAccount.displayName || o.epicAccount.label} — {o.epicAccount.epicEmail}
+          </span>
+        )}
+        {!isEpic && o.psnAccount && (
           <span className="rounded bg-zinc-800 px-2 py-0.5">
             PSN: {o.psnAccount.label} — {o.psnAccount.psnEmail}
           </span>
@@ -1366,9 +1460,17 @@ function GameOrderCard({
       {expanded && (
         <div className="space-y-3 border-t border-zinc-800 bg-zinc-950/50 px-4 py-4">
           {o.game?.productUrl ? (
-            <CopyableField label="PS Store linki" value={o.game.productUrl} mono />
+            <CopyableField
+              label={isEpic ? "Epic Store linki" : "PS Store linki"}
+              value={o.game.productUrl}
+              mono
+            />
           ) : null}
-          <PsnDetailsBlock psn={o.psnAccount} />
+          {isEpic ? (
+            <EpicDetailsBlock epic={o.epicAccount} pendingCreation={epicPendingCreation} />
+          ) : (
+            <PsnDetailsBlock psn={o.psnAccount} />
+          )}
 
           <div className="flex flex-wrap gap-2">
             <select
@@ -1397,7 +1499,9 @@ function GameOrderCard({
                 if (
                   await dialog.confirm({
                     title: "Sifariş tamamlandı?",
-                    message: "Oyun PSN-da alındı və ya yükləndi?",
+                    message: isEpic
+                      ? "Oyun Epic hesabında alındı və ya yükləndi?"
+                      : "Oyun PSN-da alındı və ya yükləndi?",
                     confirmLabel: "Tamamla",
                   })
                 )
@@ -1463,6 +1567,50 @@ function PsnDetailsBlock({ psn }: { psn: PsnAccountSummary | null }) {
   );
 }
 
+function EpicDetailsBlock({
+  epic,
+  pendingCreation = false,
+}: {
+  epic: EpicAccountSummary | null;
+  /** Bu sifarişdə Epic hesab açılışı da var → hesab yaradıldıqdan sonra oyunu ora yüklə. */
+  pendingCreation?: boolean;
+}) {
+  if (!epic) {
+    if (pendingCreation) {
+      return (
+        <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-xs text-violet-200">
+          Müştəri bu sifarişdə Epic hesab açılışını da sifariş edib. Hesabı
+          yaratdıqdan sonra oyunu həmin hesaba yükləyin (məlumatlar “Epic hesab
+          açma” bölməsindədir).
+        </div>
+      );
+    }
+    return (
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+        Epic hesabı seçilməyib. Müştəri hesab seçməyib və ya silib.
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2.5">
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-violet-200">
+        <KeyRound className="h-3.5 w-3.5" /> Epic hesab məlumatları
+        <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-normal text-zinc-300 ring-1 ring-zinc-800">
+          {epic.label}
+        </span>
+        <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-normal text-zinc-300 ring-1 ring-zinc-800">
+          PC
+        </span>
+      </div>
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+        <CredField label="Email" value={epic.epicEmail} />
+        <CredField label="Şifrə" value={epic.epicPassword} />
+        <CredField label="Display" value={epic.displayName} />
+      </dl>
+    </div>
+  );
+}
+
 function CredField({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center gap-2">
@@ -1504,6 +1652,9 @@ function AccountCreationDetailsBlock({ details }: { details: AccountCreationDeta
       ) : null}
       {details.password ? (
         <DetailField label="Şifrə" value={details.password} mono full sensitive />
+      ) : null}
+      {details.displayName ? (
+        <DetailField label="Görünən ad" value={details.displayName} full />
       ) : null}
     </div>
   );
@@ -1923,6 +2074,7 @@ function TabIcon({ id }: { id: TabId }) {
     gift: <Gift className="h-5 w-5 text-emerald-300" />,
     honsell: <Gift className="h-5 w-5 text-violet-300" />,
     account: <UserPlus className="h-5 w-5 text-emerald-300" />,
+    epic: <UserPlus className="h-5 w-5 text-violet-300" />,
     streaming: <Tv className="h-5 w-5 text-rose-300" />,
     ai: <Sparkles className="h-5 w-5 text-fuchsia-300" />,
     music: <Music className="h-5 w-5 text-pink-300" />,

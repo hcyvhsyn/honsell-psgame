@@ -511,6 +511,110 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ ok: true });
   }
 
+  if (productType === "EPIC_ACCOUNT_CREATION") {
+    const settings = await getSettings();
+    let meta: Record<string, unknown> = {};
+    try {
+      if (tx.metadata) meta = JSON.parse(tx.metadata) as Record<string, unknown>;
+    } catch {
+      return NextResponse.json(
+        { error: "Sifariş məlumatları oxunmur (metadata)." },
+        { status: 400 }
+      );
+    }
+
+    const email = typeof meta.email === "string" ? meta.email.trim().toLowerCase() : "";
+    const password = typeof meta.password === "string" ? meta.password : "";
+    const firstName = typeof meta.firstName === "string" ? meta.firstName.trim() : "";
+    const lastName = typeof meta.lastName === "string" ? meta.lastName.trim() : "";
+    const birthDate = typeof meta.birthDate === "string" ? meta.birthDate.trim() : "";
+    const displayName = typeof meta.displayName === "string" ? meta.displayName.trim() : "";
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: "Sifarişdə müştəri e-poçtu və ya şifrəsi yoxdur." },
+        { status: 400 }
+      );
+    }
+
+    await prisma.$transaction(async (ptx) => {
+      let epicAccountId: string | null = null;
+
+      const existingAcc = await ptx.epicAccount.findFirst({
+        where: { userId: tx.userId, epicEmail: email },
+      });
+
+      if (existingAcc) {
+        epicAccountId = existingAcc.id;
+      } else {
+        const label =
+          (displayName || `${firstName} ${lastName}`.trim()).slice(0, 60) ||
+          "Türkiyə Epic";
+        const count = await ptx.epicAccount.count({ where: { userId: tx.userId } });
+        const created = await ptx.epicAccount.create({
+          data: {
+            userId: tx.userId,
+            label,
+            firstName,
+            lastName,
+            birthDate,
+            epicEmail: email,
+            epicPassword: password,
+            displayName: displayName || label,
+            isDefault: count === 0,
+          },
+        });
+        epicAccountId = created.id;
+      }
+
+      await ptx.transaction.update({
+        where: { id: tx.id },
+        data: {
+          status: "SUCCESS",
+          ...(epicAccountId ? { epicAccountId } : {}),
+        },
+      });
+
+      // Any Epic game purchases in the same order that don't yet have a delivery
+      // account (bought together with this creation) get linked to it now.
+      if (epicAccountId) {
+        const orderCode = typeof meta.orderCode === "string" ? meta.orderCode : null;
+        if (orderCode) {
+          await ptx.transaction.updateMany({
+            where: {
+              userId: tx.userId,
+              type: "PURCHASE",
+              epicAccountId: null,
+              metadata: { contains: `"orderCode":"${orderCode}"` },
+            },
+            data: { epicAccountId },
+          });
+        }
+      }
+
+      const cm = await awardStreamingReferralCommission(ptx, {
+        sourceTransactionId: tx.id,
+        buyerUserId: tx.userId,
+        serviceProductId: tx.serviceProductId,
+        lineCents: Math.abs(tx.amountAznCents),
+        streamingProfitSharePct: settings.referralAccountCreationPct,
+        kind: "ACCOUNT_CREATION",
+      });
+
+      try {
+        await recordPurchaseSpend(ptx, tx.userId, Math.abs(tx.amountAznCents));
+        if (cm?.referredById) {
+          await recordSuccessfulInvite(ptx, cm.referredById, tx.userId);
+        }
+      } catch (err) {
+        console.error("referral cycle bookkeeping failed", err);
+      }
+    });
+
+    await maybeSendReviewInvite(tx);
+    await maybeNotifyApprovalWhatsApp(tx);
+    return NextResponse.json({ ok: true });
+  }
+
   const settings = await getSettings();
   await prisma.$transaction(async (ptx) => {
     await ptx.transaction.update({

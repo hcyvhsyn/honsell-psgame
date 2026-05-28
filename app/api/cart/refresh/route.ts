@@ -34,6 +34,11 @@ export async function POST(req: Request) {
         priceTryCents: true,
         discountTryCents: true,
         discountEndAt: true,
+        // Needed so Epic rows get positional pricing (computeDisplayPrice
+        // delegates to the Epic model on these fields).
+        store: true,
+        priceUsdCents: true,
+        discountUsdCents: true,
       },
     }),
     prisma.serviceProduct.findMany({
@@ -43,9 +48,16 @@ export async function POST(req: Request) {
     getSettings(),
   ]);
 
-  const prices: { id: string; finalAzn: number }[] = [];
+  // `store` is returned so the client can heal cart items that were added
+  // without it (older carts in localStorage, or add-paths that omitted the
+  // field). The cart UI uses it to pick the PSN vs Epic account selector.
+  const prices: { id: string; finalAzn: number; store?: string }[] = [];
   for (const g of games) {
-    prices.push({ id: g.id, finalAzn: computeDisplayPrice(g, settings).finalAzn });
+    prices.push({
+      id: g.id,
+      finalAzn: computeDisplayPrice(g, settings).finalAzn,
+      store: g.store ?? "PS",
+    });
   }
   for (const s of services) {
     prices.push({ id: s.id, finalAzn: s.priceAznCents / 100 });

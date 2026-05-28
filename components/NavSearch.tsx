@@ -49,6 +49,7 @@ type CartPayload = {
   imageUrl: string | null;
   finalAzn: number;
   productType: string;
+  store?: string;
 };
 
 type GameResult = {

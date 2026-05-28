@@ -40,7 +40,7 @@ export default function WhatsAppFloat() {
   if (pathname?.startsWith("/admin")) return null;
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex items-end gap-2 sm:bottom-6 sm:right-6">
+    <div className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-[calc(1.25rem+env(safe-area-inset-right))] z-50 flex items-end gap-2 sm:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] sm:right-[calc(1.5rem+env(safe-area-inset-right))]">
       <div
         className={`pointer-events-none mb-3 origin-bottom-right rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-lg shadow-emerald-900/20 transition-all duration-300 ${
           showTooltip

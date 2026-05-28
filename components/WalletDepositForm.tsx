@@ -13,6 +13,7 @@ import {
   XCircle,
 } from "lucide-react";
 import EpointWidgetModal from "./EpointWidgetModal";
+import { fmtDateTime } from "@/lib/format";
 
 /**
  * Apple Pay / Google Pay düyməsinin görünməsi.
@@ -142,19 +143,11 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/50 via-zinc-900/70 to-zinc-950 p-6">
-        <div className="mb-5 flex items-start gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30">
-            <ShieldCheck className="h-5 w-5" />
-          </span>
-          <div>
-            <h2 className="text-sm font-semibold text-white">Balansı kartla artır</h2>
-            <p className="mt-1 text-xs leading-5 text-zinc-400">
-              Epoint ödəniş səhifəsinə yönləndiriləcəksən. Ödəniş təsdiqlənəndən
-              sonra cüzdan balansın avtomatik yenilənir.
-            </p>
-          </div>
+    <div className="space-y-4">
+      <section className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/50 via-zinc-900/70 to-zinc-950 p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <ShieldCheck className="h-5 w-5 text-emerald-300" />
+          <h2 className="text-sm font-semibold text-white">Balansı kartla artır</h2>
         </div>
 
         <label className="block text-sm font-medium text-zinc-200">Məbləğ (AZN)</label>
@@ -279,37 +272,31 @@ function DepositHistory({ requests }: { requests: DepositRequest[] }) {
   };
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-900/60 via-zinc-900/30 to-zinc-950">
-      <header className="flex items-center justify-between gap-3 border-b border-zinc-800 px-5 py-4">
+    <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40">
+      <header className="flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30">
-            <ReceiptIcon className="h-4 w-4" />
-          </span>
-          <div>
-            <h2 className="text-sm font-semibold">Balans yükləmə tarixçəsi</h2>
-            <p className="text-[11px] text-zinc-500">Epoint ödənişləri və nəticələri</p>
-          </div>
+          <ReceiptIcon className="h-4 w-4 text-emerald-300" />
+          <h2 className="text-sm font-semibold">Balans yükləmə tarixçəsi</h2>
         </div>
-        <div className="hidden items-center gap-1.5 sm:flex">
-          {counts.pending > 0 ? (
-            <CountChip tone="amber" icon={<Clock className="h-3 w-3" />} count={counts.pending} label="gözləyir" />
-          ) : null}
+        <div className="flex items-center gap-1.5">
           {counts.success > 0 ? (
-            <CountChip tone="emerald" icon={<CheckCircle2 className="h-3 w-3" />} count={counts.success} label="təsdiqləndi" />
+            <CountChip tone="emerald" count={counts.success} />
+          ) : null}
+          {counts.pending > 0 ? (
+            <CountChip tone="amber" count={counts.pending} />
           ) : null}
           {counts.failed > 0 ? (
-            <CountChip tone="rose" icon={<XCircle className="h-3 w-3" />} count={counts.failed} label="uğursuz" />
+            <CountChip tone="rose" count={counts.failed} />
           ) : null}
         </div>
       </header>
 
       {requests.length === 0 ? (
-        <div className="px-5 py-10 text-center">
-          <ReceiptIcon className="mx-auto h-8 w-8 text-zinc-700" />
-          <p className="mt-3 text-sm text-zinc-400">Hələ balans artırma əməliyyatın yoxdur.</p>
+        <div className="px-5 py-8 text-center">
+          <p className="text-sm text-zinc-500">Hələ balans artırma əməliyyatın yoxdur.</p>
         </div>
       ) : (
-        <ul className="divide-y divide-zinc-800">
+        <ul className="max-h-[300px] divide-y divide-zinc-800/70 overflow-y-auto">
           {requests.map((r) => (
             <DepositRow key={r.id} req={r} />
           ))}
@@ -325,63 +312,24 @@ function DepositRow({ req }: { req: DepositRequest }) {
   const Icon =
     req.status === "SUCCESS" ? CheckCircle2 : req.status === "FAILED" ? XCircle : Clock;
 
-  const heading =
-    req.status === "SUCCESS"
-      ? "Təsdiqləndi - balansın artırıldı"
-      : req.status === "FAILED"
-        ? "Ödəniş tamamlanmadı"
-        : "Epoint nəticəsi gözlənilir";
-
-  const detail =
-    req.status === "SUCCESS"
-      ? "Ödəniş təsdiqləndi və cüzdan balansın yeniləndi."
-      : req.status === "FAILED"
-        ? "Bank əməliyyatı uğursuz qaytardı və ya ödəniş yarımçıq saxlandı."
-        : "Epoint təsdiqi serverə çatan kimi balans avtomatik yenilənəcək.";
-
   const toneClasses = {
-    amber: {
-      iconBg: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
-      bar: "from-amber-500 to-orange-400",
-      pill: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
-    },
-    emerald: {
-      iconBg: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
-      bar: "from-emerald-500 to-teal-400",
-      pill: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
-    },
-    rose: {
-      iconBg: "bg-rose-500/15 text-rose-300 ring-rose-500/30",
-      bar: "from-rose-500 to-pink-500",
-      pill: "bg-rose-500/15 text-rose-300 ring-rose-500/30",
-    },
+    amber: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
+    emerald: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+    rose: "bg-rose-500/15 text-rose-300 ring-rose-500/30",
   }[tone];
 
   return (
-    <li className="relative flex gap-4 px-5 py-4">
-      <div className={`absolute inset-y-0 left-0 w-0.5 bg-gradient-to-b ${toneClasses.bar}`} />
-      <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ring-1 ${toneClasses.iconBg}`}>
-        <Icon className="h-4 w-4" />
+    <li className="flex items-center gap-3 px-4 py-2.5">
+      <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ring-1 ${toneClasses}`}>
+        <Icon className="h-3.5 w-3.5" />
       </div>
-      <div className="min-w-0 flex-1 space-y-1.5">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="text-sm font-semibold tabular-nums text-white">
-            {(req.amountAznCents / 100).toFixed(2)} AZN
-          </span>
-          <span className="text-[11px] text-zinc-500">
-            {new Date(req.createdAt).toLocaleString("az-AZ", {
-              day: "numeric",
-              month: "long",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-        </div>
-        <p className="text-sm text-zinc-200">{heading}</p>
-        <p className="text-xs text-zinc-500">{detail}</p>
-      </div>
-      <span className={`hidden h-fit shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 sm:inline-flex ${toneClasses.pill}`}>
-        <Icon className="h-3 w-3" />
+      <span className="shrink-0 text-sm font-semibold tabular-nums text-white">
+        {(req.amountAznCents / 100).toFixed(2)} ₼
+      </span>
+      <span className="flex-1 truncate text-[11px] text-zinc-500">
+        {fmtDateTime(req.createdAt)}
+      </span>
+      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${toneClasses}`}>
         {req.status === "SUCCESS" ? "Təsdiqləndi" : req.status === "FAILED" ? "Uğursuz" : "Gözləyir"}
       </span>
     </li>
@@ -390,14 +338,10 @@ function DepositRow({ req }: { req: DepositRequest }) {
 
 function CountChip({
   tone,
-  icon,
   count,
-  label,
 }: {
   tone: "amber" | "emerald" | "rose";
-  icon: React.ReactNode;
   count: number;
-  label: string;
 }) {
   const cls =
     tone === "amber"
@@ -406,10 +350,8 @@ function CountChip({
         ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30"
         : "bg-rose-500/15 text-rose-300 ring-rose-500/30";
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${cls}`}>
-      {icon}
-      <span className="font-bold tabular-nums">{count}</span>
-      <span className="opacity-80">{label}</span>
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums ring-1 ${cls}`}>
+      {count}
     </span>
   );
 }

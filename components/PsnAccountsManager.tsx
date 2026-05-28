@@ -234,7 +234,7 @@ function AccountCard({
             )}
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2">
             <CopyRow
               icon={<Mail className="h-3.5 w-3.5" />}
               label="E-poçt"

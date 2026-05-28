@@ -24,6 +24,10 @@ export const dynamic = "force-dynamic";
  *
  * Query params:
  *   ids        comma-separated Game.id values (cart contents)
+ *   store      "PS" | "EPIC" — recommendations stay within the cart's
+ *              storefront (Epic cart → Epic games, PS cart → PS games).
+ *              Omitted/unknown → empty result, so a services-only cart
+ *              (YouTube / Netflix / Prime, gift cards) shows nothing.
  *   limit      number of recommendations to return (default 6, max 12)
  */
 const DEFAULT_PER_ITEM_K = 8;
@@ -32,6 +36,14 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const idsRaw = (url.searchParams.get("ids") ?? "").trim();
   const limit = Math.max(1, Math.min(12, Number(url.searchParams.get("limit")) || 6));
+
+  const storeRaw = (url.searchParams.get("store") ?? "").trim().toUpperCase();
+  const store = storeRaw === "EPIC" ? "EPIC" : storeRaw === "PS" ? "PS" : null;
+  // No game storefront in the cart (only streaming/platform/gift-card items)
+  // → no game recommendations.
+  if (!store) {
+    return NextResponse.json({ results: [], fallback: false });
+  }
 
   const cartIds = idsRaw.split(",").map((s) => s.trim()).filter(Boolean);
 
@@ -59,6 +71,8 @@ export async function GET(req: Request) {
         where: {
           id: { in: ranked },
           isActive: true,
+          // Stay within the cart's storefront.
+          store,
           // Only recommend base games and DLCs; currency cards or themes
           // would be noise in a "you might also like" strip.
           productType: { in: ["GAME", "ADDON"] },
@@ -78,40 +92,38 @@ export async function GET(req: Request) {
   const usedFallback = semanticRows.length === 0;
   let rows: Game[] = semanticRows;
   if (usedFallback) {
-    // Prefer rows that are discounted AND featured — those are the most
-    // commercially attractive recommendations for the cart context. If
-    // there aren't enough, fill out with any featured games.
-    const discountedFeatured = await prisma.game.findMany({
+    // Prefer discounted games of this storefront, featured first — those are
+    // the most commercially attractive recommendations for the cart context.
+    // (isFeatured is preferred via orderBy rather than required, so Epic rows
+    // — which are rarely flagged featured — still surface.) Fill any shortfall
+    // with other active games of the same store.
+    const discounted = await prisma.game.findMany({
       where: {
         isActive: true,
-        isFeatured: true,
+        store,
         productType: "GAME",
         discountTryCents: { not: null },
         id: { notIn: cartIds.length > 0 ? cartIds : ["__none__"] },
       },
-      orderBy: [{ lastScrapedAt: "desc" }],
+      orderBy: [{ isFeatured: "desc" }, { lastScrapedAt: "desc" }],
       take: limit,
     });
-    if (discountedFeatured.length < limit) {
+    if (discounted.length < limit) {
       const more = await prisma.game.findMany({
         where: {
           isActive: true,
-          isFeatured: true,
+          store,
           productType: "GAME",
           id: {
-            notIn: [
-              ...cartIds,
-              ...discountedFeatured.map((g) => g.id),
-              "__none__",
-            ],
+            notIn: [...cartIds, ...discounted.map((g) => g.id), "__none__"],
           },
         },
-        orderBy: [{ lastScrapedAt: "desc" }],
-        take: limit - discountedFeatured.length,
+        orderBy: [{ isFeatured: "desc" }, { lastScrapedAt: "desc" }],
+        take: limit - discounted.length,
       });
-      rows = [...discountedFeatured, ...more];
+      rows = [...discounted, ...more];
     } else {
-      rows = discountedFeatured;
+      rows = discounted;
     }
   }
 
@@ -124,10 +136,14 @@ export async function GET(req: Request) {
     const price = computeDisplayPrice(g, settings);
     return {
       id: g.id,
-      productId: g.productId,
+      // Epic rows have no public detail page yet (see /epic-games) — omit
+      // productId so the card renders link-free instead of pointing at a
+      // PS-style /oyunlar route that would 404.
+      productId: g.store === "EPIC" ? undefined : g.productId,
       title: g.title,
       imageUrl: g.imageUrl,
       platform: g.platform,
+      store: g.store,
       productType: g.productType,
       finalAzn: price.finalAzn,
       originalAzn: price.originalAzn,

@@ -81,6 +81,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
 
   useEffect(() => {
     if (banners.length <= 1 || paused) return;
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const id = setInterval(next, 6000);
     return () => clearInterval(id);
   }, [banners.length, paused, next]);
@@ -120,7 +121,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
     >
       {/* Hero */}
       <div
-        className="media-hero group relative w-full overflow-hidden rounded-2xl aspect-[4/5] sm:aspect-[16/8] lg:h-full lg:min-h-[500px] lg:aspect-auto xl:min-h-[540px]"
+        className="media-hero group relative w-full overflow-hidden rounded-2xl aspect-[4/5] max-sm:max-h-[85svh] max-sm:landscape:aspect-[16/9] max-sm:landscape:max-h-[80svh] sm:aspect-[16/8] lg:h-full lg:min-h-[500px] lg:aspect-auto xl:min-h-[540px]"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -132,7 +133,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
           return (
             <div
               key={b.id}
-              className={`absolute inset-0 transition-opacity duration-700 ${i === current ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+              className={`absolute inset-0 transition-opacity duration-700 motion-reduce:transition-none ${i === current ? "opacity-100" : "opacity-0 pointer-events-none"}`}
             >
               <div className="absolute inset-0 sm:hidden">
                 {bMobile && (
@@ -201,18 +202,18 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
           {title && (
             detailHref ? (
               <Link href={detailHref} className="block">
-                <h2 className="mt-3 max-w-[12ch] text-3xl font-black leading-[1.02] text-white drop-shadow-lg sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl">
+                <h2 className="mt-3 max-w-[16ch] text-[clamp(1.5rem,6vw,1.875rem)] font-black leading-[1.05] text-white drop-shadow-lg sm:max-w-[12ch] sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl">
                   {title}
                 </h2>
               </Link>
             ) : linkHref ? (
               <Link href={linkHref} className="block">
-                <h2 className="mt-3 max-w-[12ch] text-3xl font-black leading-[1.02] text-white drop-shadow-lg sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl">
+                <h2 className="mt-3 max-w-[16ch] text-[clamp(1.5rem,6vw,1.875rem)] font-black leading-[1.05] text-white drop-shadow-lg sm:max-w-[12ch] sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl">
                   {title}
                 </h2>
               </Link>
             ) : (
-              <h2 className="mt-3 max-w-[12ch] text-3xl font-black leading-[1.02] text-white drop-shadow-lg sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl">
+              <h2 className="mt-3 max-w-[16ch] text-[clamp(1.5rem,6vw,1.875rem)] font-black leading-[1.05] text-white drop-shadow-lg sm:max-w-[12ch] sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl">
                 {title}
               </h2>
             )
@@ -266,7 +267,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                     productType: game!.productType,
                   });
                 }}
-                className={`inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold shadow-lg transition ${
+                className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold shadow-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40 ${
                   inCart
                     ? "bg-emerald-500 text-white hover:bg-emerald-600"
                     : "bg-white text-zinc-900 hover:bg-zinc-100"
@@ -281,7 +282,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
             ) : linkHref ? (
               <Link
                 href={linkHref}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-zinc-900 shadow-lg transition hover:bg-zinc-100"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-zinc-900 shadow-lg transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40"
               >
                 Kəşfet →
               </Link>
@@ -299,7 +300,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                 }}
                 aria-label={isFav ? "Favorilərdən sil" : "Favorilərə əlavə et"}
                 aria-pressed={isFav}
-                className={`inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur-md ring-1 transition ${
+                className={`inline-flex h-11 w-11 items-center justify-center rounded-full backdrop-blur-md ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40 ${
                   isFav
                     ? "bg-rose-500/25 text-rose-200 ring-rose-400/40 hover:bg-rose-500/35"
                     : "bg-white/15 text-white ring-white/25 hover:bg-white/25"
@@ -316,26 +317,31 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
             <button
               aria-label="Əvvəlki banner"
               onClick={prev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white transition hover:bg-black/70 sm:left-3 sm:opacity-0 sm:group-hover:opacity-100"
+              className="absolute left-2 top-[38%] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40 sm:left-3 sm:top-1/2 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               aria-label="Növbəti banner"
               onClick={next}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white transition hover:bg-black/70 sm:right-3 sm:opacity-0 sm:group-hover:opacity-100"
+              className="absolute right-2 top-[38%] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40 sm:right-3 sm:top-1/2 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
 
-            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 lg:hidden">
+            <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1 lg:hidden">
               {banners.map((_, i) => (
                 <button
                   key={i}
                   aria-label={`Banner ${i + 1}`}
+                  aria-current={i === current ? "true" : undefined}
                   onClick={() => setCurrent(i)}
-                  className={`h-1.5 rounded-full transition-all ${i === current ? "w-6 bg-white" : "w-1.5 bg-white/40"}`}
-                />
+                  className="group/dot flex h-9 items-center justify-center px-1.5 focus-visible:outline-none"
+                >
+                  <span
+                    className={`block h-1.5 rounded-full transition-all group-focus-visible/dot:ring-2 group-focus-visible/dot:ring-white group-focus-visible/dot:ring-offset-2 group-focus-visible/dot:ring-offset-black/40 ${i === current ? "w-6 bg-white" : "w-1.5 bg-white/40 group-hover/dot:bg-white/70"}`}
+                  />
+                </button>
               ))}
             </div>
           </>
@@ -358,7 +364,8 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                   type="button"
                   onClick={() => setCurrent(i)}
                   onMouseEnter={() => setPaused(true)}
-                  className={`group/item flex w-full items-center gap-3 rounded-xl p-2 text-left transition ${
+                  aria-current={active ? "true" : undefined}
+                  className={`group/item flex w-full items-center gap-3 rounded-xl p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-950 ${
                     active
                       ? "bg-white ring-1 ring-zinc-200 shadow-sm dark:bg-white/10 dark:ring-white/15 dark:shadow-none"
                       : "hover:bg-white/70 dark:hover:bg-white/5"

@@ -32,15 +32,47 @@ export type StreamingCartDetails = {
   platformKind?: string;
 };
 
+/**
+ * Oyun-içi vahid (PUBG UC, Point Blank TG) məhsulları üçün müştəri məlumatları.
+ *   - `deliveryMethod === "ID_TOPUP"` halında `playerId` məcburidir — admin
+ *     müştərinin oyun ID-sinə birbaşa yükləmə edir.
+ *   - `deliveryMethod === "EPIN"` halında bu sahələrə ehtiyac yoxdur — kod
+ *     emaillə çatdırılır.
+ */
+export type InGameCreditCartDetails = {
+  deliveryMethod: "EPIN" | "ID_TOPUP";
+  playerId?: string;
+};
+
+/**
+ * Epic Games (Türkiye) hesab açılışı üçün müştəri məlumatları. Müştəri Epic
+ * oyunu alarkən hesabı yoxdursa toplanır; ödənişdən sonra admin bu məlumatlarla
+ * hesabı yaradır. `displayName` Epic-də unikaldır — son ad fərqli ola bilər.
+ */
+export type EpicAccountCreationCartDetails = {
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  email: string;
+  password: string;
+  displayName: string;
+};
+
 export type CartItem = {
   id: string;
   title: string;
   imageUrl: string | null;
   finalAzn: number;
   productType: string;
+  /** Storefront for catalog items: "PS" (default) or "EPIC". Distinguishes an
+   *  Epic PC game (delivered to an Epic account) from a PS game — both have
+   *  productType "GAME". */
+  store?: string;
   qty: number;
   accountCreation?: AccountCreationCartDetails;
+  epicAccountCreation?: EpicAccountCreationCartDetails;
   streaming?: StreamingCartDetails;
+  inGameCredit?: InGameCreditCartDetails;
 };
 
 /** Qiymət dəyişikliyi / artıq mövcud olmayan məhsul bildirişi. */
@@ -55,7 +87,9 @@ type CartContextValue = {
   add: (item: Omit<CartItem, "qty">) => void;
   setQty: (id: string, qty: number) => void;
   updateAccountCreation: (id: string, details: AccountCreationCartDetails) => void;
+  updateEpicAccountCreation: (id: string, details: EpicAccountCreationCartDetails) => void;
   updateStreaming: (id: string, details: StreamingCartDetails) => void;
+  updateInGameCredit: (id: string, details: InGameCreditCartDetails) => void;
   remove: (id: string) => void;
   clear: () => void;
   has: (id: string) => boolean;
@@ -92,7 +126,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const snapshot = items;
     if (snapshot.length === 0) return;
     const ids = snapshot.map((i) => i.id);
-    let data: { prices?: { id: string; finalAzn: number }[]; missing?: string[] } | null = null;
+    let data: {
+      prices?: { id: string; finalAzn: number; store?: string }[];
+      missing?: string[];
+    } | null = null;
     try {
       const res = await fetch("/api/cart/refresh", {
         method: "POST",
@@ -107,9 +144,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (!data) return;
 
     const priceMap = new Map<string, number>();
+    const storeMap = new Map<string, string>();
     for (const p of data.prices ?? []) {
       if (typeof p?.id === "string" && typeof p?.finalAzn === "number") {
         priceMap.set(p.id, p.finalAzn);
+        if (typeof p.store === "string") storeMap.set(p.id, p.store);
       }
     }
     const missing = new Set<string>(data.missing ?? []);
@@ -122,6 +161,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           notices.push({ kind: "removed", id: it.id, title: it.title });
           continue;
         }
+        // Heal a missing/stale `store` so the cart shows the right (PSN vs
+        // Epic) account selector even for items added before the field
+        // existed or via an add-path that forgot it.
+        const freshStore = storeMap.get(it.id);
+        const storePatch =
+          freshStore && freshStore !== it.store ? { store: freshStore } : null;
         const fresh = priceMap.get(it.id);
         if (typeof fresh === "number" && Math.abs(fresh - it.finalAzn) > 0.0049) {
           notices.push({
@@ -131,7 +176,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             oldAzn: it.finalAzn,
             newAzn: fresh,
           });
-          next.push({ ...it, finalAzn: fresh });
+          next.push({ ...it, finalAzn: fresh, ...storePatch });
+        } else if (storePatch) {
+          next.push({ ...it, ...storePatch });
         } else {
           next.push(it);
         }
@@ -176,6 +223,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prev) => {
       if (
         item.productType === "ACCOUNT_CREATION" ||
+        item.productType === "EPIC_ACCOUNT_CREATION" ||
         item.productType === "STREAMING" ||
         item.productType === "PLATFORM"
       ) {
@@ -210,11 +258,34 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const updateEpicAccountCreation = useCallback(
+    (id: string, details: EpicAccountCreationCartDetails) => {
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === id && i.productType === "EPIC_ACCOUNT_CREATION"
+            ? { ...i, epicAccountCreation: details }
+            : i
+        )
+      );
+    },
+    []
+  );
+
   const updateStreaming = useCallback((id: string, details: StreamingCartDetails) => {
     setItems((prev) =>
       prev.map((i) =>
         i.id === id && (i.productType === "STREAMING" || i.productType === "PLATFORM")
           ? { ...i, streaming: details }
+          : i
+      )
+    );
+  }, []);
+
+  const updateInGameCredit = useCallback((id: string, details: InGameCreditCartDetails) => {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === id && (i.productType === "PUBG_UC" || i.productType === "POINT_BLANK_TG")
+          ? { ...i, inGameCredit: details }
           : i
       )
     );
@@ -241,7 +312,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       add,
       setQty,
       updateAccountCreation,
+      updateEpicAccountCreation,
       updateStreaming,
+      updateInGameCredit,
       remove,
       clear,
       has,
@@ -255,7 +328,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     add,
     setQty,
     updateAccountCreation,
+    updateEpicAccountCreation,
     updateStreaming,
+    updateInGameCredit,
     remove,
     clear,
     has,

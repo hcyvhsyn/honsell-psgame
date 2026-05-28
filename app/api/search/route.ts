@@ -56,6 +56,7 @@ export async function GET(req: Request) {
         priceTryCents: true,
         discountTryCents: true,
         discountEndAt: true,
+        store: true,
       },
       orderBy: [{ isFeatured: "desc" }, { lastScrapedAt: "desc" }],
       take: 8,
@@ -120,6 +121,7 @@ export async function GET(req: Request) {
         imageUrl: g.imageUrl ?? null,
         finalAzn: display.finalAzn,
         productType,
+        store: g.store ?? "PS",
       },
     };
   });
