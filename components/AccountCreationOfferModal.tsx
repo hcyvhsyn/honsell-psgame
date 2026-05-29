@@ -117,11 +117,6 @@ export default function AccountCreationOfferModal({
             </div>
           </div>
           <button
-
-
-
-
-
             type="button"
             aria-label="Bağla"
             onClick={onClose}
