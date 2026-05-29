@@ -18,6 +18,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
+import { MIN_CART_AZN, MIN_CART_AZN_CENTS } from "@/lib/cartLimits";
 import AccountCreationCartEditModal from "@/components/AccountCreationCartEditModal";
 import EpicAccountOfferModal from "@/components/EpicAccountOfferModal";
 import EpicAccountLinkModal from "@/components/EpicAccountLinkModal";
@@ -205,7 +206,13 @@ export default function CartView({
   const hasEpicCreationInCart = items.some(
     (i) => i.productType === "EPIC_ACCOUNT_CREATION"
   );
-  const blockedNoPsn = isAuthed && deliveryNeedsPsn && psnAccounts.length === 0;
+  // PSN hesab-açılışı (Türkiyə PSN) səbətdədirsə, mövcud PSN hesabı istəmirik:
+  // yeni açılacaq hesab admin tərəfindən oyun sifarişlərinə bağlanacaq.
+  const hasPsnCreationInCart = items.some(
+    (i) => i.productType === "ACCOUNT_CREATION"
+  );
+  const blockedNoPsn =
+    isAuthed && deliveryNeedsPsn && psnAccounts.length === 0 && !hasPsnCreationInCart;
   const blockedNoEpic =
     isAuthed && deliveryNeedsEpic && epicAccountList.length === 0 && !hasEpicCreationInCart;
 
@@ -351,6 +358,14 @@ export default function CartView({
 
   const insufficientWallet = isAuthed && walletBalanceAzn < totalAzn;
 
+  // Minimum sifariş məbləği yoxlaması. totalAzn float olduğu üçün qəpik
+  // vahidinə yuvarlayıb müqayisə edirik — 4.999... → 500 qəpik kimi düz oxunur.
+  const totalCentsForCheck = Math.round(totalAzn * 100);
+  const belowMinimum = totalCentsForCheck > 0 && totalCentsForCheck < MIN_CART_AZN_CENTS;
+  const missingForMinimumAzn = belowMinimum
+    ? MIN_CART_AZN - totalAzn
+    : 0;
+
   function checkoutBalanceSuffix(d: Record<string, unknown>): string {
     const nw = d.newWalletBalanceAzn;
     const nr = d.newReferralBalanceAzn;
@@ -437,7 +452,7 @@ export default function CartView({
               ? { epicAccountCreation: i.epicAccountCreation }
               : {}),
           })),
-          psnAccountId: deliveryNeedsPsn ? psnAccountId : null,
+          psnAccountId: deliveryNeedsPsn && !hasPsnCreationInCart ? psnAccountId : null,
           epicAccountId: deliveryNeedsEpic ? epicAccountId : null,
           paymentSource: "wallet",
           paymentMethod,
@@ -657,7 +672,17 @@ export default function CartView({
           </div>
         )}
 
-        {isAuthed && deliveryNeedsPsn && psnAccounts.length > 0 && (
+        {isAuthed && deliveryNeedsPsn && hasPsnCreationInCart && (
+          <div className="flex items-start gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2.5 text-xs text-indigo-200">
+            <Gamepad2 className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Sifarişinizdə Türkiyə PSN hesab açılışı var. Açıldıqdan sonra oyunlar
+              həmin hesaba bağlanacaq — ayrıca PSN hesabı seçməyə ehtiyac yoxdur.
+            </span>
+          </div>
+        )}
+
+        {isAuthed && deliveryNeedsPsn && psnAccounts.length > 0 && !hasPsnCreationInCart && (
           <div className="space-y-2">
             <label className="flex items-center justify-between text-xs font-medium uppercase tracking-wider text-zinc-500">
               <span className="flex items-center gap-1.5"><Gamepad2 className="h-3.5 w-3.5" /> Hesab</span>
@@ -812,7 +837,21 @@ export default function CartView({
                 </span>
               </div>
 
-              {insufficientWallet ? (
+              {belowMinimum && (
+                <div
+                  role="status"
+                  className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200"
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    Minimum sifariş məbləği <b>{MIN_CART_AZN} AZN</b>-dir. Sebətə{" "}
+                    <b>{missingForMinimumAzn.toFixed(2)} AZN</b> dəyərində məhsul
+                    əlavə edin ki, ödənişi tamamlaya biləsiniz.
+                  </span>
+                </div>
+              )}
+
+              {insufficientWallet && !belowMinimum ? (
                 <Link
                   href="/profile/wallet"
                   onClick={onNavigate}
@@ -827,8 +866,8 @@ export default function CartView({
                 <button
                   type="button"
                   onClick={() => checkout("wallet")}
-                  disabled={busy}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98] disabled:opacity-50"
+                  disabled={busy || belowMinimum || insufficientWallet}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {busy ? "İşlənir..." : "Cüzdanla ödə"}
                 </button>
@@ -837,8 +876,8 @@ export default function CartView({
               <button
                 type="button"
                 onClick={() => checkout("epoint")}
-                disabled={busy}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400 active:scale-[0.98] disabled:opacity-50"
+                disabled={busy || belowMinimum}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {busy ? "İşlənir..." : "Kartla birbaşa ödə"}
               </button>
@@ -855,9 +894,9 @@ export default function CartView({
                     <button
                       type="button"
                       onClick={() => checkout("epoint-widget", "apple")}
-                      disabled={busy}
+                      disabled={busy || belowMinimum}
                       aria-label="Apple Pay ilə ödə"
-                      className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50"
+                      className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Image
                         src="/apple-pay.png"
@@ -870,9 +909,9 @@ export default function CartView({
                     <button
                       type="button"
                       onClick={() => checkout("epoint-widget", "google")}
-                      disabled={busy}
+                      disabled={busy || belowMinimum}
                       aria-label="Google Pay ilə ödə"
-                      className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-700 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50"
+                      className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-700 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Image
                         src="/google-pay.webp"

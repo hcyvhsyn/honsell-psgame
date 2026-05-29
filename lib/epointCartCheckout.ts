@@ -36,7 +36,9 @@ export type EpointCartLineSnapshot =
       qty: number;
       serviceProductId: string;
       unitListCents: number;
-      psnAccountId: string;
+      // null o zaman olur ki, müştəri eyni səbətdə PSN hesab açılışı da
+      // sifariş edib — hesab fulfillment vaxtı admin tərəfindən bağlanır.
+      psnAccountId: string | null;
     }
   | {
       kind: "PS_PLUS";

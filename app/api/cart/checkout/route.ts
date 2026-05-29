@@ -39,6 +39,7 @@ import {
   HONSELL_GIFT_CARD_SERVICE_TYPE,
   HONSELL_GIFT_CARD_VALIDITY_DAYS,
 } from "@/lib/honsellGiftCard";
+import { MIN_CART_AZN, MIN_CART_AZN_CENTS } from "@/lib/cartLimits";
 
 export const runtime = "nodejs";
 
@@ -560,6 +561,11 @@ export async function POST(req: Request) {
     }
   }
 
+  // PSN hesab açılışı eyni səbətdədirsə, mövcud PSN tələbi yumşalır: yeni
+  // yaradılan hesab admin tərəfindən fulfillment vaxtı oyun sifarişlərinə
+  // bağlanacaq. Bu, Epic üçün mövcud `hasEpicCreation` məntiqinin PSN qarşılığıdır.
+  const hasPsnCreation = lines.some((l) => l.kind === "ACCOUNT_CREATION");
+
   if (needsPsn) {
     if (requestedAccountId) {
       psnAccount = await prisma.psnAccount.findUnique({
@@ -568,14 +574,18 @@ export async function POST(req: Request) {
       if (!psnAccount || psnAccount.userId !== user.id) {
         return NextResponse.json({ error: "Invalid PSN account" }, { status: 400 });
       }
-    } else {
+    } else if (!hasPsnCreation) {
+      // Client konkret PSN seçməyibsə və səbətdə hesab açılışı YOXDURSA, mövcud
+      // default PSN-ə fallback edirik. Hesab açılışı varsa fetch etmirik —
+      // games yeni açılacaq hesaba bağlanmalıdır (psnAccount=null qalır, admin
+      // fulfillment vaxtı bağlayır).
       psnAccount = await prisma.psnAccount.findFirst({
         where: { userId: user.id },
         orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
       });
     }
 
-    if (!psnAccount) {
+    if (!psnAccount && !hasPsnCreation) {
       return NextResponse.json(
         {
           error:
@@ -588,6 +598,19 @@ export async function POST(req: Request) {
   }
 
   const totalCents = lines.reduce((sum, l) => sum + l.lineCents, 0);
+
+  // Minimum sifariş məbləği. Müştəri tərəfdə də yoxlanılır (CartView), bu isə
+  // server-tərəf last-line of-defense — birbaşa API çağırışlarına qarşı.
+  if (totalCents < MIN_CART_AZN_CENTS) {
+    return NextResponse.json(
+      {
+        error: `Minimum sifariş məbləği ${MIN_CART_AZN} AZN-dir. Səbətə daha çox məhsul əlavə edin.`,
+        minCartAzn: MIN_CART_AZN,
+        cartTotalAzn: Number((totalCents / 100).toFixed(2)),
+      },
+      { status: 400 }
+    );
+  }
 
   const spentAzn = await getLifetimeSpendAznForLoyalty(prisma, user.id);
   const loyalty = getLoyaltyTier(spentAzn);
@@ -615,7 +638,7 @@ export async function POST(req: Request) {
           unitListCents: line.unitListCents,
           unitSavingsCents: line.unitSavingsCents,
           unitCostCents: line.unitCostCents,
-          psnAccountId: isEpicGame ? null : psnAccount!.id,
+          psnAccountId: isEpicGame ? null : (psnAccount?.id ?? null),
           epicAccountId: isEpicGame ? epicAccount?.id ?? null : null,
           store: isEpicGame ? "EPIC" : "PS",
           reviewAffiliateId,
@@ -629,7 +652,7 @@ export async function POST(req: Request) {
           qty: line.qty,
           serviceProductId: line.service.id,
           unitListCents: line.unitListCents,
-          psnAccountId: psnAccount!.id,
+          psnAccountId: psnAccount?.id ?? null,
         };
       }
 
@@ -958,7 +981,7 @@ export async function POST(req: Request) {
                 savingsAznCents: line.unitSavingsCents,
                 costAznCents: line.unitCostCents,
                 gameId: line.game.id,
-                psnAccountId: isEpicGame ? null : psnAccount!.id,
+                psnAccountId: isEpicGame ? null : (psnAccount?.id ?? null),
                 epicAccountId: isEpicGame ? attachEpic : null,
                 metadata: JSON.stringify({
                   paymentSource: payTag,
@@ -987,7 +1010,7 @@ export async function POST(req: Request) {
                   status: "PENDING",
                   amountAznCents: -line.unitListCents,
                   serviceProductId: line.service.id,
-                  psnAccountId: psnAccount!.id,
+                  psnAccountId: psnAccount?.id ?? null,
                   metadata: JSON.stringify({
                     fromCart: true,
                     kind: "TRY_BALANCE",
@@ -1013,7 +1036,7 @@ export async function POST(req: Request) {
                   amountAznCents: -line.unitListCents,
                   serviceProductId: line.service.id,
                   serviceCodeId: sc.id,
-                  psnAccountId: psnAccount!.id,
+                  psnAccountId: psnAccount?.id ?? null,
                   metadata: JSON.stringify({
                     fromCart: true,
                     kind: "TRY_BALANCE",
