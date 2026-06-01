@@ -5,6 +5,7 @@ import { hboMaxScraper } from "@/lib/scrapers/hbomax";
 import { primeScraper } from "@/lib/scrapers/prime";
 import { gainScraper } from "@/lib/scrapers/gain";
 import { persistPlatformScrape, type PersistDiff } from "@/lib/scrapers/persist";
+import { enrichTitlesWithTmdb, createTmdbCache } from "@/lib/scrapers/tmdbEnrich";
 import type { Scraper, ScraperResult } from "@/lib/scrapers/types";
 
 interface PlatformSummary {
@@ -113,8 +114,55 @@ export async function runStreamingScrape(opts?: {
 
 async function runOne(scraper: Scraper, scrapeRunId: string): Promise<PlatformSummary> {
   try {
-    const result: ScraperResult = await scraper.run();
-    if (result.fatalError) {
+    const raw = await scraper.run();
+    // Multi-region scraper-lər (Prime) ölkə başına bir nəticə qaytarır;
+    // tək-region olanlar tək nəticə. Hər ikisini massivə normalize edirik.
+    const results: ScraperResult[] = Array.isArray(raw) ? raw : [raw];
+
+    // Bütün ölkələr boyu IMDb lookup-larını paylaşan tək TMDB cache —
+    // eyni film DE+GB+FR-də görünsə belə yalnız bir dəfə sorğulanır.
+    const tmdbCache = createTmdbCache();
+
+    const agg = {
+      added: 0,
+      removed: 0,
+      updated: 0,
+      unchanged: 0,
+      scrapedCount: 0,
+      requestCount: 0,
+      durationMs: 0,
+    };
+    const warnings: string[] = [];
+    let anyFatal: string | undefined;
+    let anySuccess = false;
+
+    for (const result of results) {
+      warnings.push(...result.warnings);
+      agg.requestCount += result.stats?.requestCount ?? 0;
+      agg.durationMs += result.stats?.durationMs ?? 0;
+
+      if (result.fatalError) {
+        anyFatal = result.fatalError;
+        continue;
+      }
+
+      // TMDB ilə zənginləşdir — poster/backdrop/təsvir. Tapılmayan və IMDb-siz
+      // başlıqlar dəyişmədən keçir (JustWatch posteri saxlanılır).
+      const enriched = await enrichTitlesWithTmdb(result.titles, tmdbCache, warnings);
+
+      const diff = await persistPlatformScrape(result.platform, result.country, enriched.titles);
+      await writeChanges(scrapeRunId, result.platform, diff);
+
+      agg.added += diff.added;
+      agg.removed += diff.removed;
+      agg.updated += diff.updated;
+      agg.unchanged += diff.unchanged;
+      agg.scrapedCount += result.titles.length;
+      anySuccess = true;
+    }
+
+    // Heç bir ölkə uğurlu olmadısa (hamısı fatal) → FAILED.
+    if (!anySuccess) {
       return {
         status: "FAILED",
         added: 0,
@@ -122,26 +170,26 @@ async function runOne(scraper: Scraper, scrapeRunId: string): Promise<PlatformSu
         updated: 0,
         unchanged: 0,
         scrapedCount: 0,
-        warnings: result.warnings,
-        error: result.fatalError,
-        durationMs: result.stats?.durationMs,
-        requestCount: result.stats?.requestCount,
+        warnings,
+        error: anyFatal ?? "Bütün ölkələr uğursuz oldu",
+        durationMs: agg.durationMs || undefined,
+        requestCount: agg.requestCount || undefined,
       };
     }
 
-    const diff = await persistPlatformScrape(scraper.platform, result.titles);
-    await writeChanges(scrapeRunId, scraper.platform, diff);
+    // Bəzi ölkələr fatal olub digərləri uğurlu olsa — warning kimi qeyd et.
+    if (anyFatal) warnings.push(`Bəzi ölkələr uğursuz oldu: ${anyFatal}`);
 
     return {
       status: "SUCCESS",
-      added: diff.added,
-      removed: diff.removed,
-      updated: diff.updated,
-      unchanged: diff.unchanged,
-      scrapedCount: result.titles.length,
-      warnings: result.warnings,
-      durationMs: result.stats?.durationMs,
-      requestCount: result.stats?.requestCount,
+      added: agg.added,
+      removed: agg.removed,
+      updated: agg.updated,
+      unchanged: agg.unchanged,
+      scrapedCount: agg.scrapedCount,
+      warnings,
+      durationMs: agg.durationMs || undefined,
+      requestCount: agg.requestCount || undefined,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

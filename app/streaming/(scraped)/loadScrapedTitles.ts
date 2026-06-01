@@ -2,19 +2,22 @@ import { prisma } from "@/lib/prisma";
 import type { ScrapedCardData } from "@/components/ScrapedTitleCard";
 
 /**
- * Bütün scrape-mənbəli StreamingTitle-ları (kind=MOVIE|SERIES) yığır və UI
- * kartı üçün denormalize edir. Yalnız ən az bir aktiv `ContentAvailability`-si
- * olan başlıqlar qaytarılır — manuel admin tərəfindən əlavə edilən, lakin heç
- * bir platformda scrape olunmayan title-lar bu siyahıya düşmür.
+ * Bütün scrape-mənbəli StreamingTitle-ları yığır və UI kartı üçün denormalize
+ * edir. Yalnız ən az bir aktiv `ContentAvailability`-si olan başlıqlar
+ * qaytarılır — manuel admin tərəfindən əlavə edilən, lakin heç bir platformda
+ * scrape olunmayan title-lar bu siyahıya düşmür.
+ *
+ * `kind` ötürülməzsə həm film, həm serial qaytarılır (birləşik katalog üçün) —
+ * hər kartda `kind` sahəsi olduğu üçün client tərəf daxildən filtrləyə bilir.
  *
  * Dil siyahısı bütün availability-lərdən birləşdirilir (deduped, sıralı tr/ru/en).
  */
 export async function loadScrapedTitles(
-  kind: "MOVIE" | "SERIES"
+  kind?: "MOVIE" | "SERIES"
 ): Promise<ScrapedCardData[]> {
   const rows = await prisma.streamingTitle.findMany({
     where: {
-      kind,
+      ...(kind ? { kind } : {}),
       isActive: true,
       azAvailable: true,
       availabilities: { some: { isAvailable: true } },
@@ -26,6 +29,9 @@ export async function loadScrapedTitles(
       kind: true,
       year: true,
       posterUrl: true,
+      tmdbRating: true,
+      tmdbVoteCount: true,
+      tmdbPopularity: true,
       availabilities: {
         where: { isAvailable: true },
         select: {
@@ -36,7 +42,10 @@ export async function loadScrapedTitles(
       },
     },
     orderBy: [{ year: "desc" }, { title: "asc" }],
-    take: 1000,
+    // EU Prime kataloqu tək kind üçün ~3600 başlığa çatır — tam göstərmək üçün
+    // limit yüksəkdir. Client tərəf onsuz da 60-lıq "daha çox göstər" ilə
+    // səhifələyir, ona görə ilkin render yüngül qalır (yalnız RSC payload böyüyür).
+    take: 8000,
   });
 
   return rows.map((r) => {
@@ -61,6 +70,9 @@ export async function loadScrapedTitles(
       platforms,
       audioLanguages: sortLangs([...audio]),
       subtitleLanguages: sortLangs([...sub]),
+      rating: r.tmdbRating,
+      voteCount: r.tmdbVoteCount,
+      popularity: r.tmdbPopularity,
     };
   });
 }

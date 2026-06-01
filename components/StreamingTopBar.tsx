@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Heart, MessageSquare, Film, Tv } from "lucide-react";
+import { Heart, MessageSquare, Clapperboard } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -25,16 +25,10 @@ export default async function StreamingTopBar() {
             Streaming
           </Link>
           <Link
-            href="/streaming/filmler"
+            href="/streaming/katalog"
             className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:bg-white/10 hover:text-white"
           >
-            <Film className="h-3.5 w-3.5" /> Filmlər
-          </Link>
-          <Link
-            href="/streaming/seriallar"
-            className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:bg-white/10 hover:text-white"
-          >
-            <Tv className="h-3.5 w-3.5" /> Seriallar
+            <Clapperboard className="h-3.5 w-3.5" /> Film və Seriallar
           </Link>
         </div>
         <div className="flex items-center gap-2">

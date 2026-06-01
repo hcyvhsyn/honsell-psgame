@@ -581,6 +581,12 @@ model StreamingTitle {
   // TMDB-dən orijinal dildə rəsmi trailer üstün, manual override mümkündür.
   trailerUrl        String?
 
+  // TMDB-dən scrape enrichment zamanı doldurulan reytinq/populyarlıq metrikləri.
+  // Reytinq sıralaması (yüksək → aşağı) və "ən çox baxılan" üçün istifadə olunur.
+  tmdbRating     Float? // vote_average, 0-10 (IMDb ilə ~üst-üstə düşür)
+  tmdbVoteCount  Int? // vote_count — reytinq tie-breaker / az-səsli başlıqları filtr
+  tmdbPopularity Float? // popularity — trend/"ən çox baxılan" skoru
+
   featured       StreamingFeatured[]
   availabilities ContentAvailability[]
 
@@ -590,6 +596,8 @@ model StreamingTitle {
   @@index([service, isActive, azAvailable])
   @@index([service, sortOrder])
   @@index([externalId])
+  @@index([service, tmdbPopularity])
+  @@index([service, tmdbRating])
 }
 
 /// Streaming overview və ya konkret service səhifəsində göstərilən banner

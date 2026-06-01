@@ -17,7 +17,15 @@ export interface ScrapedTitle {
   /** Canonical matching üçün IMDb ID (varsa) — məs. "tt0372784". */
   imdbId?: string;
   posterUrl?: string;
+  /** Geniş (16:9) backdrop şəkli — adətən TMDB enrichment-dən gəlir. */
+  backdropUrl?: string;
   description?: string;
+  /** TMDB reytinqi (vote_average, 0-10) — enrichment-dən. */
+  rating?: number;
+  /** TMDB səs sayı (vote_count) — reytinq tie-breaker. */
+  voteCount?: number;
+  /** TMDB populyarlıq skoru — "ən çox baxılan" sıralaması üçün. */
+  popularity?: number;
   /** Yalnız streamingLanguages.ts-dəki LanguageCode-lardan biri saxlanır;
    *  digər dillər scraper səviyyəsində süzülməlidir. */
   audioLanguages: LanguageCode[];
@@ -27,7 +35,11 @@ export interface ScrapedTitle {
 /** Bir platform scraper-inin run nəticəsi. */
 export interface ScraperResult {
   platform: Platform;
-  /** Platformun AZ-də mövcud olduğu bütün başlıqlar. Eyni run-da heç biri
+  /** Bu nəticənin aid olduğu ölkə (ISO 3166-1 alpha-2). Multi-region
+   *  scraper-lər (Prime) hər ölkə üçün ayrıca ScraperResult qaytarır; persist
+   *  availability-ni məhz bu ölkə üzrə yazır. */
+  country: string;
+  /** Platformun bu ölkədə mövcud olduğu bütün başlıqlar. Eyni run-da heç biri
    *  təkrarlanmamalıdır (`platformExternalId` üzrə unikal). */
   titles: ScrapedTitle[];
   /** Run ərzində baş verən recoverable error-lar — failure deyil, lakin
@@ -45,5 +57,7 @@ export interface ScraperResult {
 
 export interface Scraper {
   platform: Platform;
-  run(): Promise<ScraperResult>;
+  /** Tək ölkə üçün bir nəticə, və ya multi-region halında ölkə başına bir
+   *  nəticə massivi. Orchestrator hər ikisini normalize edir. */
+  run(): Promise<ScraperResult | ScraperResult[]>;
 }

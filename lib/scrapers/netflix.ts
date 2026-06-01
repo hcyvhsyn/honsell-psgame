@@ -100,6 +100,7 @@ export const netflixScraper: Scraper = {
     } catch (err) {
       return {
         platform: "NETFLIX",
+        country: SCRAPER_CONFIG.country,
         titles: [],
         warnings: [],
         fatalError: err instanceof Error ? err.message : String(err),
@@ -147,6 +148,7 @@ export const netflixScraper: Scraper = {
         if (titlesById.size === 0 && page >= 2) {
           return {
             platform: "NETFLIX",
+            country: SCRAPER_CONFIG.country,
             titles: [],
             warnings,
             fatalError: `uNoGS API əlçatan deyil: ${msg}`,
@@ -159,6 +161,7 @@ export const netflixScraper: Scraper = {
 
     return {
       platform: "NETFLIX",
+      country: SCRAPER_CONFIG.country,
       titles: [...titlesById.values()],
       warnings,
       stats: { requestCount, durationMs: Date.now() - startedAt },

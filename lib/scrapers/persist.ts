@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { SCRAPER_CONFIG, type Platform } from "@/lib/scrapers/config";
+import { type Platform } from "@/lib/scrapers/config";
 import type { ScrapedTitle } from "@/lib/scrapers/types";
 
 /**
@@ -40,69 +40,6 @@ function slugify(s: string): string {
     .slice(0, 80);
 }
 
-async function ensureUniqueSlug(base: string): Promise<string> {
-  let slug = base || `title-${Date.now()}`;
-  let i = 1;
-  while (await prisma.streamingTitle.findUnique({ where: { slug } })) {
-    i++;
-    slug = `${base}-${i}`.slice(0, 80);
-    if (i > 50) {
-      slug = `${base}-${Date.now()}`.slice(0, 80);
-      break;
-    }
-  }
-  return slug;
-}
-
-/**
- * Canonical StreamingTitle tap və ya yarat.
- *
- * Match prioriteti:
- *   1. IMDb ID (`externalId`) — platform-lar arası yeganə etibarlı açar.
- *   2. (title, year) — IMDb yoxdursa best-effort.
- *
- * Heç biri uyğun gəlmirsə yeni title yaradılır.
- */
-async function findOrCreateTitle(
-  scraped: ScrapedTitle,
-  platform: Platform
-): Promise<{ id: string; created: boolean }> {
-  if (scraped.imdbId) {
-    const byImdb = await prisma.streamingTitle.findFirst({
-      where: { externalId: scraped.imdbId },
-      select: { id: true },
-    });
-    if (byImdb) return { id: byImdb.id, created: false };
-  }
-
-  if (scraped.year) {
-    const byTitleYear = await prisma.streamingTitle.findFirst({
-      where: { title: scraped.title, year: scraped.year },
-      select: { id: true },
-    });
-    if (byTitleYear) return { id: byTitleYear.id, created: false };
-  }
-
-  const slug = await ensureUniqueSlug(slugify(scraped.title));
-  const created = await prisma.streamingTitle.create({
-    data: {
-      slug,
-      title: scraped.title,
-      kind: scraped.kind,
-      service: SERVICE_MAP[platform],
-      posterUrl: scraped.posterUrl ?? null,
-      year: scraped.year ?? null,
-      genres: scraped.genres ?? [],
-      description: scraped.description ?? null,
-      externalId: scraped.imdbId ?? null,
-      azAvailable: true,
-      isActive: true,
-    },
-    select: { id: true },
-  });
-  return { id: created.id, created: true };
-}
-
 function sortedLangs(arr: readonly string[]): string[] {
   return [...arr].sort();
 }
@@ -115,28 +52,79 @@ function langsEqual(a: readonly string[], b: readonly string[]): boolean {
   return true;
 }
 
+/** Verilmiş işləri `size` ölçülü paketlərlə paralel icra edir — remote DB
+ *  latency-sini gizlədir, lakin connection pool-u boğmamaq üçün məhdud. */
+async function runChunked<T>(
+  items: T[],
+  size: number,
+  fn: (t: T) => Promise<unknown>
+): Promise<void> {
+  for (let i = 0; i < items.length; i += size) {
+    await Promise.all(items.slice(i, i + size).map(fn));
+  }
+}
+
+function langRows(item: ScrapedTitle, availabilityId: string) {
+  return [
+    ...item.audioLanguages.map((code) => ({ availabilityId, code, kind: "AUDIO" })),
+    ...item.subtitleLanguages.map((code) => ({ availabilityId, code, kind: "SUBTITLE" })),
+  ];
+}
+
+/** Preload-dan gələn title-ın media/reytinq sahələri. */
+type TitleMediaRow = {
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  description: string | null;
+  tmdbRating: number | null;
+  tmdbVoteCount: number | null;
+  tmdbPopularity: number | null;
+};
+
 /**
- * Bir platform-un scrape nəticəsini DB ilə sinxronlaşdırır.
+ * Mövcud title üçün yenilənəcək sahələri hesablayır:
+ *  - poster/backdrop/description: yalnız null olduqda doldurulur (admin
+ *    manual dəyişikliyini üstələmir).
+ *  - reytinq/səs/populyarlıq: dəyər dəyişibsə təzələnir (vaxtla dəyişən metrik).
+ * Heç nə dəyişmirsə boş obyekt qaytarır.
+ */
+function computeTitleBackfill(t: TitleMediaRow, item: ScrapedTitle): Record<string, string | number> {
+  const data: Record<string, string | number> = {};
+  if (!t.posterUrl && item.posterUrl) data.posterUrl = item.posterUrl;
+  if (!t.backdropUrl && item.backdropUrl) data.backdropUrl = item.backdropUrl;
+  if (!t.description && item.description) data.description = item.description;
+  if (item.rating != null && item.rating !== t.tmdbRating) data.tmdbRating = item.rating;
+  if (item.voteCount != null && item.voteCount !== t.tmdbVoteCount) data.tmdbVoteCount = item.voteCount;
+  if (item.popularity != null && item.popularity !== t.tmdbPopularity) data.tmdbPopularity = item.popularity;
+  return data;
+}
+
+/**
+ * Bir platform-un scrape nəticəsini DB ilə sinxronlaşdırır — BULK rejimdə.
  *
- *  - Yeni başlıq → ContentAvailability yarat + ADDED change.
- *  - Mövcud + dəyişib → languages yenilə + UPDATED change.
- *  - Mövcud + dəyişməyib → unchanged++, lastSeenAt yenilə.
- *  - DB-də olub scrape-də olmayan → isAvailable=false + REMOVED change.
+ * Performans: hər başlıq üçün ayrıca sorğu yerinə ölkə başına bir neçə toplu
+ * sorğu (preload + `createManyAndReturn` + `createMany` + `updateMany`). Remote
+ * Supabase latency-si min başlıqda saatları dəqiqələrə endirir.
+ *
+ *  - Yeni başlıq → StreamingTitle (lazımsa) + ContentAvailability + dillər (ADDED).
+ *  - Mövcud + dil dəyişib/qayıdıb → availability + dillər yenilənir (UPDATED).
+ *  - Mövcud + dəyişməyib → tək `updateMany` ilə lastSeenAt (unchanged).
+ *  - DB-də olub scrape-də olmayan → isAvailable=false (REMOVED).
+ *
+ * Canonical title match: IMDb ID (`externalId`) üzrə. IMDb-siz başlıqlar
+ * (~%1-2) hər dəfə yeni title yaradır — köhnə (title, year) fallback-ı bulk
+ * rejimdə per-row sorğu tələb etdiyi üçün atılıb.
  */
 export async function persistPlatformScrape(
   platform: Platform,
+  country: string,
   scraped: ScrapedTitle[]
 ): Promise<PersistDiff> {
-  const diff: PersistDiff = {
-    added: 0,
-    removed: 0,
-    updated: 0,
-    unchanged: 0,
-    changes: [],
-  };
-  const country = SCRAPER_CONFIG.country;
+  const diff: PersistDiff = { added: 0, removed: 0, updated: 0, unchanged: 0, changes: [] };
   const now = new Date();
+  const service = SERVICE_MAP[platform];
 
+  // ── 1. Bu (platform, country) üçün mövcud availability-ləri yüklə ──────────
   const existing = await prisma.contentAvailability.findMany({
     where: { platform, country },
     include: { languages: true },
@@ -144,99 +132,237 @@ export async function persistPlatformScrape(
   const existingByExt = new Map(existing.map((e) => [e.platformExternalId, e]));
   const scrapedIds = new Set(scraped.map((s) => s.platformExternalId));
 
-  for (const item of scraped) {
-    const prior = existingByExt.get(item.platformExternalId);
-    if (!prior) {
-      const { id: titleId } = await findOrCreateTitle(item, platform);
-      const created = await prisma.contentAvailability.create({
-        data: {
-          titleId,
-          platform,
-          platformExternalId: item.platformExternalId,
-          country,
-          isAvailable: true,
-          firstSeenAt: now,
-          lastSeenAt: now,
-          deepLinkUrl: item.deepLinkUrl ?? null,
-          languages: {
-            create: [
-              ...item.audioLanguages.map((code) => ({ code, kind: "AUDIO" })),
-              ...item.subtitleLanguages.map((code) => ({ code, kind: "SUBTITLE" })),
-            ],
-          },
+  // ── 2. Scrape-dəki bütün IMDb ID-lər üçün mövcud canonical title-ları yüklə ─
+  const imdbIds = [...new Set(scraped.map((s) => s.imdbId).filter((x): x is string => !!x))];
+  const existingTitles = imdbIds.length
+    ? await prisma.streamingTitle.findMany({
+        where: { externalId: { in: imdbIds } },
+        select: {
+          id: true,
+          externalId: true,
+          posterUrl: true,
+          backdropUrl: true,
+          description: true,
+          tmdbRating: true,
+          tmdbVoteCount: true,
+          tmdbPopularity: true,
         },
-        select: { id: true, titleId: true },
-      });
-      diff.added++;
+      })
+    : [];
+  const titleByImdb = new Map(existingTitles.map((t) => [t.externalId as string, t]));
+
+  // ── 3. Slug unikallığı üçün mövcud slug-ları yaddaşa yüklə ─────────────────
+  const slugRows = await prisma.streamingTitle.findMany({ select: { slug: true } });
+  const usedSlugs = new Set(slugRows.map((r) => r.slug));
+  function uniqueSlug(base: string, fallbackKey: string): string {
+    let slug = base || `title-${fallbackKey}`.slice(0, 80);
+    let i = 1;
+    while (usedSlugs.has(slug)) {
+      i++;
+      slug = `${base}-${i}`.slice(0, 80);
+    }
+    usedSlugs.add(slug);
+    return slug;
+  }
+
+  // ── 4. Yeni availability (prior yoxdur) vs mövcud olanları ayır ────────────
+  const toCreate = scraped.filter((s) => !existingByExt.has(s.platformExternalId));
+  const toExisting = scraped.filter((s) => existingByExt.has(s.platformExternalId));
+
+  // ── 5. toCreate üçün titleId həll et: mövcud IMDb → reuse, yoxsa yeni title ─
+  // resolution key: "existing:<id>" | "new:<imdb|noimdb:extId>"
+  const itemKey = new Map<string, string>();
+  const newTitles: Array<{ scraped: ScrapedTitle; slug: string; tempKey: string }> = [];
+  const newKeySeen = new Set<string>();
+  const backfillTargets: Array<{ id: string; data: Record<string, string | number> }> = [];
+  const backfilledIds = new Set<string>(); // eyni title-ı iki dəfə update etməmək üçün
+
+  for (const item of toCreate) {
+    if (item.imdbId && titleByImdb.has(item.imdbId)) {
+      const t = titleByImdb.get(item.imdbId)!;
+      itemKey.set(item.platformExternalId, `existing:${t.id}`);
+      const data = computeTitleBackfill(t, item);
+      if (Object.keys(data).length > 0) {
+        backfilledIds.add(t.id);
+        backfillTargets.push({ id: t.id, data });
+      }
+      continue;
+    }
+    const tempKey = item.imdbId ?? `noimdb:${item.platformExternalId}`;
+    if (!newKeySeen.has(tempKey)) {
+      newKeySeen.add(tempKey);
+      newTitles.push({ scraped: item, slug: uniqueSlug(slugify(item.title), tempKey), tempKey });
+    }
+    itemKey.set(item.platformExternalId, `new:${tempKey}`);
+  }
+
+  // ── 6. Yeni title-ları toplu yarat (slug üzrə id-yə map) ───────────────────
+  const keyToTitleId = new Map<string, string>();
+  if (newTitles.length > 0) {
+    const created = await prisma.streamingTitle.createManyAndReturn({
+      data: newTitles.map((n) => ({
+        slug: n.slug,
+        title: n.scraped.title,
+        kind: n.scraped.kind,
+        service,
+        posterUrl: n.scraped.posterUrl ?? null,
+        backdropUrl: n.scraped.backdropUrl ?? null,
+        year: n.scraped.year ?? null,
+        genres: n.scraped.genres ?? [],
+        description: n.scraped.description ?? null,
+        externalId: n.scraped.imdbId ?? null,
+        tmdbRating: n.scraped.rating ?? null,
+        tmdbVoteCount: n.scraped.voteCount ?? null,
+        tmdbPopularity: n.scraped.popularity ?? null,
+        azAvailable: true,
+        isActive: true,
+      })),
+      select: { id: true, slug: true },
+    });
+    const slugToId = new Map(created.map((c) => [c.slug, c.id]));
+    for (const n of newTitles) {
+      const id = slugToId.get(n.slug);
+      if (id) keyToTitleId.set(n.tempKey, id);
+    }
+  }
+
+  function resolveTitleId(item: ScrapedTitle): string | null {
+    const key = itemKey.get(item.platformExternalId);
+    if (!key) return null;
+    if (key.startsWith("existing:")) return key.slice("existing:".length);
+    if (key.startsWith("new:")) return keyToTitleId.get(key.slice("new:".length)) ?? null;
+    return null;
+  }
+
+  // ── 7. Availability-ləri toplu yarat, sonra dilləri toplu yarat ────────────
+  const availInput = toCreate
+    .map((item) => ({ item, titleId: resolveTitleId(item) }))
+    .filter((x): x is { item: ScrapedTitle; titleId: string } => !!x.titleId);
+
+  if (availInput.length > 0) {
+    const createdAvail = await prisma.contentAvailability.createManyAndReturn({
+      data: availInput.map(({ item, titleId }) => ({
+        titleId,
+        platform,
+        platformExternalId: item.platformExternalId,
+        country,
+        isAvailable: true,
+        firstSeenAt: now,
+        lastSeenAt: now,
+        deepLinkUrl: item.deepLinkUrl ?? null,
+      })),
+      select: { id: true, platformExternalId: true, titleId: true },
+    });
+
+    const availByExt = new Map(createdAvail.map((a) => [a.platformExternalId, a]));
+    const langData = availInput.flatMap(({ item }) => {
+      const a = availByExt.get(item.platformExternalId);
+      return a ? langRows(item, a.id) : [];
+    });
+    if (langData.length > 0) {
+      await prisma.contentLanguage.createMany({ data: langData, skipDuplicates: true });
+    }
+
+    diff.added = createdAvail.length;
+    for (const a of createdAvail) {
       diff.changes.push({
         changeType: "ADDED",
-        titleId: created.titleId,
-        payload: {
-          platformExternalId: item.platformExternalId,
-          title: item.title,
-          audioLanguages: item.audioLanguages,
-          subtitleLanguages: item.subtitleLanguages,
-        },
+        titleId: a.titleId,
+        payload: { platformExternalId: a.platformExternalId },
       });
-      continue;
+    }
+  }
+
+  // ── 9. Mövcud availability-lər: dəyişən vs dəyişməyən + title backfill ─────
+  const unchangedIds: string[] = [];
+  const changedItems: Array<{ item: ScrapedTitle; priorId: string; priorDeep: string | null }> = [];
+  for (const item of toExisting) {
+    const prior = existingByExt.get(item.platformExternalId)!;
+
+    // Mövcud availability-li başlığın da title media/reytinqini backfill et
+    // (ilk dəfə reytinq sütunları boş yaranmış ola bilər).
+    if (item.imdbId) {
+      const t = titleByImdb.get(item.imdbId);
+      if (t && !backfilledIds.has(t.id)) {
+        const data = computeTitleBackfill(t, item);
+        if (Object.keys(data).length > 0) {
+          backfilledIds.add(t.id);
+          backfillTargets.push({ id: t.id, data });
+        }
+      }
     }
 
     const priorAudio = prior.languages.filter((l) => l.kind === "AUDIO").map((l) => l.code);
     const priorSub = prior.languages.filter((l) => l.kind === "SUBTITLE").map((l) => l.code);
-    const audioChanged = !langsEqual(priorAudio, item.audioLanguages);
-    const subChanged = !langsEqual(priorSub, item.subtitleLanguages);
-    const cameBack = !prior.isAvailable;
-
-    if (audioChanged || subChanged || cameBack) {
-      await prisma.contentAvailability.update({
-        where: { id: prior.id },
-        data: {
-          isAvailable: true,
-          lastSeenAt: now,
-          removedAt: null,
-          deepLinkUrl: item.deepLinkUrl ?? prior.deepLinkUrl,
-          languages: {
-            deleteMany: {},
-            create: [
-              ...item.audioLanguages.map((code) => ({ code, kind: "AUDIO" })),
-              ...item.subtitleLanguages.map((code) => ({ code, kind: "SUBTITLE" })),
-            ],
-          },
-        },
-      });
-      diff.updated++;
+    const changed =
+      !langsEqual(priorAudio, item.audioLanguages) ||
+      !langsEqual(priorSub, item.subtitleLanguages) ||
+      !prior.isAvailable;
+    if (changed) {
+      changedItems.push({ item, priorId: prior.id, priorDeep: prior.deepLinkUrl });
       diff.changes.push({
         changeType: "UPDATED",
         titleId: prior.titleId,
-        payload: {
-          platformExternalId: item.platformExternalId,
-          audio: { before: priorAudio, after: item.audioLanguages },
-          subtitle: { before: priorSub, after: item.subtitleLanguages },
-          cameBack,
-        },
+        payload: { platformExternalId: item.platformExternalId },
       });
     } else {
-      await prisma.contentAvailability.update({
-        where: { id: prior.id },
-        data: { lastSeenAt: now },
-      });
-      diff.unchanged++;
+      unchangedIds.push(prior.id);
     }
   }
+  diff.updated = changedItems.length;
+  diff.unchanged = unchangedIds.length;
 
-  for (const prior of existing) {
-    if (scrapedIds.has(prior.platformExternalId)) continue;
-    if (!prior.isAvailable) continue;
+  // ── 8. Title media/reytinq backfill-lərini toplu tətbiq et (həm yeni, həm
+  //       mövcud availability-li başlıqlar üçün toplanıb) ────────────────────
+  await runChunked(backfillTargets, 25, (t) =>
+    prisma.streamingTitle.update({ where: { id: t.id }, data: t.data })
+  );
+
+  // Dəyişməyənlər → tək updateMany ilə lastSeenAt.
+  if (unchangedIds.length > 0) {
+    await prisma.contentAvailability.updateMany({
+      where: { id: { in: unchangedIds } },
+      data: { lastSeenAt: now },
+    });
+  }
+
+  // Dəyişənlər → availability + dilləri yenilə (paralel paketlərlə).
+  await runChunked(changedItems, 20, async ({ item, priorId, priorDeep }) => {
     await prisma.contentAvailability.update({
-      where: { id: prior.id },
+      where: { id: priorId },
+      data: {
+        isAvailable: true,
+        lastSeenAt: now,
+        removedAt: null,
+        deepLinkUrl: item.deepLinkUrl ?? priorDeep,
+        languages: {
+          deleteMany: {},
+          create: [
+            ...item.audioLanguages.map((code) => ({ code, kind: "AUDIO" })),
+            ...item.subtitleLanguages.map((code) => ({ code, kind: "SUBTITLE" })),
+          ],
+        },
+      },
+    });
+  });
+
+  // ── 10. DB-də olub scrape-də olmayan → isAvailable=false (toplu) ───────────
+  const removedRows = existing.filter(
+    (p) => p.isAvailable && !scrapedIds.has(p.platformExternalId)
+  );
+  if (removedRows.length > 0) {
+    await prisma.contentAvailability.updateMany({
+      where: { id: { in: removedRows.map((r) => r.id) } },
       data: { isAvailable: false, removedAt: now },
     });
-    diff.removed++;
-    diff.changes.push({
-      changeType: "REMOVED",
-      titleId: prior.titleId,
-      payload: { platformExternalId: prior.platformExternalId },
-    });
+    diff.removed = removedRows.length;
+    for (const r of removedRows) {
+      diff.changes.push({
+        changeType: "REMOVED",
+        titleId: r.titleId,
+        payload: { platformExternalId: r.platformExternalId },
+      });
+    }
   }
 
   return diff;

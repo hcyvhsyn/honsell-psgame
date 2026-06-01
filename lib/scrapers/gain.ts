@@ -126,6 +126,7 @@ export const gainScraper: Scraper = {
     if ("error" in env) {
       return {
         platform: "GAIN",
+        country: SCRAPER_CONFIG.country,
         titles: [],
         warnings: [],
         fatalError: env.error,
@@ -177,6 +178,7 @@ export const gainScraper: Scraper = {
         if (titlesById.size === 0) {
           return {
             platform: "GAIN",
+            country: SCRAPER_CONFIG.country,
             titles: [],
             warnings,
             fatalError: `gain.tv ${slug} əlçatan deyil: ${msg}`,
@@ -189,6 +191,7 @@ export const gainScraper: Scraper = {
 
     return {
       platform: "GAIN",
+      country: SCRAPER_CONFIG.country,
       titles: [...titlesById.values()],
       warnings,
       stats: { requestCount, durationMs: Date.now() - startedAt },

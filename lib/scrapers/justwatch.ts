@@ -136,13 +136,65 @@ function mapNode(node: JwNode, providerShortName: string): ScrapedTitle | null {
   };
 }
 
+const PACKAGES_QUERY = `
+query GetPackages($country: Country!) {
+  packages(country: $country, platform: WEB) {
+    clearName
+    shortName
+  }
+}`;
+
+interface JwPackagesResponse {
+  data?: { packages?: Array<{ clearName?: string; shortName?: string }> };
+  errors?: Array<{ message: string }>;
+}
+
 /**
- * Bir JustWatch provider üçün AZ kataloqunu çəkir. Pagination cursor ilə —
- * `hasNextPage=false` olana və ya `maxPagesPerPlatform` limitinə çatana qədər.
+ * Verilmiş ölkədə bir provider-in (clearName üzrə, məs. "Amazon Prime Video")
+ * JustWatch package shortName-ini tapır. ShortName-lər region-spesifikdir:
+ * DE/GB-də Prime "amp", FR-də "prv". Tapılmazsa `fallback` qaytarılır.
+ */
+export async function resolvePackageShortName(
+  country: string,
+  clearName: string,
+  fallback: string
+): Promise<string> {
+  try {
+    const res = await fetchWithRetry(JW_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+        "user-agent": "Mozilla/5.0 (compatible; honsell-streaming-sync/1.0; +https://honsell.store)",
+      },
+      body: JSON.stringify({ query: PACKAGES_QUERY, variables: { country } }),
+      pacingMs: SCRAPER_CONFIG.rateLimitMs.PRIME,
+    });
+    const data = (await res.json()) as JwPackagesResponse;
+    const target = clearName.trim().toLowerCase();
+    const match = (data.data?.packages ?? []).find(
+      (p) => (p.clearName ?? "").trim().toLowerCase() === target
+    );
+    return match?.shortName ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Bir JustWatch provider üçün verilmiş ölkənin kataloqunu çəkir. Pagination
+ * cursor ilə — `hasNextPage=false` olana və ya `maxPages` limitinə çatana qədər.
+ *
+ * @param country  ISO 3166-1 alpha-2 ölkə kodu. Default `SCRAPER_CONFIG.country`
+ *                 (AZ) — HBO Max kimi tək-region platformalar üçün.
+ * @param maxPages Səhifə tavanı. Default `SCRAPER_CONFIG.maxPagesPerPlatform`;
+ *                 Prime tam katalog üçün `primeMaxPages` ötürür.
  */
 export async function scrapeJustWatchProvider(
   platform: Platform,
-  providerShortName: string
+  providerShortName: string,
+  country: string = SCRAPER_CONFIG.country,
+  maxPages: number = SCRAPER_CONFIG.maxPagesPerPlatform
 ): Promise<ScraperResult> {
   const startedAt = Date.now();
   const warnings: string[] = [];
@@ -151,7 +203,7 @@ export async function scrapeJustWatchProvider(
   let cursor: string | undefined = undefined;
   const pageSize = 40;
 
-  for (let page = 1; page <= SCRAPER_CONFIG.maxPagesPerPlatform; page++) {
+  for (let page = 1; page <= maxPages; page++) {
     try {
       const res = await fetchWithRetry(JW_ENDPOINT, {
         method: "POST",
@@ -164,7 +216,7 @@ export async function scrapeJustWatchProvider(
         body: JSON.stringify({
           query: POPULAR_TITLES_QUERY,
           variables: {
-            country: SCRAPER_CONFIG.country,
+            country,
             packages: [providerShortName],
             first: pageSize,
             after: cursor,
@@ -197,9 +249,10 @@ export async function scrapeJustWatchProvider(
       if (titlesById.size === 0) {
         return {
           platform,
+          country,
           titles: [],
           warnings,
-          fatalError: `JustWatch (${providerShortName}) əlçatan deyil: ${msg}`,
+          fatalError: `JustWatch (${providerShortName}, ${country}) əlçatan deyil: ${msg}`,
           stats: { requestCount, durationMs: Date.now() - startedAt },
         };
       }
@@ -210,6 +263,7 @@ export async function scrapeJustWatchProvider(
 
   return {
     platform,
+    country,
     titles: [...titlesById.values()],
     warnings,
     stats: { requestCount, durationMs: Date.now() - startedAt },

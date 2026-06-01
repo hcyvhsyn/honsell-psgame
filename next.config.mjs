@@ -9,6 +9,7 @@ const nextConfig = {
       { protocol: "https", hostname: "**.supabase.co" },
       { protocol: "https", hostname: "**.supabase.in" },
       { protocol: "https", hostname: "image.tmdb.org" },
+      { protocol: "https", hostname: "images.justwatch.com" },
     ],
   },
 };
