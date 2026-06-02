@@ -11,8 +11,6 @@ import {
 import {
   STREAMING_SERVICE_LABELS,
   addMonths,
-  serializeStreamingStock,
-  type StreamingStockEntry,
 } from "@/lib/streamingCart";
 import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
 import {
@@ -289,39 +287,16 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   if (productType === "STREAMING") {
-    // Admin sifarişi təsdiq edərkən hesab kreditiyalarını body-də göndərir.
-    const accountEmail = String(body.accountEmail ?? "").trim();
-    const accountPassword = String(body.accountPassword ?? "");
-    const slotName = String(body.slotName ?? "").trim();
-    const pinCode = String(body.pinCode ?? "").trim();
-
-    if (!accountEmail || !accountPassword || !slotName) {
-      return NextResponse.json(
-        { error: "Hesab email, şifrə və profil adı tələb olunur." },
-        { status: 400 }
-      );
-    }
-
-    const entry: StreamingStockEntry = { accountEmail, accountPassword, slotName, pinCode };
-    const codeRaw = serializeStreamingStock(entry);
+    // STREAMING — admin sadəcə "Təsdiq" düyməsinə basır (modal yoxdur).
+    // Hesab kreditiyaları sistemdə saxlanmır; müştəriyə kreditiyasız
+    // "abunəlik aktivdir" emaili gedir, məlumat ayrıca çatdırılır.
     const productMeta = (tx.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
     const referralPct = readReferralRateFromMeta(productMeta, 0);
 
-    const updated = await prisma.$transaction(async (ptx) => {
-      const sc = await ptx.serviceCode.create({
-        data: {
-          serviceProductId: tx.serviceProductId ?? "",
-          code: codeRaw,
-          isUsed: true,
-        },
-      });
-
+    await prisma.$transaction(async (ptx) => {
       await ptx.transaction.update({
         where: { id: tx.id },
-        data: {
-          status: "SUCCESS",
-          serviceCodeId: sc.id,
-        },
+        data: { status: "SUCCESS" },
       });
 
       const cm = await awardStreamingReferralCommission(ptx, {
@@ -341,13 +316,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       } catch (err) {
         console.error("referral cycle bookkeeping failed", err);
       }
-
-      return { ok: true as const };
     });
-
-    if (!updated.ok) {
-      return NextResponse.json({ error: "Sifariş təsdiqlənmədi." }, { status: 500 });
-    }
 
     if (tx.user?.email) {
       const months = Number(productMeta.durationMonths ?? 0);
@@ -361,10 +330,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           email: tx.user.email,
           userName: tx.user.name ?? "dost",
           providerLabel: STREAMING_SERVICE_LABELS[serviceKey] ?? tx.serviceProduct?.title ?? "Streaming",
-          accountEmail: entry.accountEmail,
-          accountPassword: entry.accountPassword,
-          slotName: entry.slotName,
-          pinCode: entry.pinCode,
           startDate: fmt(startDate),
           endDate: fmt(endDate),
           months,

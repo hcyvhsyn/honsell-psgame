@@ -15,16 +15,17 @@ export default function StreamingDeliveryEmail({
 }: {
   userName: string;
   providerLabel: string;
-  accountEmail: string;
-  accountPassword: string;
-  slotName: string;
-  pinCode: string;
+  accountEmail?: string;
+  accountPassword?: string;
+  slotName?: string;
+  pinCode?: string;
   startDate: string;
   endDate: string;
   months: number;
   paymentAznFormatted: string;
   referralCode?: string | null;
 }) {
+  const hasCredentials = Boolean(accountEmail && accountPassword);
   const labelStyle = { fontSize: 12, color: "#0f172a", opacity: 0.7 } as const;
   const valueStyle = {
     marginTop: 4,
@@ -55,45 +56,49 @@ export default function StreamingDeliveryEmail({
             <b>{providerLabel}</b> abunəliyiniz aktivləşdirildi.
           </p>
 
-          <div
-            style={{
-              marginTop: 18,
-              borderRadius: 14,
-              padding: "14px 16px",
-              background: "rgba(15,23,42,0.06)",
-              border: "1px solid rgba(15,23,42,0.08)",
-            }}
-          >
-            <div>
-              <div style={labelStyle}>📧 Email</div>
-              <div style={valueStyle}>{accountEmail}</div>
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <div style={labelStyle}>🔑 Şifrə</div>
-              <div style={valueStyle}>{accountPassword}</div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              marginTop: 14,
-              borderRadius: 14,
-              padding: "14px 16px",
-              background: "rgba(15,23,42,0.06)",
-              border: "1px solid rgba(15,23,42,0.08)",
-            }}
-          >
-            <div>
-              <div style={labelStyle}>📺 Profil</div>
-              <div style={valueStyle}>{slotName}</div>
-            </div>
-            {pinCode ? (
-              <div style={{ marginTop: 12 }}>
-                <div style={labelStyle}>🔢 PIN</div>
-                <div style={valueStyle}>{pinCode}</div>
+          {hasCredentials ? (
+            <>
+              <div
+                style={{
+                  marginTop: 18,
+                  borderRadius: 14,
+                  padding: "14px 16px",
+                  background: "rgba(15,23,42,0.06)",
+                  border: "1px solid rgba(15,23,42,0.08)",
+                }}
+              >
+                <div>
+                  <div style={labelStyle}>📧 Email</div>
+                  <div style={valueStyle}>{accountEmail}</div>
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <div style={labelStyle}>🔑 Şifrə</div>
+                  <div style={valueStyle}>{accountPassword}</div>
+                </div>
               </div>
-            ) : null}
-          </div>
+
+              <div
+                style={{
+                  marginTop: 14,
+                  borderRadius: 14,
+                  padding: "14px 16px",
+                  background: "rgba(15,23,42,0.06)",
+                  border: "1px solid rgba(15,23,42,0.08)",
+                }}
+              >
+                <div>
+                  <div style={labelStyle}>📺 Profil</div>
+                  <div style={valueStyle}>{slotName}</div>
+                </div>
+                {pinCode ? (
+                  <div style={{ marginTop: 12 }}>
+                    <div style={labelStyle}>🔢 PIN</div>
+                    <div style={valueStyle}>{pinCode}</div>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          ) : null}
 
           <table cellPadding={6} style={{ marginTop: 16, borderCollapse: "collapse", color: "#0f172a", fontSize: 14 }}>
             <tbody>
@@ -117,7 +122,9 @@ export default function StreamingDeliveryEmail({
           </table>
 
           <p style={{ margin: "16px 0 0", color: "#0f172a", opacity: 0.7, fontSize: 12, lineHeight: 1.6 }}>
-            Bu məlumat həmçinin hesabınızda <b>Sifarişlər</b> bölməsində görünür.
+            {hasCredentials
+              ? "Bu məlumat həmçinin hesabınızda Sifarişlər bölməsində görünür."
+              : "Hesab məlumatları sizinlə ayrıca əlaqə vasitəsilə paylaşılacaq."}
           </p>
 
           <ReferralFooter code={referralCode} />

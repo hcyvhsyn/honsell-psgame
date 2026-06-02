@@ -678,10 +678,10 @@ export async function sendStreamingDeliveryEmail(params: {
   email: string;
   userName: string;
   providerLabel: string;
-  accountEmail: string;
-  accountPassword: string;
-  slotName: string;
-  pinCode: string;
+  accountEmail?: string;
+  accountPassword?: string;
+  slotName?: string;
+  pinCode?: string;
   startDate: string;
   endDate: string;
   months: number;
