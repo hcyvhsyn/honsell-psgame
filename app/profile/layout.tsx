@@ -13,7 +13,9 @@ export default async function ProfileLayout({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/profile");
-  if (user.role === "ADMIN") redirect("/admin");
+  // Admin-lər də adi müştərilər kimi profil səhifəsini görür. Admin panelə keçid
+  // profil daxilindəki düymə ilədir (bax app/profile/page.tsx). /admin onsuz da
+  // server tərəfdə role ilə qorunur.
 
   const profileIncomplete =
     !user.name?.trim() ||

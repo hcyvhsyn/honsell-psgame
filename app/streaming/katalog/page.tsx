@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Clapperboard } from "lucide-react";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
-import StreamingTopBar from "@/components/StreamingTopBar";
 import ScrapedCatalogClient from "../(scraped)/ScrapedCatalogClient";
 import { loadScrapedTitles } from "../(scraped)/loadScrapedTitles";
 
@@ -35,10 +34,6 @@ export default async function CatalogPage({
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeaderServer />
-
-      <div className="mx-auto max-w-7xl px-4 pt-2 sm:px-6 lg:px-8">
-        <StreamingTopBar />
-      </div>
 
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <header className="mb-6">

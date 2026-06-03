@@ -33,6 +33,7 @@ import {
   ArrowLeft,
   Coins,
   Monitor,
+  Megaphone,
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import LogoutButton from "@/components/LogoutButton";
@@ -70,7 +71,8 @@ type IconName =
   | "Search"
   | "TrendingUp"
   | "Coins"
-  | "Monitor";
+  | "Monitor"
+  | "Megaphone";
 
 export type NavItemSpec = {
   href: string;
@@ -111,6 +113,7 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   TrendingUp,
   Coins,
   Monitor,
+  Megaphone,
 };
 
 export default function AdminSidebar({

@@ -351,8 +351,8 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
       {/* Right side vertical list (desktop only) */}
       {banners.length > 1 && (
         <ul
-          className="hidden h-full flex-col justify-between gap-2 overflow-y-auto pr-1 lg:flex"
-          style={{ maxHeight: "100%" }}
+          className="hidden flex-col gap-2 overflow-y-auto pr-1 lg:flex"
+          style={{ maxHeight: "472px" }}
         >
           {banners.map((b, i) => {
             const active = i === current;

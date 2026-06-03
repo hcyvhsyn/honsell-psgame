@@ -7,6 +7,7 @@ import {
   BriefcaseBusiness,
   ChevronDown,
   ChevronRight,
+  Clapperboard,
   Coins,
   Crosshair,
   Flame,
@@ -172,6 +173,13 @@ const streamingGroup: NavGroup = {
       label: "Bütün xidmətlər",
       description: "Aktiv streaming paketləri",
       Icon: Video,
+      section: "products",
+    },
+    {
+      href: "/streaming/katalog",
+      label: "Film və Seriallar",
+      description: "Bütün film və serial kataloqu",
+      Icon: Clapperboard,
       section: "products",
     },
     {

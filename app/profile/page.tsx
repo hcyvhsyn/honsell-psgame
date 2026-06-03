@@ -17,6 +17,7 @@ import {
   Tv,
   CalendarDays,
   CircleDollarSign,
+  LayoutDashboard,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -185,6 +186,30 @@ export default async function ProfileOverviewPage() {
 
   return (
     <div className="space-y-3">
+      {user.role === "ADMIN" && (
+        <Link
+          href="/admin"
+          className="flex items-center justify-between gap-3 rounded-[14px] border border-violet-300/40 bg-gradient-to-r from-violet-600/10 via-fuchsia-600/10 to-violet-600/10 px-5 py-3.5 transition hover:border-violet-400/60 hover:from-violet-600/15 hover:to-violet-600/15 dark:border-violet-400/30 dark:bg-[linear-gradient(135deg,rgba(124,58,237,0.18),rgba(168,85,247,0.1))]"
+        >
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] border border-violet-300/40 bg-violet-500/15 text-violet-700 dark:text-violet-200">
+              <LayoutDashboard className="h-5 w-5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-black text-zinc-900 dark:text-white">
+                Admin paneli
+              </span>
+              <span className="block truncate text-xs text-zinc-500 dark:text-zinc-400">
+                İdarəetmə bölməsinə keçid et
+              </span>
+            </span>
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] bg-gradient-to-r from-violet-600 via-purple-600 to-violet-800 px-4 py-2 text-xs font-bold text-white shadow-[0_14px_34px_-20px_rgba(124,58,237,0.95)]">
+            Panelə keç <ArrowRight className="h-3.5 w-3.5" />
+          </span>
+        </Link>
+      )}
+
       <section className="grid gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <WelcomeCard
           displayName={displayName}

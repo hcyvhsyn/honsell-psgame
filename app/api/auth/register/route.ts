@@ -10,6 +10,7 @@ import {
   rateLimitMessage,
 } from "@/lib/rateLimit";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { normalizeHeardAboutSource } from "@/lib/heardAbout";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
     const referralCode = body.referralCode
       ? String(body.referralCode).trim().toUpperCase()
       : null;
+    const heardAboutSource = normalizeHeardAboutSource(body.heardAboutSource);
 
     if (!name) {
       return NextResponse.json({ error: "Ad Soyad tələb olunur" }, { status: 400 });
@@ -34,6 +36,12 @@ export async function POST(req: Request) {
     if (!email || !password || password.length < 8) {
       return NextResponse.json(
         { error: "E-poçt və şifrə (ən azı 8 simvol) tələb olunur" },
+        { status: 400 }
+      );
+    }
+    if (!heardAboutSource) {
+      return NextResponse.json(
+        { error: "Bizi haradan eşitdiyinizi seçin" },
         { status: 400 }
       );
     }
@@ -190,6 +198,7 @@ export async function POST(req: Request) {
           passwordHash: hashPassword(password),
           referralCode: code,
           referredById,
+          heardAboutSource,
           otpCode,
           otpExpiresAt,
         },

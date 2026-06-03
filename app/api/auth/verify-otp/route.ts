@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE_NAME } from "@/lib/auth";
 import { sendAdminNewUserNotification, sendWelcomeEmail } from "@/lib/resend";
 import { rateLimitMessage } from "@/lib/rateLimit";
+import { heardAboutLabel } from "@/lib/heardAbout";
 
 export const runtime = "nodejs";
 
@@ -104,6 +105,7 @@ export async function POST(req: Request) {
       email: user.email,
       name: user.name,
       phone: user.phone,
+      heardAbout: heardAboutLabel(user.heardAboutSource),
     });
   } catch (err) {
     console.error("admin new-user notify failed", err);

@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import StreamingFeaturedBanner, { type FeaturedSlide } from "@/components/StreamingFeaturedBanner";
 import StreamingTitleCard from "@/components/StreamingTitleCard";
-import StreamingTopBar from "@/components/StreamingTopBar";
 import StreamingReviewsPreview from "@/components/StreamingReviewsPreview";
 import PlatformGuidesSection from "@/components/PlatformGuidesSection";
 import NewsSection from "@/components/NewsSection";
@@ -95,10 +94,6 @@ export default async function StreamingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <SiteHeaderServer />
-
-      <div className="mx-auto max-w-7xl px-4 pt-2 sm:px-6 lg:px-8">
-        <StreamingTopBar />
-      </div>
 
       {/* Hero / featured banner */}
       <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">

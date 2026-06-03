@@ -13,6 +13,7 @@ import {
   Hash,
   KeyRound,
   Mail,
+  Megaphone,
   Phone,
   Search,
   ShieldCheck,
@@ -20,6 +21,7 @@ import {
   Zap,
 } from "lucide-react";
 import { COUNTRY_CODES, type CountryCode } from "@/lib/countryCodes";
+import { HEARD_ABOUT_OPTIONS } from "@/lib/heardAbout";
 import TurnstileWidget from "@/components/auth/TurnstileWidget";
 
 type Step = "details" | "otp";
@@ -41,6 +43,7 @@ export default function RegisterForm({
     email: "",
     password: "",
     referralCode: "",
+    heardAboutSource: "",
   });
   const [country, setCountry] = useState<CountryCode>(DEFAULT_COUNTRY);
   const [code, setCode] = useState("");
@@ -89,6 +92,12 @@ export default function RegisterForm({
     setError(null);
     setInfo(null);
     setAccountExists(null);
+
+    if (!form.heardAboutSource) {
+      setBusy(false);
+      setError("Bizi haradan eşitdiyinizi seçin.");
+      return;
+    }
 
     const turnstileEnabled = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
     if (turnstileEnabled && !captchaToken) {
@@ -280,6 +289,13 @@ export default function RegisterForm({
                   : undefined
               }
             />
+            <SelectField
+              icon={<Megaphone className="h-5 w-5" />}
+              value={form.heardAboutSource}
+              onChange={(v) => setForm({ ...form, heardAboutSource: v })}
+              placeholder="Bizi haradan eşitdiniz?"
+              options={HEARD_ABOUT_OPTIONS}
+            />
 
             <div className="mt-2 flex justify-center">
               <TurnstileWidget onToken={setCaptchaToken} action="register" />
@@ -432,6 +448,96 @@ function Field({
         </span>
       )}
     </label>
+  );
+}
+
+function SelectField({
+  icon,
+  value,
+  onChange,
+  placeholder,
+  options,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  options: ReadonlyArray<{ value: string; label: string }>;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const selected = options.find((o) => o.value === value) ?? null;
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={placeholder}
+        className="relative flex h-12 w-full items-center rounded-[13px] border border-violet-300/30 dark:border-violet-300/20 bg-zinc-100 dark:bg-black/20 pl-14 pr-12 text-left text-sm font-medium outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus:border-violet-400/70 dark:focus:border-violet-300/55 focus:bg-white dark:focus:bg-black/30 sm:h-14 sm:pl-16 sm:text-base"
+      >
+        <span className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-violet-300">
+          {icon}
+        </span>
+        <span className={`truncate ${selected ? "text-zinc-900 dark:text-white" : "text-zinc-500"}`}>
+          {selected ? selected.label : placeholder}
+        </span>
+        <ChevronDown
+          className={`pointer-events-none absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500 transition ${
+            open ? "rotate-180 text-violet-300" : ""
+          }`}
+        />
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          className="absolute left-0 top-[calc(100%+0.45rem)] z-30 w-full overflow-hidden rounded-[15px] border border-violet-300/30 dark:border-violet-300/20 bg-white/95 dark:bg-[#0b0c18]/95 p-1.5 shadow-[0_24px_80px_-30px_rgba(0,0,0,0.2),0_0_50px_-30px_rgba(168,85,247,0.45)] dark:shadow-[0_24px_80px_-30px_rgba(0,0,0,0.9),0_0_50px_-30px_rgba(168,85,247,0.95)] backdrop-blur-xl"
+        >
+          {options.map((o) => {
+            const active = o.value === value;
+            return (
+              <button
+                type="button"
+                key={o.value}
+                role="option"
+                aria-selected={active}
+                onClick={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center justify-between gap-2 rounded-[10px] px-3 py-2.5 text-left text-sm font-medium transition ${
+                  active
+                    ? "bg-violet-500/15 text-violet-900 dark:bg-violet-500/20 dark:text-white"
+                    : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                }`}
+              >
+                <span className="truncate">{o.label}</span>
+                {active && <Check className="h-4 w-4 shrink-0 text-violet-300" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 

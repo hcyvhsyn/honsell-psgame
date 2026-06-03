@@ -95,3 +95,57 @@ export async function sendSponsoredWhatsApp(params: {
     return { ok: false, reason: err instanceof Error ? err.message : "unknown" };
   }
 }
+
+/**
+ * Müştərinin favoritindəki oyun endirimə düşəndə anlıq WhatsApp bildirişi.
+ * Hibrid strategiyanın WhatsApp tərəfi — müştəri bu oyunu özü izlədiyi üçün
+ * mesaj gözləniləndir (spam deyil). Səssizcə uğursuz olur (telefon yox / WaSender
+ * konfiqurasiya olunmayıb) — scrape axınını dayandırmır.
+ */
+export async function sendFavoriteOnSaleWhatsApp(params: {
+  phone: string | null | undefined;
+  userName?: string | null;
+  productTitle: string;
+  productId: string;
+  finalAzn: number;
+  discountPct?: number | null;
+  discountEndAt?: Date | null;
+}): Promise<{ ok: boolean; reason?: string }> {
+  if (!isWasenderConfigured()) {
+    return { ok: false, reason: "WASENDER_NOT_CONFIGURED" };
+  }
+  const to = normalizeToE164(params.phone);
+  if (!to) {
+    return { ok: false, reason: "PHONE_INVALID" };
+  }
+
+  const greeting = params.userName?.trim() ? `Salam, ${params.userName.trim()}!` : "Salam!";
+  const pctLine =
+    params.discountPct != null && params.discountPct > 0 ? ` *-${params.discountPct}%*` : "";
+  const endLine = params.discountEndAt
+    ? `\nEndirim bitir: ${params.discountEndAt.toLocaleDateString("az-AZ", {
+        day: "numeric",
+        month: "long",
+      })}`
+    : "";
+  const link = `honsell.store/oyunlar/${params.productId}`;
+
+  const text =
+    `${greeting}\n\n` +
+    `Favoritinizdəki *${params.productTitle}* endirimə düşdü!${pctLine}\n` +
+    `Yeni qiymət: *${params.finalAzn.toFixed(2)} AZN*${endLine}\n\n` +
+    `${link}\n` +
+    `Honsell.store`;
+
+  try {
+    const res = await sendWasenderText({ to, text });
+    if (!res.ok) {
+      console.error("favorite-on-sale whatsapp send failed", { reason: res.error });
+      return { ok: false, reason: res.error };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error("favorite-on-sale whatsapp threw", { err });
+    return { ok: false, reason: err instanceof Error ? err.message : "unknown" };
+  }
+}

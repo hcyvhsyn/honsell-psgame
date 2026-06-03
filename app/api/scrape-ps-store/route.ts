@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { revalidateGames } from "@/lib/revalidate";
 import { sendFavoriteOnSaleEmail } from "@/lib/resend";
+import { sendFavoriteOnSaleWhatsApp } from "@/lib/orderNotifications";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import {
   buildEmbeddingHash,
@@ -954,7 +955,7 @@ export async function GET(req: Request) {
               discountTryCents: { not: null },
               discountEndAt: { lt: cleanupAt },
             },
-            data: { discountTryCents: null, discountEndAt: null },
+            data: { discountTryCents: null, discountEndAt: null, discountStartedAt: null },
           });
           const orphanCleanup = await prisma.game.updateMany({
             where: {
@@ -963,7 +964,7 @@ export async function GET(req: Request) {
               discountEndAt: null,
               lastScrapedAt: { lt: runStartedAt },
             },
-            data: { discountTryCents: null },
+            data: { discountTryCents: null, discountStartedAt: null },
           });
           emit({
             type: "discountCleanup",
@@ -993,6 +994,24 @@ export async function GET(req: Request) {
               return prev == null;
             })
           : [];
+
+        // Endirimə təzə düşənlərə discountStartedAt möhürü vur (yalnız boş
+        // olanlara) — həftəlik bülleten "son N gündə endirimə düşənlər"i bununla
+        // seçir. Favorit bildiriş blokundan asılı deyil, ona görə ayrıca yazılır.
+        if (newlyDiscounted.length > 0) {
+          try {
+            await prisma.game.updateMany({
+              where: {
+                productId: { in: newlyDiscounted.map((g) => g.productId) },
+                discountTryCents: { not: null },
+                discountStartedAt: null,
+              },
+              data: { discountStartedAt: new Date() },
+            });
+          } catch (e) {
+            console.error("scrape-ps-store: discountStartedAt stamp failed", e);
+          }
+        }
 
         if (newlyDiscounted.length > 0) {
           emit({ type: "favoriteNotifyStart", total: newlyDiscounted.length });
@@ -1034,7 +1053,7 @@ export async function GET(req: Request) {
                   select: {
                     userId: true,
                     user: {
-                      select: { id: true, email: true, name: true },
+                      select: { id: true, email: true, name: true, phone: true },
                     },
                   },
                 });
@@ -1082,6 +1101,23 @@ export async function GET(req: Request) {
                     console.error(
                       "scrape-ps-store: favorite email send failed",
                       e
+                    );
+                  }
+
+                  // Hibrid: anlıq WhatsApp bildirişi (best-effort, axını saxlamır).
+                  // Müştəri oyunu özü izlədiyi üçün mesaj gözləniləndir.
+                  if (f.user.phone) {
+                    sendFavoriteOnSaleWhatsApp({
+                      phone: f.user.phone,
+                      userName:
+                        f.user.name?.split(" ")[0] ?? f.user.email.split("@")[0],
+                      productTitle: game.title,
+                      productId: game.productId,
+                      finalAzn: display.finalAzn,
+                      discountPct: display.discountPct,
+                      discountEndAt: game.discountEndAt,
+                    }).catch((e) =>
+                      console.error("scrape-ps-store: favorite whatsapp failed", e)
                     );
                   }
                 }

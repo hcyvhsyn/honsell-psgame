@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
-import StreamingTopBar from "@/components/StreamingTopBar";
 import { getCurrentUser } from "@/lib/auth";
 import StreamingReviewsClient, { type ReviewItem } from "./StreamingReviewsClient";
 
@@ -89,9 +88,6 @@ export default async function StreamingReviewsPage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeaderServer />
-      <div className="mx-auto max-w-5xl px-4 pt-2 sm:px-6">
-        <StreamingTopBar />
-      </div>
       <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <header className="mb-6">
           <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">

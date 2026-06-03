@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { Heart, Film, Tv as TvIcon, ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
-import StreamingTopBar from "@/components/StreamingTopBar";
 import { getCurrentUser } from "@/lib/auth";
 import WatchlistRemoveButton from "./WatchlistRemoveButton";
 
@@ -28,9 +27,6 @@ export default async function WatchlistPage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeaderServer />
-      <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6">
-        <StreamingTopBar />
-      </div>
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <Link
           href="/streaming"

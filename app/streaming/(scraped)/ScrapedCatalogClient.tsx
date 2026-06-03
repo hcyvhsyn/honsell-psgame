@@ -278,7 +278,7 @@ export default function ScrapedCatalogClient({ titles, initialKind = "ALL" }: Pr
 
   return (
     <div className="space-y-6">
-      <div className="sticky top-[116px] z-40 md:top-[94px] xl:top-[156px]">
+      <div>
         <div className="rounded-lg border border-white/[0.09] bg-[#07080d]/90 p-2 shadow-[0_24px_80px_-36px_rgba(0,0,0,0.95)] backdrop-blur-2xl">
           <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_220px_150px_auto]">
             <div className="relative min-w-0">
@@ -610,7 +610,7 @@ export default function ScrapedCatalogClient({ titles, initialKind = "ALL" }: Pr
         </div>
       ) : (
         <>
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {visible.map((t) => (
               <li key={t.id}>
                 <ScrapedTitleCard data={t} onPlay={setTrailerOf} />

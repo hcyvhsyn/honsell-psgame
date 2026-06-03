@@ -25,6 +25,11 @@ model User {
   disabledAt  DateTime?
   disabledReason String?
 
+  // Qeydiyyatda "Bizi haradan eşitdiniz?" cavabı (məcburi seçim).
+  // Dəyərlər: INSTAGRAM | TIKTOK | FRIEND | OTHER (bax lib/heardAbout.ts).
+  // Köhnə hesablarda boş ola bildiyi üçün DB-də nullable saxlanılır.
+  heardAboutSource String?
+
   // Optional profile fields edited from /profile/settings.
   birthDate DateTime?
   gender    String? // "MALE" | "FEMALE" | "OTHER"
@@ -51,6 +56,12 @@ model User {
   lastLoginIp        String?
   lastUserAgent      String?
   loginCount         Int       @default(0)
+
+  // Marketinq (endirim bülleteni) — opt-out və son göndəriş izləməsi.
+  // marketingUnsubscribedAt qeyri-null isə bu istifadəçiyə toplu marketinq
+  // göndərilmir (sifariş/abunəlik kimi əməliyyat e-poçtları təsirlənmir).
+  marketingUnsubscribedAt DateTime?
+  lastDigestSentAt        DateTime?
 
   // Wallet (stored in AZN, scaled by 100 to keep integer math clean)
   walletBalance Int @default(0) // depozit / ödəniş üçün əsas cüzdan
@@ -89,6 +100,8 @@ model User {
   subscriptions Subscription[]
 
   favorites Favorite[]
+
+  discountDigests DiscountDigestNotification[]
 
   referralCycleResults ReferralCycleResult[]
 
@@ -209,6 +222,10 @@ model Game {
   priceTryCents    Int
   discountTryCents Int? // null when no discount is active
   discountEndAt    DateTime? // when the active discount expires (from PS Store)
+  // Endirim ilk dəfə aşkar olunan an (null→endirim keçidində scrape təyin edir,
+  // endirim bitəndə təmizlənir). Həftəlik "yeni endirimlər" bülleteni bunu
+  // "son N gündə endirimə düşənlər" filtri üçün istifadə edir.
+  discountStartedAt DateTime?
 
   // Epic only: Azərbaycan (country=AZ) prices in USD, scaled by 100 (cents).
   // NULL for PS rows. Stored alongside TRY so the dual-currency sale logic can
@@ -837,6 +854,22 @@ model FavoriteNotification {
 
   @@unique([userId, gameId, discountStartedAt])
   @@index([gameId])
+}
+
+/// Həftəlik endirim bülleteninin göndəriş qeydi. Hər istifadəçiyə bir həftə
+/// pəncərəsində yalnız bir dəfə göndərmək üçün dedup açarı (userId + weekStart).
+/// weekStart = bülletenin aid olduğu həftənin başlanğıcı (UTC bazən 00:00).
+model DiscountDigestNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  weekStart DateTime
+  gameCount Int      @default(0) // bülletendə neçə endirim göstərildi
+  sentAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([weekStart])
 }
 
 // ─── FAQ (homepage "Tez-tez verilən suallar") ─────────────────────────────────

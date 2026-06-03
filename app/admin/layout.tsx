@@ -27,6 +27,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
       { href: "/admin/transactions", label: "Tranzaksiyalar", iconName: "Receipt" },
       { href: "/admin/deposits", label: "Ödəniş Tələbləri", iconName: "Wallet", badgeKey: "pendingDeposits" },
       { href: "/admin/referrals", label: "Referal faizləri", iconName: "Percent" },
+      { href: "/admin/discount-digest", label: "Endirim Bülleteni", iconName: "Megaphone" },
       { href: "/admin/settings", label: "Tənzimləmələr", iconName: "SettingsIcon" },
     ],
   },

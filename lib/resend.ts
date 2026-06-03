@@ -158,8 +158,9 @@ export async function sendAdminNewUserNotification(params: {
   email: string;
   name: string | null;
   phone: string | null;
+  heardAbout?: string | null;
 }) {
-  const { userId, email, name, phone } = params;
+  const { userId, email, name, phone, heardAbout } = params;
   const html = `
     <h2>Yeni qeydiyyat</h2>
     <p>Yeni müştəri qeydiyyatdan keçdi və e-poçtu təsdiqlədi.</p>
@@ -167,6 +168,7 @@ export async function sendAdminNewUserNotification(params: {
       <tr><td><b>Ad Soyad</b></td><td>${escapeHtml(name ?? "—")}</td></tr>
       <tr><td><b>E-poçt</b></td><td>${escapeHtml(email)}</td></tr>
       <tr><td><b>Telefon</b></td><td>${escapeHtml(phone ?? "—")}</td></tr>
+      <tr><td><b>Haradan eşidib</b></td><td>${escapeHtml(heardAbout ?? "—")}</td></tr>
       <tr><td><b>User ID</b></td><td>${escapeHtml(userId)}</td></tr>
     </table>
     <p><a href="${ADMIN_BASE_URL}/admin/users">Adminə keç</a></p>
@@ -593,6 +595,94 @@ export async function sendFavoriteOnSaleEmail(params: {
   });
   if (error) {
     throw new Error(`Resend favorite-on-sale email failed: ${error.message}`);
+  }
+}
+
+/**
+ * Həftəlik "yeni endirimlər" bülleteni. Tək e-poçtda bir neçə oyun göstərilir.
+ * Marketinq mesajı olduğu üçün footer-də məcburi unsubscribe linki var.
+ */
+export async function sendDiscountDigestEmail(params: {
+  email: string;
+  userName: string;
+  unsubscribeUrl: string;
+  games: Array<{
+    productId: string;
+    title: string;
+    imageUrl: string | null;
+    finalAzn: number;
+    originalAzn: number | null;
+    discountPct: number | null;
+    discountEndAt: Date | null;
+  }>;
+}) {
+  const accent = "#10b981";
+  const catalogUrl = `${ADMIN_BASE_URL}/oyunlar`;
+
+  const cards = params.games
+    .map((g) => {
+      const url = `${ADMIN_BASE_URL}/oyunlar/${encodeURIComponent(g.productId)}`;
+      const cover = g.imageUrl
+        ? `<img src="${g.imageUrl}" alt="${escapeHtml(g.title)}" width="84" height="84" style="width:84px;height:84px;object-fit:cover;border-radius:10px;display:block" />`
+        : `<div style="width:84px;height:84px;border-radius:10px;background:#27272a"></div>`;
+      const badge =
+        g.discountPct != null
+          ? `<span style="display:inline-block;background:#6D28D9;color:#fff;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;margin-bottom:6px">-${g.discountPct}%</span>`
+          : "";
+      const original = g.originalAzn
+        ? `<span style="color:#71717a;text-decoration:line-through;margin-right:6px;font-size:13px">${fmtAzn(g.originalAzn)}</span>`
+        : "";
+      const endLine = g.discountEndAt
+        ? `<div style="margin-top:4px;color:#a1a1aa;font-size:11px">Bitir: ${fmtDateAz(g.discountEndAt)}</div>`
+        : "";
+      return `
+        <a href="${url}" style="text-decoration:none;color:inherit;display:block">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;background:#18181b;border:1px solid #27272a;border-radius:12px">
+            <tr>
+              <td style="padding:12px;width:84px;vertical-align:top">${cover}</td>
+              <td style="padding:12px 12px 12px 0;vertical-align:top">
+                ${badge}
+                <div style="color:#fff;font-size:15px;font-weight:600;line-height:1.3">${escapeHtml(g.title)}</div>
+                <div style="margin-top:6px">${original}<b style="color:#fff;font-size:16px">${fmtAzn(g.finalAzn)}</b></div>
+                ${endLine}
+              </td>
+            </tr>
+          </table>
+        </a>`;
+    })
+    .join("");
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;color:#e4e4e7;padding:24px">
+      <div style="max-width:560px;margin:0 auto;background:#111114;border:1px solid #27272a;border-radius:16px;overflow:hidden">
+        <div style="background:${accent};padding:20px 24px">
+          <h1 style="margin:0;font-size:20px;color:#0a0a0a">Bu həftənin yeni endirimləri 🎮</h1>
+        </div>
+        <div style="padding:24px">
+          <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8">Salam ${escapeHtml(params.userName)}, PlayStation Store-da bu həftə endirimə düşən seçilmiş oyunlar:</p>
+          ${cards}
+          <div style="margin-top:20px;text-align:center">
+            <a href="${catalogUrl}" style="display:inline-block;background:${accent};color:#0a0a0a;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
+              Bütün endirimlərə bax
+            </a>
+          </div>
+          <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center;line-height:1.6">
+            Honsell PS Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
+            Bu bültenləri almaq istəmirsiniz? <a href="${params.unsubscribeUrl}" style="color:#a1a1aa;text-decoration:underline">Abunəlikdən çıxın</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const { error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: params.email,
+    subject: `Bu həftə ${params.games.length} yeni endirim — Honsell PS Store`,
+    html,
+  });
+  if (error) {
+    throw new Error(`Resend discount-digest email failed: ${error.message}`);
   }
 }
 
