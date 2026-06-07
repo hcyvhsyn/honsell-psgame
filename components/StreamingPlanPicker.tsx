@@ -91,6 +91,16 @@ const SERVICE_THEMES: Record<string, ServiceTheme> = {
     checkGlow: "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.65)]",
     cta: "from-red-700 via-zinc-700 to-blue-600 hover:from-red-600 hover:via-zinc-600 hover:to-blue-500",
   },
+  PRIME_VIDEO: {
+    panelGlow: "from-sky-500/18 via-blue-500/10 to-cyan-400/10",
+    logoGradient: "from-sky-600 via-blue-800 to-zinc-950",
+    accentText: "text-sky-200",
+    accentBorder: "border-sky-400/35",
+    activeCard: "border-sky-300/80 bg-sky-500/10 shadow-[0_0_34px_rgba(14,165,233,0.38)]",
+    activeBadge: "bg-gradient-to-r from-sky-600 to-blue-600 text-white",
+    checkGlow: "bg-sky-500 text-white shadow-[0_0_20px_rgba(14,165,233,0.7)]",
+    cta: "from-sky-600 via-blue-600 to-cyan-500 hover:from-sky-500 hover:via-blue-500 hover:to-cyan-400",
+  },
 };
 
 export type PlanProduct = {

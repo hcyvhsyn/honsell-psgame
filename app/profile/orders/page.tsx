@@ -7,6 +7,7 @@ import {
   parseGameOrderMeta,
 } from "@/lib/gameOrderFulfillment";
 import { formatHonsellGiftCardCode } from "@/lib/honsellGiftCard";
+import { formatProductGiftCode } from "@/lib/productGiftShared";
 import CopyableField from "@/components/CopyableField";
 
 export const dynamic = "force-dynamic";
@@ -102,6 +103,10 @@ export default async function OrdersPage() {
                 /* ignore */
               }
             }
+            // Oyun hədiyyəsində alıcının ödəniş qeydi SERVICE_PURCHASE-dir, amma
+            // gameId qoyulub — başlıq həm xidmət, həm oyun adına fallback etsin.
+            const displayTitle =
+              r.game?.title ?? r.serviceProduct?.title ?? "Silinmiş məhsul";
             return (
             <li
               key={r.id}
@@ -119,14 +124,14 @@ export default async function OrdersPage() {
                 </div>
 
                 <div className="min-w-0 flex-1 sm:hidden">
-                  <p className="truncate text-sm font-medium">{r.type === "SERVICE_PURCHASE" ? r.serviceProduct?.title : (r.game?.title ?? "Silinmiş məhsul")}</p>
+                  <p className="truncate text-sm font-medium">{displayTitle}</p>
                   <p className="text-[10px] uppercase text-emerald-400">{r.status}</p>
                 </div>
               </div>
 
               <div className="min-w-0 flex-1 space-y-1">
                 <p className="hidden truncate text-sm font-medium sm:block">
-                  {r.type === "SERVICE_PURCHASE" ? r.serviceProduct?.title : (r.game?.title ?? "Silinmiş məhsul")}
+                  {displayTitle}
                 </p>
                 {(() => {
                   const isGamePurchase =
@@ -233,6 +238,41 @@ export default async function OrdersPage() {
                     </div>
                   );
                 })()}
+                {(() => {
+                  // Dostuna hədiyyə — alıcının ödəniş qeydində kodu göstər ki, unutmasın.
+                  if (r.type !== "SERVICE_PURCHASE") return null;
+                  let rawMeta: Record<string, unknown> | null = null;
+                  try {
+                    rawMeta = r.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : null;
+                  } catch {
+                    rawMeta = null;
+                  }
+                  if (rawMeta?.kind !== "PRODUCT_GIFT") return null;
+                  const giftCode =
+                    typeof rawMeta?.giftCode === "string" ? (rawMeta.giftCode as string) : null;
+                  if (!giftCode) return null;
+                  return (
+                    <div className="mt-2 rounded-lg border border-fuchsia-500/30 bg-fuchsia-500/10 p-2 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] uppercase tracking-wider text-fuchsia-300/80">
+                          🎁 Hədiyyə kodu
+                        </span>
+                        <Link
+                          href={`/hediyye-ac?code=${giftCode}`}
+                          className="text-[11px] text-fuchsia-200 hover:underline"
+                        >
+                          Açma səhifəsi →
+                        </Link>
+                      </div>
+                      <div className="mt-1 select-all font-mono text-lg font-bold tracking-widest text-fuchsia-200">
+                        {formatProductGiftCode(giftCode)}
+                      </div>
+                      <p className="mt-1 text-[11px] text-fuchsia-200/70">
+                        Bu kodu dostunuza göndərin — o, açma səhifəsində hədiyyəni öz hesabına ala bilər.
+                      </p>
+                    </div>
+                  );
+                })()}
                 {r.type === "SERVICE_PURCHASE" && !r.serviceCode && (() => {
                   let rawMeta: Record<string, unknown> | null = null;
                   try {
@@ -243,6 +283,8 @@ export default async function OrdersPage() {
                   const isHonsellGift = rawMeta?.kind === "HONSELL_GIFT_CARD";
                   const hasCode = typeof rawMeta?.honsellGiftCardCode === "string";
                   if (isHonsellGift && hasCode) return null;
+                  // Hədiyyə qeydləri öz blokunda göstərilir — generik statusu təkrar etmə.
+                  if (rawMeta?.kind === "PRODUCT_GIFT") return null;
                   return (
                     <div className="mt-1 text-xs text-zinc-400">
                       {r.status === "PENDING" && (

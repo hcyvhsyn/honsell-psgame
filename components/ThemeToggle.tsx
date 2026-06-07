@@ -11,7 +11,13 @@ export default function ThemeToggle() {
   const lightBtnRef = useRef<HTMLButtonElement>(null);
   const darkBtnRef = useRef<HTMLButtonElement>(null);
 
-  if (pathname.startsWith("/admin")) return null;
+  if (
+    pathname.startsWith("/admin") ||
+    pathname === "/login" ||
+    pathname === "/register"
+  ) {
+    return null;
+  }
 
   const isDark = theme === "dark";
 
@@ -28,6 +34,7 @@ export default function ThemeToggle() {
 
   return (
     <div
+      id="theme-toggle"
       role="radiogroup"
       aria-label="Mövzu rejimi"
       className={`group fixed right-4 top-1/2 z-[120] -translate-y-1/2

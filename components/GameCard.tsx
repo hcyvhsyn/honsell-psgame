@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   Check,
   Gamepad2,
+  Gift,
   Plus,
   ShoppingCart,
   Trash2,
@@ -113,12 +114,21 @@ export default function GameCard({
   priority?: boolean;
   variant?: GameCardVariant;
 }) {
-  const { add, remove, has, hydrated } = useCart();
+  const { add, addGift, remove, has, hasGift, hydrated } = useCart();
   const inCart = hydrated && has(game.id);
+  const giftInCart = hydrated && hasGift(game.id);
   const countdown = useCountdown(game.discountEndAt);
   const compact = variant === "compact";
 
   const isEpic = game.store === "EPIC" || game.platform === "PC";
+  const cartPayload = {
+    id: game.id,
+    title: game.title,
+    imageUrl: game.imageUrl,
+    finalAzn: game.finalAzn,
+    productType: game.productType,
+    store: isEpic ? "EPIC" : "PS",
+  };
   const platforms = game.platform ? game.platform.split(",").map((p) => p.trim()).filter(Boolean) : [];
   const detailHref = game.productId ? `/oyunlar/${game.productId}` : null;
   const productTypeBadge = getProductTypeBadge(game.productType);
@@ -282,57 +292,70 @@ export default function GameCard({
           ) : null}
         </div>
 
-        <div className="mt-3 flex flex-1 flex-col justify-end sm:mt-5">
+        <div className="mt-3 flex flex-1 flex-col justify-end gap-1.5 sm:mt-5 sm:gap-2">
           {compact ? (
-            <button
-              type="button"
-              onClick={() =>
-                !inCart &&
-                add({
-                  id: game.id,
-                  title: game.title,
-                  imageUrl: game.imageUrl,
-                  finalAzn: game.finalAzn,
-                  productType: game.productType,
-                  store: isEpic ? "EPIC" : "PS",
-                })
-              }
-              disabled={inCart}
-              aria-label={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
-              title={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
-              className={`mx-auto inline-grid h-12 w-12 place-items-center rounded-full border shadow-lg transition ${
-                inCart
-                  ? "border-emerald-400/35 bg-emerald-500/20 text-emerald-200"
-                  : "border-violet-400/35 bg-violet-600 text-white shadow-violet-500/25 hover:bg-violet-500"
-              }`}
-            >
-              {inCart ? <Check className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
-            </button>
-          ) : inCart ? (
-            <button
-              type="button"
-              onClick={() => remove(game.id)}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-2 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 sm:gap-2 sm:px-4 sm:py-3 sm:text-sm"
-            >
-              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="truncate">Səbətdən sil</span>
-            </button>
+            <div className="flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => !inCart && add(cartPayload)}
+                disabled={inCart}
+                aria-label={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
+                title={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
+                className={`inline-grid h-12 w-12 place-items-center rounded-full border shadow-lg transition ${
+                  inCart
+                    ? "border-emerald-400/35 bg-emerald-500/20 text-emerald-200"
+                    : "border-violet-400/35 bg-violet-600 text-white shadow-violet-500/25 hover:bg-violet-500"
+                }`}
+              >
+                {inCart ? <Check className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => !giftInCart && addGift(cartPayload)}
+                disabled={giftInCart}
+                aria-label={giftInCart ? "Hədiyyə kimi səbətdədir" : "Dostuna hədiyyə et"}
+                title={giftInCart ? "Hədiyyə kimi səbətdədir" : "Dostuna hədiyyə et"}
+                className={`inline-grid h-12 w-12 place-items-center rounded-full border shadow-lg transition ${
+                  giftInCart
+                    ? "border-fuchsia-400/40 bg-fuchsia-500/20 text-fuchsia-200"
+                    : "border-fuchsia-400/35 bg-zinc-900 text-fuchsia-300 hover:bg-fuchsia-500/20"
+                }`}
+              >
+                <Gift className="h-5 w-5" />
+              </button>
+            </div>
           ) : (
-            <button
-              type="button"
-              onClick={() =>
-                add({
-                  id: game.id,
-                  title: game.title,
-                  imageUrl: game.imageUrl,
-                  finalAzn: game.finalAzn,
-                  productType: game.productType,
-                  store: isEpic ? "EPIC" : "PS",
-                })
-              }
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#6D28D9] px-2 py-2 text-xs font-semibold text-white shadow-lg shadow-purple-500/20 transition-all duration-200 hover:bg-[#5B21B6] sm:gap-2 sm:px-4 sm:py-3 sm:text-sm"
-            >
-              <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="truncate">Səbətə əlavə et</span>
-            </button>
+            <>
+              {inCart ? (
+                <button
+                  type="button"
+                  onClick={() => remove(game.id)}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-2 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 sm:gap-2 sm:px-4 sm:py-3 sm:text-sm"
+                >
+                  <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="truncate">Səbətdən sil</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => add(cartPayload)}
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#6D28D9] px-2 py-2 text-xs font-semibold text-white shadow-lg shadow-purple-500/20 transition-all duration-200 hover:bg-[#5B21B6] sm:gap-2 sm:px-4 sm:py-3 sm:text-sm"
+                >
+                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="truncate">Səbətə əlavə et</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => (giftInCart ? remove(game.id) : addGift(cartPayload))}
+                className={`inline-flex w-full items-center justify-center gap-1.5 rounded-xl border px-2 py-1.5 text-[11px] font-semibold transition sm:gap-2 sm:px-4 sm:py-2 sm:text-xs ${
+                  giftInCart
+                    ? "border-fuchsia-500/40 bg-fuchsia-500/15 text-fuchsia-200 hover:bg-fuchsia-500/25"
+                    : "border-fuchsia-500/30 bg-transparent text-fuchsia-300 hover:bg-fuchsia-500/10"
+                }`}
+              >
+                <Gift className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="truncate">{giftInCart ? "Hədiyyədən sil" : "Dostuna hədiyyə et"}</span>
+              </button>
+            </>
           )}
         </div>
       </div>

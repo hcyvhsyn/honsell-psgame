@@ -6,6 +6,8 @@ import SetPasswordEmail from "@/emails/SetPasswordEmail";
 import GiftCardEmail from "@/emails/GiftCardEmail";
 import HonsellGiftCardEmail from "@/emails/HonsellGiftCardEmail";
 import HonsellGiftCardRedeemedEmail from "@/emails/HonsellGiftCardRedeemedEmail";
+import ProductGiftCodeEmail from "@/emails/ProductGiftCodeEmail";
+import ProductGiftClaimedEmail from "@/emails/ProductGiftClaimedEmail";
 import StreamingDeliveryEmail from "@/emails/StreamingDeliveryEmail";
 import ReviewInviteEmail from "@/emails/ReviewInviteEmail";
 
@@ -760,6 +762,50 @@ export async function sendHonsellGiftCardRedeemedEmail(params: {
   });
   if (error) {
     throw new Error(`Resend failed to send honsell gift-card redeemed email: ${error.message}`);
+  }
+  return data;
+}
+
+export async function sendProductGiftCodeEmail(params: {
+  email: string;
+  userName: string;
+  claimUrl: string;
+  gifts: { title: string; formattedCode: string; amountAznFormatted: string }[];
+  referralCode?: string | null;
+}) {
+  const { email, userName, claimUrl, gifts, referralCode } = params;
+  const subject =
+    gifts.length > 1
+      ? `Hədiyyə kodlarınız hazırdır (${gifts.length})`
+      : `Hədiyyə kodunuz hazırdır`;
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: email,
+    subject,
+    react: ProductGiftCodeEmail({ userName, claimUrl, gifts, referralCode }),
+  });
+  if (error) {
+    throw new Error(`Resend failed to send product-gift code email: ${error.message}`);
+  }
+  return data;
+}
+
+export async function sendProductGiftClaimedEmail(params: {
+  email: string;
+  userName: string;
+  productTitle: string;
+  ordersUrl: string;
+  referralCode?: string | null;
+}) {
+  const { email, userName, productTitle, ordersUrl, referralCode } = params;
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: email,
+    subject: `Hədiyyəniz açıldı: ${productTitle}`,
+    react: ProductGiftClaimedEmail({ userName, productTitle, ordersUrl, referralCode }),
+  });
+  if (error) {
+    throw new Error(`Resend failed to send product-gift claimed email: ${error.message}`);
   }
   return data;
 }

@@ -49,6 +49,51 @@ export async function sendOrderApprovedWhatsApp(params: {
 }
 
 /**
+ * Sifarişi icra etmək üçün admin müştərinin PlayStation hesabına daxil olur;
+ * giriş anında müştəriyə PlayStation tərəfindən təsdiq kodu (OTP) gəlir.
+ * Bu funksiya həmin kodu istəyən WhatsApp mesajını müştəriyə göndərir.
+ * Səssizcə uğursuz olur (telefon yox / WaSender konfiqurasiya olunmayıb).
+ */
+export async function sendPsnOtpRequestWhatsApp(params: {
+  phone: string | null | undefined;
+  userName?: string | null;
+  productTitle?: string | null;
+}): Promise<{ ok: boolean; reason?: string }> {
+  if (!isWasenderConfigured()) {
+    return { ok: false, reason: "WASENDER_NOT_CONFIGURED" };
+  }
+  const to = normalizeToE164(params.phone);
+  if (!to) {
+    return { ok: false, reason: "PHONE_INVALID" };
+  }
+
+  const greeting = params.userName?.trim() ? `Salam, ${params.userName.trim()}!` : "Salam!";
+  const product = params.productTitle?.trim()
+    ? `«${params.productTitle.trim()}» sifarişinizi`
+    : "sifarişinizi";
+
+  const text =
+    `${greeting}\n\n` +
+    `${product} tamamlamaq üçün PlayStation hesabınıza daxil oluruq. ` +
+    `Girişi təsdiqləmək məqsədilə PlayStation tərəfindən sizə indi göndərilən ` +
+    `təsdiq kodunu (OTP) bizə bildirin. ✅\n\n` +
+    `Qeyd: Bu kodu yalnız bu sifarişin icrası üçün istəyirik.\n\n` +
+    `Honsell.store`;
+
+  try {
+    const res = await sendWasenderText({ to, text });
+    if (!res.ok) {
+      console.error("psn otp request whatsapp send failed", { reason: res.error });
+      return { ok: false, reason: res.error };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error("psn otp request whatsapp threw", { err });
+    return { ok: false, reason: err instanceof Error ? err.message : "unknown" };
+  }
+}
+
+/**
  * Müştəri admin tərəfindən "Sponsorlu" statusuna keçirildikdə ona WhatsApp ilə
  * artırılmış oyun referal faizi barədə məlumat verir. Səssizcə uğursuz olur
  * (telefon yoxdursa / WaSender konfiqurasiya olunmayıbsa) — admin axınını saxlamır.

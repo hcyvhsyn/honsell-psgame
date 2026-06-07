@@ -405,6 +405,62 @@ model HonsellGiftCard {
   @@index([redeemedById])
 }
 
+// ─── Product Gifts (məhsulu dostuna hədiyyə et) ──────────────────────────────
+//
+// Müştəri istənilən məhsulu (oyun, abunəlik və s.) "hədiyyə" olaraq alır.
+// Ödəniş uğurlu olan kimi sistem 11 simvollu unikal kod yaradır və alıcıya
+// göstərir/email edir. Alıcı kodu dostuna verir; dost saytda qeydiyyatdan
+// keçib "/hediyye-ac" səhifəsində kodu daxil edərək hədiyyəni açır — məhsul
+// onun adına PENDING fulfillment sifarişi kimi yaradılır və admin tərəfindən
+// adi sifariş kimi çatdırılır. Honsell hədiyyə kartından (cüzdana balans
+// köçürən) fərqlidir: burada alan konkret məhsulu öz hesabına alır.
+//
+// Cədvəl lib/prisma.ts-dəki ensure-once pattern ilə runtime-da yaradılır
+// (formal prisma migration əvəzinə — AiKnowledge ilə eyni üsul).
+model ProductGift {
+  id   String @id @default(cuid())
+  // 11 simvollu unikal kod (HonsellGiftCard ilə eyni alfabet/format).
+  code String @unique
+
+  // UNCLAIMED | CLAIMED — alışdan sonra UNCLAIMED, dost açdıqda CLAIMED.
+  status String @default("UNCLAIMED")
+
+  // Məhsul snapshot-u — claim vaxtı dostun adına sifarişi qurmaq üçün.
+  // GAME | PS_PLUS | EA_PLAY | TRY_BALANCE | STREAMING | PLATFORM |
+  // ACCOUNT_CREATION | EPIC_ACCOUNT_CREATION | HONSELL_GIFT_CARD
+  productKind      String
+  gameId           String?
+  serviceProductId String?
+  // Oyunlar üçün storefront: "PS" | "EPIC".
+  store            String?
+  titleSnap        String
+  imageSnap        String?
+  amountAznCents   Int
+  // Alıcının dostuna yazdığı opsional mesaj.
+  giftMessage      String?
+
+  // Alıcı (hədiyyəni alan müştəri) — relation qurmadan id saxlanılır.
+  purchasedById         String
+  purchaseTransactionId String?
+  purchasedAt           DateTime @default(now())
+
+  // Açan dost.
+  claimedById              String?
+  claimedAt                DateTime?
+  // Açıldıqda dostun adına yaradılan PENDING fulfillment sifarişinin id-si.
+  fulfillmentTransactionId String?
+
+  // Bitmə tarixi — alışdan 1 il sonra. Bu tarixdən sonra açılma bloklanır.
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, expiresAt])
+  @@index([purchasedById])
+  @@index([claimedById])
+}
+
 // ─── Transactions (deposits, purchases, commissions) ──────────────────────────
 
 model Transaction {
@@ -1366,4 +1422,22 @@ model WebsitePricingConfig {
   aiModel String @default("gpt-4o-mini")
 
   updatedAt DateTime @updatedAt
+}
+
+/// "AI-dan soruş" köməkçisinin bilik bazası — admin paneldən idarə olunur
+/// (app/admin/ai-knowledge). Hər sətir bir bilik parçasıdır (başlıq + mətn +
+/// kateqoriya). Yalnız `isActive` olanlar chat sistem prompt-una daxil edilir.
+/// Cədvəl lib/prisma.ts-dəki ensure-once pattern ilə runtime-da yaradılır.
+model AiKnowledge {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  // GENERAL | PLAYSTATION | STREAMING | GIFT_CARDS | SERVICES | OTHER
+  category  String   @default("GENERAL")
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
 }

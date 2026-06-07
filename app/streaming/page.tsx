@@ -142,7 +142,9 @@ export default async function StreamingPage() {
                       ? "border-purple-500/30 from-purple-500/25 to-fuchsia-500/15"
                       : service === "GAIN"
                         ? "border-rose-500/30 from-rose-500/25 to-orange-500/15"
-                        : "border-amber-500/30 from-amber-500/25 to-yellow-500/15"
+                        : service === "PRIME_VIDEO"
+                          ? "border-sky-500/30 from-sky-500/25 to-blue-600/15"
+                          : "border-amber-500/30 from-amber-500/25 to-yellow-500/15"
                 }
               />
             );

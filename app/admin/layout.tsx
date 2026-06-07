@@ -38,6 +38,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
       { href: "/admin/banners", label: "Bannerlər", iconName: "ImageIcon" },
       { href: "/admin/news", label: "Xəbərlər", iconName: "Newspaper" },
       { href: "/admin/faq", label: "FAQ", iconName: "HelpCircle" },
+      { href: "/admin/ai-knowledge", label: "AI Bilik Bazası", iconName: "Brain" },
       { href: "/admin/platform-guides", label: "Faydalı Başlıqlar", iconName: "ClipboardList" },
       { href: "/admin/reviews", label: "Oyun Rəyləri", iconName: "MessageSquare", badgeKey: "pendingReviews" },
       { href: "/admin/search-suggestions", label: "Populyar axtarışlar", iconName: "Search" },

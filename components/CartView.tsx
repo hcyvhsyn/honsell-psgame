@@ -16,6 +16,10 @@ import {
   ChevronDown,
   Check,
   Pencil,
+  Gift,
+  Send,
+  Loader2,
+  Copy,
 } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 import { MIN_CART_AZN, MIN_CART_AZN_CENTS } from "@/lib/cartLimits";
@@ -95,6 +99,7 @@ export default function CartView({
     priceNotices,
     dismissPriceNotices,
     refreshPrices,
+    setGiftMessage,
   } = useCart();
 
   // Səbət səhifəsi açıldıqda fresh qiymətləri yenidən gətir
@@ -120,6 +125,7 @@ export default function CartView({
     cashbackEarnedAzn?: number;
     cashbackPctEarned?: number;
     newCashbackBalanceAzn?: number;
+    gifts?: { title: string; code: string; formattedCode: string }[];
   } | null>(null);
 
   const [accountEdit, setAccountEdit] = useState<{ itemId: string; key: number } | null>(null);
@@ -194,13 +200,15 @@ export default function CartView({
   /** Oyun / PS Plus / TRY üçün PSN seçimi mütləqdir. Epic oyunları (store=EPIC)
    *  PSN yox, Epic hesabı tələb edir — productType hər ikisində "GAME" olduğu üçün
    *  store ilə ayırırıq. Hesab-açılışı və streaming heç bir hesab tələb etmir. */
+  // HƏDİYYƏ sətirləri çatdırılma hesabı tələb etmir — onu hədiyyəni açan dost verir.
   const deliveryNeedsPsn = items.some(
     (i) =>
-      (i.productType === "GAME" && i.store !== "EPIC") ||
-      ["PS_PLUS", "EA_PLAY", "TRY_BALANCE"].includes(i.productType)
+      !i.gift &&
+      ((i.productType === "GAME" && i.store !== "EPIC") ||
+        ["PS_PLUS", "EA_PLAY", "TRY_BALANCE"].includes(i.productType))
   );
   const deliveryNeedsEpic = items.some(
-    (i) => i.productType === "GAME" && i.store === "EPIC"
+    (i) => !i.gift && i.productType === "GAME" && i.store === "EPIC"
   );
   // Epic hesab-açılışı artıq səbətdədirsə, hesab yoxluğu bloklamır (alışla birlikdə açılır).
   const hasEpicCreationInCart = items.some(
@@ -217,6 +225,15 @@ export default function CartView({
     isAuthed && deliveryNeedsEpic && epicAccountList.length === 0 && !hasEpicCreationInCart;
 
   if (items.length === 0) {
+    if (message?.kind === "ok" && message.gifts && message.gifts.length > 0) {
+      return (
+        <GiftCheckoutSuccess
+          gifts={message.gifts}
+          orderCode={message.orderCode}
+          onNavigate={onNavigate}
+        />
+      );
+    }
     if (message?.kind === "ok") {
       const waPrefill = message.orderCode
         ? `Salam. Sifariş kodum: ${message.orderCode}`
@@ -385,7 +402,7 @@ export default function CartView({
     if (!isAuthed || blockedNoPsn || blockedNoEpic) return;
     if (
       items.some(
-        (i) => i.productType === "ACCOUNT_CREATION" && !i.accountCreation
+        (i) => !i.gift && i.productType === "ACCOUNT_CREATION" && !i.accountCreation
       )
     ) {
       setMessage({
@@ -396,7 +413,7 @@ export default function CartView({
     }
     if (
       items.some(
-        (i) => i.productType === "EPIC_ACCOUNT_CREATION" && !i.epicAccountCreation
+        (i) => !i.gift && i.productType === "EPIC_ACCOUNT_CREATION" && !i.epicAccountCreation
       )
     ) {
       setMessage({
@@ -407,6 +424,7 @@ export default function CartView({
     }
     const missingStreamingGmail = items.find(
       (i) =>
+        !i.gift &&
         i.productType === "STREAMING" &&
         i.title.toLowerCase().includes("youtube") &&
         !i.streaming?.gmail
@@ -420,6 +438,7 @@ export default function CartView({
     }
     const missingYoutubeCreds = items.find(
       (i) =>
+        !i.gift &&
         i.productType === "PLATFORM" &&
         i.title.toLowerCase().includes("youtube") &&
         (!i.streaming?.gmail || !i.streaming?.password)
@@ -441,14 +460,16 @@ export default function CartView({
           items: items.map((i) => ({
             id: i.id,
             qty: i.qty,
-            ...(i.productType === "ACCOUNT_CREATION" && i.accountCreation
+            ...(i.gift ? { isGift: true, giftMessage: i.gift.message } : {}),
+            ...(!i.gift && i.productType === "ACCOUNT_CREATION" && i.accountCreation
               ? { accountCreation: i.accountCreation }
               : {}),
-            ...((i.productType === "STREAMING" || i.productType === "PLATFORM") &&
+            ...(!i.gift &&
+            (i.productType === "STREAMING" || i.productType === "PLATFORM") &&
             i.streaming
               ? { streaming: i.streaming }
               : {}),
-            ...(i.productType === "EPIC_ACCOUNT_CREATION" && i.epicAccountCreation
+            ...(!i.gift && i.productType === "EPIC_ACCOUNT_CREATION" && i.epicAccountCreation
               ? { epicAccountCreation: i.epicAccountCreation }
               : {}),
           })),
@@ -540,6 +561,10 @@ export default function CartView({
           }
         }
 
+        const giftList = Array.isArray(data.gifts)
+          ? (data.gifts as { title: string; code: string; formattedCode: string }[])
+          : [];
+
         const earnedCb =
           typeof data.cashbackAzn === "number" && data.cashbackAzn > 0 ? data.cashbackAzn : 0;
 
@@ -547,6 +572,7 @@ export default function CartView({
           kind: "ok",
           text,
           orderCode,
+          ...(giftList.length > 0 ? { gifts: giftList } : {}),
           ...(earnedCb > 0
             ? {
                 cashbackEarnedAzn: earnedCb,
@@ -630,6 +656,9 @@ export default function CartView({
               item.productType === "PLATFORM" && item.streaming?.gmail
                 ? () => openPlatformCartEdit(item)
                 : undefined
+            }
+            onSetGiftMessage={
+              item.gift ? (msg) => setGiftMessage(item.id, msg) : undefined
             }
           />
         ))}
@@ -1023,6 +1052,189 @@ export default function CartView({
   );
 }
 
+/** Hədiyyə alışından sonra yığcam uğur ekranı — hər hədiyyə üçün "dostuna göndər". */
+function GiftCheckoutSuccess({
+  gifts,
+  orderCode,
+  onNavigate,
+}: {
+  gifts: { title: string; code: string; formattedCode: string }[];
+  orderCode?: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] p-6 shadow-lg shadow-emerald-500/5 sm:p-8">
+      <div className="text-center">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20">
+          <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+        </div>
+        <h2 className="text-xl font-bold text-white">Hədiyyəniz hazırdır 🎁</h2>
+        <p className="mx-auto mt-1.5 max-w-md text-sm text-zinc-400">
+          {gifts.length > 1 ? "Kodlar" : "Kod"} email ünvanınıza da göndərildi.
+          {orderCode ? (
+            <> Sifariş kodu: <span className="font-mono text-zinc-300">{orderCode}</span></>
+          ) : null}
+        </p>
+      </div>
+
+      <div className="mx-auto mt-5 max-w-md space-y-3">
+        {gifts.map((g) => (
+          <GiftDeliveryCard key={g.code} title={g.title} code={g.code} formattedCode={g.formattedCode} />
+        ))}
+      </div>
+
+      <div className="mx-auto mt-6 flex max-w-md flex-col gap-2 sm:flex-row sm:justify-center">
+        {onNavigate ? (
+          <button
+            type="button"
+            onClick={onNavigate}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500"
+          >
+            Alış-verişə davam et
+          </button>
+        ) : (
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500"
+          >
+            Alış-verişə davam et
+          </Link>
+        )}
+        <Link
+          href="/profile/orders"
+          onClick={onNavigate}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-800 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-700"
+        >
+          Sifarişlərimə bax
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function GiftDeliveryCard({
+  title,
+  code,
+  formattedCode,
+}: {
+  title: string;
+  code: string;
+  formattedCode: string;
+}) {
+  const [phase, setPhase] = useState<"idle" | "input" | "sending" | "sent">("idle");
+  const [phone, setPhone] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(formattedCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function send() {
+    if (!phone.trim()) {
+      setError("Dostunuzun WhatsApp nömrəsini yazın.");
+      return;
+    }
+    setPhase("sending");
+    setError(null);
+    try {
+      const res = await fetch("/api/gifts/send-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, phone: phone.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.ok) {
+        setPhase("sent");
+      } else if (typeof data?.waLink === "string") {
+        // WaSender əlçatan deyil və ya göndərmə alınmadı — WhatsApp-ı manual aç.
+        window.open(data.waLink, "_blank", "noopener,noreferrer");
+        setPhase("sent");
+      } else if (data?.reason === "INVALID_PHONE") {
+        setError("Nömrə düzgün deyil. Beynəlxalq formatda yazın, məs: +99450...");
+        setPhase("input");
+      } else {
+        setError("Göndərilmədi. Nömrəni yoxlayıb yenidən cəhd edin.");
+        setPhase("input");
+      }
+    } catch {
+      setError("Şəbəkə xətası. Yenidən cəhd edin.");
+      setPhase("input");
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-fuchsia-500/25 bg-zinc-950/40 p-3.5 text-left">
+      <p className="truncate text-xs text-zinc-400">{title}</p>
+      <div className="mt-1 flex items-center justify-between gap-2">
+        <span className="font-mono text-lg font-bold tracking-wider text-white">{formattedCode}</span>
+        <button
+          type="button"
+          onClick={copyCode}
+          className="inline-flex items-center gap-1 rounded-md border border-zinc-700 px-2 py-1 text-[11px] font-medium text-zinc-300 transition hover:bg-zinc-800"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? "Kopyalandı" : "Kopyala"}
+        </button>
+      </div>
+
+      {phase === "sent" ? (
+        <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-300">
+          <CheckCircle2 className="h-4 w-4" /> Dostunuza WhatsApp ilə göndərildi.
+        </div>
+      ) : phase === "input" || phase === "sending" ? (
+        <div className="mt-2.5 space-y-2">
+          <input
+            type="tel"
+            inputMode="tel"
+            autoFocus
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Dostunun WhatsApp nömrəsi (+99450...)"
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-500/60"
+          />
+          {error ? <p className="text-[11px] text-rose-300">{error}</p> : null}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={send}
+              disabled={phase === "sending"}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#20bd5a] disabled:opacity-50"
+            >
+              {phase === "sending" ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Göndərilir…</>
+              ) : (
+                <><Send className="h-4 w-4" /> Göndər</>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPhase("idle"); setError(null); }}
+              className="rounded-lg border border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-400 transition hover:bg-zinc-800"
+            >
+              Ləğv et
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setPhase("input")}
+          className="mt-2.5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 px-3 py-2 text-sm font-semibold text-white transition hover:from-fuchsia-500 hover:to-violet-500"
+        >
+          <Gift className="h-4 w-4" /> Hədiyyəni dostuna göndər
+        </button>
+      )}
+    </div>
+  );
+}
+
 function CartLine({
   item,
   onIncrement,
@@ -1030,6 +1242,7 @@ function CartLine({
   onRemove,
   onEditAccountCreation,
   onEditPlatform,
+  onSetGiftMessage,
 }: {
   item: CartItem;
   onIncrement: () => void;
@@ -1037,8 +1250,11 @@ function CartLine({
   onRemove: () => void;
   onEditAccountCreation?: () => void;
   onEditPlatform?: () => void;
+  onSetGiftMessage?: (message: string) => void;
 }) {
+  // Hədiyyə həmişə tək nüsxə (qty 1) — say düymələri gizlədilir.
   const isSingleLicense =
+    Boolean(item.gift) ||
     item.productType === "GAME" ||
     item.productType === "PS_PLUS" ||
     item.productType === "EA_PLAY" ||
@@ -1063,9 +1279,26 @@ function CartLine({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p className="line-clamp-2 text-sm font-medium text-zinc-100 leading-snug">{item.title}</p>
-            <p className="mt-0.5 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
+            <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
               {labelForType(item.productType)}
+              {item.gift ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-500/40 bg-fuchsia-500/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-fuchsia-300">
+                  🎁 Hədiyyə
+                </span>
+              ) : null}
             </p>
+            {item.gift && onSetGiftMessage ? (
+              <div className="mt-2 w-full max-w-md">
+                <input
+                  type="text"
+                  defaultValue={item.gift.message ?? ""}
+                  onChange={(e) => onSetGiftMessage(e.target.value)}
+                  maxLength={300}
+                  placeholder="Dostuna mesaj (opsional)"
+                  className="w-full rounded-md border border-fuchsia-500/25 bg-zinc-950/50 px-2.5 py-1.5 text-[12px] text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-fuchsia-500/60"
+                />
+              </div>
+            ) : null}
             {item.productType === "STREAMING" && item.streaming?.gmail ? (
               <div className="mt-1.5 inline-flex max-w-full items-center gap-1.5 rounded-md border border-fuchsia-500/25 bg-fuchsia-500/[0.07] px-2 py-1">
                 <span className="text-[9px] font-semibold uppercase tracking-wider text-fuchsia-300">

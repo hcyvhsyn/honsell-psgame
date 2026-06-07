@@ -12,9 +12,10 @@ export const STREAMING_SERVICE_LABELS: Record<string, string> = {
   GAIN: "Gain",
   YOUTUBE_PREMIUM: "YouTube Premium",
   NETFLIX: "Netflix",
+  PRIME_VIDEO: "Prime Video",
 };
 
-export const STREAMING_SERVICES = ["HBO_MAX", "GAIN", "YOUTUBE_PREMIUM", "NETFLIX"] as const;
+export const STREAMING_SERVICES = ["HBO_MAX", "GAIN", "YOUTUBE_PREMIUM", "NETFLIX", "PRIME_VIDEO"] as const;
 export type StreamingService = (typeof STREAMING_SERVICES)[number];
 
 export const STREAMING_DURATIONS = [1, 2, 3, 6, 12] as const;
@@ -73,6 +74,15 @@ export const STREAMING_SERVICE_META: Record<StreamingService, StreamingServiceMe
     tagline: "Dünyanın ən böyük streaming kataloqu",
     description:
       "Netflix — beynəlxalq orijinallar, filmlər və seriallar üçün dünyanın ən geniş streaming platforması. Aylıq və illik abunəlik paketləri ən sərfəli qiymətə.",
+  },
+  PRIME_VIDEO: {
+    code: "PRIME_VIDEO",
+    slug: "prime",
+    label: "Prime Video",
+    category: "STREAMING",
+    tagline: "Amazon Prime Video film və serial abunəliyi",
+    description:
+      "Prime Video — Amazon-un film və serial platforması. The Boys, Reacher, Fallout və daha çox eksklüziv kontentə tam giriş. Aylıq və illik paketlər mövcuddur, ödənişdən sonra giriş məlumatları sənə email ilə göndərilir.",
   },
 };
 

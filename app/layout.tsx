@@ -9,7 +9,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import AppModals from "@/components/AppModals";
 import FavoritesBootstrap from "@/components/FavoritesBootstrap";
 import FavoriteIntroModal from "@/components/FavoriteIntroModal";
-import WhatsAppFloat from "@/components/WhatsAppFloat";
+import AskAiFloat from "@/components/AskAiFloat";
 import TopLoader from "@/components/TopLoader";
 import { Suspense } from "react";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
@@ -127,7 +127,7 @@ export default function RootLayout({
                   {children}
                   <AppModals />
                   <FavoriteIntroModal />
-                  <WhatsAppFloat />
+                  <AskAiFloat />
                   <ThemeToggle />
                 </CartProvider>
               </FavoritesBootstrap>

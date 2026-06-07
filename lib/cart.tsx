@@ -73,6 +73,13 @@ export type CartItem = {
   epicAccountCreation?: EpicAccountCreationCartDetails;
   streaming?: StreamingCartDetails;
   inGameCredit?: InGameCreditCartDetails;
+  /**
+   * Bu sətir dostuna HƏDİYYƏ olaraq alınır. Mövcudluğu məhsulun hədiyyə kimi
+   * sifariş edildiyini bildirir — ödənişdən sonra çatdırılma üçün PSN/Epic hesabı
+   * tələb olunmur (onu hədiyyəni açan dost verəcək) və sistem 11 simvollu kod
+   * yaradır. `message` — alıcının dostuna opsional qeydi.
+   */
+  gift?: { message?: string };
 };
 
 /** Qiymət dəyişikliyi / artıq mövcud olmayan məhsul bildirişi. */
@@ -85,6 +92,12 @@ type CartContextValue = {
   count: number;
   totalAzn: number;
   add: (item: Omit<CartItem, "qty">) => void;
+  /** Məhsulu dostuna hədiyyə olaraq səbətə əlavə edir (gift bayrağı ilə). */
+  addGift: (item: Omit<CartItem, "qty" | "gift">, message?: string) => void;
+  /** Hədiyyə sətrinin dostuna mesajını yeniləyir. */
+  setGiftMessage: (id: string, message: string) => void;
+  /** Bu məhsul səbətdə HƏDİYYƏ kimi var? */
+  hasGift: (id: string) => boolean;
   setQty: (id: string, qty: number) => void;
   updateAccountCreation: (id: string, details: AccountCreationCartDetails) => void;
   updateEpicAccountCreation: (id: string, details: EpicAccountCreationCartDetails) => void;
@@ -228,10 +241,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         item.productType === "PLATFORM"
       ) {
         const rest = prev.filter((i) => i.id !== item.id);
-        return [...rest, { ...item, qty: 1 }];
+        return [...rest, { ...item, qty: 1, gift: undefined }];
       }
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
+        // Mövcud sətir HƏDİYYƏ idisə, adi "səbətə əlavə et" onu adi sətrə çevirir.
+        if (existing.gift) {
+          return prev.map((i) =>
+            i.id === item.id ? { ...item, qty: 1, gift: undefined } : i
+          );
+        }
         // Cash cards / addons can be bought in multiples; full games stay at 1.
         if (item.productType === "GAME" || item.productType === "PS_PLUS" || item.productType === "EA_PLAY") return prev;
         return prev.map((i) =>
@@ -240,6 +259,28 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
       return [...prev, { ...item, qty: 1 }];
     });
+  }, []);
+
+  const addGift = useCallback(
+    (item: Omit<CartItem, "qty" | "gift">, message?: string) => {
+      setItems((prev) => {
+        // Hədiyyə həmişə tək nüsxə (qty 1) və məhsulun mövcud sətrini əvəz edir.
+        const rest = prev.filter((i) => i.id !== item.id);
+        return [
+          ...rest,
+          { ...item, qty: 1, gift: { message: message?.trim() || undefined } },
+        ];
+      });
+    },
+    []
+  );
+
+  const setGiftMessage = useCallback((id: string, message: string) => {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === id && i.gift ? { ...i, gift: { message: message.trim() || undefined } } : i
+      )
+    );
   }, []);
 
   const setQty = useCallback((id: string, qty: number) => {
@@ -302,6 +343,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [items]
   );
 
+  const hasGift = useCallback(
+    (id: string) => items.some((i) => i.id === id && Boolean(i.gift)),
+    [items]
+  );
+
   const value = useMemo<CartContextValue>(() => {
     const count = items.reduce((sum, i) => sum + i.qty, 0);
     const totalAzn = items.reduce((sum, i) => sum + i.qty * i.finalAzn, 0);
@@ -310,6 +356,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       count,
       totalAzn,
       add,
+      addGift,
+      setGiftMessage,
+      hasGift,
       setQty,
       updateAccountCreation,
       updateEpicAccountCreation,
@@ -326,6 +375,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [
     items,
     add,
+    addGift,
+    setGiftMessage,
+    hasGift,
     setQty,
     updateAccountCreation,
     updateEpicAccountCreation,

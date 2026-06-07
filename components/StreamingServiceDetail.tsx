@@ -17,6 +17,7 @@ const HERO_THEME: Record<StreamingService, string> = {
   GAIN: "border-rose-500/25 from-rose-600/20 via-orange-500/10 to-zinc-900/40",
   YOUTUBE_PREMIUM: "border-red-500/25 from-red-600/20 via-rose-500/10 to-zinc-900/40",
   NETFLIX: "border-red-700/30 from-red-800/30 via-zinc-900/30 to-zinc-950/40",
+  PRIME_VIDEO: "border-sky-500/25 from-sky-600/20 via-blue-600/10 to-zinc-900/40",
 };
 
 type Props = {

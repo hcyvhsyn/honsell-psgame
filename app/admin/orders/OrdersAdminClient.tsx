@@ -188,13 +188,18 @@ function parseAccountCreationDetails(metadata?: string | null): AccountCreationD
   }
 }
 
-function getPaymentSource(metadata?: string | null): "WALLET" | "REFERRAL" | "EPOINT" | "UNKNOWN" {
+function getPaymentSource(
+  metadata?: string | null,
+): "WALLET" | "REFERRAL" | "EPOINT" | "GIFT" | "UNKNOWN" {
   if (!metadata) return "UNKNOWN";
   try {
     const m = JSON.parse(metadata) as { paymentSource?: string };
     if (m.paymentSource === "REFERRAL") return "REFERRAL";
     if (m.paymentSource === "WALLET") return "WALLET";
     if (m.paymentSource === "EPOINT") return "EPOINT";
+    // Dost tərəfindən açılmış hədiyyə sifarişi — bu istifadəçi ödəniş etməyib,
+    // məhsulu hədiyyə kodu ilə alıb. Admin üçün "🎁 GIFT" kimi görünür.
+    if (m.paymentSource === "GIFT") return "GIFT";
     return "UNKNOWN";
   } catch {
     return "UNKNOWN";
@@ -1229,6 +1234,62 @@ export default function OrdersAdminClient() {
   );
 }
 
+/**
+ * Sifarişi icra etmək üçün müştərinin PlayStation hesabına daxil olanda
+ * ona OTP təsdiq kodu gəlir. Bu düymə müştəriyə həmin kodu istəyən WhatsApp
+ * mesajını göndərir (bir kliklə, server tərəfindən hazır mətnlə).
+ */
+function RequestOtpButton({ orderId }: { orderId: string }) {
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  async function send() {
+    if (status === "sending" || status === "sent") return;
+    setStatus("sending");
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/request-otp`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Mesaj göndərilmədi");
+        setStatus("error");
+        return;
+      }
+      setStatus("sent");
+      setTimeout(() => setStatus("idle"), 4000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Şəbəkə xətası");
+      setStatus("error");
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={send}
+        disabled={status === "sending" || status === "sent"}
+        title="Müştəriyə PlayStation OTP kodunu istəyən WhatsApp mesajı göndər"
+        className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500/15 px-3 py-2 text-xs font-semibold text-sky-200 ring-1 ring-sky-500/30 hover:bg-sky-500/25 disabled:opacity-50"
+      >
+        {status === "sending" ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <KeyRound className="h-3.5 w-3.5" />
+        )}
+        {status === "sending"
+          ? "Göndərilir…"
+          : status === "sent"
+            ? "İstənildi ✓"
+            : "OTP kodunu istə"}
+      </button>
+      {status === "error" && error && (
+        <span className="max-w-[220px] text-[10px] text-rose-300">{error}</span>
+      )}
+    </div>
+  );
+}
+
 function GameOrderCard({
   o,
   expanded,
@@ -1372,6 +1433,7 @@ function GameOrderCard({
             >
               <Check className="h-3.5 w-3.5" /> Tamamla (çatdırıldı)
             </button>
+            {!isEpic && <RequestOtpButton orderId={o.id} />}
             <button
               type="button"
               disabled={busy}
@@ -1655,6 +1717,7 @@ function PsPlusOrderCard({
             >
               <Check className="h-3.5 w-3.5" /> Tamamla
             </button>
+            <RequestOtpButton orderId={o.id} />
             <button
               type="button"
               disabled={busy}

@@ -10,6 +10,14 @@ import type { EpointResultData } from "@/lib/epoint";
 import {
   HONSELL_GIFT_CARD_VALIDITY_DAYS,
 } from "@/lib/honsellGiftCard";
+import {
+  generateUniqueProductGiftCode,
+  formatProductGiftCode,
+  PRODUCT_GIFT_VALIDITY_DAYS,
+  PRODUCT_GIFT_CLAIM_PATH,
+} from "@/lib/productGift";
+import { sendProductGiftCodeEmail } from "@/lib/resend";
+import { SITE_URL } from "@/lib/site";
 
 export const EPOINT_CART_PAYMENT_TYPE = "CHECKOUT_PAYMENT";
 
@@ -119,6 +127,20 @@ export type EpointCartLineSnapshot =
       qty: number;
       serviceProductId: string;
       unitListCents: number;
+    }
+  | {
+      // Məhsulu dostuna hədiyyə et — finalize zamanı hər nüsxə üçün ProductGift
+      // (UNCLAIMED, kodlu) yaranır; çatdırılma sifarişi dost claim edəndə açılır.
+      kind: "PRODUCT_GIFT";
+      title: string;
+      qty: number;
+      unitListCents: number;
+      productKind: string;
+      gameId: string | null;
+      serviceProductId: string | null;
+      store: string | null;
+      imageUrl: string | null;
+      giftMessage: string | null;
     };
 
 export type EpointCartPaymentMetadata = {
@@ -193,6 +215,11 @@ export async function finalizeEpointCartCheckout(
     amountAznCents: number;
     expiresAt: Date;
   };
+  type IssuedProductGift = {
+    code: string;
+    title: string;
+    amountAznCents: number;
+  };
   type CompletionSummary = {
     purchaseIds: string[];
     serviceOrderIds: string[];
@@ -201,7 +228,24 @@ export async function finalizeEpointCartCheckout(
     tryBalancePendingCount: number;
     orderCode: string;
     honsellGiftCards: IssuedHonsellGiftCard[];
+    productGifts: IssuedProductGift[];
   };
+
+  // Hədiyyə kodlarını tranzaksiyadan ƏVVƏL generasiya edirik (ensure-once cədvəl
+  // + kolliziya yoxlaması). Hər PRODUCT_GIFT sətrinin hər nüsxəsi üçün bir kod.
+  const giftCodePool: string[] = [];
+  {
+    const seenGiftCodes = new Set<string>();
+    for (const line of meta.checkout.lines) {
+      if (line.kind !== "PRODUCT_GIFT") continue;
+      for (let n = 0; n < line.qty; n++) {
+        let code = await generateUniqueProductGiftCode();
+        while (seenGiftCodes.has(code)) code = await generateUniqueProductGiftCode();
+        seenGiftCodes.add(code);
+        giftCodePool.push(code);
+      }
+    }
+  }
 
   const summary = await prisma.$transaction(async (tx): Promise<CompletionSummary | null> => {
     const paymentUpdate = await tx.transaction.updateMany({
@@ -216,6 +260,8 @@ export async function finalizeEpointCartCheckout(
     const purchaseIds: string[] = [];
     const serviceOrderIds: string[] = [];
     const honsellGiftCards: IssuedHonsellGiftCard[] = [];
+    const productGifts: IssuedProductGift[] = [];
+    let giftCodeIdx = 0;
     let totalCommissionCents = 0;
     let tryBalancePendingCount = 0;
 
@@ -495,6 +541,54 @@ export async function finalizeEpointCartCheckout(
           continue;
         }
 
+        if (line.kind === "PRODUCT_GIFT") {
+          // Alıcının ödəniş qeydi (SUCCESS) + UNCLAIMED ProductGift (kodla).
+          const giftExpiresAt = new Date(
+            Date.now() + PRODUCT_GIFT_VALIDITY_DAYS * 24 * 60 * 60 * 1000,
+          );
+          const code = giftCodePool[giftCodeIdx++];
+          const giftPayment = await tx.transaction.create({
+            data: {
+              userId: payment.userId,
+              type: "SERVICE_PURCHASE",
+              status: "SUCCESS",
+              amountAznCents: -line.unitListCents,
+              ...(line.gameId ? { gameId: line.gameId } : {}),
+              ...(line.serviceProductId ? { serviceProductId: line.serviceProductId } : {}),
+              metadata: JSON.stringify({
+                fromCart: true,
+                kind: "PRODUCT_GIFT",
+                giftProductKind: line.productKind,
+                paymentSource: "EPOINT",
+                orderCode: meta.orderCode,
+                epointPaymentId: payment.id,
+                giftCode: code,
+                store: line.store,
+              }),
+            },
+          });
+          await tx.productGift.create({
+            data: {
+              code,
+              status: "UNCLAIMED",
+              productKind: line.productKind,
+              gameId: line.gameId,
+              serviceProductId: line.serviceProductId,
+              store: line.store,
+              titleSnap: line.title,
+              imageSnap: line.imageUrl,
+              amountAznCents: line.unitListCents,
+              giftMessage: line.giftMessage,
+              purchasedById: payment.userId,
+              purchaseTransactionId: giftPayment.id,
+              expiresAt: giftExpiresAt,
+            },
+          });
+          serviceOrderIds.push(giftPayment.id);
+          productGifts.push({ code, title: line.title, amountAznCents: line.unitListCents });
+          continue;
+        }
+
         const serviceOrder = await tx.transaction.create({
           data: {
             userId: payment.userId,
@@ -546,10 +640,30 @@ export async function finalizeEpointCartCheckout(
       tryBalancePendingCount,
       orderCode: meta.orderCode,
       honsellGiftCards,
+      productGifts,
     };
   });
 
   if (!summary) return { ok: false, reason: "ALREADY_PROCESSED" };
+
+  // Hədiyyə kodlarını alıcıya email ilə göndər (dostuna ötürməsi üçün).
+  if (summary.productGifts.length > 0) {
+    try {
+      await sendProductGiftCodeEmail({
+        email: user.email,
+        userName: user.name ?? user.email,
+        claimUrl: `${SITE_URL}${PRODUCT_GIFT_CLAIM_PATH}`,
+        gifts: summary.productGifts.map((g) => ({
+          title: g.title,
+          formattedCode: formatProductGiftCode(g.code),
+          amountAznFormatted: `${(g.amountAznCents / 100).toFixed(2)} AZN`,
+        })),
+        referralCode: user.referralCode,
+      });
+    } catch (emailErr) {
+      console.error("product gift code email failed", emailErr);
+    }
+  }
 
   // Honsell hədiyyə kartı kodları admin tərəfindən manual təslim edildikdə
   // (/admin/honsell-gift-cards) müştəriyə email ilə göndərilir.

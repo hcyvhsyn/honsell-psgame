@@ -66,7 +66,7 @@ function isProductInStock(): boolean {
   return true;
 }
 
-const SERVICE_ORDER = ["NETFLIX", "HBO_MAX", "GAIN", "YOUTUBE_PREMIUM"] as const;
+const SERVICE_ORDER = ["NETFLIX", "HBO_MAX", "PRIME_VIDEO", "GAIN", "YOUTUBE_PREMIUM"] as const;
 
 const SERVICE_THEME: Record<
   string,
@@ -95,6 +95,12 @@ const SERVICE_THEME: Record<
     ring: "border-red-700/30",
     accent: "text-red-300",
     chip: "bg-red-700/15 text-red-300 border-red-700/30",
+  },
+  PRIME_VIDEO: {
+    gradient: "from-sky-600/15 via-blue-600/8 to-zinc-950/60",
+    ring: "border-sky-500/25",
+    accent: "text-sky-200",
+    chip: "bg-sky-500/15 text-sky-200 border-sky-500/30",
   },
 };
 
@@ -178,6 +184,7 @@ const SERVICE_ANCHORS: Record<string, string> = {
   GAIN: "gain",
   YOUTUBE_PREMIUM: "youtube",
   NETFLIX: "netflix",
+  PRIME_VIDEO: "prime",
 };
 
 function ServiceSection({ service, items }: { service: string; items: Product[] }) {

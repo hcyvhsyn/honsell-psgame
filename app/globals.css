@@ -430,6 +430,97 @@ html.dark .honsell-logo-img {
   color: var(--light-text-6) !important;
 }
 
+/* Auth pages keep the provided dark visual treatment even when the global
+   light theme compatibility overrides are active. */
+.auth-page-shell {
+  color: #ffffff;
+  background-color: #141414;
+  overflow-x: hidden;
+}
+
+.auth-page-shell .honsell-logo-img {
+  filter: none !important;
+}
+
+.auth-page-tabs {
+  width: min(calc(100vw - 3rem), 29rem);
+}
+
+.auth-page-copy,
+.auth-page-content {
+  width: min(calc(100vw - 3rem), 39rem);
+}
+
+.auth-page-input {
+  border: 1px solid rgba(255, 255, 255, 0.26) !important;
+  background: rgba(18, 18, 20, 0.72) !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.auth-page-input::placeholder,
+.auth-page-inner-input::placeholder,
+.auth-page-dropdown-input::placeholder {
+  color: rgba(255, 255, 255, 0.62) !important;
+}
+
+.auth-page-input:focus,
+.auth-page-input:focus-within,
+button.auth-page-input[aria-expanded="true"] {
+  border-color: rgba(128, 34, 255, 0.82) !important;
+  box-shadow:
+    0 0 0 4px rgba(122, 0, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.auth-page-inner-input {
+  border-color: transparent !important;
+  background: transparent !important;
+  color: #ffffff !important;
+}
+
+.auth-page-dropdown-input {
+  border: 1px solid rgba(255, 255, 255, 0.13) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  color: #ffffff !important;
+}
+
+:root.light .auth-page-shell,
+html.light .auth-page-shell {
+  color: #ffffff !important;
+  background-color: #141414 !important;
+}
+
+:root.light .auth-page-shell .text-white,
+html.light .auth-page-shell .text-white {
+  color: #ffffff !important;
+}
+
+:root.light .auth-page-shell input.auth-page-input,
+html.light .auth-page-shell input.auth-page-input,
+:root.light .auth-page-shell div.auth-page-input,
+html.light .auth-page-shell div.auth-page-input,
+:root.light .auth-page-shell button.auth-page-input,
+html.light .auth-page-shell button.auth-page-input {
+  border-color: rgba(255, 255, 255, 0.26) !important;
+  background: rgba(18, 18, 20, 0.72) !important;
+  color: #ffffff !important;
+}
+
+:root.light .auth-page-shell input.auth-page-inner-input,
+html.light .auth-page-shell input.auth-page-inner-input {
+  border-color: transparent !important;
+  background: transparent !important;
+  color: #ffffff !important;
+}
+
+:root.light .auth-page-shell input.auth-page-dropdown-input,
+html.light .auth-page-shell input.auth-page-dropdown-input {
+  border-color: rgba(255, 255, 255, 0.13) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  color: #ffffff !important;
+}
+
 /* Shadow colors — most shadows are dark/black tone which look like a
    weird halo on light surfaces. Soften them. */
 :root.light [class*="shadow-violet-9"],
@@ -494,6 +585,655 @@ html.dark .honsell-logo-img {
 
 @media (prefers-reduced-motion: reduce) {
   .ps-float {
+    animation: none;
+  }
+}
+
+/* Product gift claim page */
+.gift-claim-page {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.16), transparent 32rem),
+    radial-gradient(circle at 10% 42%, rgba(16, 185, 129, 0.08), transparent 24rem),
+    radial-gradient(circle at 92% 58%, rgba(14, 165, 233, 0.08), transparent 24rem),
+    #060609;
+}
+
+.gift-claim-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, transparent, #000 16rem, #000 72%, transparent);
+}
+
+.gift-claim-stage {
+  position: relative;
+  isolation: isolate;
+}
+
+:root.light .gift-claim-page,
+html.light .gift-claim-page {
+  color: #ffffff !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.16), transparent 32rem),
+    radial-gradient(circle at 10% 42%, rgba(16, 185, 129, 0.08), transparent 24rem),
+    radial-gradient(circle at 92% 58%, rgba(14, 165, 233, 0.08), transparent 24rem),
+    #060609 !important;
+}
+
+:root.light .gift-claim-page .text-white,
+html.light .gift-claim-page .text-white {
+  color: #ffffff !important;
+}
+
+:root.light .gift-claim-page .text-zinc-100,
+:root.light .gift-claim-page .text-zinc-200,
+:root.light .gift-claim-page .text-zinc-300,
+:root.light .gift-claim-page .text-zinc-400,
+html.light .gift-claim-page .text-zinc-100,
+html.light .gift-claim-page .text-zinc-200,
+html.light .gift-claim-page .text-zinc-300,
+html.light .gift-claim-page .text-zinc-400 {
+  color: rgba(255, 255, 255, 0.76) !important;
+}
+
+:root.light .gift-claim-page .bg-zinc-950,
+:root.light .gift-claim-page [class*="bg-zinc-950/"],
+html.light .gift-claim-page .bg-zinc-950,
+html.light .gift-claim-page [class*="bg-zinc-950/"] {
+  background-color: rgba(3, 7, 18, 0.82) !important;
+}
+
+.gift-hero-shell,
+.gift-code-card,
+.gift-preview-card,
+.gift-success-card,
+.gift-login-card {
+  border-radius: 28px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.026)),
+    rgba(10, 10, 16, 0.78);
+  box-shadow:
+    0 30px 90px -58px rgba(168, 85, 247, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.gift-hero-shell {
+  min-height: 292px;
+}
+
+.gift-hero-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 76% 18%, rgba(251, 191, 36, 0.18), transparent 12rem),
+    radial-gradient(circle at 89% 26%, rgba(168, 85, 247, 0.26), transparent 16rem),
+    linear-gradient(180deg, rgba(168, 85, 247, 0.16), transparent 62%);
+  pointer-events: none;
+}
+
+.gift-hero-shell::after {
+  content: "";
+  position: absolute;
+  inset: auto 2rem 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(244, 114, 182, 0.7), transparent);
+}
+
+.gift-hero-art {
+  animation: gift-hero-float 5.8s ease-in-out infinite;
+}
+
+.gift-hero-spark {
+  position: absolute;
+  z-index: 1;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 9999px;
+  background: #fef3c7;
+  box-shadow: 0 0 22px rgba(254, 243, 199, 0.85);
+  animation: gift-spark-drift 4.4s ease-in-out infinite;
+}
+
+.gift-hero-spark-one {
+  right: 17rem;
+  top: 3.1rem;
+}
+
+.gift-hero-spark-two {
+  right: 8rem;
+  top: 13rem;
+  width: 0.42rem;
+  height: 0.42rem;
+  animation-delay: 800ms;
+}
+
+.gift-hero-spark-three {
+  left: 2.6rem;
+  bottom: 2rem;
+  width: 0.38rem;
+  height: 0.38rem;
+  animation-delay: 1400ms;
+}
+
+.gift-hero-step {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.gift-hero-step::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 9999px;
+  background: rgba(244, 114, 182, 0.82);
+  box-shadow: 0 0 18px rgba(244, 114, 182, 0.6);
+}
+
+.gift-claim-flow {
+  display: grid;
+  gap: 1rem;
+}
+
+.gift-code-card,
+.gift-preview-card,
+.gift-success-card {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1.2rem, 3vw, 2rem);
+}
+
+.gift-code-card::before,
+.gift-preview-card::before,
+.gift-success-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+  transform: translateX(-120%);
+  animation: gift-panel-sheen 4.8s ease-in-out infinite;
+}
+
+.gift-code-card.is-revealed::before {
+  animation-duration: 2.8s;
+}
+
+.gift-code-icon {
+  display: inline-flex;
+  height: 3rem;
+  width: 3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.25), transparent 42%),
+    rgba(168, 85, 247, 0.16);
+  color: #f5d0fe;
+}
+
+.gift-code-composer {
+  position: relative;
+  margin-top: 1.25rem;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(14, 165, 233, 0.11), transparent 15rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025));
+  padding: clamp(0.7rem, 2.2vw, 1rem);
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
+
+.gift-code-composer:focus-within {
+  box-shadow:
+    0 0 0 4px rgba(52, 211, 153, 0.08),
+    0 18px 52px -32px rgba(52, 211, 153, 0.8);
+  transform: translateY(-1px);
+}
+
+.gift-code-native-input {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  outline: none;
+}
+
+.gift-code-slots {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.22rem, 1vw, 0.45rem);
+}
+
+.gift-code-slot {
+  display: inline-flex;
+  min-width: 0;
+  height: clamp(2.25rem, 8.4vw, 3.55rem);
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 13px;
+  background: rgba(3, 7, 18, 0.72);
+  color: rgba(255, 255, 255, 0.26);
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(0.88rem, 3.8vw, 1.35rem);
+  font-weight: 800;
+  transform: translateZ(0);
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.gift-code-slot.is-group-end {
+  margin-right: clamp(0.2rem, 1.2vw, 0.7rem);
+}
+
+.gift-code-slot.is-filled {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(52, 211, 153, 0.24), transparent 75%),
+    rgba(5, 46, 22, 0.6);
+  color: #ffffff;
+  box-shadow: 0 10px 28px -20px rgba(52, 211, 153, 0.9);
+  animation: gift-code-pop 190ms ease-out both;
+}
+
+.gift-code-slot.is-next {
+  box-shadow: inset 0 -2px 0 rgba(251, 191, 36, 0.46);
+}
+
+.gift-code-progress-line {
+  position: absolute;
+  inset: auto 1rem 0.6rem 1rem;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.gift-code-progress-line::before {
+  content: "";
+  display: block;
+  width: var(--gift-progress);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #f59e0b, #d946ef);
+  transition: width 220ms ease;
+}
+
+.gift-primary-action,
+.gift-open-action {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 18px;
+  background:
+    linear-gradient(90deg, #10b981, #8b5cf6, #d946ef);
+  box-shadow: 0 24px 62px -34px rgba(168, 85, 247, 0.95);
+}
+
+.gift-open-action {
+  background: linear-gradient(90deg, #059669, #10b981);
+  box-shadow: 0 24px 62px -34px rgba(16, 185, 129, 0.95);
+}
+
+.gift-primary-action::before,
+.gift-open-action::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.24), transparent);
+  transform: translateX(-115%);
+  transition: transform 520ms ease;
+}
+
+.gift-primary-action:hover::before,
+.gift-open-action:hover::before {
+  transform: translateX(115%);
+}
+
+.gift-error-banner {
+  border-radius: 20px;
+  background: rgba(244, 63, 94, 0.12);
+}
+
+.gift-preview-card {
+  animation: gift-preview-rise 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.gift-preview-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.gift-product-cover {
+  border-radius: 22px;
+  background: rgba(3, 7, 18, 0.72);
+  box-shadow: 0 24px 55px -35px rgba(255, 255, 255, 0.55);
+}
+
+.gift-message-note {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(251, 191, 36, 0.22), transparent 12rem),
+    linear-gradient(135deg, rgba(120, 53, 15, 0.36), rgba(39, 39, 42, 0.52));
+  padding: 1.15rem;
+  transform-origin: top center;
+  animation: gift-message-open 620ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both;
+}
+
+.gift-message-note::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.11), transparent 36%),
+    linear-gradient(45deg, transparent 48%, rgba(251, 191, 36, 0.14) 49%, transparent 50%);
+}
+
+.gift-account-field {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 1rem;
+}
+
+.gift-success-card {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(52, 211, 153, 0.22), transparent 18rem),
+    rgba(4, 18, 14, 0.82);
+  animation: gift-preview-rise 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes gift-hero-float {
+  0%, 100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
+
+@keyframes gift-spark-drift {
+  0%, 100% {
+    opacity: 0.45;
+    transform: translateY(0) scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-12px) scale(1.12);
+  }
+}
+
+@keyframes gift-panel-sheen {
+  0%, 44% {
+    transform: translateX(-120%);
+  }
+  72%, 100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes gift-code-pop {
+  0% {
+    transform: scale(0.88);
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes gift-preview-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes gift-message-open {
+  0% {
+    opacity: 0;
+    transform: perspective(900px) rotateX(-18deg) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(900px) rotateX(0) translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .gift-hero-shell {
+    min-height: 330px;
+  }
+  .gift-hero-art {
+    opacity: 0.42;
+  }
+  .gift-preview-topline {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* Product gift claim celebration */
+.gift-burst {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.22), transparent 18%),
+    radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.22), transparent 30%),
+    rgba(3, 7, 18, 0.18);
+  animation: gift-burst-fade 2300ms ease-out both;
+}
+
+.gift-burst-flash {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.75) 0%, rgba(250, 204, 21, 0.2) 16%, transparent 38%);
+  animation: gift-burst-flash 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.gift-burst-core {
+  position: relative;
+  z-index: 2;
+  width: clamp(7rem, 18vmin, 12rem);
+  aspect-ratio: 360 / 304;
+  filter: drop-shadow(0 28px 50px rgba(16, 185, 129, 0.34));
+  animation: gift-burst-core 1250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.gift-burst-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 9999px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  transform: translate(-50%, -50%) scale(0.08);
+  opacity: 0;
+}
+
+.gift-burst-ring-one {
+  width: 26vmin;
+  height: 26vmin;
+  animation: gift-burst-ring 1050ms cubic-bezier(0.16, 1, 0.3, 1) 80ms both;
+}
+
+.gift-burst-ring-two {
+  width: 34vmin;
+  height: 34vmin;
+  border-color: rgba(240, 171, 252, 0.58);
+  animation: gift-burst-ring 1300ms cubic-bezier(0.16, 1, 0.3, 1) 170ms both;
+}
+
+.gift-burst-ring-three {
+  width: 44vmin;
+  height: 44vmin;
+  border-color: rgba(134, 239, 172, 0.42);
+  animation: gift-burst-ring 1500ms cubic-bezier(0.16, 1, 0.3, 1) 240ms both;
+}
+
+.gift-burst-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: var(--gift-size);
+  height: var(--gift-size);
+  border-radius: 9999px;
+  background: var(--gift-color);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--gift-color) 76%, transparent);
+  transform: translate(-50%, -50%) scale(0.25) rotate(var(--gift-rotate));
+  opacity: 0;
+  animation: gift-burst-spark 1400ms cubic-bezier(0.16, 1, 0.3, 1) var(--gift-delay) both;
+}
+
+.gift-burst-spark::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 240%;
+  height: 36%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--gift-color), transparent);
+  transform: translate(-12%, -50%);
+  opacity: 0.45;
+}
+
+.gift-burst-spark.is-star {
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 61% 34%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 34%);
+}
+
+@keyframes gift-burst-fade {
+  0% {
+    opacity: 0;
+  }
+  8%, 72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes gift-burst-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.65);
+  }
+}
+
+@keyframes gift-burst-core {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) rotate(-10deg);
+  }
+  28% {
+    opacity: 1;
+    transform: scale(1.18) rotate(4deg);
+  }
+  58% {
+    transform: scale(0.96) rotate(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes gift-burst-ring {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.08);
+  }
+  14% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.3);
+  }
+}
+
+@keyframes gift-burst-spark {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.25) rotate(var(--gift-rotate));
+  }
+  14% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform:
+      translate(calc(-50% + var(--gift-x)), calc(-50% + var(--gift-y)))
+      scale(0.42)
+      rotate(calc(var(--gift-rotate) + 160deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gift-burst {
+    animation: gift-burst-fade 900ms ease-out both;
+  }
+  .gift-burst-flash,
+  .gift-burst-core,
+  .gift-burst-ring,
+  .gift-burst-spark {
+    animation-duration: 1ms;
+  }
+  .gift-hero-art,
+  .gift-hero-spark,
+  .gift-code-card::before,
+  .gift-preview-card::before,
+  .gift-success-card::before,
+  .gift-code-slot.is-filled,
+  .gift-preview-card,
+  .gift-message-note,
+  .gift-success-card {
     animation: none;
   }
 }
@@ -727,4 +1467,12 @@ html.dark .honsell-logo-img {
   border-radius: 1rem;
   text-align: center;
   font-size: 0.875rem;
+}
+
+/* AI köməkçi paneli açıq olanda sağ kənardakı theme toggle düyməsini gizlə —
+   panel ilə üst-üstə düşməsin (bax: components/AskAiFloat.tsx). */
+html[data-ai-chat-open] #theme-toggle {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
 }
