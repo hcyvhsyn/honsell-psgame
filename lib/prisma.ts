@@ -30,6 +30,42 @@ let referralEnsuredPromise: Promise<void> | null = null;
 let cashbackEnsuredPromise: Promise<void> | null = null;
 let aiKnowledgeEnsuredPromise: Promise<void> | null = null;
 let productGiftEnsuredPromise: Promise<void> | null = null;
+let aiChatLogEnsuredPromise: Promise<void> | null = null;
+
+/**
+ * `AiChatLog` cədvəlini (AI köməkçi söhbət logu) ilk dəfə lazım olanda yaradır
+ * — AiKnowledge ilə eyni ensure-once pattern (formal migration əvəzinə).
+ */
+async function ensureAiChatLogTableOnce(base: PrismaClient): Promise<void> {
+  if (!aiChatLogEnsuredPromise) {
+    aiChatLogEnsuredPromise = (async () => {
+      try {
+        await base.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS "AiChatLog" (
+            "id" TEXT PRIMARY KEY,
+            "userId" TEXT NOT NULL,
+            "question" TEXT NOT NULL,
+            "reply" TEXT NOT NULL,
+            "productCount" INTEGER NOT NULL DEFAULT 0,
+            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS "AiChatLog_userId_idx" ON "AiChatLog" ("userId");
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS "AiChatLog_createdAt_idx" ON "AiChatLog" ("createdAt");
+        `);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!msg.includes("already exists")) {
+          console.error("[AiChatLog schema ensure]", e);
+        }
+      }
+    })();
+  }
+  await aiChatLogEnsuredPromise;
+}
 
 /**
  * `AiKnowledge` cədvəlini (AI köməkçi bilik bazası) ilk dəfə lazım olanda
@@ -186,6 +222,9 @@ function buildPrismaClient() {
         }
         if (model === "ProductGift") {
           await ensureProductGiftTableOnce(base);
+        }
+        if (model === "AiChatLog") {
+          await ensureAiChatLogTableOnce(base);
         }
         return query(args);
       },

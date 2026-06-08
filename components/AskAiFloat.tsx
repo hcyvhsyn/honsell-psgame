@@ -129,6 +129,21 @@ export default function AskAiFloat() {
         return;
       }
 
+      // Saatlıq limit aşılıb — server mesajını köməkçi cavabı kimi göstər.
+      if (res.status === 429) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              data.error ||
+              "Saatlıq sual limitinə çatdınız. Bir az sonra yenidən cəhd edin.",
+          },
+        ]);
+        return;
+      }
+
       if (!res.ok) throw new Error("request failed");
       const data = (await res.json()) as { reply?: string; products?: ProductCard[] };
 

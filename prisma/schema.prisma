@@ -1441,3 +1441,19 @@ model AiKnowledge {
 
   @@index([isActive, sortOrder])
 }
+
+/// "AI-dan soruş" köməkçisində hər müştəri sorğusunun logu — admin paneldə
+/// (app/admin/ai-chat-logs) "hansı müştəri nə soruşub" görünüşü üçün. `userId`
+/// plain saxlanılır (FK yox); admin tərəf user-ləri ayrıca yığır. Cədvəl
+/// lib/prisma.ts-dəki ensure-once pattern ilə runtime-da yaradılır.
+model AiChatLog {
+  id           String   @id @default(cuid())
+  userId       String
+  question     String
+  reply        String
+  productCount Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}

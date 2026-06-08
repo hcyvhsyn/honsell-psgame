@@ -5,8 +5,10 @@ import { semanticSearchIds } from "@/lib/semantic-search";
 import { getOpenAI, isOpenAIConfigured } from "@/lib/openai";
 import { expandAliases } from "@/lib/search-aliases";
 import { SITE_NAME } from "@/lib/site";
+import { STREAMING_SERVICE_META, type StreamingService } from "@/lib/streamingCart";
 import { getAiKnowledge } from "@/lib/aiKnowledge";
 import { getCurrentUser } from "@/lib/auth";
+import { consumeRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,6 +38,12 @@ const MAX_CARDS = 6;
 // Söhbət tarixçəsindən neçə əvvəlki mesaj saxlanılır.
 const MAX_HISTORY = 8;
 const MAX_MESSAGE_LEN = 1000;
+// Chat modeli — env ilə dəyişdirilə bilər (məs. AI_CHAT_MODEL=gpt-4o). Default
+// gpt-4o-mini: ucuz və sürətli. Daha keyfiyyətli cavab üçün gpt-4o qoyula bilər.
+const CHAT_MODEL = process.env.AI_CHAT_MODEL || "gpt-4o-mini";
+// Rate-limit: hər istifadəçi saatda ən çox bu qədər sual verə bilər.
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_SECONDS = 3600;
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -99,6 +107,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Sual çox qısadır." }, { status: 400 });
   }
 
+  // Rate-limit — hər istifadəçi saatda ən çox RATE_LIMIT_MAX sual verə bilər.
+  const rl = await consumeRateLimit({
+    key: `ai-chat:user:${user.id}`,
+    scope: "ai-chat",
+    windowSeconds: RATE_LIMIT_WINDOW_SECONDS,
+    max: RATE_LIMIT_MAX,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      {
+        error: `Saatda ${RATE_LIMIT_MAX} suala qədər verə bilərsiniz. Təxminən ${rl.retryAfterMinutes} dəqiqə sonra yenidən cəhd edin.`,
+        rateLimited: true,
+        retryAfterSeconds: rl.retryAfterSeconds,
+      },
+      { status: 429 }
+    );
+  }
+
   // Retrieval mətni — son bir neçə istifadəçi mesajını birləşdir. Bu vacibdir:
   // "gta v neçəyədir?" → AI "PC yoxsa PlayStation?" soruşur → istifadəçi
   // "playstation" yazır. Yalnız son mesajı götürsək axtarış "playstation"-ı
@@ -111,22 +137,30 @@ export async function POST(req: Request) {
 
   // Alias genişlənməsi (geta→GTA, futbol→EA Sports FC və s.) eyni kanalda tətbiq olunur.
   const query = expandAliases(recentUserText).variants.join(" ");
-  const [{ context, cards }, streamingContext, knowledge] = await Promise.all([
-    buildCatalogContext(query),
-    // "Off Campus haradan baxa bilərəm?" kimi suallar üçün — film/serialın
-    // hansı platformada olduğunu real kataloqdan tap (model uydurmasın).
-    buildStreamingCatalogContext(recentUserText),
-    // Admin paneldən idarə olunan sabit bilik bazası.
-    getAiKnowledge(),
-  ]);
+  const [{ context, cards }, streamingContext, subscriptions, knowledge] =
+    await Promise.all([
+      buildCatalogContext(query),
+      // "Off Campus haradan baxa bilərəm?" kimi suallar üçün — film/serialın
+      // hansı platformada olduğunu real kataloqdan tap (model uydurmasın).
+      buildStreamingCatalogContext(recentUserText),
+      // Abunə/xidmət qiymətləri (Prime Video, PS Plus, EA Play və s.).
+      buildSubscriptionsContext(),
+      // Admin paneldən idarə olunan sabit bilik bazası.
+      getAiKnowledge(),
+    ]);
 
-  const systemPrompt = buildSystemPrompt(context, streamingContext, knowledge);
+  const systemPrompt = buildSystemPrompt(
+    context,
+    streamingContext,
+    subscriptions,
+    knowledge
+  );
 
   let parsed: { reply: string; productIds: string[] };
   try {
     const client = getOpenAI();
     const res = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: CHAT_MODEL,
       temperature: 0.3,
       max_tokens: 400,
       response_format: { type: "json_object" },
@@ -169,6 +203,19 @@ export async function POST(req: Request) {
     (products.length > 0
       ? "Bu nəticələri tapdım:"
       : "Üzr istəyirəm, bu barədə uyğun məhsul tapa bilmədim.");
+
+  // Söhbəti logla (admin paneldə "hansı müştəri nə soruşub" üçün). Cavabı
+  // gecikdirməsin və loglama xətası sorğunu pozmasın deyə fire-and-forget.
+  prisma.aiChatLog
+    .create({
+      data: {
+        userId: user.id,
+        question: lastUser.content,
+        reply,
+        productCount: products.length,
+      },
+    })
+    .catch((e) => console.error("ai/chat: log yazılmadı", e));
 
   return NextResponse.json({ reply, products });
 }
@@ -395,9 +442,66 @@ async function buildStreamingCatalogContext(userText: string): Promise<string> {
   return lines.join("\n");
 }
 
+/**
+ * Abunə və xidmət məhsullarının (ServiceProduct) QİYMƏTLƏRİ — Prime Video,
+ * Netflix, HBO Max, Gain, PS Plus, EA Play, PUBG UC, hədiyyə kartları və s.
+ * Bu kontekst olmadan AI abunə qiymətlərini bilmir və "baxa bilmirəm" kimi
+ * yayınır. Buradakı qiymətlər real DB-dən gəlir.
+ */
+async function buildSubscriptionsContext(): Promise<string> {
+  try {
+    const rows = await prisma.serviceProduct.findMany({
+      where: { isActive: true },
+      orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { priceAznCents: "asc" }],
+      select: { title: true, type: true, priceAznCents: true, metadata: true },
+      take: 150,
+    });
+    if (rows.length === 0) return "";
+    return rows
+      .map((r) => {
+        const m = (r.metadata ?? {}) as Record<string, unknown>;
+        const price = (r.priceAznCents / 100).toFixed(2);
+        const link = serviceProductLink(r.type, m);
+        return `${r.title}: ${price} AZN${link ? ` | Səhifə: ${link}` : ""}`;
+      })
+      .join("\n");
+  } catch (e) {
+    console.error("ai/chat: abunə konteksti uğursuz", e);
+    return "";
+  }
+}
+
+function serviceProductLink(type: string, m: Record<string, unknown>): string | null {
+  const svcCode = String(m.service ?? m.musicBrand ?? "").toUpperCase();
+  const meta = svcCode
+    ? STREAMING_SERVICE_META[svcCode as StreamingService]
+    : undefined;
+  switch (type) {
+    case "STREAMING":
+      return meta ? `/streaming/${meta.slug}` : "/streaming";
+    case "PLATFORM":
+      return meta ? `/music/${meta.slug}` : "/music";
+    case "PS_PLUS":
+      return "/ps-plus";
+    case "EA_PLAY":
+      return "/ea-play";
+    case "PUBG_UC":
+      return "/pubg-uc";
+    case "HONSELL_GIFT_CARD":
+      return "/hediyye-kartlari/honsell";
+    case "TRY_BALANCE":
+      return "/hediyye-kartlari";
+    case "EPIC_ACCOUNT_CREATION":
+      return "/hesab-acma";
+    default:
+      return null;
+  }
+}
+
 function buildSystemPrompt(
   context: string,
   streamingContext: string,
+  subscriptions: string,
   knowledge: string
 ): string {
   const catalog = context
@@ -430,8 +534,12 @@ function buildSystemPrompt(
     "5. Oyun tövsiyə edəndə ən uyğun məhsulları seç (ən çox 6 ədəd), ən uyğunu birinci.",
     "   Oyun kartlarının qiymət/linkini `reply` mətnində TƏKRAR SADALAMA — kart kimi",
     "   görünür. Sadəcə qısa giriş yaz (məs. \"GTA üzrə bu oyunları tapdım:\").",
-    "6. Xidmət/bölmə sualına (Netflix, Prime Video, PS Plus, hədiyyə kartı və s.)",
-    "   aşağıdakı bilik bazasındakı məlumat və linklə cavab ver, `productIds` boş qalsın.",
+    "6. Abunə/xidmət sualına (Netflix, Prime Video, HBO Max, Gain, PS Plus, EA Play,",
+    "   PUBG UC, hədiyyə kartı və s.) aşağıdakı ABUNƏ VƏ XİDMƏT QİYMƏTLƏRİ blokundakı",
+    "   real qiymət və linklə BİRBAŞA cavab ver (`productIds` boş qalsın). Qiymət",
+    "   soruşulanda konkret qiymət(lər)i de — \"daxil ol və bax\" və ya \"baxa",
+    "   bilmirəm\" KİMİ CAVAB VERMƏ; qiymət sənə aşağıda verilib. Müxtəlif müddət",
+    "   paketləri varsa qısaca sadala (məs. **1 ay** 5 AZN, **3 ay** 10 AZN).",
     "7. \"Filan film/serial haradan baxılır?\" sualına YALNIZ aşağıdakı STREAMING",
     "   KATALOQU kontekstindəki məlumatla cavab ver. Bir başlığın hansı platformada",
     "   olduğunu ƏSLA TƏXMİN ETMƏ. Kontekstdə həmin başlıq yoxdursa, onun bizdə",
@@ -455,6 +563,10 @@ function buildSystemPrompt(
     "   YAZMA — bu səhvdir; üzr istəyəndə \"Üzr istəyirəm\" və ya \"Bağışlayın\" işlət.",
     "",
     knowledge,
+    "",
+    subscriptions
+      ? `ABUNƏ VƏ XİDMƏT QİYMƏTLƏRİ (real, satışda olan paketlər — qiymət soruşulanda bunları işlət):\n${subscriptions}`
+      : "ABUNƏ VƏ XİDMƏT QİYMƏTLƏRİ: hazırda aktiv paket tapılmadı.",
     "",
     streamingContext
       ? `STREAMING KATALOQU (sualla uyğun film/seriallar və mövcud platformaları):\n${streamingContext}`
