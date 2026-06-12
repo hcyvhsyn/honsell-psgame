@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { applyCashbackToBalance } from "@/lib/loyaltyCashback";
-import { getSettings } from "@/lib/pricing";
 import { recordPurchaseSpend, recordSuccessfulInvite } from "@/lib/referralCycle";
 import {
   sendAdminOrderNotification,
@@ -210,7 +209,6 @@ export async function finalizeEpointCartCheckout(
   const user = await prisma.user.findUnique({ where: { id: payment.userId } });
   if (!user) return { ok: false, reason: "USER_NOT_FOUND" };
 
-  const settings = await getSettings();
   type IssuedHonsellGiftCard = {
     amountAznCents: number;
     expiresAt: Date;
@@ -361,7 +359,7 @@ export async function finalizeEpointCartCheckout(
             buyerUserId: payment.userId,
             serviceProductId: line.serviceProductId,
             lineCents: line.unitListCents,
-            streamingProfitSharePct: settings.referralGiftCardsPct,
+            target: { type: "GIFT_CARDS" },
             kind: "TRY_BALANCE",
           });
           if (cm) {

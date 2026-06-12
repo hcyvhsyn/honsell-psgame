@@ -8,7 +8,6 @@ import {
   MarqueeHeader,
   HeroMotionOverlay,
 } from "@/components/MarketingUI";
-import Link from "next/link";
 import {
   Gamepad2,
   ShieldCheck,

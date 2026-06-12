@@ -7,7 +7,6 @@ import {
   applyCashbackToBalance,
   getLifetimeSpendAznForLoyalty,
 } from "@/lib/loyaltyCashback";
-import { getSettings } from "@/lib/pricing";
 import {
   recordPurchaseSpend,
   recordSuccessfulInvite,
@@ -58,7 +57,6 @@ export async function POST(req: Request) {
   const loyaltyCashbackCents =
     loyalty.cashbackPct > 0 ? Math.round((price * loyalty.cashbackPct) / 100) : 0;
   const prevCashback = user.cashbackBalanceCents ?? 0;
-  const settings = await getSettings();
 
   // TRY_BALANCE -> instant fulfilment və ya gözləmə
   if (sp.type === "TRY_BALANCE") {
@@ -140,7 +138,7 @@ export async function POST(req: Request) {
           buyerUserId: user.id,
           serviceProductId: sp.id,
           lineCents: price,
-          streamingProfitSharePct: settings.referralGiftCardsPct,
+          target: { type: "GIFT_CARDS" },
           kind: "TRY_BALANCE",
         });
 

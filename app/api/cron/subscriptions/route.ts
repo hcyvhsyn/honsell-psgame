@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { addMonthsClamped, readRenewalMonths } from "@/lib/subscriptions";
-import { readReferralRateFromMeta } from "@/lib/referralCalculatorOptions";
 import {
   sendAdminSubscriptionDigest,
   sendSubscriptionExpiringIn3DaysEmail,
@@ -9,7 +8,6 @@ import {
   sendSubscriptionRenewalFailedEmail,
   sendSubscriptionRenewedEmail,
 } from "@/lib/resend";
-import { getSettings } from "@/lib/pricing";
 import {
   recordPurchaseSpend,
   recordSuccessfulInvite,
@@ -79,7 +77,6 @@ export async function GET(req: Request) {
       serviceProduct: { select: { id: true, title: true, type: true, metadata: true, priceAznCents: true } },
     },
   });
-  const settings = await getSettings();
 
   for (const sub of renewCandidates) {
     try {
@@ -92,12 +89,8 @@ export async function GET(req: Request) {
         sub.durationMonths
       );
       const renewalCost = sub.serviceProduct.priceAznCents ?? sub.priceAznCents;
-      const referralPct = isPlatform
-        ? readReferralRateFromMeta(
-            (sub.serviceProduct.metadata as Record<string, unknown> | null) ?? {},
-            0
-          )
-        : settings.referralPsPlusPct;
+      // Komissiya faizi artıq mərkəzi resolver-dən (referrer tier × target)
+      // gəlir — köhnə manual `referralPct` ötürülmür.
       const commissionKind: "PS_PLUS" | "PLATFORM" | "EA_PLAY" = isPlatform
         ? "PLATFORM"
         : isEaPlay
@@ -152,7 +145,9 @@ export async function GET(req: Request) {
           buyerUserId: sub.userId,
           serviceProductId: sub.serviceProductId,
           lineCents: renewalCost,
-          streamingProfitSharePct: referralPct,
+          target: isPlatform
+            ? { type: "SERVICE_PRODUCT", serviceProductId: sub.serviceProductId ?? "" }
+            : { type: "PS_PLUS" },
           kind: commissionKind,
         });
 

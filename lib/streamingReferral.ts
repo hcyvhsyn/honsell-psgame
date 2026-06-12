@@ -1,5 +1,16 @@
-import { Prisma } from "@/lib/generated/prisma/client";
+import type { prisma } from "@/lib/prisma";
 import { resolveReferralRatePct, type ReferralRateDb, type ReferralTarget } from "@/lib/referralRates";
+
+/**
+ * Transaction-client tipi: `prisma` genişləndirilmiş ($extends) client olduğu
+ * üçün `$transaction` callback-i base `Prisma.TransactionClient`-ə uyğun gəlmir.
+ * Callback-in verdiyi tipi (deny-list metodları çıxılmış genişləndirilmiş
+ * client) burada törədirik ki, bütün çağırış yerləri uyğun olsun.
+ */
+type ReferralTxClient = Omit<
+  typeof prisma,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+>;
 
 /**
  * Streaming/platform/xidmət alışı uğurla bağlanan kimi referal komissiyasını
@@ -10,7 +21,7 @@ import { resolveReferralRatePct, type ReferralRateDb, type ReferralTarget } from
  * Eyni mənbə Transaction ID üçün ikinci dəfə komissiya yaratmır.
  */
 export async function awardStreamingReferralCommission(
-  ptx: Prisma.TransactionClient,
+  ptx: ReferralTxClient,
   params: {
     sourceTransactionId: string;
     buyerUserId: string;
