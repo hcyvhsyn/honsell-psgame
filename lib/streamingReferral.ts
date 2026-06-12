@@ -1,59 +1,38 @@
-/** Prisma client (yaxud transaction client) üçün dar interfeys. */
-type StreamingReferralDb = {
-  user: {
-    findUnique(args: {
-      where: { id: string };
-    }): Promise<{ id: string; referredById: string | null } | null>;
-    update(args: {
-      where: { id: string };
-      data: { referralBalanceCents: { increment: number } };
-    }): Promise<unknown>;
-  };
-  transaction: {
-    findFirst(args: {
-      where: { type: string; metadata: { contains: string } };
-      select: { id: true };
-    }): Promise<{ id: string } | null>;
-    create(args: {
-      data: {
-        userId: string;
-        beneficiaryId: string;
-        type: string;
-        status: string;
-        amountAznCents: number;
-        serviceProductId?: string | null;
-        metadata: string;
-      };
-    }): Promise<unknown>;
-  };
-};
+import { Prisma } from "@/lib/generated/prisma/client";
+import { resolveReferralRatePct, type ReferralRateDb, type ReferralTarget } from "@/lib/referralRates";
 
 /**
- * Streaming alışı uğurla bağlanan kimi referal komissiyasını hesablayıb yazır.
- * Streaming/platform məhsullarında cost izlənmir — komissiya final qiymət
- * üzərindən, həmin məhsul/platforma üçün aktiv olan faizlə hesablanır.
+ * Streaming/platform/xidmət alışı uğurla bağlanan kimi referal komissiyasını
+ * hesablayıb yazır. Komissiya final qiymət üzərindən, referrer-in müştəri
+ * seqmentinə (CustomerTier) və alışın hədəfinə uyğun faizlə hesablanır — faiz
+ * mərkəzi `resolveReferralRatePct` resolver-indən gəlir.
  *
  * Eyni mənbə Transaction ID üçün ikinci dəfə komissiya yaratmır.
  */
 export async function awardStreamingReferralCommission(
-  ptx: StreamingReferralDb,
+  ptx: Prisma.TransactionClient,
   params: {
     sourceTransactionId: string;
     buyerUserId: string;
     serviceProductId: string | null;
     /** Pozitiv qəpik (AZN * 100) — alışın final məbləği. */
     lineCents: number;
-    streamingProfitSharePct: number;
+    /** Komissiya hədəfi — faiz seqment × bu hədəf üzrə resolve olunur. */
+    target: ReferralTarget;
     kind?: "STREAMING" | "PLATFORM" | "TRY_BALANCE" | "PS_PLUS" | "EA_PLAY" | "ACCOUNT_CREATION";
   }
 ) {
-  const { sourceTransactionId, buyerUserId, lineCents, streamingProfitSharePct } = params;
-  if (lineCents <= 0 || streamingProfitSharePct <= 0) return null;
+  const { sourceTransactionId, buyerUserId, lineCents, target } = params;
+  if (lineCents <= 0) return null;
 
-  const buyer = await ptx.user.findUnique({ where: { id: buyerUserId } });
+  const buyer = await ptx.user.findUnique({
+    where: { id: buyerUserId },
+    select: { referredById: true },
+  });
   const referredById = buyer?.referredById ?? null;
   if (!referredById) return null;
 
+  // Eyni alış üçün təkrar komissiyanı blokla (rate hesablamadan əvvəl — ucuz).
   const needle = `"sourcePurchaseId":"${sourceTransactionId}"`;
   const existing = await ptx.transaction.findFirst({
     where: { type: "COMMISSION", metadata: { contains: needle } },
@@ -61,7 +40,20 @@ export async function awardStreamingReferralCommission(
   });
   if (existing) return null;
 
-  const commissionCents = Math.round((lineCents * streamingProfitSharePct) / 100);
+  // Referrer-in seqmentinə görə faizi resolve et.
+  const referrer = await ptx.user.findUnique({
+    where: { id: referredById },
+    select: { tierId: true },
+  });
+  const referrerTierId = referrer?.tierId ?? null;
+  const ratePct = await resolveReferralRatePct({
+    tierId: referrerTierId,
+    target,
+    db: ptx as unknown as ReferralRateDb,
+  });
+  if (ratePct <= 0) return null;
+
+  const commissionCents = Math.round((lineCents * ratePct) / 100);
   if (commissionCents <= 0) return null;
 
   await ptx.user.update({
@@ -81,7 +73,9 @@ export async function awardStreamingReferralCommission(
         sourcePurchaseId: sourceTransactionId,
         kind: params.kind ?? "STREAMING",
         lineCents,
-        shareRate: streamingProfitSharePct,
+        shareRate: ratePct,
+        tierId: referrerTierId,
+        targetType: target.type,
       }),
     },
   });

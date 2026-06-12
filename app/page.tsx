@@ -15,7 +15,6 @@ import {
   Zap,
   Clock,
   Sparkles,
-  ArrowRight,
   Tv,
   Music,
   Briefcase,
@@ -23,6 +22,7 @@ import {
   Layers,
 } from "lucide-react";
 import FaqAccordion from "@/components/FaqAccordion";
+import HomeReferralCta from "@/components/HomeReferralCta";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 
 export const revalidate = 1800;
@@ -285,29 +285,7 @@ export default async function HomePage() {
       )}
 
       {/* Referral CTA */}
-      <section className="relative overflow-hidden border-y border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-700/30 via-purple-700/20 to-fuchsia-700/30 py-12">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(232,121,249,0.25),transparent_60%)]" />
-        <div className="relative mx-auto max-w-5xl px-6 text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.3em] text-fuchsia-300">
-            Referal proqramı
-          </p>
-          <h2 className="mt-3 text-3xl font-black text-white sm:text-4xl">
-            Dostunu dəvət et — hər alışından AZN qazan
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-fuchsia-50/80 sm:text-base">
-            Kodunla qeydiyyatdan keçən hər dost üçün siz hər oyun, PS Plus və streaming
-            alışından komissiya qazanırsız.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/qazan"
-              className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-fuchsia-900 transition hover:bg-fuchsia-50"
-            >
-              Necə qazanıram? <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
+      <HomeReferralCta />
 
       <SiteFooter />
     </main>

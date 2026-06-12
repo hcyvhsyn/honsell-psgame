@@ -17,10 +17,23 @@ type ProductCard = {
   store: string;
 };
 
+type ServiceCard = {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  finalAzn: number;
+  originalAzn: number | null;
+  discountPct: number | null;
+  productType: string;
+  link: string | null;
+  addable: boolean;
+};
+
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   products?: ProductCard[];
+  services?: ServiceCard[];
 };
 
 const GREETING =
@@ -92,12 +105,22 @@ export default function AskAiFloat() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  // Panel açıq olanda theme toggle düyməsini gizlə (sağ kənarda üst-üstə düşür).
+  // Panel açıq olanda: theme toggle-ı gizlə (sağ kənarda üst-üstə düşür) və
+  // arxa fon səhifəsinin scroll-unu kilidlə (yalnız panel daxili scroll olsun).
   useEffect(() => {
     const el = document.documentElement;
-    if (open) el.setAttribute("data-ai-chat-open", "1");
-    else el.removeAttribute("data-ai-chat-open");
-    return () => el.removeAttribute("data-ai-chat-open");
+    const prevOverflow = document.body.style.overflow;
+    if (open) {
+      el.setAttribute("data-ai-chat-open", "1");
+      document.body.style.overflow = "hidden";
+    } else {
+      el.removeAttribute("data-ai-chat-open");
+      document.body.style.overflow = prevOverflow;
+    }
+    return () => {
+      el.removeAttribute("data-ai-chat-open");
+      document.body.style.overflow = prevOverflow;
+    };
   }, [open]);
 
   async function send() {
@@ -145,7 +168,11 @@ export default function AskAiFloat() {
       }
 
       if (!res.ok) throw new Error("request failed");
-      const data = (await res.json()) as { reply?: string; products?: ProductCard[] };
+      const data = (await res.json()) as {
+        reply?: string;
+        products?: ProductCard[];
+        services?: ServiceCard[];
+      };
 
       setMessages((prev) => [
         ...prev,
@@ -153,6 +180,7 @@ export default function AskAiFloat() {
           role: "assistant",
           content: data.reply?.trim() || "Üzr istəyirəm, cavab ala bilmədim.",
           products: Array.isArray(data.products) ? data.products : [],
+          services: Array.isArray(data.services) ? data.services : [],
         },
       ]);
     } catch {
@@ -165,6 +193,8 @@ export default function AskAiFloat() {
       ]);
     } finally {
       setLoading(false);
+      // Cavabdan sonra fokusu input-a qaytar ki, istifadəçi dərhal yaza bilsin.
+      requestAnimationFrame(() => inputRef.current?.focus());
     }
   }
 
@@ -254,6 +284,13 @@ export default function AskAiFloat() {
                       ))}
                     </div>
                   )}
+                  {m.services && m.services.length > 0 && (
+                    <div className="flex w-full flex-col gap-2">
+                      {m.services.map((s) => (
+                        <ServiceRow key={s.id} service={s} onNavigate={() => setOpen(false)} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -281,7 +318,6 @@ export default function AskAiFloat() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKeyDown}
                 placeholder="Sualını yaz..."
-                disabled={loading}
                 className="flex-1 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--foreground)] outline-none placeholder:text-zinc-500 focus:border-violet-500/60"
               />
               <button
@@ -422,6 +458,114 @@ function ProductRow({
           </svg>
         )}
       </button>
+    </div>
+  );
+}
+
+/** Abunə / xidmət kartı — qiymət + (mümkünsə) səbətə əlavə, əks halda "Bax" linki. */
+function ServiceRow({
+  service,
+  onNavigate,
+}: {
+  service: ServiceCard;
+  onNavigate: () => void;
+}) {
+  const { add, has, hydrated } = useCart();
+  const inCart = hydrated && has(service.id);
+
+  const thumb = service.imageUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={service.imageUrl} alt={service.title} className="h-full w-full object-cover" />
+  ) : (
+    <span className="flex h-full w-full items-center justify-center text-lg">🎬</span>
+  );
+
+  return (
+    <div className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-2">
+      {service.link ? (
+        <Link
+          href={service.link}
+          onClick={onNavigate}
+          className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-black/20"
+        >
+          {thumb}
+        </Link>
+      ) : (
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-black/20">{thumb}</div>
+      )}
+
+      <div className="min-w-0 flex-1">
+        {service.link ? (
+          <Link
+            href={service.link}
+            onClick={onNavigate}
+            className="line-clamp-2 text-xs font-semibold text-[var(--foreground)] hover:underline"
+          >
+            {service.title}
+          </Link>
+        ) : (
+          <span className="line-clamp-2 text-xs font-semibold text-[var(--foreground)]">
+            {service.title}
+          </span>
+        )}
+        <div className="mt-0.5 flex items-center gap-1.5">
+          <span className="text-sm font-bold text-violet-400">
+            {service.finalAzn.toFixed(2)}₼
+          </span>
+          {service.discountPct && service.originalAzn ? (
+            <>
+              <span className="text-[11px] text-zinc-500 line-through">
+                {service.originalAzn.toFixed(2)}₼
+              </span>
+              <span className="rounded bg-emerald-500/20 px-1 text-[10px] font-semibold text-emerald-400">
+                -{service.discountPct}%
+              </span>
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      {service.addable ? (
+        <button
+          type="button"
+          onClick={() =>
+            !inCart &&
+            add({
+              id: service.id,
+              title: service.title,
+              imageUrl: service.imageUrl,
+              finalAzn: service.finalAzn,
+              productType: service.productType,
+            })
+          }
+          disabled={inCart}
+          aria-label={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
+          title={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white transition-transform hover:scale-105 active:scale-95 disabled:bg-emerald-600 disabled:opacity-90"
+        >
+          {inCart ? (
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="9" cy="21" r="1" fill="currentColor" />
+              <circle cx="20" cy="21" r="1" fill="currentColor" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M1 1h4l2.7 13.4a2 2 0 002 1.6h9.7a2 2 0 002-1.6L23 6H6" />
+            </svg>
+          )}
+        </button>
+      ) : service.link ? (
+        <Link
+          href={service.link}
+          onClick={onNavigate}
+          aria-label="Səhifəyə bax"
+          title="Səhifəyə bax"
+          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-violet-600 px-3 text-xs font-semibold text-white transition-transform hover:scale-105 active:scale-95"
+        >
+          Bax
+        </Link>
+      ) : null}
     </div>
   );
 }

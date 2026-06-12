@@ -1158,7 +1158,7 @@ export async function POST(req: Request) {
                 buyerUserId: user.id,
                 serviceProductId: line.service.id,
                 lineCents: line.unitListCents,
-                streamingProfitSharePct: settings.referralGiftCardsPct,
+                target: { type: "GIFT_CARDS" },
                 kind: "TRY_BALANCE",
               });
               if (cm) {

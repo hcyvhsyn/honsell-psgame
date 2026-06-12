@@ -15,6 +15,7 @@ export default function SiteFooter() {
             <Link href="/qazan" className="text-fuchsia-600 dark:text-fuchsia-300 hover:text-fuchsia-500 dark:hover:text-fuchsia-200 transition">Qazan (Referal)</Link>
             <Link href="/haqqimizda" className="hover:text-zinc-900 dark:hover:text-white transition">Haqqımızda</Link>
             <Link href="/mexfilik-siyaseti" className="hover:text-zinc-900 dark:hover:text-white transition">Məxfilik siyasəti</Link>
+            <Link href="/geri-qaytarma-siyaseti" className="hover:text-zinc-900 dark:hover:text-white transition">Geri qaytarma</Link>
             <Link href="/bilmeli-olduglarin" className="hover:text-zinc-900 dark:hover:text-white transition">Bələdçilər</Link>
             <Link href="/reyler" className="hover:text-zinc-900 dark:hover:text-white transition">Rəylər</Link>
           </nav>
@@ -65,6 +66,7 @@ export default function SiteFooter() {
             <ul className="space-y-2 text-zinc-600 dark:text-zinc-300">
               <li><Link href="/haqqimizda" className="hover:text-zinc-900 dark:hover:text-white transition">Haqqımızda</Link></li>
               <li><Link href="/mexfilik-siyaseti" className="hover:text-zinc-900 dark:hover:text-white transition">Məxfilik siyasəti</Link></li>
+              <li><Link href="/geri-qaytarma-siyaseti" className="hover:text-zinc-900 dark:hover:text-white transition">Geri qaytarma qaydaları</Link></li>
               <li><Link href="/reyler" className="hover:text-zinc-900 dark:hover:text-white transition">Müştəri rəyləri</Link></li>
               <li><Link href="/#niye-biz" className="hover:text-zinc-900 dark:hover:text-white transition">Niyə biz?</Link></li>
               <li><Link href="/profile" className="hover:text-zinc-900 dark:hover:text-white transition">Hesabım</Link></li>

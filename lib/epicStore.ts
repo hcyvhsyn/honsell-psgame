@@ -24,8 +24,52 @@ const ENDPOINT =
 // GraphQL endpoint won't parse — so we issue the query over GET (query +
 // variables in the URL, allowed by the GraphQL-over-HTTP spec for queries) and
 // extract the JSON from the browser-rendered page.
-const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL;
+// `localhost` resolves to IPv6 `::1` first on many setups, but Colima/Docker
+// port-forwards only answer on IPv4 (`::1:8191` is refused) — Node's fetch can
+// then fail with a bare "fetch failed" before falling back. Pin to IPv4.
+const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL?.replace(
+  /:\/\/localhost(?=[:/]|$)/,
+  "://127.0.0.1"
+);
 const FLARESOLVERR_TIMEOUT_MS = Number(process.env.FLARESOLVERR_TIMEOUT_MS) || 60000;
+
+// FlareSolverr sits behind a Colima/Lima SSH port-forward that occasionally
+// drops a connection (e.g. across host sleep/wake). undici surfaces that as a
+// bare TypeError("fetch failed") with the real reason buried in `.cause`. A
+// single such blip used to abort the whole multi-hundred-page run, so we retry
+// transient network failures and unwrap the cause into the thrown message.
+const FLARESOLVERR_RETRIES = 3;
+
+function describeFetchError(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+  const cause = (err as { cause?: { code?: string; message?: string } }).cause;
+  const detail = cause?.code ?? cause?.message;
+  return detail ? `${err.message} (${detail})` : err.message;
+}
+
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  attempts = FLARESOLVERR_RETRIES
+): Promise<Response> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      // A non-network failure (e.g. AbortError from the caller's signal) must
+      // not be retried — only undici's connection-level "fetch failed".
+      if ((err as { name?: string })?.name === "AbortError") throw err;
+      lastErr = err;
+      if (attempt < attempts) {
+        await new Promise((r) => setTimeout(r, 500 * attempt));
+      }
+    }
+  }
+  throw new Error(
+    `FlareSolverr request failed after ${attempts} attempts: ${describeFetchError(lastErr)}`
+  );
+}
 
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
@@ -289,7 +333,7 @@ async function searchStoreRequest(
     target.searchParams.set("query", SEARCH_STORE_QUERY);
     target.searchParams.set("variables", JSON.stringify(variables));
 
-    const res = await fetch(FLARESOLVERR_URL, {
+    const res = await fetchWithRetry(FLARESOLVERR_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
@@ -319,7 +363,7 @@ async function searchStoreRequest(
 
   // Direct POST — works only where Epic isn't Cloudflare-gating the caller
   // (e.g. local testing, or EPIC_GRAPHQL_URL pointed at an unblocked proxy).
-  const res = await fetch(ENDPOINT, {
+  const res = await fetchWithRetry(ENDPOINT, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -548,6 +548,83 @@ async function fetchProductDiscountEnd(
   }
 }
 
+type RefreshedPrice = {
+  priceTryCents: number;
+  discountTryCents: number | null;
+  discountEndAt: Date | null;
+};
+
+/**
+ * Re-fetches the canonical purchase price for a single product straight from
+ * its PS Store product page. Used by the stale-refresh phase to keep prices
+ * current for SKUs that no category hub or search seed reaches — without this a
+ * product's price/discount freezes at whatever the last run that happened to
+ * surface it captured, so a sale that starts afterwards is never seen (this is
+ * why a franchise with no seed showed phantom full-price).
+ *
+ * Unlike the listing/search pages, the product page has no `walkProducts`-shaped
+ * objects; the price lives in an Apollo state blob with one `Price` object per
+ * offer (base SKU, deluxe edition, EA Play / PS Plus subscription tiers). Each
+ * carries integer-cent `basePriceValue`/`discountedValue`, an `endTime` epoch
+ * (ms, or unquoted `null`), and a `serviceBranding` array. We take the first
+ * non-subscription ("NONE") offer with a positive base — that's the primary
+ * buy-button price — and skip subscription "included" rows (discountedValue 0).
+ *
+ * Returns null on network failure or when no parseable offer is present
+ * (delisted / region-locked); a returned object is treated as authoritative.
+ */
+async function fetchProductPrice(
+  productId: string
+): Promise<RefreshedPrice | null> {
+  try {
+    const res = await fetch(
+      `https://store.playstation.com/tr-tr/product/${encodeURIComponent(productId)}`,
+      {
+        headers: {
+          "User-Agent": USER_AGENT,
+          "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
+        },
+        cache: "no-store",
+      }
+    );
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    // serviceBranding → endTime → displayUpsellText → basePriceValue →
+    // discountedValue appear in this fixed order inside each Price object.
+    // endTime is unquoted `null` when there's no active offer window.
+    const re =
+      /"serviceBranding":\[([^\]]*)\],"endTime":(null|"\d+"),"displayUpsellText":[^,]*?,"basePriceValue":(\d+),"discountedValue":(\d+),"currencyCode":"TRY"/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(html)) !== null) {
+      // Skip subscription tiers (EA_ACCESS, PS_PLUS, …) — only the standalone
+      // purchase offer ("NONE") is the price a buyer actually pays.
+      if (!m[1].includes('"NONE"')) continue;
+      const base = Number(m[3]);
+      if (!Number.isFinite(base) || base <= 0) continue;
+      const discounted = Number(m[4]);
+      const hasDiscount =
+        Number.isFinite(discounted) && discounted > 0 && discounted < base;
+      let discountEndAt: Date | null = null;
+      if (hasDiscount && m[2] !== "null") {
+        const ms = Number(m[2].replace(/"/g, ""));
+        if (Number.isFinite(ms) && ms > 0) {
+          const d = new Date(ms);
+          if (!Number.isNaN(d.getTime())) discountEndAt = d;
+        }
+      }
+      return {
+        priceTryCents: base,
+        discountTryCents: hasDiscount ? discounted : null,
+        discountEndAt,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function categoryPageUrl(base: string, page: number): string {
   const stripped = base.replace(/\/\d+\/?$/, "").replace(/\/$/, "");
   return `${stripped}/${page}`;
@@ -976,6 +1053,120 @@ export async function GET(req: Request) {
           emit({
             type: "discountCleanupError",
             error: e instanceof Error ? e.message : "cleanup error",
+          });
+        }
+
+        // Phase 3.6: stale-price refresh.
+        // Hubs + search seeds only reach a slice of the catalog each run, so any
+        // SKU outside that slice keeps whatever price/discount the last run that
+        // happened to surface it wrote — a sale that starts afterwards is never
+        // seen (this is why franchises with no seed showed phantom full-price).
+        // We rotate through the catalog by re-fetching the rows with the oldest
+        // lastScrapedAt directly from their product page, so every active PS
+        // product gets refreshed within a few runs regardless of seed coverage.
+        // Epic rows are skipped (not PS Store pages). Deadline-guarded so this
+        // never pushes the run past maxDuration; whatever doesn't fit this run
+        // is simply picked up — oldest-first — by the next.
+        const REFRESH_PER_RUN = 500;
+        const REFRESH_DEADLINE_MS = 250_000;
+        try {
+          const staleRows = await prisma.game.findMany({
+            where: {
+              isActive: true,
+              store: "PS",
+              lastScrapedAt: { lt: runStartedAt },
+            },
+            orderBy: { lastScrapedAt: "asc" },
+            take: REFRESH_PER_RUN,
+            select: {
+              id: true,
+              productId: true,
+              discountTryCents: true,
+              discountStartedAt: true,
+            },
+          });
+
+          if (staleRows.length > 0) {
+            emit({ type: "refreshStart", total: staleRows.length });
+            const CONCURRENCY = 6;
+            let cursor = 0;
+            let refreshed = 0;
+            let refreshFailures = 0;
+
+            async function refreshWorker() {
+              while (true) {
+                if (Date.now() - runStartedAt.getTime() > REFRESH_DEADLINE_MS)
+                  return;
+                const idx = cursor++;
+                if (idx >= staleRows.length) return;
+                const row = staleRows[idx];
+                const price = await fetchProductPrice(row.productId);
+                const now = new Date();
+                try {
+                  if (price) {
+                    // Stamp discountStartedAt only on a fresh no-sale → sale
+                    // transition (mirrors the seed-scrape path); keep it on a
+                    // continuing sale so the digest window stays stable.
+                    const startedSale =
+                      price.discountTryCents != null &&
+                      row.discountTryCents == null;
+                    await prisma.game.update({
+                      where: { id: row.id },
+                      data: {
+                        priceTryCents: price.priceTryCents,
+                        discountTryCents: price.discountTryCents,
+                        discountEndAt: price.discountEndAt,
+                        discountStartedAt:
+                          price.discountTryCents == null
+                            ? null
+                            : startedSale
+                              ? now
+                              : (row.discountStartedAt ?? now),
+                        lastScrapedAt: now,
+                      },
+                    });
+                    refreshed++;
+                  } else {
+                    // res.ok with no parseable offer (delisted / region-locked)
+                    // or a transient miss: bump lastScrapedAt so a dead page
+                    // can't wedge the front of the rotation, but leave the
+                    // price untouched.
+                    await prisma.game.update({
+                      where: { id: row.id },
+                      data: { lastScrapedAt: now },
+                    });
+                    refreshFailures++;
+                  }
+                } catch (e) {
+                  refreshFailures++;
+                  console.error("scrape-ps-store: refresh update failed", e);
+                }
+                const seen = refreshed + refreshFailures;
+                if (seen % 25 === 0 || seen === staleRows.length) {
+                  emit({
+                    type: "refreshProgress",
+                    done: seen,
+                    total: staleRows.length,
+                    refreshed,
+                    failures: refreshFailures,
+                  });
+                }
+              }
+            }
+
+            await Promise.all(
+              Array.from(
+                { length: Math.min(CONCURRENCY, staleRows.length) },
+                () => refreshWorker()
+              )
+            );
+            emit({ type: "refreshDone", refreshed, failures: refreshFailures });
+          }
+        } catch (e) {
+          console.error("scrape-ps-store: stale refresh failed", e);
+          emit({
+            type: "refreshError",
+            error: e instanceof Error ? e.message : "refresh error",
           });
         }
 

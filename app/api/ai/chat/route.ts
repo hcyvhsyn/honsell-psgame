@@ -59,6 +59,23 @@ type ProductCard = {
   store: string;
 };
 
+/** Abunə / xidmət kartı (ServiceProduct) — chat-da qiymət + səbətə əlavə üçün. */
+type ServiceCard = {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  finalAzn: number;
+  originalAzn: number | null;
+  discountPct: number | null;
+  /** Cart productType: STREAMING | PS_PLUS | EA_PLAY | PUBG_UC | ... */
+  productType: string;
+  /** Səhifə linki (məs. /streaming/prime). */
+  link: string | null;
+  /** Birbaşa səbətə əlavə oluna bilərmi? Gmail/şifrə tələb edənlər (YouTube,
+   *  music, hesab-açma) üçün false → kart "Bax" linki göstərir. */
+  addable: boolean;
+};
+
 function isChatMessage(v: unknown): v is ChatMessage {
   if (!v || typeof v !== "object") return false;
   const m = v as Record<string, unknown>;
@@ -137,26 +154,30 @@ export async function POST(req: Request) {
 
   // Alias genişlənməsi (geta→GTA, futbol→EA Sports FC və s.) eyni kanalda tətbiq olunur.
   const query = expandAliases(recentUserText).variants.join(" ");
-  const [{ context, cards }, streamingContext, subscriptions, knowledge] =
-    await Promise.all([
-      buildCatalogContext(query),
-      // "Off Campus haradan baxa bilərəm?" kimi suallar üçün — film/serialın
-      // hansı platformada olduğunu real kataloqdan tap (model uydurmasın).
-      buildStreamingCatalogContext(recentUserText),
-      // Abunə/xidmət qiymətləri (Prime Video, PS Plus, EA Play və s.).
-      buildSubscriptionsContext(),
-      // Admin paneldən idarə olunan sabit bilik bazası.
-      getAiKnowledge(),
-    ]);
+  const [
+    { context, cards },
+    streamingContext,
+    { context: subContext, cards: serviceCards },
+    knowledge,
+  ] = await Promise.all([
+    buildCatalogContext(query),
+    // "Off Campus haradan baxa bilərəm?" kimi suallar üçün — film/serialın
+    // hansı platformada olduğunu real kataloqdan tap (model uydurmasın).
+    buildStreamingCatalogContext(recentUserText),
+    // Abunə/xidmət qiymətləri + kartları (Prime Video, PS Plus, EA Play və s.).
+    buildSubscriptionsContext(),
+    // Admin paneldən idarə olunan sabit bilik bazası.
+    getAiKnowledge(),
+  ]);
 
   const systemPrompt = buildSystemPrompt(
     context,
     streamingContext,
-    subscriptions,
+    subContext,
     knowledge
   );
 
-  let parsed: { reply: string; productIds: string[] };
+  let parsed: { reply: string; productIds: string[]; serviceIds: string[] };
   try {
     const client = getOpenAI();
     const res = await client.chat.completions.create({
@@ -170,11 +191,18 @@ export async function POST(req: Request) {
       ],
     });
     const raw = res.choices[0]?.message?.content ?? "{}";
-    const obj = JSON.parse(raw) as { reply?: unknown; productIds?: unknown };
+    const obj = JSON.parse(raw) as {
+      reply?: unknown;
+      productIds?: unknown;
+      serviceIds?: unknown;
+    };
     parsed = {
       reply: typeof obj.reply === "string" ? obj.reply : "",
       productIds: Array.isArray(obj.productIds)
         ? obj.productIds.filter((x): x is string => typeof x === "string")
+        : [],
+      serviceIds: Array.isArray(obj.serviceIds)
+        ? obj.serviceIds.filter((x): x is string => typeof x === "string")
         : [],
     };
   } catch (e) {
@@ -198,9 +226,33 @@ export async function POST(req: Request) {
     if (products.length >= MAX_CARDS) break;
   }
 
+  // Abunə/xidmət kartları — model yalnız kontekstdəki serviceId-ləri qaytarmalıdır.
+  const seenSvc = new Set<string>();
+  const services: ServiceCard[] = [];
+  for (const sid of parsed.serviceIds) {
+    if (seenSvc.has(sid)) continue;
+    const card = serviceCards.get(sid);
+    if (!card) continue;
+    seenSvc.add(sid);
+    services.push(card);
+    if (services.length >= MAX_CARDS) break;
+  }
+
+  // Fallback: model serviceId qaytarmasa belə (gpt-4o-mini alış niyyətində bunu
+  // tez-tez buraxır), istifadəçinin mətni abunə adına uyğun gəlirsə uyğun
+  // kartları özümüz tapıb göstəririk ("netflix 1 ay alıram", "səbətə əlavə et").
+  if (services.length === 0) {
+    for (const card of matchSubscriptionCards(recentUserText, serviceCards)) {
+      if (seenSvc.has(card.id)) continue;
+      seenSvc.add(card.id);
+      services.push(card);
+      if (services.length >= MAX_CARDS) break;
+    }
+  }
+
   const reply =
     parsed.reply.trim() ||
-    (products.length > 0
+    (products.length > 0 || services.length > 0
       ? "Bu nəticələri tapdım:"
       : "Üzr istəyirəm, bu barədə uyğun məhsul tapa bilmədim.");
 
@@ -212,12 +264,12 @@ export async function POST(req: Request) {
         userId: user.id,
         question: lastUser.content,
         reply,
-        productCount: products.length,
+        productCount: products.length + services.length,
       },
     })
     .catch((e) => console.error("ai/chat: log yazılmadı", e));
 
-  return NextResponse.json({ reply, products });
+  return NextResponse.json({ reply, products, services });
 }
 
 /**
@@ -448,27 +500,105 @@ async function buildStreamingCatalogContext(userText: string): Promise<string> {
  * Bu kontekst olmadan AI abunə qiymətlərini bilmir və "baxa bilmirəm" kimi
  * yayınır. Buradakı qiymətlər real DB-dən gəlir.
  */
-async function buildSubscriptionsContext(): Promise<string> {
+async function buildSubscriptionsContext(): Promise<{
+  context: string;
+  cards: Map<string, ServiceCard>;
+}> {
+  const empty = { context: "", cards: new Map<string, ServiceCard>() };
   try {
     const rows = await prisma.serviceProduct.findMany({
       where: { isActive: true },
       orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { priceAznCents: "asc" }],
-      select: { title: true, type: true, priceAznCents: true, metadata: true },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        priceAznCents: true,
+        imageUrl: true,
+        metadata: true,
+      },
       take: 150,
     });
-    if (rows.length === 0) return "";
-    return rows
-      .map((r) => {
-        const m = (r.metadata ?? {}) as Record<string, unknown>;
-        const price = (r.priceAznCents / 100).toFixed(2);
-        const link = serviceProductLink(r.type, m);
-        return `${r.title}: ${price} AZN${link ? ` | Səhifə: ${link}` : ""}`;
-      })
-      .join("\n");
+    if (rows.length === 0) return empty;
+
+    const cards = new Map<string, ServiceCard>();
+    const lines: string[] = [];
+
+    for (const r of rows) {
+      const m = (r.metadata ?? {}) as Record<string, unknown>;
+      const finalAzn = r.priceAznCents / 100;
+      const opc = Number(m.originalPriceAznCents);
+      const originalAzn =
+        Number.isFinite(opc) && opc > r.priceAznCents ? opc / 100 : null;
+      const discountPct = originalAzn
+        ? Math.round(((originalAzn - finalAzn) / originalAzn) * 100)
+        : null;
+      const link = serviceProductLink(r.type, m);
+      const addable = isServiceAddable(r.type, r.title);
+
+      cards.set(r.id, {
+        id: r.id,
+        title: r.title,
+        imageUrl: r.imageUrl,
+        finalAzn,
+        originalAzn,
+        discountPct,
+        productType: r.type,
+        link,
+        addable,
+      });
+
+      lines.push(
+        `serviceId: ${r.id} | ${r.title} | ${finalAzn.toFixed(2)} AZN${
+          link ? ` | Səhifə: ${link}` : ""
+        }`
+      );
+    }
+
+    return { context: lines.join("\n"), cards };
   } catch (e) {
     console.error("ai/chat: abunə konteksti uğursuz", e);
-    return "";
+    return empty;
   }
+}
+
+/**
+ * İstifadəçinin mətnini abunə/xidmət kartlarının başlığı ilə uyğunlaşdırır.
+ * Hər kartın başlıq sözləri (≥3 hərf) mətndə varsa, kart uyğun sayılır — belə
+ * ki "netflix 1 ay alıram" → bütün Netflix planları, "prime video" → Prime
+ * planları. Model serviceId qaytarmayanda fallback kimi işlədilir.
+ */
+function matchSubscriptionCards(
+  text: string,
+  cards: Map<string, ServiceCard>
+): ServiceCard[] {
+  const haystack = text.toLowerCase();
+  const out: ServiceCard[] = [];
+  for (const card of cards.values()) {
+    const words = card.title
+      .toLowerCase()
+      .split(/[^a-zəğıöşçü0-9]+/i)
+      .filter((w) => w.length >= 3 && !/^\d+$/.test(w));
+    if (words.some((w) => haystack.includes(w))) out.push(card);
+  }
+  return out;
+}
+
+/** Birbaşa səbətə əlavə oluna bilərmi? Gmail/şifrə və ya hesab məlumatı tələb
+ *  edən tiplər (YouTube/music, hesab-açma) checkout-da bloklanır — onlar üçün
+ *  kart "Bax" linki göstərir, birbaşa əlavə yox. */
+function isServiceAddable(type: string, title: string): boolean {
+  if (
+    type === "ACCOUNT_CREATION" ||
+    type === "EPIC_ACCOUNT_CREATION" ||
+    type === "PLATFORM"
+  ) {
+    return false;
+  }
+  if (type === "STREAMING" && title.toLowerCase().includes("youtube")) {
+    return false;
+  }
+  return true;
 }
 
 function serviceProductLink(type: string, m: Record<string, unknown>): string | null {
@@ -514,7 +644,7 @@ function buildSystemPrompt(
     "satan bir saytdır.",
     "",
     "Cavabını HƏMİŞƏ aşağıdakı JSON formatında ver:",
-    '{"reply": "qısa mətn", "productIds": ["...", "..."]}',
+    '{"reply": "qısa mətn", "productIds": ["oyun id-ləri"], "serviceIds": ["abunə/xidmət id-ləri"]}',
     "",
     "QAYDALAR:",
     "1. Yalnız bu sayta (aşağıdakı bölmələrə və oyun kataloquna) aid suallara cavab",
@@ -535,11 +665,20 @@ function buildSystemPrompt(
     "   Oyun kartlarının qiymət/linkini `reply` mətnində TƏKRAR SADALAMA — kart kimi",
     "   görünür. Sadəcə qısa giriş yaz (məs. \"GTA üzrə bu oyunları tapdım:\").",
     "6. Abunə/xidmət sualına (Netflix, Prime Video, HBO Max, Gain, PS Plus, EA Play,",
-    "   PUBG UC, hədiyyə kartı və s.) aşağıdakı ABUNƏ VƏ XİDMƏT QİYMƏTLƏRİ blokundakı",
-    "   real qiymət və linklə BİRBAŞA cavab ver (`productIds` boş qalsın). Qiymət",
-    "   soruşulanda konkret qiymət(lər)i de — \"daxil ol və bax\" və ya \"baxa",
-    "   bilmirəm\" KİMİ CAVAB VERMƏ; qiymət sənə aşağıda verilib. Müxtəlif müddət",
-    "   paketləri varsa qısaca sadala (məs. **1 ay** 5 AZN, **3 ay** 10 AZN).",
+    "   PUBG UC, hədiyyə kartı və s.): aşağıdakı ABUNƏ VƏ XİDMƏT QİYMƏTLƏRİ blokundan",
+    "   uyğun paketlərin `serviceId`-lərini `serviceIds` siyahısına qoy (ən çox 6) —",
+    "   onlar səbətə əlavə düyməsi olan KART kimi göstərilir. \"Daxil ol və bax\" və",
+    "   ya \"baxa bilmirəm\" KİMİ CAVAB VERMƏ — qiymətlər sənə verilib. `reply` qısa",
+    "   giriş olsun (məs. \"Prime Video abunəlikləri:\"); qiymətləri mətndə TƏKRAR",
+    "   SADALAMA, kartlar göstərir. Yalnız serviceId-lər kontekstdəkindən olsun.",
+    "6a. SƏBƏT / ALIŞ NİYYƏTİ: İstifadəçi konkret məhsulu/planı almaq və ya səbətə",
+    "   əlavə etmək istəsə (\"almaq istəyirəm\", \"2 aylıq alıram\", \"səbətə əlavə et\",",
+    "   \"necə alıram\" və s.) — həmin KONKRET paketin `serviceId`-ini (oyundursa",
+    "   `productId`-ini) MÜTLƏQ qaytar ki, onun kartı görünsün. Kartın üstündə",
+    "   **Səbətə əlavə et** düyməsi var — istifadəçiyə həmin düyməni basmağı təklif et.",
+    "   ƏSLA \"kömək edə bilmirəm\" və ya \"/cart səhifəsinə get\" DEMƏ — səbətə əlavə",
+    "   kartdakı düymə ilə olur. Söhbətdə müddət/plan əvvəl deyilibsə (məs. \"2 ay\"),",
+    "   yalnız həmin planın kartını göstər.",
     "7. \"Filan film/serial haradan baxılır?\" sualına YALNIZ aşağıdakı STREAMING",
     "   KATALOQU kontekstindəki məlumatla cavab ver. Bir başlığın hansı platformada",
     "   olduğunu ƏSLA TƏXMİN ETMƏ. Kontekstdə həmin başlıq yoxdursa, onun bizdə",

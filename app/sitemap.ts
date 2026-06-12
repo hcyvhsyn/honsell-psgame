@@ -23,6 +23,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/bilmeli-olduglarin`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
     { url: `${SITE_URL}/haqqimizda`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${SITE_URL}/mexfilik-siyaseti`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/geri-qaytarma-siyaseti`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   const guides = getAllGuides();

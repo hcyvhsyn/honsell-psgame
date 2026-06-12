@@ -17,8 +17,6 @@ import {
   recordPurchaseSpend,
   recordSuccessfulInvite,
 } from "@/lib/referralCycle";
-import { getSettings } from "@/lib/pricing";
-import { readReferralRateFromMeta } from "@/lib/referralCalculatorOptions";
 import { sendOrderApprovedWhatsApp } from "@/lib/orderNotifications";
 
 function reviewProductTypeFromService(type: string | undefined): ReviewProductType | null {
@@ -193,7 +191,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   // SUCCESS (approval) flow
   const productType = tx.serviceProduct?.type;
   if (productType === "TRY_BALANCE") {
-    const settings = await getSettings();
     // Admin modal-dan birbaşa kod daxil edə bilər (stokda kod olmadıqda
     // və ya hər halda manual təslim etmək istədikdə). Boşluq/defislər silinir,
     // boş string-dirsə stokdan götürmə axınına düşür.
@@ -242,7 +239,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         buyerUserId: tx.userId,
         serviceProductId: tx.serviceProductId,
         lineCents: Math.abs(tx.amountAznCents),
-        streamingProfitSharePct: settings.referralGiftCardsPct,
+        target: { type: "GIFT_CARDS" },
         kind: "TRY_BALANCE",
       });
 
@@ -291,7 +288,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // Hesab kreditiyaları sistemdə saxlanmır; müştəriyə kreditiyasız
     // "abunəlik aktivdir" emaili gedir, məlumat ayrıca çatdırılır.
     const productMeta = (tx.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
-    const referralPct = readReferralRateFromMeta(productMeta, 0);
 
     await prisma.$transaction(async (ptx) => {
       await ptx.transaction.update({
@@ -304,7 +300,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         buyerUserId: tx.userId,
         serviceProductId: tx.serviceProductId,
         lineCents: Math.abs(tx.amountAznCents),
-        streamingProfitSharePct: referralPct,
+        target: { type: "SERVICE_PRODUCT", serviceProductId: tx.serviceProductId ?? "" },
         kind: "STREAMING",
       });
 
@@ -349,9 +345,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (productType === "PLATFORM") {
     // PLATFORM (AI, Musiqi, İş) — admin əl ilə kreditiya daxil etmir.
     // Məhsul hazır olanda sadəcə "Təsdiq" düyməsinə basır, abunə yaradılır.
-    const productMeta = (tx.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
-    const referralPct = readReferralRateFromMeta(productMeta, 0);
-
     await prisma.$transaction(async (ptx) => {
       await ptx.transaction.update({
         where: { id: tx.id },
@@ -373,7 +366,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         buyerUserId: tx.userId,
         serviceProductId: tx.serviceProductId,
         lineCents: Math.abs(tx.amountAznCents),
-        streamingProfitSharePct: referralPct,
+        target: { type: "SERVICE_PRODUCT", serviceProductId: tx.serviceProductId ?? "" },
         kind: "PLATFORM",
       });
 
@@ -393,7 +386,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   if (productType === "ACCOUNT_CREATION") {
-    const settings = await getSettings();
     let meta: Record<string, unknown> = {};
     try {
       if (tx.metadata) meta = JSON.parse(tx.metadata) as Record<string, unknown>;
@@ -457,7 +449,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         buyerUserId: tx.userId,
         serviceProductId: tx.serviceProductId,
         lineCents: Math.abs(tx.amountAznCents),
-        streamingProfitSharePct: settings.referralAccountCreationPct,
+        target: { type: "ACCOUNT_CREATION" },
         kind: "ACCOUNT_CREATION",
       });
 
@@ -477,7 +469,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   if (productType === "EPIC_ACCOUNT_CREATION") {
-    const settings = await getSettings();
     let meta: Record<string, unknown> = {};
     try {
       if (tx.metadata) meta = JSON.parse(tx.metadata) as Record<string, unknown>;
@@ -561,7 +552,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         buyerUserId: tx.userId,
         serviceProductId: tx.serviceProductId,
         lineCents: Math.abs(tx.amountAznCents),
-        streamingProfitSharePct: settings.referralAccountCreationPct,
+        target: { type: "ACCOUNT_CREATION" },
         kind: "ACCOUNT_CREATION",
       });
 
@@ -580,7 +571,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ ok: true });
   }
 
-  const settings = await getSettings();
   await prisma.$transaction(async (ptx) => {
     await ptx.transaction.update({
       where: { id: tx.id },
@@ -602,7 +592,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         buyerUserId: tx.userId,
         serviceProductId: tx.serviceProductId,
         lineCents: Math.abs(tx.amountAznCents),
-        streamingProfitSharePct: settings.referralPsPlusPct,
+        target: { type: "PS_PLUS" },
         kind: "PS_PLUS",
       });
 
@@ -631,7 +621,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         buyerUserId: tx.userId,
         serviceProductId: tx.serviceProductId,
         lineCents: Math.abs(tx.amountAznCents),
-        streamingProfitSharePct: settings.referralPsPlusPct,
+        target: { type: "PS_PLUS" },
         kind: "EA_PLAY",
       });
 

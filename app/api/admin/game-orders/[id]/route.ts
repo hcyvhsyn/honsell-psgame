@@ -13,6 +13,7 @@ import {
   recordSuccessfulInvite,
 } from "@/lib/referralCycle";
 import { awardReviewAffiliateCommission } from "@/lib/reviewAffiliate";
+import { resolveReferralRatePct, type ReferralRateDb } from "@/lib/referralRates";
 import { sendOrderApprovedWhatsApp } from "@/lib/orderNotifications";
 
 export const runtime = "nodejs";
@@ -85,18 +86,21 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       const buyer = row.user ?? (await ptx.user.findUnique({ where: { id: row.userId } }));
       const referredById = buyer?.referredById ?? null;
 
-      // Sponsorlu müştəri (referans verən) öz dəvət etdiyi istifadəçilərin oyun
-      // alışlarından artırılmış faiz qazanır. Standart referralGamesPct əvəzinə
-      // sponsoredReferralGamesPct tətbiq olunur.
+      // Referans verənin müştəri seqmentinə (CustomerTier) görə oyun faizi resolve
+      // olunur — köhnə isSponsored boolean əvəzinə mərkəzi resolver-dən.
       const referrer = referredById
         ? await ptx.user.findUnique({
             where: { id: referredById },
-            select: { isSponsored: true },
+            select: { tierId: true },
           })
         : null;
-      const referralRatePct = referrer?.isSponsored
-        ? settings.sponsoredReferralGamesPct
-        : settings.referralGamesPct;
+      const referralRatePct = referredById
+        ? await resolveReferralRatePct({
+            tierId: referrer?.tierId ?? null,
+            target: { type: "PS_GAMES" },
+            db: ptx as unknown as ReferralRateDb,
+          })
+        : 0;
 
       const price = computeDisplayPrice(gameRow, settings);
       const unitListCents = Math.round(price.finalAzn * 100);
@@ -132,7 +136,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
                 lineCents: unitListCents,
                 profitCents,
                 shareRate: referralRatePct,
-                sponsored: Boolean(referrer?.isSponsored),
+                tierId: referrer?.tierId ?? null,
               }),
             },
           });

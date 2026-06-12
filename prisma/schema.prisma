@@ -82,12 +82,16 @@ model User {
   referredBy   User?   @relation("Referrals", fields: [referredById], references: [id])
   referrals    User[]  @relation("Referrals")
 
-  // "Sponsorlu" müştəri — admin tərəfindən təyin edilir. Bu müştərinin referal
-  // linkiylə qeydiyyatdan keçən istifadəçilərin OYUN alışlarından artırılmış
-  // komissiya faizi (sponsored referral rate, default 8%) bu müştəriyə yazılır.
-  // Yalnız oyun alışlarına aiddir — digər məhsul tiplərinə təsir etmir.
+  // @deprecated — köhnə "Sponsorlu" boolean. Müştəri seqmenti artıq `tierId`
+  // ilə idarə olunur (bax: CustomerTier / ReferralRate). Bu sütunlar geri-uyğunluq
+  // üçün saxlanılır və sonrakı təmizlik miqrasiyasında silinəcək.
   isSponsored Boolean   @default(false)
   sponsoredAt DateTime?
+
+  // Müştəri seqmenti — referal komissiya faizləri seqmentə görə dəyişir.
+  // NULL = default (isDefault) seqment. Bax: CustomerTier / ReferralRate.
+  tierId String?
+  tier   CustomerTier? @relation(fields: [tierId], references: [id])
 
   // PSN delivery accounts (one user can have many; one is marked default).
   psnAccounts PsnAccount[]
@@ -858,6 +862,65 @@ model Settings {
   depositCardHolder String?
 
   updatedAt DateTime @updatedAt
+}
+
+// ─── Müştəri seqmentləri + referal faiz matrisi ──────────────────────────────
+//
+// Referal komissiya faizləri artıq (seqment × hədəf) matrisi ilə idarə olunur.
+// Hər istifadəçi bir seqmentə (CustomerTier) aiddir; `User.tierId` NULL isə
+// `isDefault = true` olan seqment tətbiq edilir. Hər seqmentin hər hədəf üçün
+// öz faizi var (ReferralRate). Hədəf ya PS Store kateqoriyasıdır (PS_GAMES,
+// PS_PLUS, GIFT_CARDS, ACCOUNT_CREATION), ya da konkret ServiceProduct sətiridir
+// (SERVICE_PRODUCT — streaming/platform abunəlikləri, hər müddət ayrıca).
+//
+// Köhnə "Sponsorlu" mexanizmi bu sistemə miqrasiya olunub: seed "adi" (default)
+// və "sponsorlu" seqmentlərini yaradır və köhnə faizləri backfill edir.
+
+model CustomerTier {
+  id        String   @id @default(cuid())
+  // UI etiketi (AZ): "Adi", "Sponsorlu", ...
+  name      String
+  // Seed/miqrasiya üçün stabil açar: "adi", "sponsorlu", ...
+  slug      String   @unique
+  // Dəqiq bir sətir true olmalıdır — `tierId = null` olan istifadəçilərə tətbiq edilir.
+  isDefault Boolean  @default(false)
+  sortOrder Int      @default(0)
+  // Admin paneldə badge rəngi (opsional, məs: "#22c55e").
+  color     String?
+
+  users User[]
+  rates ReferralRate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model ReferralRate {
+  id     String       @id @default(cuid())
+  tierId String
+  tier   CustomerTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+
+  // PS_GAMES | PS_PLUS | GIFT_CARDS | ACCOUNT_CREATION | SERVICE_PRODUCT
+  targetType String
+
+  // Yalnız targetType = SERVICE_PRODUCT olduqda dolur (streaming/platform müddət
+  // sətirləri). Kateqoriya hədəflərində sentinel "" saxlanır — NULL deyil, çünki
+  // Postgres NULL-ları unique indeksdə fərqli sayır və `(tier, PS_GAMES, null)`
+  // təkrarlanardı. FK qoyulmur; məhsul silinsə bu sətir orphan qalır (resolve
+  // olunmur, zərərsizdir) və seed/admin tərəfindən təmizlənə bilər.
+  serviceProductId String @default("")
+
+  ratePct Float   @default(0)
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tierId, targetType, serviceProductId])
+  @@index([tierId, targetType])
+  @@index([serviceProductId])
 }
 
 // ─── Search Suggestions ──────────────────────────────────────────────────────
