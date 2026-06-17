@@ -9,7 +9,7 @@ export default function AdminWebsitePricingConfigPage() {
         <h1 className="text-2xl font-bold tracking-tight">
           Website Xidməti — AI Qiymət Konfiqurasiyası
         </h1>
-        <p className="mt-1 text-sm text-zinc-400">
+        <p className="mt-1 text-sm text-zinc-600">
           Hər sayt növü üçün baza qiymət aralığını və AI üçün əlavə qaydaları
           təyin edin. AI bu aralıqdan kənara çıxa bilmir — yalnız müştərinin
           briefinə görə əmsal tətbiq edir.

@@ -148,34 +148,34 @@ export default function AccountCreationAdminClient() {
   return (
     <div className="space-y-10">
       {/* Product Settings */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+      <div className="rounded-xl border border-admin-line bg-admin-card p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/20">
-              <Settings2 className="h-5 w-5 text-indigo-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-500/20">
+              <Settings2 className="h-5 w-5 text-violet-600" />
             </div>
             <div>
-              <h2 className="font-semibold text-zinc-200">Türkiyə PSN Hesabının Açılması</h2>
+              <h2 className="font-semibold text-zinc-800">Türkiyə PSN Hesabının Açılması</h2>
               {loading ? (
                 <p className="mt-0.5 text-sm text-zinc-500">Yüklənir...</p>
               ) : product ? (
-                <p className="mt-0.5 text-sm text-zinc-400">
+                <p className="mt-0.5 text-sm text-zinc-600">
                   Qiymət:{" "}
-                  <span className="font-bold text-white">{(product.priceAznCents / 100).toFixed(2)} AZN</span>
+                  <span className="font-bold text-zinc-900">{(product.priceAznCents / 100).toFixed(2)} AZN</span>
                   {!product.isActive && (
-                    <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-400">
+                    <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] text-rose-600">
                       Passiv
                     </span>
                   )}
                 </p>
               ) : (
-                <p className="mt-0.5 text-sm text-amber-400">Məhsul hələ yaradılmayıb — qiyməti qeyd edib aktivləşdirin.</p>
+                <p className="mt-0.5 text-sm text-amber-600">Məhsul hələ yaradılmayıb — qiyməti qeyd edib aktivləşdirin.</p>
               )}
             </div>
           </div>
           <button
             onClick={openEdit}
-            className="inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
+            className="inline-flex items-center gap-2 rounded-lg bg-admin-chip px-3 py-2 text-sm text-zinc-700 hover:bg-admin-chip2"
           >
             <Edit2 className="h-4 w-4" />
             {product ? "Redaktə et" : "Yarat"}
@@ -183,24 +183,24 @@ export default function AccountCreationAdminClient() {
         </div>
 
         {product?.description && (
-          <p className="mt-4 rounded-lg bg-zinc-900 px-4 py-3 text-sm text-zinc-400">{product.description}</p>
+          <p className="mt-4 rounded-lg bg-admin-card px-4 py-3 text-sm text-zinc-600">{product.description}</p>
         )}
       </div>
 
       {/* Pending Orders */}
       <div>
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-200">
+          <h2 className="text-lg font-semibold text-zinc-800">
             Gözləyən sifarişlər
             {orders.length > 0 && (
-              <span className="ml-2 rounded-full bg-amber-500/20 px-2 py-0.5 text-sm font-semibold text-amber-300 ring-1 ring-amber-500/30">
+              <span className="ml-2 rounded-full bg-amber-500/20 px-2 py-0.5 text-sm font-semibold text-amber-700 ring-1 ring-amber-500/30">
                 {orders.length}
               </span>
             )}
           </h2>
           <button
             onClick={loadOrders}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-admin-chip px-3 py-1.5 text-sm text-zinc-700 hover:bg-admin-chip2"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Yenilə
           </button>
@@ -208,10 +208,10 @@ export default function AccountCreationAdminClient() {
 
         {ordersLoading ? (
           <div className="py-10 text-center">
-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-indigo-500" />
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-violet-500" />
           </div>
         ) : orders.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-12 text-center text-zinc-500">
+          <div className="rounded-xl border border-dashed border-admin-line bg-admin-card py-12 text-center text-zinc-500">
             Gözləyən hesab açılışı sifarişi yoxdur.
           </div>
         ) : (
@@ -222,15 +222,15 @@ export default function AccountCreationAdminClient() {
               return (
                 <div
                   key={o.id}
-                  className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50"
+                  className="overflow-hidden rounded-xl border border-admin-line bg-admin-card"
                 >
                   <div className="flex items-center justify-between gap-4 px-5 py-4">
                     <div className="flex min-w-0 flex-1 items-center gap-4">
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-zinc-200">{o.user.name || "İsimsiz"}</p>
+                        <p className="truncate font-medium text-zinc-800">{o.user.name || "İsimsiz"}</p>
                         <p className="text-xs text-zinc-500">{o.user.email}</p>
                       </div>
-                      <div className="hidden sm:block text-sm text-zinc-400">
+                      <div className="hidden sm:block text-sm text-zinc-600">
                         {(Math.abs(o.amountAznCents) / 100).toFixed(2)} AZN
                       </div>
                       <div className="hidden md:block text-xs text-zinc-500">
@@ -246,7 +246,7 @@ export default function AccountCreationAdminClient() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => toggleExpand(o.id)}
-                        className="rounded p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                        className="rounded p-1.5 text-zinc-500 hover:bg-admin-chip2 hover:text-zinc-700"
                         title="Müştəri məlumatlarına bax"
                       >
                         {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -254,14 +254,14 @@ export default function AccountCreationAdminClient() {
                       <button
                         onClick={() => processOrder(o.id, "SUCCESS")}
                         title="Tamamla (Hesab açıldı)"
-                        className="rounded bg-emerald-500/20 p-1.5 text-emerald-400 hover:bg-emerald-500/30"
+                        className="rounded bg-emerald-500/20 p-1.5 text-emerald-600 hover:bg-emerald-500/30"
                       >
                         <Check className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => processOrder(o.id, "FAILED")}
                         title="Rədd et (Geri qaytar)"
-                        className="rounded bg-rose-500/20 p-1.5 text-rose-400 hover:bg-rose-500/30"
+                        className="rounded bg-rose-500/20 p-1.5 text-rose-600 hover:bg-rose-500/30"
                       >
                         <XIcon className="h-4 w-4" />
                       </button>
@@ -269,7 +269,7 @@ export default function AccountCreationAdminClient() {
                   </div>
 
                   {expanded && (
-                    <div className="border-t border-zinc-800 bg-zinc-950/60 px-5 py-4">
+                    <div className="border-t border-admin-line bg-admin-card px-5 py-4">
                       <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
                         Müştəri məlumatları
                       </p>
@@ -296,32 +296,32 @@ export default function AccountCreationAdminClient() {
       {/* Edit Modal */}
       {editOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+          <div className="w-full max-w-sm rounded-2xl border border-admin-line bg-admin-card p-6 shadow-2xl">
             <h3 className="mb-6 text-lg font-bold">Hesab Açılışı — Ayarlar</h3>
             <div className="space-y-4">
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Qiymət (AZN)
                 <input
                   type="number"
                   step="0.01"
                   min="0"
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   value={editForm.priceAzn}
                   onChange={(e) => setEditForm({ ...editForm, priceAzn: e.target.value })}
                   placeholder="3.00"
                 />
               </label>
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Qısa izah (müştəriyə görünür)
                 <textarea
                   rows={3}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   value={editForm.description}
                   onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                   placeholder="Sizin məlumatlarınızla tam şəxsi hesab açılır..."
                 />
               </label>
-              <label className="flex items-center gap-2 text-sm text-zinc-300">
+              <label className="flex items-center gap-2 text-sm text-zinc-700">
                 <input
                   type="checkbox"
                   checked={editForm.isActive}
@@ -331,7 +331,7 @@ export default function AccountCreationAdminClient() {
               </label>
             </div>
             {saveError && (
-              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">
                 {saveError}
               </div>
             )}
@@ -341,14 +341,14 @@ export default function AccountCreationAdminClient() {
                   setEditOpen(false);
                   setSaveError(null);
                 }}
-                className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
+                className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-700 hover:bg-admin-chip2"
               >
                 İmtina
               </button>
               <button
                 onClick={saveProduct}
                 disabled={saving}
-                className="inline-flex items-center gap-2 rounded bg-indigo-500 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-400 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 Yadda saxla
@@ -375,7 +375,7 @@ function Field({
   return (
     <div className={className}>
       <p className="text-[11px] text-zinc-500">{label}</p>
-      <p className={`mt-0.5 break-all text-zinc-200 ${mono ? "font-mono text-sm" : ""}`}>
+      <p className={`mt-0.5 break-all text-zinc-800 ${mono ? "font-mono text-sm" : ""}`}>
         {value || <span className="text-zinc-600">—</span>}
       </p>
     </div>

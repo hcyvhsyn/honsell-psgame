@@ -88,10 +88,10 @@ export default async function AdminDepositsPage({
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Deposit requests</h1>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-zinc-600">
             {pendingCount > 0 ? (
               <>
-                <span className="font-semibold text-amber-300">
+                <span className="font-semibold text-amber-700">
                   {pendingCount}
                 </span>{" "}
                 pending — review the receipt and approve or reject.
@@ -112,8 +112,8 @@ export default async function AdminDepositsPage({
               href={buildHref({ status: s, page: "1" })}
               className={`rounded-md px-2.5 py-1 text-xs ring-1 ${
                 active
-                  ? "bg-indigo-500/15 text-indigo-300 ring-indigo-500/30"
-                  : "bg-zinc-900 text-zinc-300 ring-zinc-800 hover:bg-zinc-800"
+                  ? "bg-violet-500/15 text-violet-700 ring-violet-500/30"
+                  : "bg-admin-card text-zinc-700 ring-admin-line hover:bg-admin-chip2"
               }`}
             >
               {s}
@@ -123,7 +123,7 @@ export default async function AdminDepositsPage({
       </div>
 
       {deposits.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-10 text-center text-sm text-zinc-500">
+        <div className="rounded-xl border border-dashed border-admin-line bg-admin-card p-10 text-center text-sm text-zinc-500">
           Bu filterlə nəticə yoxdur.
         </div>
       ) : (
@@ -131,7 +131,7 @@ export default async function AdminDepositsPage({
           {deposits.map((d) => (
             <li
               key={d.id}
-              className="flex flex-col gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 sm:flex-row sm:items-center"
+              className="flex flex-col gap-4 rounded-xl border border-admin-line bg-admin-card p-4 sm:flex-row sm:items-center"
             >
               <div className="flex items-start gap-4 sm:flex-1">
                 {(() => {
@@ -148,10 +148,10 @@ export default async function AdminDepositsPage({
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block h-24 w-24 shrink-0 overflow-hidden rounded-md ring-1 ring-zinc-800"
+                    className="block h-24 w-24 shrink-0 overflow-hidden rounded-md ring-1 ring-admin-line"
                   >
                     {/^.+\.pdf$/i.test(d.receiptUrl ?? "") ? (
-                      <span className="grid h-full w-full place-items-center bg-zinc-950 text-xs text-zinc-400">
+                      <span className="grid h-full w-full place-items-center bg-admin-card text-xs text-zinc-600">
                         PDF
                       </span>
                     ) : (
@@ -168,7 +168,7 @@ export default async function AdminDepositsPage({
                     )}
                   </a>
                 ) : (
-                  <div className="grid h-24 w-24 shrink-0 place-items-center rounded-md bg-zinc-950 text-[10px] text-zinc-500 ring-1 ring-zinc-800">
+                  <div className="grid h-24 w-24 shrink-0 place-items-center rounded-md bg-admin-card text-[10px] text-zinc-500 ring-1 ring-admin-line">
                     no file
                   </div>
                 )}
@@ -179,7 +179,7 @@ export default async function AdminDepositsPage({
                   </div>
                   <Link
                     href={`/admin/users/${d.user.id}`}
-                    className="block truncate text-sm text-zinc-300 hover:text-indigo-300"
+                    className="block truncate text-sm text-zinc-700 hover:text-violet-700"
                   >
                     {d.user.name ?? d.user.email}
                   </Link>
@@ -202,7 +202,7 @@ export default async function AdminDepositsPage({
       )}
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-zinc-400">
+        <div className="flex items-center justify-between text-sm text-zinc-600">
           <span>
             Page {page} of {totalPages}
           </span>
@@ -210,7 +210,7 @@ export default async function AdminDepositsPage({
             {page > 1 && (
               <Link
                 href={buildHref({ page: String(page - 1) })}
-                className="rounded-md border border-zinc-800 px-3 py-1.5 hover:bg-zinc-900"
+                className="rounded-md border border-admin-line px-3 py-1.5 hover:bg-admin-chip"
               >
                 ← Previous
               </Link>
@@ -218,7 +218,7 @@ export default async function AdminDepositsPage({
             {page < totalPages && (
               <Link
                 href={buildHref({ page: String(page + 1) })}
-                className="rounded-md border border-zinc-800 px-3 py-1.5 hover:bg-zinc-900"
+                className="rounded-md border border-admin-line px-3 py-1.5 hover:bg-admin-chip"
               >
                 Next →
               </Link>
@@ -232,14 +232,14 @@ export default async function AdminDepositsPage({
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
-    PENDING: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
-    SUCCESS: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
-    FAILED: "bg-rose-500/15 text-rose-300 ring-rose-500/30",
+    PENDING: "bg-amber-500/15 text-amber-700 ring-amber-500/30",
+    SUCCESS: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30",
+    FAILED: "bg-rose-500/15 text-rose-700 ring-rose-500/30",
   };
   return (
     <span
       className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-[10px] font-medium ring-1 ${
-        map[status] ?? "bg-zinc-800 text-zinc-300 ring-zinc-700"
+        map[status] ?? "bg-admin-chip text-zinc-700 ring-admin-line2"
       }`}
     >
       {status}

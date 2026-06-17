@@ -79,10 +79,10 @@ export default async function AdminSubscriptionsPage({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold flex items-center gap-2">
-          <Crown className="h-6 w-6 text-amber-400" />
+          <Crown className="h-6 w-6 text-amber-600" />
           Abunəliklər
         </h1>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-zinc-600">
           PS Plus abunəliklərinin status və yenilənmə vəziyyəti.
         </p>
       </div>
@@ -109,8 +109,8 @@ export default async function AdminSubscriptionsPage({
               href={`/admin/subscriptions?filter=${f.key}`}
               className={`rounded-md px-2.5 py-1 text-xs ring-1 ${
                 active
-                  ? "bg-indigo-500/15 text-indigo-300 ring-indigo-500/30"
-                  : "bg-zinc-900 text-zinc-300 ring-zinc-800 hover:bg-zinc-800"
+                  ? "bg-violet-500/15 text-violet-700 ring-violet-500/30"
+                  : "bg-admin-card text-zinc-700 ring-admin-line hover:bg-admin-chip2"
               }`}
             >
               {f.label}
@@ -122,9 +122,9 @@ export default async function AdminSubscriptionsPage({
         })}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-800">
+      <div className="overflow-hidden rounded-xl border border-admin-line">
         <table className="w-full text-sm">
-          <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
+          <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
             <tr>
               <Th>Müştəri</Th>
               <Th>Plan</Th>
@@ -135,7 +135,7 @@ export default async function AdminSubscriptionsPage({
               <Th className="text-right">Qiymət</Th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-900">
+          <tbody className="divide-y divide-admin-line">
             {subs.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-5 py-8 text-center text-zinc-500">
@@ -150,11 +150,11 @@ export default async function AdminSubscriptionsPage({
               const renewWillFail = s.autoRenew && expiringSoon && lowBalance;
 
               return (
-                <tr key={s.id} className="hover:bg-zinc-900/40">
+                <tr key={s.id} className="hover:bg-admin-chip">
                   <Td>
                     <Link
                       href={`/admin/users/${s.user.id}`}
-                      className="hover:text-indigo-300"
+                      className="hover:text-violet-700"
                     >
                       {s.user.name ?? s.user.email}
                     </Link>
@@ -162,10 +162,10 @@ export default async function AdminSubscriptionsPage({
                   </Td>
                   <Td>
                     <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300 ring-1 ring-amber-500/40">
+                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-500/40">
                         {TIER_LABEL[s.tier] ?? s.tier}
                       </span>
-                      <span className="text-xs text-zinc-400">
+                      <span className="text-xs text-zinc-600">
                         {s.durationMonths} ay
                       </span>
                     </div>
@@ -173,7 +173,7 @@ export default async function AdminSubscriptionsPage({
                       {s.serviceProduct.title}
                     </div>
                   </Td>
-                  <Td className="text-zinc-300">
+                  <Td className="text-zinc-700">
                     {s.psnAccount ? (
                       <>
                         <div>{s.psnAccount.label}</div>
@@ -186,7 +186,7 @@ export default async function AdminSubscriptionsPage({
                     )}
                   </Td>
                   <Td>
-                    <div className="flex items-center gap-1.5 text-zinc-200">
+                    <div className="flex items-center gap-1.5 text-zinc-800">
                       <Calendar className="h-3.5 w-3.5 text-zinc-500" />
                       {fmtDateAz(s.expiresAt)}
                     </div>
@@ -194,9 +194,9 @@ export default async function AdminSubscriptionsPage({
                       <div
                         className={`mt-0.5 text-xs ${
                           days <= 1
-                            ? "text-rose-300"
+                            ? "text-rose-700"
                             : days <= 3
-                              ? "text-amber-300"
+                              ? "text-amber-700"
                               : "text-zinc-500"
                         }`}
                       >
@@ -210,16 +210,16 @@ export default async function AdminSubscriptionsPage({
                   </Td>
                   <Td>
                     {s.autoRenew ? (
-                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 ring-1 ring-emerald-500/40">
+                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-500/40">
                         ON
                       </span>
                     ) : (
-                      <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-400 ring-1 ring-zinc-700">
+                      <span className="rounded-full bg-admin-chip px-2 py-0.5 text-[10px] font-medium text-zinc-600 ring-1 ring-admin-line2">
                         OFF
                       </span>
                     )}
                     {renewWillFail && (
-                      <div className="mt-1 inline-flex items-center gap-1 text-[10px] text-rose-300">
+                      <div className="mt-1 inline-flex items-center gap-1 text-[10px] text-rose-700">
                         <AlertTriangle className="h-3 w-3" />
                         Balans az
                       </div>
@@ -228,7 +228,7 @@ export default async function AdminSubscriptionsPage({
                   <Td>
                     <StatusBadge status={s.status} />
                   </Td>
-                  <Td className="text-right text-zinc-200">
+                  <Td className="text-right text-zinc-800">
                     {fmtAzn(s.priceAznCents)}
                   </Td>
                 </tr>
@@ -253,7 +253,7 @@ function SumCard({
   const accentClass =
     accent === "amber"
       ? "border-amber-500/40 bg-amber-500/5"
-      : "border-zinc-800 bg-zinc-900/40";
+      : "border-admin-line bg-admin-card";
   return (
     <div className={`rounded-xl border p-4 ${accentClass}`}>
       <div className="text-xs uppercase tracking-wider text-zinc-500">
@@ -266,14 +266,14 @@ function SumCard({
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    ACTIVE: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
-    EXPIRED: "bg-zinc-800 text-zinc-400 ring-zinc-700",
-    CANCELLED: "bg-rose-500/15 text-rose-300 ring-rose-500/30",
+    ACTIVE: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30",
+    EXPIRED: "bg-admin-chip text-zinc-600 ring-admin-line2",
+    CANCELLED: "bg-rose-500/15 text-rose-700 ring-rose-500/30",
   };
   return (
     <span
       className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${
-        map[status] ?? "bg-zinc-800 text-zinc-300 ring-zinc-700"
+        map[status] ?? "bg-admin-chip text-zinc-700 ring-admin-line2"
       }`}
     >
       {status}

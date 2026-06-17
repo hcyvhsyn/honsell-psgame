@@ -63,6 +63,7 @@ export async function POST(
           text,
           rating,
           platform: invite.productType,
+          productTitle: invite.productTitle,
           isActive: true,
           sortOrder: 0,
           avatarUrl: null,

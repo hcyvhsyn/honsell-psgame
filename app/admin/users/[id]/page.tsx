@@ -122,16 +122,30 @@ export default async function AdminUserDetailPage({
     isYoutube: boolean;
     gmail?: string;
     password?: string;
+    accounts?: { email: string; password: string }[];
   } {
     if (!meta) return { isYoutube: false };
     try {
       const m = JSON.parse(meta) as Record<string, unknown>;
       const isYoutube =
         m.kind === "PLATFORM" && String(m.musicBrand ?? "") === "YOUTUBE_PREMIUM";
+      const accounts =
+        m.kind === "PLATFORM" && Array.isArray(m.accounts)
+          ? (m.accounts as unknown[])
+              .map((a) => {
+                const o = a && typeof a === "object" ? (a as Record<string, unknown>) : null;
+                return {
+                  email: o && typeof o.email === "string" ? o.email : "",
+                  password: o && typeof o.password === "string" ? o.password : "",
+                };
+              })
+              .filter((a) => a.email)
+          : undefined;
       return {
         isYoutube,
         gmail: typeof m.gmail === "string" ? m.gmail : undefined,
         password: typeof m.customerPassword === "string" ? m.customerPassword : undefined,
+        accounts: accounts?.length ? accounts : undefined,
       };
     } catch {
       return { isYoutube: false };
@@ -267,42 +281,42 @@ export default async function AdminUserDetailPage({
     <div className="space-y-6">
       <Link
         href="/admin/users"
-        className="inline-flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-200"
+        className="inline-flex items-center gap-1 text-sm text-zinc-600 hover:text-zinc-900"
       >
         <ArrowLeft className="h-4 w-4" /> All users
       </Link>
 
-      <header className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-6">
+      <header className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-admin-line bg-admin-card p-6">
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-semibold">
             {user.name ?? user.email}
           </h1>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {user.disabled && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-1 text-xs font-bold text-rose-300 ring-1 ring-rose-500/40">
+              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-1 text-xs font-bold text-rose-700 ring-1 ring-rose-500/40">
                 <Ban className="h-3 w-3" /> BLOKLANIB
               </span>
             )}
             {user.emailVerified ? (
-              <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-300 ring-1 ring-emerald-500/30">
+              <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-500/30">
                 Email təsdiqlənib
               </span>
             ) : (
-              <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-300 ring-1 ring-amber-500/30">
+              <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-500/30">
                 Email gözləyir
               </span>
             )}
             <span
               className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${
                 user.role === "ADMIN"
-                  ? "bg-indigo-500/15 text-indigo-300 ring-indigo-500/30"
-                  : "bg-zinc-800 text-zinc-300 ring-zinc-700"
+                  ? "bg-violet-500/15 text-violet-700 ring-violet-500/30"
+                  : "bg-admin-chip text-zinc-700 ring-admin-line2"
               }`}
             >
               {user.role}
             </span>
             {user.isSponsored && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-300 ring-1 ring-amber-500/40">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-500/40">
                 <Sparkles className="h-3 w-3" /> SPONSORLU · {settings.sponsoredReferralGamesPct}%
               </span>
             )}
@@ -334,20 +348,20 @@ export default async function AdminUserDetailPage({
         <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-5">
           <div className="flex items-start gap-3">
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-rose-500/20 ring-1 ring-rose-500/40">
-              <Ban className="h-5 w-5 text-rose-300" />
+              <Ban className="h-5 w-5 text-rose-700" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-semibold text-rose-200">
+              <div className="text-sm font-semibold text-rose-700">
                 Bu hesab bloklanıb
               </div>
-              <div className="mt-1 text-xs text-rose-300/80">
+              <div className="mt-1 text-xs text-rose-700/80">
                 {user.disabledAt && (
                   <>Bloklanma tarixi: <span className="font-medium">{fmtDate(user.disabledAt)}</span></>
                 )}
               </div>
               {user.disabledReason && (
                 <div className="mt-2 rounded border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-sm text-rose-100">
-                  <span className="text-[10px] uppercase tracking-wider text-rose-300/70">Səbəb</span>
+                  <span className="text-[10px] uppercase tracking-wider text-rose-700/70">Səbəb</span>
                   <div className="mt-0.5 whitespace-pre-line">{user.disabledReason}</div>
                 </div>
               )}
@@ -358,14 +372,14 @@ export default async function AdminUserDetailPage({
 
       <AdminNotesSection userId={user.id} notes={user.adminNotes} />
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-        <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+      <section className="rounded-xl border border-admin-line bg-admin-card">
+        <header className="flex items-center justify-between border-b border-admin-line px-5 py-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <Activity className="h-4 w-4 text-cyan-300" />
+            <Activity className="h-4 w-4 text-cyan-700" />
             Login aktivliyi
           </h2>
           <span className="text-xs text-zinc-500">
-            Ümumi login: <span className="font-semibold text-zinc-300">{user.loginCount}</span>
+            Ümumi login: <span className="font-semibold text-zinc-700">{user.loginCount}</span>
           </span>
         </header>
         <dl className="grid grid-cols-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -385,15 +399,15 @@ export default async function AdminUserDetailPage({
               <Monitor className="h-4 w-4 text-zinc-600" />
               User-Agent
             </dt>
-            <dd className="mt-1 truncate font-mono text-xs text-zinc-300" title={user.lastUserAgent ?? ""}>
+            <dd className="mt-1 truncate font-mono text-xs text-zinc-700" title={user.lastUserAgent ?? ""}>
               {user.lastUserAgent ?? "—"}
             </dd>
           </div>
         </dl>
       </section>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-        <header className="border-b border-zinc-800 px-5 py-3">
+      <section className="rounded-xl border border-admin-line bg-admin-card">
+        <header className="border-b border-admin-line px-5 py-3">
           <h2 className="text-sm font-semibold">Profil məlumatları</h2>
         </header>
         <dl className="grid grid-cols-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -427,8 +441,8 @@ export default async function AdminUserDetailPage({
         </dl>
       </section>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-        <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+      <section className="rounded-xl border border-admin-line bg-admin-card">
+        <header className="flex items-center justify-between border-b border-admin-line px-5 py-3">
           <h2 className="text-sm font-semibold">
             PSN hesabları ({user.psnAccounts.length})
           </h2>
@@ -438,19 +452,19 @@ export default async function AdminUserDetailPage({
             Bu istifadəçi hələ PSN hesabı əlavə etməyib.
           </p>
         ) : (
-          <ul className="divide-y divide-zinc-800/70">
+          <ul className="divide-y divide-admin-line">
             {user.psnAccounts.map((p) => (
               <li key={p.id} className="px-5 py-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold text-zinc-100">{p.label}</span>
+                      <span className="font-semibold text-zinc-900">{p.label}</span>
                       {p.isDefault && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300 ring-1 ring-amber-500/30">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-500/30">
                           <Star className="h-3 w-3" /> Default
                         </span>
                       )}
-                      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-medium text-indigo-200 ring-1 ring-indigo-500/30">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-700 ring-1 ring-violet-500/30">
                         <Gamepad2 className="h-3 w-3" /> {p.psModel}
                       </span>
                     </div>
@@ -462,11 +476,11 @@ export default async function AdminUserDetailPage({
                 <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
                   <div className="flex items-center gap-2">
                     <span className="w-24 shrink-0 text-xs text-zinc-500">PSN email</span>
-                    <span className="truncate font-mono text-zinc-200">{p.psnEmail}</span>
+                    <span className="truncate font-mono text-zinc-800">{p.psnEmail}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-24 shrink-0 text-xs text-zinc-500">Şifrə</span>
-                    <span className="truncate font-mono text-zinc-200">{p.psnPassword}</span>
+                    <span className="truncate font-mono text-zinc-800">{p.psnPassword}</span>
                   </div>
                 </dl>
               </li>
@@ -475,10 +489,10 @@ export default async function AdminUserDetailPage({
         )}
       </section>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-        <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+      <section className="rounded-xl border border-admin-line bg-admin-card">
+        <header className="flex items-center justify-between border-b border-admin-line px-5 py-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <KeyRound className="h-4 w-4 text-fuchsia-300" />
+            <KeyRound className="h-4 w-4 text-fuchsia-700" />
             Platform profilləri ({platformProfiles.length})
           </h2>
           <span className="text-[10px] uppercase tracking-wider text-zinc-500">
@@ -491,12 +505,12 @@ export default async function AdminUserDetailPage({
             verməyib.
           </p>
         ) : (
-          <ul className="divide-y divide-zinc-800/70">
+          <ul className="divide-y divide-admin-line">
             {platformProfiles.map((p) => {
               const accent =
                 p.kind === "LINKEDIN"
-                  ? "bg-sky-500/15 text-sky-200 ring-sky-500/30"
-                  : "bg-red-500/15 text-red-200 ring-red-500/30";
+                  ? "bg-sky-500/15 text-sky-700 ring-sky-500/30"
+                  : "bg-red-500/15 text-red-700 ring-red-500/30";
               return (
                 <li key={`${p.kind}-${p.transactionId}`} className="px-5 py-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -507,7 +521,7 @@ export default async function AdminUserDetailPage({
                         >
                           {p.brandLabel}
                         </span>
-                        <span className="truncate text-sm font-semibold text-zinc-100">
+                        <span className="truncate text-sm font-semibold text-zinc-900">
                           {p.productTitle}
                         </span>
                       </div>
@@ -525,7 +539,7 @@ export default async function AdminUserDetailPage({
                     {p.password ? (
                       <CopyableField label="Şifrə" value={p.password} mono masked />
                     ) : (
-                      <div className="flex items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950/80 px-3 py-2">
+                      <div className="flex items-center justify-between gap-2 rounded-md border border-admin-line bg-admin-card px-3 py-2">
                         <div className="min-w-0 flex-1">
                           <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                             Şifrə
@@ -549,27 +563,27 @@ export default async function AdminUserDetailPage({
           label="Wallet balance"
           value={fmtAzn(user.walletBalance)}
           icon={<Wallet className="h-4 w-4" />}
-          tint="text-cyan-300 bg-cyan-500/10 ring-cyan-500/30"
+          tint="text-cyan-700 bg-cyan-500/10 ring-cyan-500/30"
         />
         <Stat
           label="Cashback"
           value={fmtAzn(user.cashbackBalanceCents)}
-          tint="text-emerald-300 bg-emerald-500/10 ring-emerald-500/30"
+          tint="text-emerald-700 bg-emerald-500/10 ring-emerald-500/30"
         />
         <Stat
           label="Referral balance"
           value={fmtAzn(user.referralBalanceCents)}
-          tint="text-amber-300 bg-amber-500/10 ring-amber-500/30"
+          tint="text-amber-700 bg-amber-500/10 ring-amber-500/30"
         />
         <Stat
           label="Total deposited"
           value={fmtAzn(depositedTotal)}
-          tint="text-fuchsia-300 bg-fuchsia-500/10 ring-fuchsia-500/30"
+          tint="text-fuchsia-700 bg-fuchsia-500/10 ring-fuchsia-500/30"
         />
         <Stat
           label="Total spent"
           value={fmtAzn(purchasedTotal)}
-          tint="text-indigo-300 bg-indigo-500/10 ring-indigo-500/30"
+          tint="text-violet-700 bg-violet-500/10 ring-violet-500/30"
         />
       </section>
 
@@ -583,8 +597,8 @@ export default async function AdminUserDetailPage({
         referredByCode={user.referredBy?.referralCode ?? null}
       />
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-        <header className="border-b border-zinc-800 px-5 py-3">
+      <section className="rounded-xl border border-admin-line bg-admin-card">
+        <header className="border-b border-admin-line px-5 py-3">
           <h2 className="text-sm font-semibold">Aktivlik göstəriciləri</h2>
         </header>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 p-5 sm:grid-cols-3 lg:grid-cols-6">
@@ -627,8 +641,8 @@ export default async function AdminUserDetailPage({
         </dl>
       </section>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-        <header className="border-b border-zinc-800 px-5 py-3">
+      <section className="rounded-xl border border-admin-line bg-admin-card">
+        <header className="border-b border-admin-line px-5 py-3">
           <h2 className="text-sm font-semibold">Affiliate</h2>
         </header>
         <div className="grid grid-cols-1 gap-6 p-5 md:grid-cols-2">
@@ -639,7 +653,7 @@ export default async function AdminUserDetailPage({
             {user.referredBy ? (
               <Link
                 href={`/admin/users/${user.referredBy.id}`}
-                className="mt-2 flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm hover:border-indigo-500/40"
+                className="mt-2 flex items-center justify-between rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm hover:border-violet-500/40"
               >
                 <div>
                   <div>{user.referredBy.name ?? user.referredBy.email}</div>
@@ -647,7 +661,7 @@ export default async function AdminUserDetailPage({
                     {user.referredBy.email}
                   </div>
                 </div>
-                <span className="font-mono text-xs text-zinc-400">
+                <span className="font-mono text-xs text-zinc-600">
                   {user.referredBy.referralCode}
                 </span>
               </Link>
@@ -667,12 +681,12 @@ export default async function AdminUserDetailPage({
                 Nobody has used this referral code yet.
               </div>
             ) : (
-              <ul className="mt-2 divide-y divide-zinc-900 rounded-md border border-zinc-800 bg-zinc-950">
+              <ul className="mt-2 divide-y divide-admin-line rounded-md border border-admin-line bg-admin-card">
                 {user.referrals.map((r) => (
                   <li key={r.id}>
                     <Link
                       href={`/admin/users/${r.id}`}
-                      className="flex items-center justify-between px-3 py-2 text-sm hover:bg-zinc-900"
+                      className="flex items-center justify-between px-3 py-2 text-sm hover:bg-admin-chip"
                     >
                       <div className="min-w-0">
                         <div className="truncate">
@@ -685,8 +699,8 @@ export default async function AdminUserDetailPage({
                       <span
                         className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] ring-1 ${
                           r.emailVerified
-                            ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30"
-                            : "bg-amber-500/15 text-amber-300 ring-amber-500/30"
+                            ? "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30"
+                            : "bg-amber-500/15 text-amber-700 ring-amber-500/30"
                         }`}
                       >
                         {r.emailVerified ? "Verified" : "Pending"}
@@ -701,21 +715,21 @@ export default async function AdminUserDetailPage({
       </section>
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-          <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+        <div className="rounded-xl border border-admin-line bg-admin-card">
+          <header className="flex items-center justify-between border-b border-admin-line px-5 py-3">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <Heart className="h-4 w-4 text-rose-300" />
+              <Heart className="h-4 w-4 text-rose-700" />
               Favorit oyunlar ({user.favorites.length})
             </h2>
           </header>
           {user.favorites.length === 0 ? (
             <p className="px-5 py-6 text-sm text-zinc-500">Favorit yoxdur.</p>
           ) : (
-            <ul className="divide-y divide-zinc-800/70">
+            <ul className="divide-y divide-admin-line">
               {user.favorites.slice(0, 12).map((f) => (
                 <li key={f.gameId} className="flex items-center justify-between px-5 py-2.5">
                   <div className="min-w-0">
-                    <div className="truncate text-sm text-zinc-100">
+                    <div className="truncate text-sm text-zinc-900">
                       {f.game.title}
                     </div>
                     <div className="text-xs text-zinc-500">
@@ -733,30 +747,30 @@ export default async function AdminUserDetailPage({
           )}
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-          <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+        <div className="rounded-xl border border-admin-line bg-admin-card">
+          <header className="flex items-center justify-between border-b border-admin-line px-5 py-3">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <Repeat className="h-4 w-4 text-cyan-300" />
+              <Repeat className="h-4 w-4 text-cyan-700" />
               Abunəliklər ({user.subscriptions.length})
             </h2>
           </header>
           {user.subscriptions.length === 0 ? (
             <p className="px-5 py-6 text-sm text-zinc-500">Aktiv abunəlik yoxdur.</p>
           ) : (
-            <ul className="divide-y divide-zinc-800/70">
+            <ul className="divide-y divide-admin-line">
               {user.subscriptions.map((s) => (
                 <li key={s.id} className="px-5 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium text-zinc-100">
+                        <span className="text-sm font-medium text-zinc-900">
                           {s.serviceProduct.title}
                         </span>
-                        <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-medium text-indigo-300 ring-1 ring-indigo-500/30">
+                        <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-700 ring-1 ring-violet-500/30">
                           {s.tier}
                         </span>
                         {s.autoRenew && (
-                          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300 ring-1 ring-emerald-500/30">
+                          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-500/30">
                             Auto-renew
                           </span>
                         )}
@@ -766,7 +780,7 @@ export default async function AdminUserDetailPage({
                         {fmtAzn(s.priceAznCents)}
                       </div>
                       <div className="mt-1 text-xs text-zinc-500">
-                        Bitir: <span className="text-zinc-300">{fmtDate(s.expiresAt)}</span>
+                        Bitir: <span className="text-zinc-700">{fmtDate(s.expiresAt)}</span>
                       </div>
                     </div>
                     <StatusBadge status={s.status} />
@@ -778,32 +792,32 @@ export default async function AdminUserDetailPage({
         </div>
       </section>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-        <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+      <section className="rounded-xl border border-admin-line bg-admin-card">
+        <header className="flex items-center justify-between border-b border-admin-line px-5 py-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <MessageSquare className="h-4 w-4 text-amber-300" />
+            <MessageSquare className="h-4 w-4 text-amber-700" />
             Oyun rəyləri ({user.gameReviews.length})
           </h2>
         </header>
         {user.gameReviews.length === 0 ? (
           <p className="px-5 py-6 text-sm text-zinc-500">Rəy yazmayıb.</p>
         ) : (
-          <ul className="divide-y divide-zinc-800/70">
+          <ul className="divide-y divide-admin-line">
             {user.gameReviews.map((r) => (
               <li key={r.id} className="px-5 py-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium text-zinc-100">
+                      <span className="text-sm font-medium text-zinc-900">
                         {r.game.title}
                       </span>
-                      <span className="inline-flex items-center gap-0.5 text-xs text-amber-300">
+                      <span className="inline-flex items-center gap-0.5 text-xs text-amber-700">
                         <Star className="h-3 w-3 fill-current" />
                         {r.rating}/5
                       </span>
                       <StatusBadge status={r.status} />
                     </div>
-                    <p className="mt-1.5 line-clamp-3 text-sm text-zinc-400">
+                    <p className="mt-1.5 line-clamp-3 text-sm text-zinc-600">
                       {r.body}
                     </p>
                   </div>
@@ -817,8 +831,8 @@ export default async function AdminUserDetailPage({
         )}
       </section>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-        <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+      <section className="rounded-xl border border-admin-line bg-admin-card">
+        <header className="flex items-center justify-between border-b border-admin-line px-5 py-3">
           <h2 className="text-sm font-semibold">
             Purchases ({purchases.length})
           </h2>
@@ -828,7 +842,7 @@ export default async function AdminUserDetailPage({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-sm">
-              <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
+              <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
                 <tr>
                   <Th>Game</Th>
                   <Th>Platform</Th>
@@ -839,13 +853,13 @@ export default async function AdminUserDetailPage({
                   <Th className="text-right">Action</Th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-900">
+              <tbody className="divide-y divide-admin-line">
                 {purchases.map((t) => (
                   <tr key={t.id}>
                     <Td>{t.game?.title ?? "—"}</Td>
-                    <Td className="text-zinc-400">{t.game?.platform ?? "—"}</Td>
+                    <Td className="text-zinc-600">{t.game?.platform ?? "—"}</Td>
                     <td
-                      className="max-w-[220px] truncate px-4 py-2 align-top text-zinc-400"
+                      className="max-w-[220px] truncate px-4 py-2 align-top text-zinc-600"
                       title={
                         t.psnAccount
                           ? `${t.psnAccount.label} (${t.psnAccount.psnEmail})`
@@ -859,10 +873,10 @@ export default async function AdminUserDetailPage({
                     <Td>
                       <StatusBadge status={t.status} />
                     </Td>
-                    <Td className="whitespace-nowrap font-medium text-rose-300">
+                    <Td className="whitespace-nowrap font-medium text-rose-700">
                       −{fmtAzn(Math.abs(t.amountAznCents))}
                     </Td>
-                    <Td className="whitespace-nowrap text-zinc-400">{fmtDate(t.createdAt)}</Td>
+                    <Td className="whitespace-nowrap text-zinc-600">{fmtDate(t.createdAt)}</Td>
                     <Td className="text-right">
                       {t.status !== "FAILED" ? (
                         <CancelPurchaseButton
@@ -882,8 +896,8 @@ export default async function AdminUserDetailPage({
         )}
       </section>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-        <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+      <section className="rounded-xl border border-admin-line bg-admin-card">
+        <header className="flex items-center justify-between border-b border-admin-line px-5 py-3">
           <h2 className="text-sm font-semibold">
             Servis sifarişləri ({servicePurchases.length})
           </h2>
@@ -898,7 +912,7 @@ export default async function AdminUserDetailPage({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-sm">
-              <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
+              <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
                 <tr>
                   <Th>Məhsul</Th>
                   <Th>Tip</Th>
@@ -909,18 +923,38 @@ export default async function AdminUserDetailPage({
                   <Th className="text-right">Action</Th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-900">
+              <tbody className="divide-y divide-admin-line">
                 {servicePurchases.map((t) => (
                   <tr key={t.id}>
                     <Td>{t.serviceProduct?.title ?? "—"}</Td>
-                    <Td className="text-zinc-400">
-                      <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-300 ring-1 ring-zinc-700">
+                    <Td className="text-zinc-600">
+                      <span className="rounded-full bg-admin-chip px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-700 ring-1 ring-admin-line2">
                         {t.serviceProduct?.type ?? "—"}
                       </span>
                     </Td>
-                    <td className="min-w-[220px] max-w-[280px] px-4 py-2 align-top text-xs text-zinc-300">
+                    <td className="min-w-[220px] max-w-[280px] px-4 py-2 align-top text-xs text-zinc-700">
                       {(() => {
                         const ytCreds = parseYoutubeCreds(t.metadata);
+                        if (ytCreds.accounts?.length) {
+                          return (
+                            <div className="space-y-2">
+                              {ytCreds.accounts.map((acc, idx) => (
+                                <div
+                                  key={idx}
+                                  className="space-y-1 border-l-2 border-emerald-500/30 pl-2"
+                                >
+                                  <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                                    Hesab {idx + 1}
+                                  </div>
+                                  <CopyableField label="Email" value={acc.email} />
+                                  {acc.password && (
+                                    <CopyableField label="Şifrə" value={acc.password} masked mono />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
                         if (ytCreds.isYoutube && (ytCreds.gmail || ytCreds.password)) {
                           return (
                             <div className="space-y-1">
@@ -951,10 +985,10 @@ export default async function AdminUserDetailPage({
                     <Td>
                       <StatusBadge status={t.status} />
                     </Td>
-                    <Td className="whitespace-nowrap font-medium text-rose-300">
+                    <Td className="whitespace-nowrap font-medium text-rose-700">
                       −{fmtAzn(Math.abs(t.amountAznCents))}
                     </Td>
-                    <Td className="whitespace-nowrap text-zinc-400">{fmtDate(t.createdAt)}</Td>
+                    <Td className="whitespace-nowrap text-zinc-600">{fmtDate(t.createdAt)}</Td>
                     <Td className="text-right">
                       {t.status !== "FAILED" ? (
                         <CancelPurchaseButton
@@ -975,10 +1009,10 @@ export default async function AdminUserDetailPage({
       </section>
 
       {user.adminAuditEntries.length > 0 && (
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-          <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+        <section className="rounded-xl border border-admin-line bg-admin-card">
+          <header className="flex items-center justify-between border-b border-admin-line px-5 py-3">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <ScrollText className="h-4 w-4 text-indigo-300" />
+              <ScrollText className="h-4 w-4 text-violet-700" />
               Admin əməliyyatları tarixçəsi ({user.adminAuditEntries.length})
             </h2>
             <span className="text-[10px] uppercase tracking-wider text-zinc-500">
@@ -987,7 +1021,7 @@ export default async function AdminUserDetailPage({
           </header>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-sm">
-              <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
+              <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
                 <tr>
                   <Th>Əməliyyat</Th>
                   <Th>Admin</Th>
@@ -995,15 +1029,15 @@ export default async function AdminUserDetailPage({
                   <Th>Tarix</Th>
                 </tr>
               </thead>
-            <tbody className="divide-y divide-zinc-900">
+            <tbody className="divide-y divide-admin-line">
               {user.adminAuditEntries.map((e) => (
                 <tr key={e.id}>
                   <Td>
-                    <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 font-mono text-[10px] text-indigo-200 ring-1 ring-indigo-500/30">
+                    <span className="rounded-full bg-violet-500/15 px-2 py-0.5 font-mono text-[10px] text-violet-700 ring-1 ring-violet-500/30">
                       {e.action}
                     </span>
                   </Td>
-                  <Td className="text-zinc-300">
+                  <Td className="text-zinc-700">
                     {e.actor
                       ? (e.actor.name ?? e.actor.email)
                       : <span className="text-zinc-500">silinmiş</span>}
@@ -1014,7 +1048,7 @@ export default async function AdminUserDetailPage({
                   >
                     {e.details ?? "—"}
                   </td>
-                  <Td className="whitespace-nowrap text-zinc-400">
+                  <Td className="whitespace-nowrap text-zinc-600">
                     {fmtDate(e.createdAt)}
                   </Td>
                 </tr>
@@ -1028,16 +1062,16 @@ export default async function AdminUserDetailPage({
       {adminAdjusts.length > 0 && (
         <section className="rounded-xl border border-amber-500/30 bg-amber-500/5">
           <header className="flex items-center justify-between border-b border-amber-500/20 px-5 py-3">
-            <h2 className="text-sm font-semibold text-amber-200">
+            <h2 className="text-sm font-semibold text-amber-700">
               Admin manual balans dəyişiklikləri ({adminAdjusts.length})
             </h2>
-            <span className="text-[10px] uppercase tracking-wider text-amber-300/70">
+            <span className="text-[10px] uppercase tracking-wider text-amber-700/70">
               Audit
             </span>
           </header>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
-              <thead className="bg-amber-500/5 text-xs uppercase tracking-wider text-amber-300/70">
+              <thead className="bg-amber-500/5 text-xs uppercase tracking-wider text-amber-700/70">
                 <tr>
                   <Th>Sahə</Th>
                   <Th>Köhnə</Th>
@@ -1051,24 +1085,24 @@ export default async function AdminUserDetailPage({
                 const adj = parseAdminAdjust(t.metadata);
                 return (
                   <tr key={t.id}>
-                    <Td className="text-zinc-200">{adj?.field ?? "wallet"}</Td>
-                    <Td className="text-zinc-400">
+                    <Td className="text-zinc-800">{adj?.field ?? "wallet"}</Td>
+                    <Td className="text-zinc-600">
                       {adj?.prev != null ? fmtAzn(adj.prev) : "—"}
                     </Td>
-                    <Td className="text-zinc-400">
+                    <Td className="text-zinc-600">
                       {adj?.next != null ? fmtAzn(adj.next) : "—"}
                     </Td>
                     <Td
                       className={`font-medium ${
                         t.amountAznCents >= 0
-                          ? "text-emerald-300"
-                          : "text-rose-300"
+                          ? "text-emerald-700"
+                          : "text-rose-700"
                       }`}
                     >
                       {t.amountAznCents >= 0 ? "+" : ""}
                       {fmtAzn(t.amountAznCents)}
                     </Td>
-                    <Td className="whitespace-nowrap text-zinc-400">{fmtDate(t.createdAt)}</Td>
+                    <Td className="whitespace-nowrap text-zinc-600">{fmtDate(t.createdAt)}</Td>
                   </tr>
                 );
               })}
@@ -1078,8 +1112,8 @@ export default async function AdminUserDetailPage({
         </section>
       )}
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
-        <header className="border-b border-zinc-800 px-5 py-3">
+      <section className="rounded-xl border border-admin-line bg-admin-card">
+        <header className="border-b border-admin-line px-5 py-3">
           <h2 className="text-sm font-semibold">
             Deposits & commissions ({userDeposits.length + user.commissions.length})
           </h2>
@@ -1091,7 +1125,7 @@ export default async function AdminUserDetailPage({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[680px] text-sm">
-              <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
+              <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
                 <tr>
                   <Th>Type</Th>
                   <Th>Source</Th>
@@ -1100,7 +1134,7 @@ export default async function AdminUserDetailPage({
                   <Th>Date</Th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-900">
+              <tbody className="divide-y divide-admin-line">
                 {[...userDeposits, ...user.commissions]
                   .sort(
                     (a, b) =>
@@ -1109,12 +1143,12 @@ export default async function AdminUserDetailPage({
                   .map((t) => (
                     <tr key={t.id}>
                       <Td>
-                        <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-300 ring-1 ring-zinc-700">
+                        <span className="rounded-full bg-admin-chip px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-700 ring-1 ring-admin-line2">
                           {t.type}
                         </span>
                       </Td>
                       <td
-                        className="max-w-[260px] truncate px-4 py-2 align-top text-zinc-400"
+                        className="max-w-[260px] truncate px-4 py-2 align-top text-zinc-600"
                         title={
                           t.type === "COMMISSION" && "user" in t && t.user
                             ? `from ${t.user.email}`
@@ -1128,10 +1162,10 @@ export default async function AdminUserDetailPage({
                       <Td>
                         <StatusBadge status={t.status} />
                       </Td>
-                      <Td className="whitespace-nowrap font-medium text-emerald-300">
+                      <Td className="whitespace-nowrap font-medium text-emerald-700">
                         +{fmtAzn(t.amountAznCents)}
                       </Td>
-                      <Td className="whitespace-nowrap text-zinc-400">{fmtDate(t.createdAt)}</Td>
+                      <Td className="whitespace-nowrap text-zinc-600">{fmtDate(t.createdAt)}</Td>
                     </tr>
                   ))}
               </tbody>
@@ -1161,7 +1195,7 @@ function ProfileField({
         {label}
       </dt>
       <dd
-        className={`mt-1 text-sm ${value ? "text-zinc-100" : "text-zinc-500"} ${
+        className={`mt-1 text-sm ${value ? "text-zinc-900" : "text-zinc-500"} ${
           mono ? "font-mono" : ""
         }`}
       >
@@ -1183,7 +1217,7 @@ function Stat({
   tint: string;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+    <div className="rounded-xl border border-admin-line bg-admin-card p-4">
       <div className="flex items-center justify-between">
         <span className="text-xs uppercase tracking-wider text-zinc-500">
           {label}
@@ -1210,12 +1244,12 @@ function Metric({
 }) {
   const toneClass =
     tone === "emerald"
-      ? "text-emerald-300"
+      ? "text-emerald-700"
       : tone === "rose"
-        ? "text-rose-300"
+        ? "text-rose-700"
         : tone === "amber"
-          ? "text-amber-300"
-          : "text-zinc-100";
+          ? "text-amber-700"
+          : "text-zinc-900";
   return (
     <div>
       <dt className="text-[10px] uppercase tracking-wider text-zinc-500">
@@ -1228,14 +1262,14 @@ function Metric({
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    SUCCESS: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
-    PENDING: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
-    FAILED: "bg-rose-500/15 text-rose-300 ring-rose-500/30",
+    SUCCESS: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30",
+    PENDING: "bg-amber-500/15 text-amber-700 ring-amber-500/30",
+    FAILED: "bg-rose-500/15 text-rose-700 ring-rose-500/30",
   };
   return (
     <span
       className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${
-        map[status] ?? "bg-zinc-800 text-zinc-300 ring-zinc-700"
+        map[status] ?? "bg-admin-chip text-zinc-700 ring-admin-line2"
       }`}
     >
       {status}

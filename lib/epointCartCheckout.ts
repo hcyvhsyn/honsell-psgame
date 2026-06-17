@@ -48,6 +48,14 @@ export type EpointCartLineSnapshot =
       psnAccountId: string | null;
     }
   | {
+      // Point Blank TG — e-pin kod stoku + manual fallback. PSN hesabı yoxdur.
+      kind: "POINT_BLANK";
+      title: string;
+      qty: number;
+      serviceProductId: string;
+      unitListCents: number;
+    }
+  | {
       kind: "PS_PLUS";
       title: string;
       qty: number;
@@ -119,6 +127,8 @@ export type EpointCartLineSnapshot =
       gmail?: string;
       /// LinkedIn / YouTube Premium üçün müştəri hesab şifrəsi.
       password?: string;
+      /// Çoxhesablı planlar (Spotify Duo/Family) üçün N hesab cütü.
+      accounts?: { email: string; password: string }[];
     }
   | {
       kind: "HONSELL_GIFT_CARD";
@@ -346,6 +356,86 @@ export async function finalizeEpointCartCheckout(
               metadata: JSON.stringify({
                 fromCart: true,
                 kind: "TRY_BALANCE",
+                paymentSource: "EPOINT",
+                orderCode: meta.orderCode,
+                epointPaymentId: payment.id,
+              }),
+            },
+          });
+          serviceOrderIds.push(serviceOrder.id);
+
+          const cm = await awardStreamingReferralCommission(tx, {
+            sourceTransactionId: serviceOrder.id,
+            buyerUserId: payment.userId,
+            serviceProductId: line.serviceProductId,
+            lineCents: line.unitListCents,
+            target: { type: "GIFT_CARDS" },
+            kind: "TRY_BALANCE",
+          });
+          if (cm) {
+            totalCommissionCents += cm.commissionCents;
+          }
+
+          try {
+            await recordPurchaseSpend(tx, payment.userId, line.unitListCents);
+            if (cm?.referredById) {
+              await recordSuccessfulInvite(tx, cm.referredById, payment.userId);
+            }
+          } catch (err) {
+            console.error("referral cycle bookkeeping failed", err);
+          }
+          continue;
+        }
+
+        if (line.kind === "POINT_BLANK") {
+          // Point Blank TG — stokda e-pin varsa dərhal SUCCESS, yoxdursa PENDING
+          // (admin /admin/orders-dən manual təhvil verir). PSN hesabı yoxdur.
+          const sc = await tx.serviceCode.findFirst({
+            where: { serviceProductId: line.serviceProductId, isUsed: false },
+            orderBy: { createdAt: "asc" },
+          });
+
+          if (!sc) {
+            const serviceOrder = await tx.transaction.create({
+              data: {
+                userId: payment.userId,
+                type: "SERVICE_PURCHASE",
+                status: "PENDING",
+                amountAznCents: -line.unitListCents,
+                serviceProductId: line.serviceProductId,
+                psnAccountId: null,
+                metadata: JSON.stringify({
+                  fromCart: true,
+                  kind: "POINT_BLANK_TG",
+                  reason: "OUT_OF_STOCK",
+                  paymentSource: "EPOINT",
+                  orderCode: meta.orderCode,
+                  epointPaymentId: payment.id,
+                }),
+              },
+            });
+            serviceOrderIds.push(serviceOrder.id);
+            tryBalancePendingCount += 1;
+            continue;
+          }
+
+          await tx.serviceCode.update({
+            where: { id: sc.id },
+            data: { isUsed: true },
+          });
+
+          const serviceOrder = await tx.transaction.create({
+            data: {
+              userId: payment.userId,
+              type: "SERVICE_PURCHASE",
+              status: "SUCCESS",
+              amountAznCents: -line.unitListCents,
+              serviceProductId: line.serviceProductId,
+              serviceCodeId: sc.id,
+              psnAccountId: null,
+              metadata: JSON.stringify({
+                fromCart: true,
+                kind: "POINT_BLANK_TG",
                 paymentSource: "EPOINT",
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
@@ -606,6 +696,7 @@ export async function finalizeEpointCartCheckout(
               ...(line.planType ? { planType: line.planType } : {}),
               ...(line.gmail ? { gmail: line.gmail } : {}),
               ...(line.password ? { customerPassword: line.password } : {}),
+              ...(line.accounts?.length ? { accounts: line.accounts } : {}),
             }),
           },
         });

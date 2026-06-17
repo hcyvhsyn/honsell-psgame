@@ -14,6 +14,7 @@ export default function SiteFooter() {
             <Link href="/streaming" className="hover:text-zinc-900 dark:hover:text-white transition">Streaming</Link>
             <Link href="/qazan" className="text-fuchsia-600 dark:text-fuchsia-300 hover:text-fuchsia-500 dark:hover:text-fuchsia-200 transition">Qazan (Referal)</Link>
             <Link href="/haqqimizda" className="hover:text-zinc-900 dark:hover:text-white transition">Haqqımızda</Link>
+            <Link href="/faq" className="hover:text-zinc-900 dark:hover:text-white transition">FAQ</Link>
             <Link href="/mexfilik-siyaseti" className="hover:text-zinc-900 dark:hover:text-white transition">Məxfilik siyasəti</Link>
             <Link href="/geri-qaytarma-siyaseti" className="hover:text-zinc-900 dark:hover:text-white transition">Geri qaytarma</Link>
             <Link href="/bilmeli-olduglarin" className="hover:text-zinc-900 dark:hover:text-white transition">Bələdçilər</Link>
@@ -48,7 +49,7 @@ export default function SiteFooter() {
               <li><Link href="/streaming/hbo-max" className="hover:text-zinc-900 dark:hover:text-white transition">HBO Max</Link></li>
               <li><Link href="/streaming/gain" className="hover:text-zinc-900 dark:hover:text-white transition">Gain</Link></li>
               <li><Link href="/music/youtube" className="hover:text-zinc-900 dark:hover:text-white transition">YouTube Premium</Link></li>
-              <li><Link href="/streaming/icmallar" className="hover:text-zinc-900 dark:hover:text-white transition">İcmallar</Link></li>
+              <li><Link href="/icma?tab=icmallar" className="hover:text-zinc-900 dark:hover:text-white transition">İcmallar</Link></li>
             </ul>
           </div>
           <div>
@@ -65,6 +66,7 @@ export default function SiteFooter() {
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Şirkət</p>
             <ul className="space-y-2 text-zinc-600 dark:text-zinc-300">
               <li><Link href="/haqqimizda" className="hover:text-zinc-900 dark:hover:text-white transition">Haqqımızda</Link></li>
+              <li><Link href="/faq" className="hover:text-zinc-900 dark:hover:text-white transition">FAQ</Link></li>
               <li><Link href="/mexfilik-siyaseti" className="hover:text-zinc-900 dark:hover:text-white transition">Məxfilik siyasəti</Link></li>
               <li><Link href="/geri-qaytarma-siyaseti" className="hover:text-zinc-900 dark:hover:text-white transition">Geri qaytarma qaydaları</Link></li>
               <li><Link href="/reyler" className="hover:text-zinc-900 dark:hover:text-white transition">Müştəri rəyləri</Link></li>

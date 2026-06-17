@@ -18,18 +18,27 @@ export type AccountCreationCartDetails = {
   password: string;
 };
 
+/** Çoxhesablı PLATFORM məhsulları (məs. Spotify Duo/Family) üçün bir hesab cütü. */
+export type PlatformAccountCredential = {
+  email: string;
+  password: string;
+};
+
 /**
  * Gmail-yönlü xidmətlər üçün müştəri məlumatları.
  *   - YouTube Premium üçün həm `gmail` həm `password` tələb olunur
  *     (admin müştərinin hesabına abunəliyi qoşur).
  *   - Digər streaming xidmətlərində (Netflix və s.) yalnız `gmail` istifadə olunur.
  *   - `platformKind` — cart UI-də doğru etiket göstərə bilmək üçün
- *     PLATFORM məhsullarında ("LINKEDIN" / "YOUTUBE" və s.) qeyd olunur.
+ *     PLATFORM məhsullarında ("LINKEDIN" / "YOUTUBE" / "SPOTIFY" və s.) qeyd olunur.
+ *   - `accounts` — çoxhesablı PLATFORM planları (Spotify Duo=2, Family=5) üçün N ədəd
+ *     email+şifrə cütü. Tək-cüt platformalar (YouTube/LinkedIn) `gmail`/`password`-da qalır.
  */
 export type StreamingCartDetails = {
-  gmail: string;
+  gmail?: string;
   password?: string;
   platformKind?: string;
+  accounts?: PlatformAccountCredential[];
 };
 
 /**
@@ -230,6 +239,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore quota errors
     }
+  }, [items, hydrated]);
+
+  // Səbəti serverə sinxronlaşdır (yalnız login olmuş istifadəçilər üçün —
+  // server sessiya cookie-sinə görə qərar verir). Tərk edilmiş səbət (abandoned
+  // cart) xatırlatma e-poçtları üçün lazımdır. Hər dəyişiklikdə deyil, qısa
+  // debounce ilə göndərilir ki, say düyməsinə hər toxunuşda sorğu yağmasın.
+  // Boş səbət də göndərilir — server snapshot-u silsin (alış / təmizləmə).
+  useEffect(() => {
+    if (!hydrated) return;
+    const t = setTimeout(() => {
+      void fetch("/api/cart/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+        keepalive: true,
+      }).catch(() => {
+        // sinxron uğursuzluğu səbət təcrübəsinə təsir etməməlidir
+      });
+    }, 3000);
+    return () => clearTimeout(t);
   }, [items, hydrated]);
 
   const add = useCallback((item: Omit<CartItem, "qty">) => {

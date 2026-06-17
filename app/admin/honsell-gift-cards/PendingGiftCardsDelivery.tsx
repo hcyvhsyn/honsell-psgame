@@ -20,10 +20,10 @@ const dateFmt = new Intl.DateTimeFormat("az-AZ", {
 export default function PendingGiftCardsDelivery({ cards }: { cards: PendingCard[] }) {
   if (cards.length === 0) {
     return (
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
+      <section className="rounded-2xl border border-admin-line bg-admin-card p-5">
         <header className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-zinc-500" />
-          <h2 className="text-sm font-semibold text-white">Təslim gözləyən kartlar</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">Təslim gözləyən kartlar</h2>
         </header>
         <p className="mt-2 text-xs text-zinc-500">
           Hazırda təslim gözləyən kart yoxdur. Yeni alış olduqda burada görünəcək.
@@ -36,15 +36,15 @@ export default function PendingGiftCardsDelivery({ cards }: { cards: PendingCard
     <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-amber-300" />
+          <Clock className="h-4 w-4 text-amber-700" />
           <h2 className="text-sm font-semibold text-amber-100">
             Təslim gözləyən kartlar
-            <span className="ml-2 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-200">
+            <span className="ml-2 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-700">
               {cards.length}
             </span>
           </h2>
         </div>
-        <p className="text-[11px] text-amber-200/70">
+        <p className="text-[11px] text-amber-700/70">
           Hər kart üçün “Təslim et” düyməsinə basın — sistem unikal kodu avtomatik yaradacaq,
           müştəriyə email və WhatsApp ilə təsdiq göndəriləcək.
         </p>
@@ -88,14 +88,14 @@ function DeliveryRow({ card }: { card: PendingCard }) {
   }
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
+    <div className="rounded-xl border border-admin-line bg-admin-card p-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-300 ring-1 ring-violet-500/30">
+            <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-700 ring-1 ring-violet-500/30">
               {(card.amountAznCents / 100).toFixed(2)} AZN
             </span>
-            <span className="text-xs text-zinc-300">
+            <span className="text-xs text-zinc-700">
               {card.purchaser?.email ?? <span className="text-zinc-500">Naməlum alıcı</span>}
             </span>
           </div>
@@ -121,7 +121,7 @@ function DeliveryRow({ card }: { card: PendingCard }) {
       </div>
 
       {error ? (
-        <div className="mt-2 text-[11px] text-rose-400">{error}</div>
+        <div className="mt-2 text-[11px] text-rose-600">{error}</div>
       ) : null}
     </div>
   );

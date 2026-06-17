@@ -344,7 +344,7 @@ export default function StreamingTitlesAdminClient() {
         <select
           value={serviceFilter}
           onChange={(e) => setServiceFilter(e.target.value as ServiceFilter)}
-          className="rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
+          className="rounded border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 focus:border-violet-500 focus:outline-none"
         >
           <option value="ALL">Bütün xidmətlər</option>
           {STREAMING_SERVICES.map((s) => (
@@ -355,27 +355,27 @@ export default function StreamingTitlesAdminClient() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Başlıq axtar..."
-          className="flex-1 min-w-[200px] rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
+          className="flex-1 min-w-[200px] rounded border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 focus:border-violet-500 focus:outline-none"
         />
         <button
           onClick={openNew}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
+          className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500"
         >
           <Plus className="h-4 w-4" /> Yeni Title
         </button>
       </div>
 
       {loading ? (
-        <div className="py-20 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" /></div>
+        <div className="py-20 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-violet-500" /></div>
       ) : items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-16 text-center text-zinc-500">
+        <div className="rounded-xl border border-dashed border-admin-line bg-admin-card py-16 text-center text-zinc-500">
           Hələ heç bir title yoxdur.
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((t) => (
-            <div key={t.id} className="flex gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
-              <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-md bg-zinc-900">
+            <div key={t.id} className="flex gap-3 rounded-xl border border-admin-line bg-admin-card p-3">
+              <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-md bg-admin-card">
                 {t.posterUrl ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={t.posterUrl} alt="" className="h-full w-full object-cover" />
@@ -386,17 +386,17 @@ export default function StreamingTitlesAdminClient() {
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-zinc-100">{t.title}</p>
+                <p className="truncate font-medium text-zinc-900">{t.title}</p>
                 <p className="truncate text-xs text-zinc-500">
                   {STREAMING_SERVICE_LABELS[t.service] ?? t.service} · {t.kind === "SERIES" ? "Serial" : "Film"}
                   {t.year ? ` · ${t.year}` : ""}
                 </p>
                 <div className="mt-1 flex flex-wrap items-center gap-1">
-                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${t.isActive ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-500"}`}>
+                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${t.isActive ? "bg-emerald-500/20 text-emerald-600" : "bg-admin-chip text-zinc-500"}`}>
                     {t.isActive ? "Aktiv" : "Passiv"}
                   </span>
                   {!t.azAvailable && (
-                    <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/15 text-amber-300">
+                    <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/15 text-amber-700">
                       AZ-da yox
                     </span>
                   )}
@@ -405,14 +405,14 @@ export default function StreamingTitlesAdminClient() {
                   <button
                     onClick={() => toggleActive(t)}
                     title={t.isActive ? "Passiv et" : "Aktiv et"}
-                    className={`rounded p-1.5 ${t.isActive ? "text-emerald-400 hover:text-emerald-300" : "text-zinc-500 hover:text-zinc-300"}`}
+                    className={`rounded p-1.5 ${t.isActive ? "text-emerald-600 hover:text-emerald-700" : "text-zinc-500 hover:text-zinc-700"}`}
                   >
                     {t.isActive ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                   </button>
-                  <button onClick={() => openEdit(t)} className="rounded p-1.5 text-zinc-500 hover:text-indigo-400">
+                  <button onClick={() => openEdit(t)} className="rounded p-1.5 text-zinc-500 hover:text-violet-600">
                     <Edit2 className="h-4 w-4" />
                   </button>
-                  <button onClick={() => deleteItem(t.id)} className="rounded p-1.5 text-zinc-500 hover:text-rose-400">
+                  <button onClick={() => deleteItem(t.id)} className="rounded p-1.5 text-zinc-500 hover:text-rose-600">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -425,15 +425,15 @@ export default function StreamingTitlesAdminClient() {
       {/* Edit modal */}
       {editingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-admin-line bg-admin-card p-6 shadow-2xl">
             <h3 className="mb-4 text-lg font-bold">{editingId === "NEW" ? "Yeni Title" : "Title-ı redaktə et"}</h3>
 
             {/* TMDB axtarış: avtomatik doldurma */}
-            <div className="mb-6 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4">
-              <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-indigo-200">
+            <div className="mb-6 rounded-xl border border-violet-500/20 bg-violet-500/5 p-4">
+              <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-violet-700">
                 <Sparkles className="h-4 w-4" /> TMDB-dən avtomatik doldur
               </p>
-              <p className="mb-3 text-xs text-indigo-300/70">
+              <p className="mb-3 text-xs text-violet-700/70">
                 Film və ya serial adı yaz, nəticədən birini seç — başlıq, il, açıqlama, poster, backdrop, janr və orijinal dil avtomatik dolacaq. Sonra hər sahəni əl ilə dəyişə bilərsən.
               </p>
               <div className="relative">
@@ -442,16 +442,16 @@ export default function StreamingTitlesAdminClient() {
                   value={omdbQuery}
                   onChange={(e) => setOmdbQuery(e.target.value)}
                   placeholder="Məs: Stranger Things"
-                  className="w-full rounded border border-zinc-800 bg-zinc-900 pl-9 pr-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded border border-admin-line bg-admin-card pl-9 pr-3 py-2 text-sm text-zinc-900 focus:border-violet-500 focus:outline-none"
                 />
               </div>
               {omdbError && (
-                <div className="mt-2 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+                <div className="mt-2 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-700">
                   {omdbError}
                 </div>
               )}
               {(omdbSearching || omdbResults.length > 0) && (
-                <div className="mt-3 max-h-64 overflow-y-auto rounded border border-zinc-800 bg-zinc-900">
+                <div className="mt-3 max-h-64 overflow-y-auto rounded border border-admin-line bg-admin-card">
                   {omdbSearching && <div className="px-3 py-2 text-xs text-zinc-500">Axtarılır...</div>}
                   {omdbResults.map((h) => (
                     <button
@@ -459,9 +459,9 @@ export default function StreamingTitlesAdminClient() {
                       type="button"
                       disabled={omdbFilling !== null}
                       onClick={() => fillFromOmdb(h)}
-                      className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-zinc-200 transition hover:bg-zinc-800 disabled:opacity-50"
+                      className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-zinc-800 transition hover:bg-admin-chip2 disabled:opacity-50"
                     >
-                      <div className="relative h-12 w-9 shrink-0 overflow-hidden rounded bg-zinc-900">
+                      <div className="relative h-12 w-9 shrink-0 overflow-hidden rounded bg-admin-card">
                         {h.posterUrl && (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img src={h.posterUrl} alt="" className="h-full w-full object-cover" />
@@ -474,7 +474,7 @@ export default function StreamingTitlesAdminClient() {
                           {h.year ? ` · ${h.year}` : ""} · {h.id}
                         </span>
                       </div>
-                      {omdbFilling === h.id && <Loader2 className="h-4 w-4 animate-spin text-indigo-400" />}
+                      {omdbFilling === h.id && <Loader2 className="h-4 w-4 animate-spin text-violet-600" />}
                     </button>
                   ))}
                 </div>
@@ -482,22 +482,22 @@ export default function StreamingTitlesAdminClient() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm text-zinc-300 sm:col-span-2">
-                Başlıq <span className="text-rose-400">*</span>
+              <label className="block text-sm text-zinc-700 sm:col-span-2">
+                Başlıq <span className="text-rose-600">*</span>
                 <input
                   value={editForm.title}
                   onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="Stranger Things"
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300">
-                Platforma <span className="text-rose-400">*</span>
+              <label className="block text-sm text-zinc-700">
+                Platforma <span className="text-rose-600">*</span>
                 <select
                   value={editForm.service}
                   onChange={(e) => setEditForm({ ...editForm, service: e.target.value as StreamingService })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                 >
                   {STREAMING_SERVICES.map((s) => (
                     <option key={s} value={s}>{STREAMING_SERVICE_LABELS[s] ?? s}</option>
@@ -505,62 +505,62 @@ export default function StreamingTitlesAdminClient() {
                 </select>
               </label>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Növ
                 <select
                   value={editForm.kind}
                   onChange={(e) => setEditForm({ ...editForm, kind: e.target.value as "MOVIE" | "SERIES" })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                 >
                   <option value="MOVIE">Film</option>
                   <option value="SERIES">Serial</option>
                 </select>
               </label>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 İl
                 <input
                   type="number"
                   value={editForm.year}
                   onChange={(e) => setEditForm({ ...editForm, year: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="2024"
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Slug (opsional, avtomatik yaradılır)
                 <input
                   value={editForm.slug}
                   onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="stranger-things"
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300 sm:col-span-2">
+              <label className="block text-sm text-zinc-700 sm:col-span-2">
                 Janrlar (vergüllə ayır)
                 <input
                   value={editForm.genres}
                   onChange={(e) => setEditForm({ ...editForm, genres: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="Drama, Sci-Fi, Thriller"
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300 sm:col-span-2">
+              <label className="block text-sm text-zinc-700 sm:col-span-2">
                 Açıqlama
                 <textarea
                   value={editForm.description}
                   onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                   rows={3}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                 />
               </label>
 
               {/* Dublyaj dilləri */}
               <div className="sm:col-span-2">
-                <p className="mb-2 text-sm text-zinc-300">
+                <p className="mb-2 text-sm text-zinc-700">
                   Dublyaj dilləri
                   <span className="ml-2 text-xs text-zinc-500">(manual seçim)</span>
                 </p>
@@ -574,8 +574,8 @@ export default function StreamingTitlesAdminClient() {
                         onClick={() => toggleLang("dubbedLanguages", l.code)}
                         className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                           active
-                            ? "border-indigo-400/50 bg-indigo-500/20 text-indigo-100"
-                            : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+                            ? "border-violet-400/50 bg-violet-500/20 text-violet-100"
+                            : "border-admin-line2 bg-admin-card text-zinc-600 hover:border-admin-line2 hover:text-zinc-900"
                         }`}
                       >
                         {l.label}
@@ -587,7 +587,7 @@ export default function StreamingTitlesAdminClient() {
 
               {/* Trailer URL */}
               <div className="sm:col-span-2">
-                <p className="mb-1 text-sm text-zinc-300">
+                <p className="mb-1 text-sm text-zinc-700">
                   Trailer linki
                   <span className="ml-2 text-xs text-zinc-500">YouTube URL — TMDB-dən avtomatik dolur, manual dəyişə bilərsən</span>
                 </p>
@@ -596,7 +596,7 @@ export default function StreamingTitlesAdminClient() {
                     value={editForm.trailerUrl}
                     onChange={(e) => setEditForm({ ...editForm, trailerUrl: e.target.value })}
                     placeholder="https://www.youtube.com/watch?v=..."
-                    className="flex-1 rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                    className="flex-1 rounded border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 focus:border-violet-500 focus:outline-none"
                   />
                   {editForm.trailerUrl && (
                     <a
@@ -604,7 +604,7 @@ export default function StreamingTitlesAdminClient() {
                       target="_blank"
                       rel="noreferrer"
                       title="YouTube-da aç"
-                      className="inline-flex items-center gap-1 rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 hover:border-indigo-500 hover:text-indigo-300"
+                      className="inline-flex items-center gap-1 rounded border border-admin-line2 bg-admin-card px-3 py-2 text-xs text-zinc-800 hover:border-violet-500 hover:text-violet-700"
                     >
                       <Play className="h-3.5 w-3.5" /> Önizlə
                     </a>
@@ -614,7 +614,7 @@ export default function StreamingTitlesAdminClient() {
 
               {/* Subtitr dilləri */}
               <div className="sm:col-span-2">
-                <p className="mb-2 text-sm text-zinc-300">
+                <p className="mb-2 text-sm text-zinc-700">
                   Subtitr dilləri
                   <span className="ml-2 text-xs text-zinc-500">(manual seçim)</span>
                 </p>
@@ -629,7 +629,7 @@ export default function StreamingTitlesAdminClient() {
                         className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                           active
                             ? "border-emerald-400/50 bg-emerald-500/20 text-emerald-100"
-                            : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+                            : "border-admin-line2 bg-admin-card text-zinc-600 hover:border-admin-line2 hover:text-zinc-900"
                         }`}
                       >
                         {l.label}
@@ -641,9 +641,9 @@ export default function StreamingTitlesAdminClient() {
 
               {/* Poster */}
               <div>
-                <p className="mb-1 text-sm text-zinc-300">Poster (şaquli, 2:3)</p>
+                <p className="mb-1 text-sm text-zinc-700">Poster (şaquli, 2:3)</p>
                 <p className="mb-2 text-[11px] text-zinc-500">
-                  Tövsiyə olunan ölçü: <b className="text-zinc-300">800×1200px</b> (2:3 aspekt) — poster public-də 2:3 nisbətdə render olunur.
+                  Tövsiyə olunan ölçü: <b className="text-zinc-700">800×1200px</b> (2:3 aspekt) — poster public-də 2:3 nisbətdə render olunur.
                 </p>
                 <input
                   ref={posterInputRef}
@@ -653,7 +653,7 @@ export default function StreamingTitlesAdminClient() {
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, "poster"); e.target.value = ""; }}
                 />
                 {editForm.posterUrl ? (
-                  <div className="relative overflow-hidden rounded-lg border border-zinc-800">
+                  <div className="relative overflow-hidden rounded-lg border border-admin-line">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={editForm.posterUrl} alt="" className="mx-auto h-48 w-auto object-contain" />
                     <button
@@ -669,7 +669,7 @@ export default function StreamingTitlesAdminClient() {
                     type="button"
                     disabled={uploading !== null}
                     onClick={() => posterInputRef.current?.click()}
-                    className="flex h-32 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 bg-zinc-900 text-sm text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 disabled:opacity-50"
+                    className="flex h-32 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-admin-line2 bg-admin-card text-sm text-zinc-600 hover:border-violet-500 hover:text-violet-600 disabled:opacity-50"
                   >
                     {uploading === "poster" ? <><Loader2 className="h-4 w-4 animate-spin" /> Yüklənir...</> : <><Upload className="h-4 w-4" /> Poster seç</>}
                   </button>
@@ -678,9 +678,9 @@ export default function StreamingTitlesAdminClient() {
 
               {/* Backdrop */}
               <div>
-                <p className="mb-1 text-sm text-zinc-300">Backdrop (üfüqi, 16:9)</p>
+                <p className="mb-1 text-sm text-zinc-700">Backdrop (üfüqi, 16:9)</p>
                 <p className="mb-2 text-[11px] text-zinc-500">
-                  Tövsiyə olunan ölçü: <b className="text-zinc-300">1920×1080px</b> (16:9), featured banner üçün <b className="text-zinc-300">1920×820px</b> (21:9) kropuna uyğunlaşacaq.
+                  Tövsiyə olunan ölçü: <b className="text-zinc-700">1920×1080px</b> (16:9), featured banner üçün <b className="text-zinc-700">1920×820px</b> (21:9) kropuna uyğunlaşacaq.
                 </p>
                 <input
                   ref={backdropInputRef}
@@ -690,7 +690,7 @@ export default function StreamingTitlesAdminClient() {
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, "backdrop"); e.target.value = ""; }}
                 />
                 {editForm.backdropUrl ? (
-                  <div className="relative overflow-hidden rounded-lg border border-zinc-800">
+                  <div className="relative overflow-hidden rounded-lg border border-admin-line">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={editForm.backdropUrl} alt="" className="h-32 w-full object-cover" />
                     <button
@@ -706,24 +706,24 @@ export default function StreamingTitlesAdminClient() {
                     type="button"
                     disabled={uploading !== null}
                     onClick={() => backdropInputRef.current?.click()}
-                    className="flex h-32 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 bg-zinc-900 text-sm text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 disabled:opacity-50"
+                    className="flex h-32 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-admin-line2 bg-admin-card text-sm text-zinc-600 hover:border-violet-500 hover:text-violet-600 disabled:opacity-50"
                   >
                     {uploading === "backdrop" ? <><Loader2 className="h-4 w-4 animate-spin" /> Yüklənir...</> : <><Upload className="h-4 w-4" /> Backdrop seç</>}
                   </button>
                 )}
               </div>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Sıralama
                 <input
                   type="number"
                   value={editForm.sortOrder}
                   onChange={(e) => setEditForm({ ...editForm, sortOrder: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                 />
               </label>
 
-              <div className="flex items-end gap-4 text-sm text-zinc-300">
+              <div className="flex items-end gap-4 text-sm text-zinc-700">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -743,19 +743,19 @@ export default function StreamingTitlesAdminClient() {
               </div>
             </div>
 
-            {saveError && <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{saveError}</div>}
+            {saveError && <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">{saveError}</div>}
 
             <div className="mt-8 flex justify-end gap-3">
               <button
                 onClick={() => { setEditingId(null); setSaveError(null); }}
-                className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
+                className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-700 hover:bg-admin-chip2"
               >
                 İmtina
               </button>
               <button
                 onClick={saveItem}
                 disabled={saving || uploading !== null}
-                className="inline-flex items-center gap-2 rounded bg-indigo-500 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-400 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />} Yadda saxla
               </button>

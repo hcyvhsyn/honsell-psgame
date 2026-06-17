@@ -97,7 +97,7 @@ export default function UsersFiltersBar() {
             value={state.q}
             onChange={(e) => setState((s) => ({ ...s, q: e.target.value }))}
             placeholder="Email, ad, telefon, referral kod…"
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 py-2 pl-9 pr-3 text-sm placeholder:text-zinc-500 focus:border-indigo-500 focus:outline-none"
+            className="w-full rounded-md border border-admin-line bg-admin-card py-2 pl-9 pr-3 text-sm placeholder:text-zinc-500 focus:border-violet-500 focus:outline-none"
           />
         </form>
 
@@ -106,14 +106,14 @@ export default function UsersFiltersBar() {
           onClick={() => setOpen((v) => !v)}
           className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition ${
             activeCount > 0
-              ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-200"
-              : "border-zinc-800 text-zinc-300 hover:bg-zinc-900"
+              ? "border-violet-500/40 bg-violet-500/10 text-violet-700"
+              : "border-admin-line text-zinc-700 hover:bg-admin-chip"
           }`}
         >
           <Filter className="h-4 w-4" />
           Filtrlər
           {activeCount > 0 && (
-            <span className="rounded-full bg-indigo-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+            <span className="rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
               {activeCount}
             </span>
           )}
@@ -123,7 +123,7 @@ export default function UsersFiltersBar() {
           <button
             type="button"
             onClick={reset}
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-900 hover:text-zinc-200"
+            className="inline-flex items-center gap-1.5 rounded-md border border-admin-line px-3 py-2 text-sm text-zinc-600 transition hover:bg-admin-chip hover:text-zinc-900"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Sıfırla
@@ -132,12 +132,12 @@ export default function UsersFiltersBar() {
       </div>
 
       {open && (
-        <div className="grid grid-cols-1 gap-3 rounded-xl border border-zinc-800 bg-zinc-950/50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 rounded-xl border border-admin-line bg-admin-card p-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Status">
             <select
               value={state.status}
               onChange={(e) => setState((s) => ({ ...s, status: e.target.value }))}
-              className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm focus:border-violet-500 focus:outline-none"
             >
               <option value="">Hamısı</option>
               <option value="verified">Verified</option>
@@ -150,7 +150,7 @@ export default function UsersFiltersBar() {
             <select
               value={state.role}
               onChange={(e) => setState((s) => ({ ...s, role: e.target.value }))}
-              className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm focus:border-violet-500 focus:outline-none"
             >
               <option value="">Hamısı</option>
               <option value="admin">Admin</option>
@@ -162,7 +162,7 @@ export default function UsersFiltersBar() {
             <select
               value={state.hasOrders}
               onChange={(e) => setState((s) => ({ ...s, hasOrders: e.target.value }))}
-              className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm focus:border-violet-500 focus:outline-none"
             >
               <option value="">Hamısı</option>
               <option value="yes">Sifariş verib</option>
@@ -177,7 +177,7 @@ export default function UsersFiltersBar() {
                 placeholder="min"
                 value={state.walletMin}
                 onChange={(e) => setState((s) => ({ ...s, walletMin: e.target.value }))}
-                className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm focus:border-violet-500 focus:outline-none"
               />
               <span className="text-zinc-600">—</span>
               <input
@@ -185,7 +185,7 @@ export default function UsersFiltersBar() {
                 placeholder="max"
                 value={state.walletMax}
                 onChange={(e) => setState((s) => ({ ...s, walletMax: e.target.value }))}
-                className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm focus:border-violet-500 focus:outline-none"
               />
             </div>
           </Field>
@@ -195,7 +195,7 @@ export default function UsersFiltersBar() {
               type="date"
               value={state.from}
               onChange={(e) => setState((s) => ({ ...s, from: e.target.value }))}
-              className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm focus:border-violet-500 focus:outline-none"
             />
           </Field>
 
@@ -204,7 +204,7 @@ export default function UsersFiltersBar() {
               type="date"
               value={state.to}
               onChange={(e) => setState((s) => ({ ...s, to: e.target.value }))}
-              className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm focus:border-violet-500 focus:outline-none"
             />
           </Field>
 
@@ -212,7 +212,7 @@ export default function UsersFiltersBar() {
             <button
               type="button"
               onClick={reset}
-              className="rounded-md border border-zinc-800 px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-900"
+              className="rounded-md border border-admin-line px-3 py-2 text-sm text-zinc-700 hover:bg-admin-chip"
             >
               Təmizlə
             </button>
@@ -220,7 +220,7 @@ export default function UsersFiltersBar() {
               type="button"
               disabled={pending}
               onClick={() => apply(state)}
-              className="rounded-md bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400 disabled:opacity-50"
+              className="rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
             >
               {pending ? "Tətbiq olunur…" : "Tətbiq et"}
             </button>

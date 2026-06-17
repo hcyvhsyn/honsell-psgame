@@ -29,10 +29,10 @@ const FILTERS: { key: StatusFilter; label: string }[] = [
 ];
 
 const STATUS_BADGE: Record<AdminReview["status"], string> = {
-  PENDING: "bg-amber-500/15 text-amber-300 ring-amber-500/40",
-  APPROVED: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/40",
-  REJECTED: "bg-rose-500/15 text-rose-300 ring-rose-500/40",
-  HIDDEN: "bg-zinc-500/15 text-zinc-300 ring-zinc-500/40",
+  PENDING: "bg-amber-500/15 text-amber-700 ring-amber-500/40",
+  APPROVED: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/40",
+  REJECTED: "bg-rose-500/15 text-rose-700 ring-rose-500/40",
+  HIDDEN: "bg-zinc-500/15 text-zinc-700 ring-admin-line2",
 };
 
 const STATUS_LABEL: Record<AdminReview["status"], string> = {
@@ -135,8 +135,8 @@ export default function ReviewsAdminClient({
               className={[
                 "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition",
                 active
-                  ? "border-indigo-500/60 bg-indigo-500/15 text-indigo-200"
-                  : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200",
+                  ? "border-violet-500/60 bg-violet-500/15 text-violet-700"
+                  : "border-admin-line bg-admin-card text-zinc-600 hover:text-zinc-900",
               ].join(" ")}
             >
               {label}
@@ -144,7 +144,7 @@ export default function ReviewsAdminClient({
                 <span
                   className={[
                     "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-                    active ? "bg-indigo-500/30 text-indigo-100" : "bg-zinc-800 text-zinc-400",
+                    active ? "bg-violet-500/30 text-violet-100" : "bg-admin-chip text-zinc-600",
                   ].join(" ")}
                 >
                   {count}
@@ -156,17 +156,17 @@ export default function ReviewsAdminClient({
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-700">
           {error}
         </div>
       ) : null}
 
       {loading ? (
-        <div className="flex items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950 p-10 text-zinc-500">
+        <div className="flex items-center justify-center rounded-2xl border border-admin-line bg-admin-card p-10 text-zinc-500">
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       ) : reviews.length === 0 ? (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-10 text-center text-sm text-zinc-500">
+        <div className="rounded-2xl border border-admin-line bg-admin-card p-10 text-center text-sm text-zinc-500">
           Bu filtə uyğun rəy yoxdur.
         </div>
       ) : (
@@ -174,12 +174,12 @@ export default function ReviewsAdminClient({
           {reviews.map((r) => (
             <li
               key={r.id}
-              className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 sm:p-5"
+              className="rounded-2xl border border-admin-line bg-admin-card p-4 sm:p-5"
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                 {/* Game thumb + meta */}
                 <div className="flex shrink-0 items-start gap-3">
-                  <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-zinc-900 ring-1 ring-zinc-800">
+                  <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-admin-card ring-1 ring-admin-line">
                     {r.game.imageUrl ? (
                       <Image
                         src={r.game.imageUrl}
@@ -194,11 +194,11 @@ export default function ReviewsAdminClient({
                     <Link
                       href={`/oyunlar/${r.game.id}`}
                       target="_blank"
-                      className="line-clamp-2 text-sm font-semibold text-zinc-200 hover:text-indigo-300"
+                      className="line-clamp-2 text-sm font-semibold text-zinc-800 hover:text-violet-700"
                     >
                       {r.game.title}
                     </Link>
-                    <div className="mt-1 flex items-center gap-1 text-amber-300">
+                    <div className="mt-1 flex items-center gap-1 text-amber-700">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Star
                           key={i}
@@ -208,7 +208,7 @@ export default function ReviewsAdminClient({
                           ].join(" ")}
                         />
                       ))}
-                      <span className="ml-1 text-xs text-zinc-400">{r.rating}/5</span>
+                      <span className="ml-1 text-xs text-zinc-600">{r.rating}/5</span>
                     </div>
                     <div className="mt-1 text-[11px] text-zinc-500">
                       {r.author.name ?? r.author.email.split("@")[0]} ·{" "}
@@ -235,12 +235,12 @@ export default function ReviewsAdminClient({
                     ) : null}
                   </div>
 
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
                     {r.body}
                   </p>
 
                   {r.moderationNote ? (
-                    <div className="mt-2 rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-[12px] text-zinc-400">
+                    <div className="mt-2 rounded-md border border-admin-line bg-admin-card px-3 py-2 text-[12px] text-zinc-600">
                       Admin qeydi: {r.moderationNote}
                     </div>
                   ) : null}
@@ -299,10 +299,10 @@ function ActionButton({
 }) {
   const toneClass =
     tone === "emerald"
-      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
       : tone === "rose"
-        ? "border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20"
-        : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800";
+        ? "border-rose-500/40 bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
+        : "border-admin-line2 bg-admin-card text-zinc-700 hover:bg-admin-chip2";
   return (
     <button
       type="button"

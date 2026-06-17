@@ -318,7 +318,7 @@ export default async function AdminUsersPage({
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold">Users</h1>
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-zinc-600">
               {total.toLocaleString()} {total === 1 ? "user" : "users"} matched.
             </p>
           </div>
@@ -326,7 +326,7 @@ export default async function AdminUsersPage({
           <div className="flex items-center gap-2">
             <a
               href={`/api/admin/users/export?${exportParams.toString()}`}
-              className="inline-flex items-center gap-2 rounded-md border border-zinc-800 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:bg-zinc-900"
+              className="inline-flex items-center gap-2 rounded-md border border-admin-line px-3 py-2 text-sm font-medium text-zinc-800 transition hover:bg-admin-chip"
               title="CSV ixrac"
             >
               <Download className="h-4 w-4" />
@@ -357,9 +357,9 @@ export default async function AdminUsersPage({
         <UsersFiltersBar />
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-xl border border-zinc-800">
+        <div className="overflow-x-auto rounded-xl border border-admin-line">
           <table className="w-full min-w-[1100px] text-sm">
-            <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
+            <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
               <tr>
                 <th className="w-10 px-4 py-3">
                   <HeaderCheckbox ids={visibleIds} />
@@ -376,7 +376,7 @@ export default async function AdminUsersPage({
                 <th className="px-4 py-3 text-right font-medium">Əməliyyat</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-900">
+            <tbody className="divide-y divide-admin-line">
               {users.length === 0 && (
                 <tr>
                   <td colSpan={11} className="px-5 py-12 text-center text-zinc-500">
@@ -388,20 +388,20 @@ export default async function AdminUsersPage({
                 const agg = aggByUser.get(u.id);
                 const isDupPhone = !!u.phone && duplicatePhones.has(u.phone);
                 return (
-                  <tr key={u.id} className="hover:bg-zinc-900/40">
+                  <tr key={u.id} className="hover:bg-admin-chip">
                     <td className="px-4 py-3 align-top">
                       <RowCheckbox id={u.id} />
                     </td>
                     <td className="px-4 py-3 align-top">
                       <Link href={`/admin/users/${u.id}`} className="block min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="truncate text-zinc-100">
+                          <span className="truncate text-zinc-900">
                             {u.name ?? <span className="text-zinc-500">—</span>}
                           </span>
                           {isDupPhone && (
                             <span
                               title="Bu telefon nömrəsi birdən çox hesabda istifadə olunub"
-                              className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 ring-1 ring-amber-500/30"
+                              className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-500/30"
                             >
                               <ShieldAlert className="h-3 w-3" />
                               dup
@@ -409,12 +409,12 @@ export default async function AdminUsersPage({
                           )}
                         </div>
                         <div className="truncate text-xs text-zinc-500">{u.email}</div>
-                        <div className="mt-0.5 inline-block rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 ring-1 ring-zinc-800">
+                        <div className="mt-0.5 inline-block rounded bg-admin-card px-1.5 py-0.5 font-mono text-[10px] text-zinc-600 ring-1 ring-admin-line">
                           {u.referralCode}
                         </div>
                       </Link>
                     </td>
-                    <td className="px-4 py-3 align-top text-zinc-300">
+                    <td className="px-4 py-3 align-top text-zinc-700">
                       {u.phone ? (
                         <div className="flex items-center gap-1.5">
                           <span className="font-mono text-xs">{u.phone}</span>
@@ -427,35 +427,35 @@ export default async function AdminUsersPage({
                     <td className="px-4 py-3 align-top">
                       <div className="flex flex-col gap-1">
                         {u.disabled ? (
-                          <span className="self-start rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-medium text-rose-300 ring-1 ring-rose-500/30">
+                          <span className="self-start rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-medium text-rose-700 ring-1 ring-rose-500/30">
                             Bloklanıb
                           </span>
                         ) : u.emailVerified ? (
-                          <span className="self-start rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300 ring-1 ring-emerald-500/30">
+                          <span className="self-start rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-500/30">
                             Verified
                           </span>
                         ) : (
-                          <span className="self-start rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300 ring-1 ring-amber-500/30">
+                          <span className="self-start rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-500/30">
                             Pending
                           </span>
                         )}
                         {u.role === "ADMIN" && (
-                          <span className="self-start rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-medium text-indigo-300 ring-1 ring-indigo-500/30">
+                          <span className="self-start rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-700 ring-1 ring-violet-500/30">
                             Admin
                           </span>
                         )}
                       </div>
                     </td>
                     <td className="px-4 py-3 align-top">{fmtAzn(u.walletBalance)}</td>
-                    <td className="px-4 py-3 align-top text-zinc-300">
+                    <td className="px-4 py-3 align-top text-zinc-700">
                       {fmtAzn(agg?.spent ?? 0)}
                     </td>
-                    <td className="px-4 py-3 align-top text-zinc-300">{agg?.orders ?? 0}</td>
+                    <td className="px-4 py-3 align-top text-zinc-700">{agg?.orders ?? 0}</td>
                     <td className="px-4 py-3 align-top">{u._count.referrals}</td>
-                    <td className="px-4 py-3 align-top text-zinc-400">
+                    <td className="px-4 py-3 align-top text-zinc-600">
                       {agg?.lastActivity ? fmtDate(agg.lastActivity) : <span className="text-zinc-600">—</span>}
                     </td>
-                    <td className="px-4 py-3 align-top text-zinc-400">{fmtDate(u.createdAt)}</td>
+                    <td className="px-4 py-3 align-top text-zinc-600">{fmtDate(u.createdAt)}</td>
                     <td className="px-4 py-3 text-right align-top">
                       <UserRowActions
                         userId={u.id}
@@ -474,7 +474,7 @@ export default async function AdminUsersPage({
         </div>
 
         {/* Pagination + page size */}
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-400">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-600">
           <PageSizeSelect value={f.pageSize} />
           <div className="flex items-center gap-3">
             <span>
@@ -514,7 +514,7 @@ function PageLink({
   return (
     <Link
       href={`/admin/users?${params.toString()}`}
-      className="rounded-md border border-zinc-800 px-3 py-1.5 hover:bg-zinc-900"
+      className="rounded-md border border-admin-line px-3 py-1.5 hover:bg-admin-chip"
     >
       {label}
     </Link>
@@ -532,18 +532,18 @@ function Kpi({
 }) {
   const ring =
     tone === "indigo"
-      ? "ring-indigo-500/20"
+      ? "ring-violet-500/20"
       : tone === "emerald"
         ? "ring-emerald-500/20"
         : tone === "amber"
           ? "ring-amber-500/20"
           : tone === "rose"
             ? "ring-rose-500/20"
-            : "ring-zinc-800";
+            : "ring-admin-line";
   return (
-    <div className={`rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 ring-1 ${ring}`}>
+    <div className={`rounded-xl border border-admin-line bg-admin-card p-3 ring-1 ${ring}`}>
       <div className="text-[11px] uppercase tracking-wider text-zinc-500">{label}</div>
-      <div className="mt-1 text-lg font-semibold text-zinc-100">{value}</div>
+      <div className="mt-1 text-lg font-semibold text-zinc-900">{value}</div>
     </div>
   );
 }

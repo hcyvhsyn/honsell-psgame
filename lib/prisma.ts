@@ -31,6 +31,174 @@ let cashbackEnsuredPromise: Promise<void> | null = null;
 let aiKnowledgeEnsuredPromise: Promise<void> | null = null;
 let productGiftEnsuredPromise: Promise<void> | null = null;
 let aiChatLogEnsuredPromise: Promise<void> | null = null;
+let categoryAssetEnsuredPromise: Promise<void> | null = null;
+let communityEnsuredPromise: Promise<void> | null = null;
+
+/**
+ * Honsell İcması cədvəllərini (CommunityPost + reaction + comment) ilk dəfə
+ * lazım olanda yaradır — AiKnowledge ilə eyni ensure-once pattern (formal
+ * migration əvəzinə, Supabase üçün).
+ */
+async function ensureCommunityTablesOnce(base: PrismaClient): Promise<void> {
+  if (!communityEnsuredPromise) {
+    communityEnsuredPromise = (async () => {
+      try {
+        await base.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS "CommunityPost" (
+            "id" TEXT PRIMARY KEY,
+            "userId" TEXT NOT NULL,
+            "category" TEXT NOT NULL DEFAULT 'GENERAL',
+            "title" TEXT,
+            "body" TEXT NOT NULL,
+            "status" TEXT NOT NULL DEFAULT 'PENDING',
+            "moderatedAt" TIMESTAMP(3),
+            "moderatedById" TEXT,
+            "moderationNote" TEXT,
+            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS "CommunityPost_status_createdAt_idx"
+          ON "CommunityPost" ("status", "createdAt");
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS "CommunityPost_category_status_createdAt_idx"
+          ON "CommunityPost" ("category", "status", "createdAt");
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS "CommunityPost_userId_idx"
+          ON "CommunityPost" ("userId");
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS "CommunityPostReaction" (
+            "postId" TEXT NOT NULL,
+            "userId" TEXT NOT NULL,
+            "value" INTEGER NOT NULL,
+            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY ("postId", "userId")
+          );
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS "CommunityPostReaction_postId_value_idx"
+          ON "CommunityPostReaction" ("postId", "value");
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS "CommunityPostComment" (
+            "id" TEXT PRIMARY KEY,
+            "postId" TEXT NOT NULL,
+            "userId" TEXT NOT NULL,
+            "body" TEXT NOT NULL,
+            "isHidden" BOOLEAN NOT NULL DEFAULT false,
+            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS "CommunityPostComment_postId_createdAt_idx"
+          ON "CommunityPostComment" ("postId", "createdAt");
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS "CommunityPostComment_userId_idx"
+          ON "CommunityPostComment" ("userId");
+        `);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!msg.includes("already exists")) {
+          console.error("[Community schema ensure]", e);
+        }
+      }
+    })();
+  }
+  await communityEnsuredPromise;
+}
+
+let streamingPlatformEnsuredPromise: Promise<void> | null = null;
+
+/**
+ * `StreamingPlatform` cədvəlini (dinamik streaming/music platformaları) ilk
+ * dəfə lazım olanda yaradır — CategoryAsset ilə eyni ensure-once pattern
+ * (formal migration əvəzinə, Supabase üçün).
+ */
+async function ensureStreamingPlatformTableOnce(base: PrismaClient): Promise<void> {
+  if (!streamingPlatformEnsuredPromise) {
+    streamingPlatformEnsuredPromise = (async () => {
+      try {
+        await base.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS "StreamingPlatform" (
+            "id" TEXT PRIMARY KEY,
+            "code" TEXT NOT NULL,
+            "slug" TEXT NOT NULL,
+            "label" TEXT NOT NULL,
+            "category" TEXT NOT NULL DEFAULT 'STREAMING',
+            "tagline" TEXT NOT NULL DEFAULT '',
+            "description" TEXT NOT NULL DEFAULT '',
+            "sortOrder" INTEGER NOT NULL DEFAULT 0,
+            "isActive" BOOLEAN NOT NULL DEFAULT true,
+            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+        await base.$executeRawUnsafe(`
+          ALTER TABLE "StreamingPlatform" ADD COLUMN IF NOT EXISTS "heroImageUrl" TEXT;
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE UNIQUE INDEX IF NOT EXISTS "StreamingPlatform_code_key" ON "StreamingPlatform" ("code");
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE UNIQUE INDEX IF NOT EXISTS "StreamingPlatform_slug_key" ON "StreamingPlatform" ("slug");
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS "StreamingPlatform_isActive_sortOrder_idx"
+          ON "StreamingPlatform" ("isActive", "sortOrder");
+        `);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!msg.includes("already exists")) {
+          console.error("[StreamingPlatform schema ensure]", e);
+        }
+      }
+    })();
+  }
+  await streamingPlatformEnsuredPromise;
+}
+
+async function ensureCategoryAssetTableOnce(base: PrismaClient): Promise<void> {
+  if (!categoryAssetEnsuredPromise) {
+    categoryAssetEnsuredPromise = (async () => {
+      try {
+        await base.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS "CategoryAsset" (
+            "id" TEXT PRIMARY KEY,
+            "key" TEXT NOT NULL,
+            "label" TEXT NOT NULL,
+            "description" TEXT,
+            "href" TEXT NOT NULL,
+            "imageUrl" TEXT,
+            "isActive" BOOLEAN NOT NULL DEFAULT true,
+            "sortOrder" INTEGER NOT NULL DEFAULT 0,
+            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE UNIQUE INDEX IF NOT EXISTS "CategoryAsset_key_key" ON "CategoryAsset" ("key");
+        `);
+        await base.$executeRawUnsafe(`
+          CREATE INDEX IF NOT EXISTS "CategoryAsset_isActive_sortOrder_idx"
+          ON "CategoryAsset" ("isActive", "sortOrder");
+        `);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!msg.includes("already exists")) {
+          console.error("[CategoryAsset schema ensure]", e);
+        }
+      }
+    })();
+  }
+  await categoryAssetEnsuredPromise;
+}
 
 /**
  * `AiChatLog` cədvəlini (AI köməkçi söhbət logu) ilk dəfə lazım olanda yaradır
@@ -225,6 +393,19 @@ function buildPrismaClient() {
         }
         if (model === "AiChatLog") {
           await ensureAiChatLogTableOnce(base);
+        }
+        if (model === "CategoryAsset") {
+          await ensureCategoryAssetTableOnce(base);
+        }
+        if (model === "StreamingPlatform") {
+          await ensureStreamingPlatformTableOnce(base);
+        }
+        if (
+          model === "CommunityPost" ||
+          model === "CommunityPostReaction" ||
+          model === "CommunityPostComment"
+        ) {
+          await ensureCommunityTablesOnce(base);
         }
         return query(args);
       },

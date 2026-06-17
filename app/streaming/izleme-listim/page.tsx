@@ -56,7 +56,7 @@ export default async function WatchlistPage() {
               İzləmə listin boşdur. Streaming icmallarından bəyəndiyin film/serialı əlavə et.
             </p>
             <Link
-              href="/streaming/icmallar"
+              href="/icma?tab=icmallar"
               className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 text-sm font-bold text-zinc-900 hover:bg-zinc-100"
             >
               İcmallara bax →

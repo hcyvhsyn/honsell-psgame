@@ -8,12 +8,7 @@ import StreamingTitleCard from "@/components/StreamingTitleCard";
 import StreamingReviewsPreview from "@/components/StreamingReviewsPreview";
 import PlatformGuidesSection from "@/components/PlatformGuidesSection";
 import NewsSection from "@/components/NewsSection";
-import {
-  STREAMING_SERVICE_LABELS,
-  STREAMING_SERVICES,
-  STREAMING_SERVICE_META,
-  type StreamingService,
-} from "@/lib/streamingCart";
+import { getStreamingPlatformsByCategory } from "@/lib/streamingPlatforms";
 import { Music as MusicIcon } from "lucide-react";
 import { PlatformCard } from "@/components/MarketingUI";
 
@@ -52,13 +47,11 @@ function toSlideArr(rows: Array<{
   }));
 }
 
-// Bu səhifə yalnız film/serial yönlü streaming xidmətlərini göstərir.
-// MUSIC kateqoriyalı xidmətlər (YouTube Premium) /music səhifəsində listlənir.
-const STREAMING_ONLY_SERVICES = STREAMING_SERVICES.filter(
-  (s) => STREAMING_SERVICE_META[s as StreamingService].category === "STREAMING"
-);
-
 export default async function StreamingPage() {
+  // Bu səhifə yalnız film/serial yönlü streaming xidmətlərini göstərir.
+  // MUSIC kateqoriyalı xidmətlər (YouTube Premium) /music səhifəsində listlənir.
+  const streamingPlatforms = await getStreamingPlatformsByCategory("STREAMING");
+
   const [featuredOverview, allTitles] = await Promise.all([
     prisma.streamingFeatured.findMany({
       where: { scope: "OVERVIEW", isActive: true, title: { isActive: true, azAvailable: true } },
@@ -122,8 +115,8 @@ export default async function StreamingPage() {
           <h2 className="mt-1 text-2xl font-black text-white sm:text-3xl">Hansı platformaya keçid etmək istəyirsən?</h2>
         </header>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {STREAMING_ONLY_SERVICES.map((service) => {
-            const meta = STREAMING_SERVICE_META[service as StreamingService];
+          {streamingPlatforms.map((meta) => {
+            const service = meta.code;
             const sample = titlesByService.get(service) ?? [];
             const cover = sample[0]?.backdropUrl ?? sample[0]?.posterUrl ?? null;
             const Icon = meta.category === "MUSIC" ? MusicIcon : Tv;
@@ -132,7 +125,7 @@ export default async function StreamingPage() {
                 key={service}
                 href={`/streaming/${meta.slug}`}
                 icon={<Icon className="h-5 w-5 text-white" />}
-                label={STREAMING_SERVICE_LABELS[service] ?? service}
+                label={meta.label}
                 sub={meta.tagline}
                 imageUrl={cover}
                 accentClass={
@@ -154,10 +147,10 @@ export default async function StreamingPage() {
 
       {/* Per-platform sections (no pricing) */}
       <section className="mx-auto max-w-7xl space-y-12 px-4 py-14 sm:px-6 lg:px-8">
-        {STREAMING_ONLY_SERVICES.map((service) => {
+        {streamingPlatforms.map((meta) => {
+          const service = meta.code;
           const titles = titlesByService.get(service) ?? [];
           if (titles.length === 0) return null;
-          const meta = STREAMING_SERVICE_META[service as StreamingService];
           return (
             <section key={service} aria-labelledby={`section-${meta.slug}`}>
               <header className="mb-5 flex items-end justify-between gap-4">
@@ -166,7 +159,7 @@ export default async function StreamingPage() {
                     {meta.category === "MUSIC" ? "Music" : "Streaming"}
                   </p>
                   <h2 id={`section-${meta.slug}`} className="mt-1 text-3xl font-black text-white sm:text-4xl">
-                    {STREAMING_SERVICE_LABELS[service] ?? service}
+                    {meta.label}
                   </h2>
                   <p className="mt-1 text-xs text-zinc-500">{meta.tagline}</p>
                 </div>

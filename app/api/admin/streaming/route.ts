@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { STREAMING_SERVICE_META } from "@/lib/streamingCart";
+import {
+  DEFAULT_STREAMING_PLATFORMS,
+  getStreamingPlatformByCode,
+} from "@/lib/streamingPlatforms";
+import { Prisma } from "@/lib/generated/prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +14,32 @@ export const dynamic = "force-dynamic";
 const VALID_DURATIONS = new Set([1, 2, 3, 6, 12]);
 const VALID_SEATS = new Set([1, 2]);
 const ALLOWED_DEVICES = new Set(["computer", "tv", "phone", "tablet"]);
+const PLATFORM_CODE_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+const VALID_PLATFORM_CATEGORIES = new Set(["STREAMING", "MUSIC"]);
+
+function slugify(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+async function ensureDefaultStreamingPlatforms() {
+  await prisma.streamingPlatform.createMany({
+    data: DEFAULT_STREAMING_PLATFORMS.map((p, index) => ({
+      code: p.code,
+      slug: p.slug,
+      label: p.label,
+      category: p.category,
+      tagline: p.tagline,
+      description: p.description,
+      sortOrder: index,
+      isActive: true,
+    })),
+    skipDuplicates: true,
+  });
+}
 
 function metadataObject(metadata: unknown): Record<string, unknown> {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return {};
@@ -42,17 +72,37 @@ function productMeta(metadata: unknown) {
   };
 }
 
-function revalidateStreaming(service?: string) {
+async function revalidateStreaming(service?: string) {
   revalidatePath("/");
   revalidatePath("/streaming");
+  revalidatePath("/music");
   revalidatePath("/qazan");
-  const normalized = String(service ?? "").toUpperCase();
-  const meta = STREAMING_SERVICE_META[normalized as keyof typeof STREAMING_SERVICE_META];
-  if (meta) revalidatePath(`/streaming/${meta.slug}`);
+  if (!service) return;
+  const meta = await getStreamingPlatformByCode(service);
+  if (meta) {
+    revalidatePath(meta.category === "MUSIC" ? `/music/${meta.slug}` : `/streaming/${meta.slug}`);
+  }
 }
 
 function productService(metadata: unknown) {
   return productMeta(metadata).service;
+}
+
+// Platforma şəkli (metadata.platformImageUrl) — xidmət üzrə bütün paketlərdə
+// eyni saxlanılır. Hər hansı paketdən birinci tapılanı qaytarır.
+function servicePlatformImageFromProducts(
+  products: Array<{ id?: string; metadata: unknown }>,
+  service: string,
+  excludedId?: string,
+) {
+  const normalized = service.toUpperCase();
+  for (const p of products) {
+    if (excludedId && p.id === excludedId) continue;
+    if (productService(p.metadata) !== normalized) continue;
+    const img = metadataObject(p.metadata).platformImageUrl;
+    if (typeof img === "string" && img.trim()) return img.trim();
+  }
+  return null;
 }
 
 function serviceImageFromProducts(
@@ -115,12 +165,18 @@ export async function GET() {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const products = await prisma.serviceProduct.findMany({
-    where: { type: "STREAMING" },
-    orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
-  });
+  await ensureDefaultStreamingPlatforms();
+  const [products, platforms] = await Promise.all([
+    prisma.serviceProduct.findMany({
+      where: { type: "STREAMING" },
+      orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
+    }),
+    prisma.streamingPlatform.findMany({
+      orderBy: [{ sortOrder: "asc" }, { label: "asc" }],
+    }),
+  ]);
 
-  return NextResponse.json(products);
+  return NextResponse.json({ products, platforms });
 }
 
 export async function POST(req: Request) {
@@ -179,6 +235,7 @@ export async function POST(req: Request) {
         typeof id === "string" ? id : undefined,
       );
       const serviceAccess = serviceAccessFromProducts(existingProducts, service);
+      const servicePlatformImage = servicePlatformImageFromProducts(existingProducts, service);
       const previousService = currentProduct ? productService(currentProduct.metadata) : "";
       const serviceReferral = serviceReferralFromProducts(
         existingProducts,
@@ -186,11 +243,15 @@ export async function POST(req: Request) {
         previousService === service ? undefined : typeof id === "string" ? id : undefined,
       );
 
+      // Mövcud paketin öz şəkli varsa onu qoru (per-paket şəkil sıfırlanmasın);
+      // yeni paket üçün platforma şəklini default kimi götür.
+      const imageUrl = currentProduct ? currentProduct.imageUrl ?? serviceImageUrl : serviceImageUrl;
+
       const payload = {
         type: "STREAMING",
         title: String(title ?? "").trim() || `${service} ${durationMonths} ay`,
         description: typeof description === "string" ? description : null,
-        imageUrl: serviceImageUrl,
+        imageUrl,
         priceAznCents: Math.round(priceAzn * 100),
         isActive: Boolean(isActive),
         metadata: {
@@ -200,6 +261,7 @@ export async function POST(req: Request) {
           deliveryMode: "CODE",
           devices: serviceAccess.devices,
           vpnRequired: serviceAccess.vpnRequired,
+          ...(servicePlatformImage ? { platformImageUrl: servicePlatformImage } : {}),
           ...(serviceReferral.hasOverride
             ? {
                 referralEnabled: serviceReferral.referralEnabled,
@@ -216,12 +278,35 @@ export async function POST(req: Request) {
       const p = id
         ? await prisma.serviceProduct.update({ where: { id }, data: payload })
         : await prisma.serviceProduct.create({ data: payload });
-      if (previousService && previousService !== service) revalidateStreaming(previousService);
-      revalidateStreaming(service);
+      if (previousService && previousService !== service) await revalidateStreaming(previousService);
+      await revalidateStreaming(service);
       return NextResponse.json(p);
     }
 
-    if (action === "SET_SERVICE_IMAGE") {
+    if (action === "SET_PRODUCT_IMAGE") {
+      const { id } = body;
+      const imageUrl =
+        typeof body.imageUrl === "string" && body.imageUrl.trim()
+          ? body.imageUrl.trim()
+          : null;
+
+      if (!id) return NextResponse.json({ error: "id tələb olunur" }, { status: 400 });
+
+      const existing = await prisma.serviceProduct.findUnique({
+        where: { id },
+        select: { metadata: true },
+      });
+      if (!existing) {
+        return NextResponse.json({ error: "Paket tapılmadı." }, { status: 404 });
+      }
+
+      await prisma.serviceProduct.update({ where: { id }, data: { imageUrl } });
+
+      await revalidateStreaming(productService(existing.metadata));
+      return NextResponse.json({ ok: true, imageUrl });
+    }
+
+    if (action === "SET_SERVICE_PLATFORM_IMAGE") {
       const service = String(body.service ?? "").trim().toUpperCase();
       const imageUrl =
         typeof body.imageUrl === "string" && body.imageUrl.trim()
@@ -236,24 +321,29 @@ export async function POST(req: Request) {
         where: { type: "STREAMING" },
         select: { id: true, metadata: true },
       });
-      const ids = products
-        .filter((p) => productService(p.metadata) === service)
-        .map((p) => p.id);
+      const targets = products.filter((p) => productService(p.metadata) === service);
 
-      if (ids.length === 0) {
+      if (targets.length === 0) {
         return NextResponse.json(
           { error: "Bu platforma üçün əvvəlcə paket yaradılmalıdır." },
           { status: 400 },
         );
       }
 
-      await prisma.serviceProduct.updateMany({
-        where: { id: { in: ids } },
-        data: { imageUrl },
-      });
+      await prisma.$transaction(
+        targets.map((p) => {
+          const meta: Record<string, unknown> = { ...productMeta(p.metadata).raw, service };
+          if (imageUrl) meta.platformImageUrl = imageUrl;
+          else delete meta.platformImageUrl;
+          return prisma.serviceProduct.update({
+            where: { id: p.id },
+            data: { metadata: meta as Prisma.InputJsonValue },
+          });
+        }),
+      );
 
-      revalidateStreaming(service);
-      return NextResponse.json({ ok: true, updated: ids.length, imageUrl });
+      await revalidateStreaming(service);
+      return NextResponse.json({ ok: true, updated: targets.length, imageUrl });
     }
 
     if (action === "SET_SERVICE_ACCESS") {
@@ -295,7 +385,7 @@ export async function POST(req: Request) {
         }),
       );
 
-      revalidateStreaming(service);
+      await revalidateStreaming(service);
       return NextResponse.json({ ok: true, updated: targets.length, devices, vpnRequired });
     }
 
@@ -341,7 +431,7 @@ export async function POST(req: Request) {
         }),
       );
 
-      revalidateStreaming(service);
+      await revalidateStreaming(service);
       revalidatePath("/qazan");
       return NextResponse.json({
         ok: true,
@@ -349,6 +439,80 @@ export async function POST(req: Request) {
         referralEnabled,
         referralPct: referralEnabled ? referralPct : 0,
       });
+    }
+
+    if (action === "UPSERT_PLATFORM") {
+      const code = String(body.code ?? "").trim().toUpperCase();
+      if (!PLATFORM_CODE_PATTERN.test(code)) {
+        return NextResponse.json(
+          { error: "Platforma kodu yalnız böyük hərf, rəqəm və alt xətdən ibarət olmalıdır (məs: PRIME_VIDEO)." },
+          { status: 400 },
+        );
+      }
+
+      const label = String(body.label ?? "").trim();
+      if (!label) return NextResponse.json({ error: "Ad tələb olunur." }, { status: 400 });
+
+      const slugInput = String(body.slug ?? "").trim();
+      const slug = slugify(slugInput || label);
+      if (!slug) return NextResponse.json({ error: "Slug düzgün deyil." }, { status: 400 });
+
+      const category = String(body.category ?? "STREAMING").trim().toUpperCase();
+      if (!VALID_PLATFORM_CATEGORIES.has(category)) {
+        return NextResponse.json({ error: "Kateqoriya STREAMING və ya MUSIC olmalıdır." }, { status: 400 });
+      }
+
+      const tagline = String(body.tagline ?? "").trim();
+      const description = String(body.description ?? "").trim();
+      const sortRaw = Number(body.sortOrder);
+      const sortOrder = Number.isFinite(sortRaw) ? sortRaw : 0;
+      const isActive = body.isActive !== false;
+
+      // Slug başqa platformada istifadə olunmamalıdır.
+      const slugOwner = await prisma.streamingPlatform.findUnique({ where: { slug } });
+      if (slugOwner && slugOwner.code !== code) {
+        return NextResponse.json({ error: "Bu slug başqa platformada istifadə olunur." }, { status: 409 });
+      }
+
+      const platform = await prisma.streamingPlatform.upsert({
+        where: { code },
+        create: { code, slug, label, category, tagline, description, sortOrder, isActive },
+        update: { slug, label, category, tagline, description, sortOrder, isActive },
+      });
+
+      await revalidateStreaming(code);
+      return NextResponse.json(platform);
+    }
+
+    if (action === "DELETE_PLATFORM") {
+      const code = String(body.code ?? "").trim().toUpperCase();
+      if (!code) return NextResponse.json({ error: "Platforma kodu tələb olunur." }, { status: 400 });
+
+      // STREAMING (metadata.service) və MUSIC (type PLATFORM, metadata.musicBrand)
+      // paketlərini say — paket varsa silməni blokla.
+      const products = await prisma.serviceProduct.findMany({
+        where: { type: { in: ["STREAMING", "PLATFORM"] } },
+        select: { metadata: true },
+      });
+      const count = products.filter((p) => {
+        const raw = metadataObject(p.metadata);
+        const svc = String(raw.service ?? "").toUpperCase();
+        const brand = String(raw.musicBrand ?? "").toUpperCase();
+        return svc === code || brand === code;
+      }).length;
+
+      if (count > 0) {
+        return NextResponse.json(
+          {
+            error: `Bu platformanın ${count} paketi var. Əvvəlcə paketləri silin və ya platformanı gizlədin.`,
+          },
+          { status: 400 },
+        );
+      }
+
+      await prisma.streamingPlatform.delete({ where: { code } }).catch(() => null);
+      await revalidateStreaming(code);
+      return NextResponse.json({ ok: true });
     }
 
     if (action === "DELETE_PRODUCT") {
@@ -363,7 +527,7 @@ export async function POST(req: Request) {
         prisma.serviceCode.deleteMany({ where: { serviceProductId: id } }),
         prisma.serviceProduct.delete({ where: { id } }),
       ]);
-      revalidateStreaming(existingMeta.service);
+      await revalidateStreaming(existingMeta.service);
       return NextResponse.json({ ok: true });
     }
 

@@ -688,6 +688,235 @@ export async function sendDiscountDigestEmail(params: {
   }
 }
 
+/**
+ * Tərk edilmiş səbət (abandoned cart) xatırlatması — istifadəçinin səbətində
+ * qalıb amma almadığı məhsulları göstərir. Marketinq mesajı olduğu üçün
+ * footer-də məcburi unsubscribe linki var.
+ */
+export async function sendAbandonedCartEmail(params: {
+  email: string;
+  userName: string;
+  unsubscribeUrl: string;
+  items: Array<{
+    title: string;
+    imageUrl: string | null;
+    finalAzn: number;
+    qty: number;
+  }>;
+  /** items siyahısına sığmayan əlavə məhsul sayı (ABANDONED_MAX_ITEMS-dən artıq). */
+  extraCount: number;
+  totalAzn: number;
+}) {
+  const accent = "#6D28D9";
+  const cartUrl = `${ADMIN_BASE_URL}/cart`;
+
+  const cards = params.items
+    .map((it) => {
+      const cover = it.imageUrl
+        ? `<img src="${it.imageUrl}" alt="${escapeHtml(it.title)}" width="84" height="84" style="width:84px;height:84px;object-fit:cover;border-radius:10px;display:block" />`
+        : `<div style="width:84px;height:84px;border-radius:10px;background:#27272a"></div>`;
+      const qtyLine =
+        it.qty > 1
+          ? `<div style="margin-top:4px;color:#a1a1aa;font-size:12px">Say: ${it.qty}</div>`
+          : "";
+      return `
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;background:#18181b;border:1px solid #27272a;border-radius:12px">
+          <tr>
+            <td style="padding:12px;width:84px;vertical-align:top">${cover}</td>
+            <td style="padding:12px 12px 12px 0;vertical-align:top">
+              <div style="color:#fff;font-size:15px;font-weight:600;line-height:1.3">${escapeHtml(it.title)}</div>
+              <div style="margin-top:6px"><b style="color:#fff;font-size:16px">${fmtAzn(it.finalAzn)}</b></div>
+              ${qtyLine}
+            </td>
+          </tr>
+        </table>`;
+    })
+    .join("");
+
+  const extraLine =
+    params.extraCount > 0
+      ? `<p style="margin:0 0 12px;color:#a1a1aa;font-size:13px;text-align:center">… və daha ${params.extraCount} məhsul</p>`
+      : "";
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;color:#e4e4e7;padding:24px">
+      <div style="max-width:560px;margin:0 auto;background:#111114;border:1px solid #27272a;border-radius:16px;overflow:hidden">
+        <div style="background:${accent};padding:20px 24px">
+          <h1 style="margin:0;font-size:20px;color:#fff">Səbətinizdə nəsə qaldı 🛒</h1>
+        </div>
+        <div style="padding:24px">
+          <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8">Salam ${escapeHtml(params.userName)}, səbətinizdəki məhsulları sizə saxladıq. Almağı tamamlamağa hazırsınız?</p>
+          ${cards}
+          ${extraLine}
+          <div style="margin:16px 0 4px;text-align:center;color:#d4d4d8;font-size:15px">Cəmi: <b style="color:#fff">${fmtAzn(params.totalAzn)}</b></div>
+          <div style="margin-top:20px;text-align:center">
+            <a href="${cartUrl}" style="display:inline-block;background:${accent};color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
+              Səbətə qayıt
+            </a>
+          </div>
+          <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center;line-height:1.6">
+            Honsell PS Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
+            Belə xatırlatmaları almaq istəmirsiniz? <a href="${params.unsubscribeUrl}" style="color:#a1a1aa;text-decoration:underline">Abunəlikdən çıxın</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const { error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: params.email,
+    subject: "Səbətinizdə nəsə qaldı — Honsell PS Store",
+    html,
+  });
+  if (error) {
+    throw new Error(`Resend abandoned-cart email failed: ${error.message}`);
+  }
+}
+
+export type CampaignEmailGame = {
+  productId: string;
+  title: string;
+  imageUrl: string | null;
+  finalAzn: number;
+  originalAzn: number | null;
+  discountPct: number | null;
+};
+
+export type CampaignEmailContent = {
+  userName: string;
+  title: string;
+  messageText: string;
+  unsubscribeUrl: string;
+  games: CampaignEmailGame[];
+  /** Hər oyun üçün link qurucu (klik izləmə üçün). Default: birbaşa oyun səhifəsi. */
+  linkFor?: (productId: string) => string;
+  /** PROMO (default) | REVIEW_INVITE — rəy dəvətində oyun yox, "Rəy yaz" CTA göstərilir. */
+  kind?: "PROMO" | "REVIEW_INVITE";
+  /** REVIEW_INVITE rejimində "Rəy yaz" düyməsinin hədəfi. */
+  reviewUrl?: string;
+};
+
+/** Kampaniya e-poçtunun mövzu sətri. */
+export function campaignEmailSubject(title: string): string {
+  return `${title} — Honsell PS Store`;
+}
+
+/**
+ * Kampaniya e-poçtunun HTML gövdəsini qurur (göndərmədən asılı deyil) — həm
+ * `sendCampaignEmail`, həm də admin önizləmə endpoint-i bunu çağırır. Oyun
+ * şəkilləri klik izləmə linkinə sarınır (bütün kart kliklənəndir).
+ */
+export function renderCampaignEmailHtml(params: CampaignEmailContent): string {
+  const accent = "#6D28D9";
+  const isReview = params.kind === "REVIEW_INVITE";
+  const catalogUrl = `${ADMIN_BASE_URL}/oyunlar`;
+  const reviewUrl = params.reviewUrl ?? `${ADMIN_BASE_URL}/#reyler`;
+  const linkFor =
+    params.linkFor ?? ((pid: string) => `${ADMIN_BASE_URL}/oyunlar/${encodeURIComponent(pid)}`);
+
+  // Rəy dəvəti — oyun kartı yox, mətn + "Rəy yaz" CTA.
+  if (isReview) {
+    const intro = escapeHtml(params.messageText.trim()).replace(/\n/g, "<br/>");
+    return `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;color:#e4e4e7;padding:24px">
+      <div style="max-width:560px;margin:0 auto;background:#111114;border:1px solid #27272a;border-radius:16px;overflow:hidden">
+        <div style="background:${accent};padding:20px 24px">
+          <h1 style="margin:0;font-size:20px;color:#fff">${escapeHtml(params.title)} ⭐</h1>
+        </div>
+        <div style="padding:24px">
+          <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8">Salam ${escapeHtml(params.userName)},</p>
+          ${intro ? `<p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.6">${intro}</p>` : ""}
+          <div style="margin-top:20px;text-align:center">
+            <a href="${reviewUrl}" style="display:inline-block;background:${accent};color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
+              Rəy yaz ⭐
+            </a>
+          </div>
+          <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center;line-height:1.6">
+            Honsell PS Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
+            Bu mesajları almaq istəmirsiniz? <a href="${params.unsubscribeUrl}" style="color:#a1a1aa;text-decoration:underline">Abunəlikdən çıxın</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+  }
+
+  const cards = params.games
+    .map((g) => {
+      const url = linkFor(g.productId);
+      const cover = g.imageUrl
+        ? `<img src="${g.imageUrl}" alt="${escapeHtml(g.title)}" width="84" height="84" style="width:84px;height:84px;object-fit:cover;border-radius:10px;display:block" />`
+        : `<div style="width:84px;height:84px;border-radius:10px;background:#27272a"></div>`;
+      const badge =
+        g.discountPct != null
+          ? `<span style="display:inline-block;background:#6D28D9;color:#fff;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;margin-bottom:6px">-${g.discountPct}%</span>`
+          : "";
+      const original = g.originalAzn
+        ? `<span style="color:#71717a;text-decoration:line-through;margin-right:6px;font-size:13px">${fmtAzn(g.originalAzn)}</span>`
+        : "";
+      return `
+        <a href="${url}" style="text-decoration:none;color:inherit;display:block">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;background:#18181b;border:1px solid #27272a;border-radius:12px">
+            <tr>
+              <td style="padding:12px;width:84px;vertical-align:top">${cover}</td>
+              <td style="padding:12px 12px 12px 0;vertical-align:top">
+                ${badge}
+                <div style="color:#fff;font-size:15px;font-weight:600;line-height:1.3">${escapeHtml(g.title)}</div>
+                <div style="margin-top:6px">${original}<b style="color:#fff;font-size:16px">${fmtAzn(g.finalAzn)}</b></div>
+              </td>
+            </tr>
+          </table>
+        </a>`;
+    })
+    .join("");
+
+  // Admin mətnindəki sətir keçidlərini qoru (HTML-ə çevir).
+  const intro = escapeHtml(params.messageText.trim()).replace(/\n/g, "<br/>");
+
+  return `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;color:#e4e4e7;padding:24px">
+      <div style="max-width:560px;margin:0 auto;background:#111114;border:1px solid #27272a;border-radius:16px;overflow:hidden">
+        <div style="background:${accent};padding:20px 24px">
+          <h1 style="margin:0;font-size:20px;color:#fff">${escapeHtml(params.title)} 🎮</h1>
+        </div>
+        <div style="padding:24px">
+          <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8">Salam ${escapeHtml(params.userName)},</p>
+          ${intro ? `<p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.6">${intro}</p>` : ""}
+          ${cards}
+          <div style="margin-top:20px;text-align:center">
+            <a href="${catalogUrl}" style="display:inline-block;background:${accent};color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
+              Bütün endirimlərə bax
+            </a>
+          </div>
+          <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center;line-height:1.6">
+            Honsell PS Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
+            Bu mesajları almaq istəmirsiniz? <a href="${params.unsubscribeUrl}" style="color:#a1a1aa;text-decoration:underline">Abunəlikdən çıxın</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Admin tərəfindən qurulan reklam kampaniyası e-poçtu. Bülletendən fərqli olaraq
+ * admin başlığı və giriş mətnini özü yazır; oyun bloku eyni vizual stildədir.
+ * Marketinq mesajı olduğu üçün footer-də məcburi unsubscribe linki var.
+ */
+export async function sendCampaignEmail(params: { email: string } & CampaignEmailContent) {
+  const html = renderCampaignEmailHtml(params);
+  const { error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: params.email,
+    subject: campaignEmailSubject(params.title),
+    html,
+  });
+  if (error) {
+    throw new Error(`Resend campaign email failed: ${error.message}`);
+  }
+}
+
 export async function sendGiftCardCodeEmail(params: {
   email: string;
   userName: string;

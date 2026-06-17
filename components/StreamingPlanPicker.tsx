@@ -3,21 +3,18 @@
 import { type FormEvent, useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  Check,
-  CheckCircle2,
-  ChevronRight,
   Globe2,
-  Headphones,
   Info,
-  LockKeyhole,
+  Minus,
   Monitor,
   Plus,
   ShieldAlert,
   ShieldCheck,
+  ShoppingCart,
   Smartphone,
-  Sparkles,
   Star,
   Tablet,
+  Trash2,
   Tv as TvIcon,
   Users,
   X,
@@ -122,12 +119,9 @@ type Meta = {
   inStock: boolean;
   devices: string[];
   vpnRequired: boolean;
+  platformImageUrl: string | null;
 };
 
-type EnrichedPlan = {
-  p: PlanProduct;
-  m: Meta;
-};
 
 type ServiceDisplay = {
   code: string;
@@ -150,6 +144,10 @@ function readMeta(p: PlanProduct): Meta {
     inStock: m.inStock === undefined ? true : Boolean(m.inStock),
     devices: rawDevices.filter((x): x is string => typeof x === "string"),
     vpnRequired: Boolean(m.vpnRequired),
+    platformImageUrl:
+      typeof m.platformImageUrl === "string" && m.platformImageUrl.trim()
+        ? String(m.platformImageUrl)
+        : null,
   };
 }
 
@@ -229,8 +227,22 @@ const SEAT_INFO: Record<number, { title: string; body: string }> = {
 
 export default function StreamingPlanPicker({
   products,
+  productType = "STREAMING",
+  authMode,
+  platformKind,
+  heroImageUrl,
+  serviceOverride,
 }: {
   products: PlanProduct[];
+  /** Cart-a yazılan məhsul tipi. PLATFORM (music) üçün "PLATFORM" ötürülür. */
+  productType?: string;
+  /** Gmail/şifrə toplanması. YouTube üçün "GMAIL_PASSWORD". */
+  authMode?: "GMAIL" | "GMAIL_PASSWORD";
+  platformKind?: string;
+  /** Platforma hero şəkli (music platformaları StreamingPlatform-dan oxuyur). */
+  heroImageUrl?: string | null;
+  /** serviceDisplay-i əvəz edir (music kodları STREAMING_SERVICE_META-da yoxdur). */
+  serviceOverride?: { code: string; label: string; tagline: string; description: string };
 }) {
   const enriched = useMemo(
     () => products.map((p) => ({ p, m: readMeta(p) })).filter((x) => x.m.durationMonths > 0),
@@ -270,13 +282,6 @@ export default function StreamingPlanPicker({
     return bestId;
   }, [durationOptions]);
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const effectiveSelectedId =
-    durationOptions.find((x) => x.p.id === selectedId)?.p.id ??
-    cheapestPerMonthId ??
-    durationOptions[0]?.p.id ??
-    null;
-
   if (enriched.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-8 text-center text-sm text-zinc-400">
@@ -285,15 +290,22 @@ export default function StreamingPlanPicker({
     );
   }
 
-  const selected = durationOptions.find((x) => x.p.id === effectiveSelectedId);
-  const serviceCode = selected?.m.service || enriched[0]?.m.service || "STREAMING";
-  const service = serviceDisplay(serviceCode);
-  const theme = SERVICE_THEMES[service.code] ?? DEFAULT_THEME;
-  const selectedDevices = selected?.m.devices ?? [];
-  const supportedDevices = orderedDevices(
-    selectedDevices.length > 0 ? selectedDevices : durationOptions.flatMap((x) => x.m.devices),
-  );
-  const heroImage = selected?.p.imageUrl || durationOptions.find((x) => x.p.imageUrl)?.p.imageUrl || null;
+  const serviceCode =
+    serviceOverride?.code || durationOptions[0]?.m.service || enriched[0]?.m.service || "STREAMING";
+  const service = serviceOverride ?? serviceDisplay(serviceCode);
+  const theme = SERVICE_THEMES[serviceCode] ?? DEFAULT_THEME;
+  const supportedDevices = orderedDevices(durationOptions.flatMap((x) => x.m.devices));
+  // Platforma şəkli: əvvəlcə prop (music platformaları StreamingPlatform-dan),
+  // sonra streaming metadata, sonra hər hansı paketin öz şəkli.
+  const platformImage =
+    heroImageUrl ||
+    durationOptions.find((x) => x.m.platformImageUrl)?.m.platformImageUrl ||
+    durationOptions.find((x) => x.p.imageUrl)?.p.imageUrl ||
+    null;
+  const vpnRequired = durationOptions.some((x) => x.m.vpnRequired);
+  const deliveryLabel = durationOptions.some((x) => x.m.deliveryMode === "GMAIL")
+    ? "Gmail aktivləşmə"
+    : "Tez çatdırılma";
 
   return (
     <div className="space-y-5">
@@ -335,101 +347,93 @@ export default function StreamingPlanPicker({
       <ServiceOverview
         service={service}
         theme={theme}
-        selected={selected}
+        seats={effectiveSeats}
+        vpnRequired={vpnRequired}
+        deliveryLabel={deliveryLabel}
         devices={supportedDevices}
-        imageUrl={heroImage}
+        imageUrl={platformImage}
       />
 
       <section aria-label="Müddət" className="space-y-3">
         <p className="text-sm font-semibold text-zinc-300">Müddət</p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {durationOptions.map((x) => {
-            const active = x.p.id === effectiveSelectedId;
             const isBest = x.p.id === cheapestPerMonthId && durationOptions.length > 1;
             const stock = inStock();
             const discountPct = discountPercent(x.m.originalPriceAznCents, x.p.priceAznCents);
             const perMonth = x.p.priceAznCents / 100 / x.m.durationMonths;
 
             return (
-              <button
+              <div
                 key={x.p.id}
-                type="button"
-                onClick={() => setSelectedId(x.p.id)}
-                disabled={!stock}
-                aria-pressed={active}
-                className={`group relative min-h-[176px] overflow-hidden rounded-[22px] border p-5 text-left transition duration-200 ${
-                  active
-                    ? theme.activeCard
-                    : "border-white/10 bg-zinc-950/80 hover:border-white/25 hover:bg-zinc-900/80"
-                } ${!stock ? "cursor-not-allowed opacity-50" : ""}`}
+                className={`group relative flex flex-col overflow-hidden rounded-[22px] border border-white/10 bg-zinc-950/80 p-3 transition duration-200 hover:border-white/25 hover:bg-zinc-900/80 ${
+                  !stock ? "opacity-50" : ""
+                }`}
               >
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_72%_18%,rgba(168,85,247,0.20),transparent_34%),radial-gradient(circle_at_50%_100%,rgba(37,99,235,0.16),transparent_42%)] opacity-0 transition group-hover:opacity-100" />
-                {active && (
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_62%,rgba(168,85,247,0.36),transparent_40%)]" />
-                )}
-
                 {isBest ? (
-                  <span className={`absolute right-0 top-0 inline-flex items-center gap-1 rounded-bl-xl rounded-tr-[21px] px-3 py-2 text-[11px] font-bold ${theme.activeBadge}`}>
+                  <span className={`absolute right-0 top-0 z-10 inline-flex items-center gap-1 rounded-bl-xl rounded-tr-[21px] px-3 py-2 text-[11px] font-bold ${theme.activeBadge}`}>
                     <Star className="h-3.5 w-3.5" />
                     Ən sərfəli
                   </span>
                 ) : discountPct != null ? (
-                  <span className="absolute right-4 top-4 rounded-full bg-violet-600/45 px-3 py-1 text-xs font-bold text-violet-50">
+                  <span className="absolute right-3 top-3 z-10 rounded-full bg-violet-600/45 px-3 py-1 text-xs font-bold text-violet-50">
                     -%{discountPct}
                   </span>
                 ) : null}
 
-                <div className="relative flex h-full flex-col justify-between gap-4">
-                  <div className="flex items-end gap-2">
-                    <span className={`text-6xl font-black leading-none ${active ? "text-blue-200 drop-shadow-[0_0_16px_rgba(147,197,253,0.65)]" : "text-violet-300 drop-shadow-[0_0_14px_rgba(168,85,247,0.45)]"}`}>
+                <div className="relative aspect-square w-full overflow-hidden rounded-[16px] border border-white/10 bg-black">
+                  {x.p.imageUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={x.p.imageUrl}
+                      alt={x.p.title}
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className={`absolute inset-0 bg-gradient-to-br ${theme.logoGradient}`} />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                  <div className="absolute bottom-3 left-3 flex items-end gap-1.5">
+                    <span className="text-4xl font-black leading-none text-white drop-shadow">
                       {x.m.durationMonths}
                     </span>
-                    <span className="pb-2 text-xl font-medium text-violet-100">ay</span>
+                    <span className="pb-1 text-sm font-medium text-zinc-200">ay</span>
                   </div>
-
-                  <div>
-                    <div className="flex flex-wrap items-baseline gap-2">
-                      {x.m.originalPriceAznCents != null && x.m.originalPriceAznCents > x.p.priceAznCents && (
-                        <span className="text-sm font-medium text-zinc-500 line-through tabular-nums">
-                          {formatAzn(x.m.originalPriceAznCents)}
-                        </span>
-                      )}
-                      <span className="text-3xl font-black text-white tabular-nums">
-                        {formatAzn(x.p.priceAznCents)}
-                      </span>
-                      <span className="text-sm font-semibold text-zinc-300">AZN</span>
-                    </div>
-                    <div className="mt-3 border-t border-white/10 pt-3">
-                      <p className="text-sm text-zinc-400">
-                        Aylıq: <span className="font-semibold text-zinc-100 tabular-nums">{perMonth.toFixed(2)} ₼</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${
-                      active
-                        ? `${theme.checkGlow} border-transparent`
-                        : "border-violet-400 text-violet-300"
-                    }`}
-                  >
-                    <Check className="h-4 w-4" />
-                  </span>
                 </div>
-              </button>
+
+                <div className="mt-3 flex flex-1 flex-col">
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    {x.m.originalPriceAznCents != null && x.m.originalPriceAznCents > x.p.priceAznCents && (
+                      <span className="text-sm font-medium text-zinc-500 line-through tabular-nums">
+                        {formatAzn(x.m.originalPriceAznCents)}
+                      </span>
+                    )}
+                    <span className="text-2xl font-black text-white tabular-nums">
+                      {formatAzn(x.p.priceAznCents)}
+                    </span>
+                    <span className="text-sm font-semibold text-zinc-300">AZN</span>
+                  </div>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    Aylıq: <span className="font-semibold text-zinc-100 tabular-nums">{perMonth.toFixed(2)} ₼</span>
+                  </p>
+
+                  <div className="mt-3 flex">
+                    <PlanAddButton
+                      product={x.p}
+                      meta={x.m}
+                      theme={theme}
+                      productType={productType}
+                      authMode={authMode}
+                      platformKind={platformKind}
+                    />
+                  </div>
+                </div>
+              </div>
             );
           })}
         </div>
       </section>
-
-      {selected && (
-        <SelectedSummary
-          product={selected.p}
-          meta={selected.m}
-          theme={theme}
-          fallbackImageUrl={heroImage}
-        />
-      )}
 
       {seatInfoOpen != null && SEAT_INFO[seatInfoOpen] && (
         <div
@@ -462,20 +466,20 @@ export default function StreamingPlanPicker({
 function ServiceOverview({
   service,
   theme,
-  selected,
+  seats,
+  vpnRequired,
+  deliveryLabel,
   devices,
   imageUrl,
 }: {
   service: ServiceDisplay;
   theme: ServiceTheme;
-  selected: EnrichedPlan | undefined;
+  seats: number;
+  vpnRequired: boolean;
+  deliveryLabel: string;
   devices: string[];
   imageUrl: string | null;
 }) {
-  const seats = selected?.m.seats ?? 1;
-  const vpnRequired = selected?.m.vpnRequired ?? false;
-  const deliveryLabel = selected?.m.deliveryMode === "GMAIL" ? "Gmail aktivləşmə" : "Tez çatdırılma";
-
   return (
     <section
       className={`relative overflow-hidden rounded-[28px] border ${theme.accentBorder} bg-zinc-950/85 p-4 shadow-2xl sm:p-5 lg:p-6`}
@@ -485,7 +489,7 @@ function ServiceOverview({
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
 
       <div className="relative grid gap-6 lg:grid-cols-[minmax(280px,0.85fr)_1.15fr] lg:items-center">
-        <div className="relative min-h-[245px] overflow-hidden rounded-[22px] border border-white/10 bg-black sm:min-h-[280px] lg:min-h-[300px]">
+        <div className="relative aspect-square overflow-hidden rounded-[22px] border border-white/10 bg-black">
           {imageUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
@@ -571,53 +575,75 @@ function FeatureTile({ Icon, label }: { Icon: LucideIcon; label: string }) {
   );
 }
 
-function SelectedSummary({
+function PlanAddButton({
   product,
   meta,
   theme,
-  fallbackImageUrl,
+  productType,
+  authMode,
+  platformKind,
 }: {
   product: PlanProduct;
   meta: Meta;
   theme: ServiceTheme;
-  fallbackImageUrl: string | null | undefined;
+  productType: string;
+  authMode?: "GMAIL" | "GMAIL_PASSWORD";
+  platformKind?: string;
 }) {
   const cart = useCart();
   const stock = inStock();
-  const inCart = cart.hydrated && cart.has(product.id);
+  const qty = cart.hydrated ? cart.items.find((i) => i.id === product.id)?.qty ?? 0 : 0;
+  const inCart = qty > 0;
   const finalAzn = product.priceAznCents / 100;
-  const orig = meta.originalPriceAznCents != null ? meta.originalPriceAznCents / 100 : null;
-  const summaryImage = product.imageUrl || fallbackImageUrl;
+
+  const needsAuth = authMode === "GMAIL" || authMode === "GMAIL_PASSWORD" || meta.deliveryMode === "GMAIL";
+  const needsPassword = authMode === "GMAIL_PASSWORD";
 
   const [showGmail, setShowGmail] = useState(false);
   const [gmail, setGmail] = useState("");
+  const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
-  const [justAdded, setJustAdded] = useState(false);
 
-  function addToCart(extraGmail?: string) {
+  function addToCart(details?: { gmail: string; password?: string }) {
+    const streaming = details
+      ? {
+          gmail: details.gmail,
+          ...(details.password ? { password: details.password } : {}),
+          ...(platformKind ? { platformKind } : {}),
+        }
+      : undefined;
     cart.add({
       id: product.id,
       title: product.title,
       imageUrl: product.imageUrl,
       finalAzn,
-      productType: "STREAMING",
-      ...(extraGmail ? { streaming: { gmail: extraGmail } } : {}),
+      productType,
+      ...(streaming ? { streaming } : {}),
     });
-    if (extraGmail) cart.updateStreaming(product.id, { gmail: extraGmail });
+    if (streaming) cart.updateStreaming(product.id, streaming);
     setShowGmail(false);
     setGmail("");
+    setPassword("");
     setErr(null);
-    setJustAdded(true);
-    setTimeout(() => setJustAdded(false), 1500);
   }
 
-  function handleClick() {
-    if (inCart || !stock) return;
-    if (meta.deliveryMode === "GMAIL") {
+  function handleAdd() {
+    if (!stock) return;
+    if (needsAuth) {
       setShowGmail(true);
       return;
     }
     addToCart();
+  }
+
+  function increment() {
+    if (!stock) return;
+    cart.setQty(product.id, qty + 1);
+  }
+
+  function decrement() {
+    // qty 1-dən aşağı düşəndə məhsul səbətdən çıxarılır (geri alma).
+    cart.setQty(product.id, qty - 1);
   }
 
   function submitGmail(e: FormEvent) {
@@ -628,112 +654,76 @@ function SelectedSummary({
       setErr(v);
       return;
     }
-    addToCart(trimmed);
+    if (needsPassword && (!password || password.length < 4)) {
+      setErr("Hesab şifrəsini daxil edin (ən az 4 simvol).");
+      return;
+    }
+    addToCart({ gmail: trimmed, password: needsPassword ? password : undefined });
   }
 
   return (
-    <section className={`relative overflow-hidden rounded-[28px] border ${theme.accentBorder} bg-[#050509]/95 p-4 sm:p-5`} aria-label="Seçilmiş plan">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_18%,rgba(124,58,237,0.24),transparent_34%),radial-gradient(circle_at_72%_78%,rgba(37,99,235,0.14),transparent_44%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.025] via-transparent to-violet-500/[0.05]" />
-      <div className="relative grid gap-5 lg:grid-cols-[160px_minmax(0,1fr)_220px_300px] lg:items-center">
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[20px] border border-white/10 bg-zinc-900">
-          {summaryImage ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={summaryImage}
-              alt={product.title}
-              loading="lazy"
-              className={`absolute inset-0 h-full w-full object-cover ${stock ? "" : "grayscale"}`}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <TvIcon className="h-10 w-10 text-zinc-700" />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent" />
+    <>
+      {!stock ? (
+        <div className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-zinc-800 px-3 text-xs font-black text-zinc-500">
+          Stokda yoxdur
         </div>
-
-        <div className="min-w-0">
-          <p className={`text-sm font-bold ${theme.accentText}`}>Seçilmiş plan</p>
-          <h3 className="mt-2 text-3xl font-black leading-tight text-white">{product.title}</h3>
-          <p className="mt-2 text-sm text-zinc-400">
-            {meta.durationMonths} ay · {meta.seats} nəfər
-            {meta.deliveryMode === "GMAIL" && " · Gmail-ə qoşulma"}
-          </p>
-        </div>
-
-        <div className="border-white/10 lg:border-l lg:pl-9">
-          <p className="text-sm text-zinc-400">Ümumi məbləğ</p>
-          <div className="mt-1 flex flex-wrap items-baseline gap-2">
-            {orig != null && orig > finalAzn && (
-              <span className="text-sm text-zinc-500 line-through tabular-nums">{orig.toFixed(2)} ₼</span>
-            )}
-            <span className="text-5xl font-black leading-none text-white tabular-nums">{finalAzn.toFixed(2)}</span>
-            <span className="text-2xl font-black text-violet-400">AZN</span>
-          </div>
-        </div>
-
-        <div className="flex flex-col items-stretch gap-3 lg:items-end">
+      ) : inCart ? (
+        <div className="inline-flex h-11 w-full items-center justify-between gap-2 rounded-2xl border border-emerald-400/40 bg-emerald-500/15 px-2">
           <button
             type="button"
-            onClick={handleClick}
-            disabled={inCart || !stock}
-            className={`group inline-flex min-h-14 w-full items-center justify-center gap-4 rounded-full px-6 py-3 text-base font-bold text-white shadow-[0_14px_35px_rgba(37,99,235,0.28)] transition lg:w-[270px] ${
-              !stock
-                ? "cursor-not-allowed bg-zinc-800 text-zinc-500 shadow-none"
-                : inCart || justAdded
-                  ? "border border-emerald-400/40 bg-emerald-500/15 text-emerald-100 shadow-none"
-                  : `bg-gradient-to-r ${theme.cta}`
-            }`}
+            onClick={(event) => {
+              event.stopPropagation();
+              decrement();
+            }}
+            aria-label={qty <= 1 ? `${product.title} səbətdən çıxar` : "Sayı azalt"}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-100 transition hover:bg-emerald-500/40"
           >
-            {!stock ? (
-              "Stokda yoxdur"
-            ) : inCart || justAdded ? (
-              <>
-                <CheckCircle2 className="h-5 w-5" /> Səbətdədir
-              </>
-            ) : (
-              <>
-                <Plus className="h-5 w-5" /> Səbətə əlavə et
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/20 transition group-hover:translate-x-0.5">
-                  <ChevronRight className="h-5 w-5" />
-                </span>
-              </>
-            )}
+            {qty <= 1 ? <Trash2 className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
           </button>
-          <p className="flex items-center justify-center gap-2 text-xs text-zinc-500 lg:justify-end">
-            <LockKeyhole className="h-3.5 w-3.5" />
-            Təhlükəsiz ödəniş
-          </p>
+          <span className="min-w-0 flex-1 text-center text-sm font-black tabular-nums text-emerald-50">
+            {qty}
+          </span>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              increment();
+            }}
+            aria-label="Sayı artır"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-100 transition hover:bg-emerald-500/40"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
-      </div>
-
-      <div className="relative mt-5 grid gap-3 rounded-2xl border border-white/10 bg-black/25 p-4 md:grid-cols-3">
-        <SummaryBenefit
-          Icon={Sparkles}
-          title="Dərhal çatdırılma"
-          text="Ödənişdən sonra məlumatların çatdırılması"
-        />
-        <SummaryBenefit
-          Icon={ShieldCheck}
-          title="100% təhlükəsiz ödəniş"
-          text="Məlumatların qorunması təmin olunur"
-        />
-        <SummaryBenefit
-          Icon={Headphones}
-          title="24/7 dəstək"
-          text="Sualların üçün hər zaman buradayıq"
-        />
-      </div>
+      ) : (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            handleAdd();
+          }}
+          aria-label={`${product.title} səbətə əlavə et`}
+          className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl px-3 text-xs font-black text-white shadow-[0_12px_30px_-18px_rgba(37,99,235,0.75)] transition bg-gradient-to-r ${theme.cta} hover:shadow-[0_14px_34px_-18px_rgba(168,85,247,0.95)]`}
+        >
+          <ShoppingCart className="h-4 w-4 shrink-0" />
+          <span className="truncate">Səbətə əlavə et</span>
+        </button>
+      )}
 
       {showGmail && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={(event) => event.stopPropagation()}
+        >
           <form
             onSubmit={submitGmail}
+            onClick={(event) => event.stopPropagation()}
             className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl"
           >
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-base font-bold text-white">Gmail ünvanı</h3>
+              <h3 className="text-base font-bold text-white">
+                {needsPassword ? "Hesab məlumatları" : "Gmail ünvanı"}
+              </h3>
               <button
                 type="button"
                 onClick={() => setShowGmail(false)}
@@ -744,7 +734,9 @@ function SelectedSummary({
               </button>
             </div>
             <p className="mb-3 text-xs leading-relaxed text-zinc-400">
-              Abunəlik bu Gmail hesabına qoşulacaq. Sifariş zamanı dəqiqləşdir.
+              {needsPassword
+                ? "Abunəlik bu Gmail hesabına qoşulacaq — admin hesaba giriş edib abunəliyi aktivləşdirir. Sifariş zamanı dəqiqləşdir."
+                : "Abunəlik bu Gmail hesabına qoşulacaq. Sifariş zamanı dəqiqləşdir."}
             </p>
             <input
               value={gmail}
@@ -754,6 +746,15 @@ function SelectedSummary({
               autoFocus
               className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
             />
+            {needsPassword && (
+              <input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type="text"
+                placeholder="Hesab şifrəsi"
+                className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
+              />
+            )}
             {err && <p className="mt-2 text-xs text-rose-300">{err}</p>}
             <div className="mt-4 flex justify-end gap-3">
               <button
@@ -765,34 +766,15 @@ function SelectedSummary({
               </button>
               <button
                 type="submit"
-                className={`rounded-xl bg-gradient-to-r ${theme.cta} px-4 py-2 text-sm font-bold text-white`}
+                className={`inline-flex items-center gap-2 rounded-xl bg-gradient-to-r ${theme.cta} px-4 py-2 text-sm font-bold text-white`}
               >
+                <ShoppingCart className="h-4 w-4" />
                 Səbətə əlavə et
               </button>
             </div>
           </form>
         </div>
       )}
-    </section>
-  );
-}
-
-function SummaryBenefit({
-  Icon,
-  title,
-  text,
-}: {
-  Icon: LucideIcon;
-  title: string;
-  text: string;
-}) {
-  return (
-    <div className="flex items-center gap-3 border-white/10 text-sm md:border-r md:pr-3 md:last:border-r-0">
-      <Icon className="h-7 w-7 shrink-0 text-violet-300" />
-      <div>
-        <p className="font-semibold text-white">{title}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">{text}</p>
-      </div>
-    </div>
+    </>
   );
 }

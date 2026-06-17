@@ -63,6 +63,12 @@ type StreamingBody = {
   password?: string;
 };
 
+/** Çoxhesablı PLATFORM planları (Spotify Duo/Family) üçün bir hesab cütü. */
+type PlatformAccount = {
+  email: string;
+  password: string;
+};
+
 type EpicAccountBody = {
   firstName: string;
   lastName: string;
@@ -116,6 +122,42 @@ function parseStreamingBody(
     ok: true,
     value: password ? { gmail, password } : { gmail },
   };
+}
+
+/**
+ * Çoxhesablı PLATFORM planları (Spotify Duo/Family) üçün `streaming.accounts`
+ * massivini validasiya edir: tam olaraq `slots` ədəd email+şifrə cütü, hər email
+ * etibarlı, hər şifrə ən az 4 simvol.
+ */
+function parsePlatformAccounts(
+  raw: unknown,
+  slots: number,
+):
+  | { ok: true; value: PlatformAccount[] }
+  | { ok: false; error: string } {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+  const rawAccounts = o && Array.isArray(o.accounts) ? o.accounts : null;
+  if (!rawAccounts || rawAccounts.length !== slots) {
+    return {
+      ok: false,
+      error: `Bu plan üçün ${slots} hesab (email və şifrə) tələb olunur.`,
+    };
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const value: PlatformAccount[] = [];
+  for (let i = 0; i < rawAccounts.length; i++) {
+    const a = rawAccounts[i] as Record<string, unknown> | null;
+    const email = a && typeof a.email === "string" ? a.email.trim().toLowerCase() : "";
+    const password = a && typeof a.password === "string" ? a.password : "";
+    if (!email || !emailRegex.test(email)) {
+      return { ok: false, error: `${i + 1}-ci hesab üçün etibarlı email tələb olunur.` };
+    }
+    if (!password || password.length < 4) {
+      return { ok: false, error: `${i + 1}-ci hesab üçün şifrə tələb olunur (ən az 4 simvol).` };
+    }
+    value.push({ email, password });
+  }
+  return { ok: true, value };
 }
 
 function parseAccountCreationBody(raw: unknown):
@@ -238,6 +280,7 @@ export async function POST(req: Request) {
             "PS_PLUS",
             "EA_PLAY",
             "TRY_BALANCE",
+            "POINT_BLANK_TG",
             "ACCOUNT_CREATION",
             "EPIC_ACCOUNT_CREATION",
             "STREAMING",
@@ -264,6 +307,16 @@ export async function POST(req: Request) {
       }
     | {
         kind: "TRY_BALANCE";
+        service: ServiceModel;
+        qty: number;
+        unitListCents: number;
+        unitCostCents: number;
+        lineCents: number;
+      }
+    | {
+        // Point Blank TG (e-pin kod stoku + manual fallback). TRY_BALANCE ilə
+        // eyni kod-çatdırılma məntiqi, fəqət PSN hesabı tələb etmir.
+        kind: "POINT_BLANK";
         service: ServiceModel;
         qty: number;
         unitListCents: number;
@@ -325,6 +378,8 @@ export async function POST(req: Request) {
         gmail?: string;
         /** YouTube Premium üçün müştəri Gmail şifrəsi. */
         password?: string;
+        /** Çoxhesablı planlar (Spotify Duo/Family) üçün N hesab cütü. */
+        accounts?: PlatformAccount[];
       }
     | {
         kind: "HONSELL_GIFT_CARD";
@@ -436,6 +491,18 @@ export async function POST(req: Request) {
       continue;
     }
 
+    if (service.type === "POINT_BLANK_TG") {
+      lines.push({
+        kind: "POINT_BLANK",
+        service,
+        qty: p.qty,
+        unitListCents: service.priceAznCents,
+        unitCostCents: service.priceAznCents,
+        lineCents: service.priceAznCents * p.qty,
+      });
+      continue;
+    }
+
     if (service.type === "PS_PLUS") {
       lines.push({
         kind: "PS_PLUS",
@@ -525,13 +592,24 @@ export async function POST(req: Request) {
       const category = String(platformMeta.category ?? "");
       const musicBrand = String(platformMeta.musicBrand ?? "");
       const planType = String(platformMeta.planType ?? "");
+      const accountSlotsRaw = Number(platformMeta.accountSlots);
+      const accountSlots =
+        Number.isInteger(accountSlotsRaw) && accountSlotsRaw >= 1 ? accountSlotsRaw : 0;
       const isYoutube = category === "MUSIC" && musicBrand === "YOUTUBE_PREMIUM";
       const isLinkedIn = category === "WORK" && (planType === "CAREER" || planType === "BUSINESS");
       const requiresCredentials = isYoutube || isLinkedIn;
 
       let gmail: string | undefined;
       let password: string | undefined;
-      if (requiresCredentials) {
+      let accounts: PlatformAccount[] | undefined;
+      if (accountSlots >= 1) {
+        // Çoxhesablı plan (Spotify Individual/Duo/Family) — N hesab cütü tələb olunur.
+        const parsed = parsePlatformAccounts(p.streaming, accountSlots);
+        if (!parsed.ok) {
+          return NextResponse.json({ error: parsed.error }, { status: 400 });
+        }
+        accounts = parsed.value;
+      } else if (requiresCredentials) {
         const parsed = parseStreamingBody(p.streaming, {
           allowAnyEmail: isLinkedIn,
           emailLabel: isLinkedIn ? "LinkedIn email ünvanı" : "Gmail ünvanı",
@@ -562,6 +640,7 @@ export async function POST(req: Request) {
         lineCents: service.priceAznCents * p.qty,
         gmail,
         password,
+        accounts,
       });
       continue;
     }
@@ -723,6 +802,16 @@ export async function POST(req: Request) {
         };
       }
 
+      if (line.kind === "POINT_BLANK") {
+        return {
+          kind: "POINT_BLANK",
+          title: line.service.title,
+          qty: line.qty,
+          serviceProductId: line.service.id,
+          unitListCents: line.unitListCents,
+        };
+      }
+
       if (line.kind === "PS_PLUS") {
         return {
           kind: "PS_PLUS",
@@ -818,6 +907,7 @@ export async function POST(req: Request) {
         durationMonths: Number(platformMeta.durationMonths) || null,
         gmail: line.gmail,
         password: line.password,
+        accounts: line.accounts,
       };
     });
 
@@ -1057,6 +1147,8 @@ export async function POST(req: Request) {
       let cashbackCents = 0;
       let tryBalancePendingCount = 0;
       let tryBalanceDeliveredCount = 0;
+      let pointBlankPendingCount = 0;
+      let pointBlankDeliveredCount = 0;
       const productGiftsIssued: {
         code: string;
         title: string;
@@ -1152,6 +1244,82 @@ export async function POST(req: Request) {
               });
               serviceOrderIds.push(serviceOrder.id);
               tryBalanceDeliveredCount += 1;
+
+              const cm = await awardStreamingReferralCommission(tx, {
+                sourceTransactionId: serviceOrder.id,
+                buyerUserId: user.id,
+                serviceProductId: line.service.id,
+                lineCents: line.unitListCents,
+                target: { type: "GIFT_CARDS" },
+                kind: "TRY_BALANCE",
+              });
+              if (cm) {
+                totalCommissionCents += cm.commissionCents;
+                referredByForTierCheck.add(cm.referredById);
+              }
+
+              try {
+                await recordPurchaseSpend(tx, user.id, line.unitListCents);
+                if (cm?.referredById) {
+                  await recordSuccessfulInvite(tx, cm.referredById, user.id);
+                }
+              } catch (err) {
+                console.error("referral cycle bookkeeping failed", err);
+              }
+            }
+          } else if (line.kind === "POINT_BLANK") {
+            // Point Blank TG — stokda e-pin kod varsa dərhal təhvil (SUCCESS),
+            // yoxdursa PENDING sifariş yaranır və admin /admin/orders-dən manual
+            // təhvil verir. PSN hesabı tələb olunmur.
+            const sc = await tx.serviceCode.findFirst({
+              where: { serviceProductId: line.service.id, isUsed: false },
+              orderBy: { createdAt: "asc" },
+            });
+            if (!sc) {
+              const serviceOrder = await tx.transaction.create({
+                data: {
+                  userId: user.id,
+                  type: "SERVICE_PURCHASE",
+                  status: "PENDING",
+                  amountAznCents: -line.unitListCents,
+                  serviceProductId: line.service.id,
+                  psnAccountId: null,
+                  metadata: JSON.stringify({
+                    fromCart: true,
+                    kind: "POINT_BLANK_TG",
+                    reason: "OUT_OF_STOCK",
+                    paymentSource: payTag,
+                    orderCode,
+                  }),
+                },
+              });
+              serviceOrderIds.push(serviceOrder.id);
+              pointBlankPendingCount += 1;
+            } else {
+              await tx.serviceCode.update({
+                where: { id: sc.id },
+                data: { isUsed: true },
+              });
+
+              const serviceOrder = await tx.transaction.create({
+                data: {
+                  userId: user.id,
+                  type: "SERVICE_PURCHASE",
+                  status: "SUCCESS",
+                  amountAznCents: -line.unitListCents,
+                  serviceProductId: line.service.id,
+                  serviceCodeId: sc.id,
+                  psnAccountId: null,
+                  metadata: JSON.stringify({
+                    fromCart: true,
+                    kind: "POINT_BLANK_TG",
+                    paymentSource: payTag,
+                    orderCode,
+                  }),
+                },
+              });
+              serviceOrderIds.push(serviceOrder.id);
+              pointBlankDeliveredCount += 1;
 
               const cm = await awardStreamingReferralCommission(tx, {
                 sourceTransactionId: serviceOrder.id,
@@ -1342,6 +1510,7 @@ export async function POST(req: Request) {
                   orderCode,
                   ...(line.gmail ? { gmail: line.gmail } : {}),
                   ...(line.password ? { customerPassword: line.password } : {}),
+                  ...(line.accounts?.length ? { accounts: line.accounts } : {}),
                 }),
               },
             });
@@ -1432,6 +1601,8 @@ export async function POST(req: Request) {
         cashbackCents,
         tryBalancePendingCount,
         tryBalanceDeliveredCount,
+        pointBlankPendingCount,
+        pointBlankDeliveredCount,
         orderCode,
         referredByForTierCheck: Array.from(referredByForTierCheck),
         honsellGiftCardsIssued,
@@ -1468,6 +1639,8 @@ export async function POST(req: Request) {
 
   const hasTryBalance = lines.some((l) => l.kind === "TRY_BALANCE");
   const tryBalancePendingCount = Number(result.tryBalancePendingCount ?? 0);
+  const hasPointBlank = lines.some((l) => l.kind === "POINT_BLANK");
+  const pointBlankPendingCount = Number(result.pointBlankPendingCount ?? 0);
   const hasStreaming = lines.some((l) => l.kind === "STREAMING");
 
   const productGiftsIssued = result.productGiftsIssued ?? [];
@@ -1526,6 +1699,8 @@ export async function POST(req: Request) {
     orderCode: result.orderCode as string,
     hasTryBalance,
     tryBalancePendingCount,
+    hasPointBlank,
+    pointBlankPendingCount,
     paymentSourceUsed: paymentSource,
     purchaseCount: result.purchaseIds.length + result.serviceOrderIds.length,
     paidAzn: totalCents / 100,

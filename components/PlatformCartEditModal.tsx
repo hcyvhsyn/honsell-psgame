@@ -38,10 +38,17 @@ export default function PlatformCartEditModal({
 }) {
   const { updateStreaming } = useCart();
   const s = item.streaming;
+  const isMultiAccount = Boolean(s?.accounts?.length);
   const [email, setEmail] = useState(s?.gmail ?? "");
   const [password, setPassword] = useState(s?.password ?? "");
   const [showPassword, setShowPassword] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState(
+    s?.accounts?.map((a) => ({ email: a.email, password: a.password })) ?? [],
+  );
+  const [showAccountPw, setShowAccountPw] = useState<boolean[]>(
+    (s?.accounts ?? []).map(() => false),
+  );
 
   const labels = labelsFor(s?.platformKind);
 
@@ -60,9 +67,35 @@ export default function PlatformCartEditModal({
 
   if (!open || item.productType !== "PLATFORM") return null;
 
+  function patchAccount(i: number, key: "email" | "password", value: string) {
+    setAccounts((prev) => prev.map((a, idx) => (idx === i ? { ...a, [key]: value } : a)));
+    if (err) setErr(null);
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
+
+    if (isMultiAccount) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const cleaned: { email: string; password: string }[] = [];
+      for (let i = 0; i < accounts.length; i++) {
+        const clean = accounts[i].email.trim().toLowerCase();
+        if (!clean || !emailRegex.test(clean)) {
+          setErr(`${i + 1}-ci hesab üçün düzgün email daxil et.`);
+          return;
+        }
+        if (!accounts[i].password || accounts[i].password.length < 4) {
+          setErr(`${i + 1}-ci hesab üçün şifrə daxil et (ən az 4 simvol).`);
+          return;
+        }
+        cleaned.push({ email: clean, password: accounts[i].password });
+      }
+      updateStreaming(item.id, { accounts: cleaned, platformKind: s?.platformKind });
+      onClose();
+      return;
+    }
+
     const clean = email.trim().toLowerCase();
     if (!clean || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) {
       setErr("Düzgün email ünvanı daxil et.");
@@ -132,6 +165,54 @@ export default function PlatformCartEditModal({
             Məlumatlar ödənişə qədər burada yenilənə bilər — serverə yalnız &ldquo;Ödə&rdquo; düyməsində göndəriləcək.
           </p>
 
+          {isMultiAccount ? (
+            accounts.map((acc, i) => (
+              <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-fuchsia-300">
+                  Hesab {i + 1}
+                </p>
+                <label className="block text-sm text-zinc-300">
+                  Email
+                  <div className="relative mt-1.5">
+                    <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-fuchsia-300" />
+                    <input
+                      type="email"
+                      autoComplete="off"
+                      value={acc.email}
+                      onChange={(e) => patchAccount(i, "email", e.target.value)}
+                      placeholder="hesab@example.com"
+                      className="h-12 w-full rounded-xl border border-zinc-800 bg-zinc-900 pl-12 pr-4 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-fuchsia-500"
+                    />
+                  </div>
+                </label>
+                <label className="mt-3 block text-sm text-zinc-300">
+                  Şifrə
+                  <div className="relative mt-1.5">
+                    <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-fuchsia-300" />
+                    <input
+                      type={showAccountPw[i] ? "text" : "password"}
+                      autoComplete="off"
+                      value={acc.password}
+                      onChange={(e) => patchAccount(i, "password", e.target.value)}
+                      placeholder="Hesab şifrəsi"
+                      className="h-12 w-full rounded-xl border border-zinc-800 bg-zinc-900 pl-12 pr-12 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-fuchsia-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowAccountPw((prev) => prev.map((v, idx) => (idx === i ? !v : v)))
+                      }
+                      className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-500 hover:bg-white/10 hover:text-zinc-200"
+                      aria-label={showAccountPw[i] ? "Şifrəni gizlət" : "Şifrəni göstər"}
+                    >
+                      {showAccountPw[i] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </label>
+              </div>
+            ))
+          ) : (
+          <>
           <label className="block text-sm text-zinc-300">
             {labels.emailLabel}
             <div className="relative mt-1.5">
@@ -175,6 +256,8 @@ export default function PlatformCartEditModal({
               </button>
             </div>
           </label>
+          </>
+          )}
 
           {err && (
             <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">

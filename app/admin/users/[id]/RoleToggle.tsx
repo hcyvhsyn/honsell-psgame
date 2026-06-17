@@ -56,8 +56,8 @@ export default function RoleToggle({
         disabled={pending}
         className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ring-1 transition disabled:opacity-50 ${
           isAdmin
-            ? "bg-rose-500/10 text-rose-300 ring-rose-500/30 hover:bg-rose-500/20"
-            : "bg-indigo-500/10 text-indigo-300 ring-indigo-500/30 hover:bg-indigo-500/20"
+            ? "bg-rose-500/10 text-rose-700 ring-rose-500/30 hover:bg-rose-500/20"
+            : "bg-violet-500/10 text-violet-700 ring-violet-500/30 hover:bg-violet-500/20"
         }`}
       >
         {isAdmin ? (
@@ -72,7 +72,7 @@ export default function RoleToggle({
           </>
         )}
       </button>
-      {error && <span className="text-xs text-rose-300">{error}</span>}
+      {error && <span className="text-xs text-rose-700">{error}</span>}
     </div>
   );
 }

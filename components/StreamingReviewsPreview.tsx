@@ -39,7 +39,7 @@ export default async function StreamingReviewsPreview({
           Hələ heç bir icmal yoxdur. İlk icmal yazan sən ol!
         </p>
         <Link
-          href="/streaming/icmallar"
+          href="/icma?tab=icmallar"
           className="mt-4 inline-flex items-center gap-1 rounded-full bg-white px-5 py-2 text-sm font-bold text-zinc-900 hover:bg-zinc-100"
         >
           İcmal yaz <ArrowRight className="h-4 w-4" />
@@ -61,7 +61,7 @@ export default async function StreamingReviewsPreview({
           return (
             <li key={r.id}>
               <Link
-                href={`/streaming/icmallar#r-${r.id}`}
+                href={`/icma?tab=icmallar#r-${r.id}`}
                 className="group block overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 transition hover:border-white/20"
               >
                 <div className="grid gap-4 p-4 sm:grid-cols-[100px_minmax(0,1fr)] sm:gap-5 sm:p-5">
@@ -138,7 +138,7 @@ export default async function StreamingReviewsPreview({
 
       <div className="flex justify-center">
         <Link
-          href={service ? `/streaming/icmallar?service=${service}` : "/streaming/icmallar"}
+          href={service ? `/icma?tab=icmallar&service=${service}` : "/icma?tab=icmallar"}
           className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
         >
           Bütün icmallara bax <ArrowRight className="h-4 w-4" />

@@ -215,6 +215,44 @@ export default async function OrdersPage() {
                   } catch {
                     rawMeta = null;
                   }
+                  if (rawMeta?.kind !== "PLATFORM" || !Array.isArray(rawMeta?.accounts)) return null;
+                  const accounts = (rawMeta.accounts as unknown[])
+                    .map((a) => {
+                      const o = a && typeof a === "object" ? (a as Record<string, unknown>) : null;
+                      return {
+                        email: o && typeof o.email === "string" ? o.email : "",
+                        password: o && typeof o.password === "string" ? o.password : "",
+                      };
+                    })
+                    .filter((a) => a.email);
+                  if (accounts.length === 0) return null;
+                  return (
+                    <div className="mt-2 space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                        Hesablar (admin abunəlik qoşacaq)
+                      </div>
+                      {accounts.map((acc, idx) => (
+                        <div key={idx} className="space-y-1 border-l-2 border-emerald-500/40 pl-2">
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300/80">
+                            Hesab {idx + 1}
+                          </div>
+                          <CopyableField label="Email" value={acc.email} />
+                          {acc.password && (
+                            <CopyableField label="Şifrə" value={acc.password} masked mono />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+                {(() => {
+                  if (r.type !== "SERVICE_PURCHASE") return null;
+                  let rawMeta: Record<string, unknown> | null = null;
+                  try {
+                    rawMeta = r.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : null;
+                  } catch {
+                    rawMeta = null;
+                  }
                   const code = typeof rawMeta?.honsellGiftCardCode === "string"
                     ? (rawMeta.honsellGiftCardCode as string)
                     : null;

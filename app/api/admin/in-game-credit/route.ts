@@ -61,6 +61,11 @@ export async function GET(req: Request) {
   const products = await prisma.serviceProduct.findMany({
     where: { type },
     orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
+    include: {
+      // Stokda qalan (istifadə olunmamış) e-pin kodlarının sayı — admin paneldə
+      // hər variant üçün "stok" sütununda göstərilir.
+      _count: { select: { codes: { where: { isUsed: false } } } },
+    },
   });
   return NextResponse.json(products);
 }
@@ -92,27 +97,42 @@ export async function POST(req: Request) {
       } = body;
 
       const amt = Number(amount);
-      const tryPriceNum = Number(tryPrice);
       const aznPriceNum = Number(aznPrice);
-      const delivery = String(deliveryMethod ?? "EPIN").toUpperCase();
+      // Point Blank sadələşdirilmiş formdadır: yalnız miqdar + AZN qiymət + şəkil.
+      // TRY maya və çatdırılma üsulu yoxdur (həmişə e-pin kod stoku ilə təhvil).
+      const isPointBlank = type === "POINT_BLANK_TG";
+      const delivery = isPointBlank ? "EPIN" : String(deliveryMethod ?? "EPIN").toUpperCase();
 
       if (!Number.isFinite(amt) || amt <= 0 || !Number.isInteger(amt)) {
         return NextResponse.json({ error: "Miqdar müsbət tam ədəd olmalıdır" }, { status: 400 });
       }
-      if (!Number.isFinite(tryPriceNum) || tryPriceNum <= 0) {
+
+      // TRY maya qiyməti yalnız PUBG UC (və ya dəyər göndərilibsə) üçün tələb olunur.
+      const tryPriceRaw = tryPrice === undefined || tryPrice === null || tryPrice === "" ? null : Number(tryPrice);
+      if (!isPointBlank) {
+        if (tryPriceRaw === null || !Number.isFinite(tryPriceRaw) || tryPriceRaw <= 0) {
+          return NextResponse.json({ error: "TRY (maya) qiyməti düzgün deyil" }, { status: 400 });
+        }
+        if (delivery !== "EPIN" && delivery !== "ID_TOPUP") {
+          return NextResponse.json({ error: "Çatdırılma üsulu düzgün deyil" }, { status: 400 });
+        }
+      } else if (tryPriceRaw !== null && (!Number.isFinite(tryPriceRaw) || tryPriceRaw < 0)) {
         return NextResponse.json({ error: "TRY (maya) qiyməti düzgün deyil" }, { status: 400 });
       }
+
       if (!Number.isFinite(aznPriceNum) || aznPriceNum <= 0) {
         return NextResponse.json({ error: "AZN satış qiyməti düzgün deyil" }, { status: 400 });
       }
-      if (delivery !== "EPIN" && delivery !== "ID_TOPUP") {
-        return NextResponse.json({ error: "Çatdırılma üsulu düzgün deyil" }, { status: 400 });
-      }
 
-      const tryPriceCents = Math.round(tryPriceNum * 100);
+      const tryPriceCents = tryPriceRaw !== null ? Math.round(tryPriceRaw * 100) : 0;
       const priceAznCents = Math.round(aznPriceNum * 100);
       const baseTitle = buildTitle(type, amt);
-      const title = delivery === "ID_TOPUP" ? `${baseTitle} (ID yükləmə)` : `${baseTitle} (E-PIN)`;
+      // PB üçün başlıqda E-PIN/ID suffix-i yoxdur — sadə "Point Blank N TG".
+      const title = isPointBlank
+        ? baseTitle
+        : delivery === "ID_TOPUP"
+          ? `${baseTitle} (ID yükləmə)`
+          : `${baseTitle} (E-PIN)`;
 
       const payload = {
         type,
@@ -273,7 +293,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Məhsul tapılmadı" }, { status: 404 });
       }
 
-      await prisma.serviceProduct.delete({ where: { id } });
+      // ServiceCode → ServiceProduct ON DELETE RESTRICT olduğu üçün əvvəlcə bu
+      // variantın bütün kodlarını silirik. İstifadə olunmuş kodlar transaction-dan
+      // ON DELETE SET NULL ilə bağlıdır, ona görə silinə bilir.
+      await prisma.$transaction([
+        prisma.serviceCode.deleteMany({ where: { serviceProductId: id } }),
+        prisma.serviceProduct.delete({ where: { id } }),
+      ]);
       revalidateServices();
       return NextResponse.json({ ok: true });
     }

@@ -105,6 +105,16 @@ export default function AskAiFloat() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  useEffect(() => {
+    function openFromMobileNav() {
+      setOpen(true);
+      setShowTooltip(false);
+    }
+
+    window.addEventListener("honsell:open-ai", openFromMobileNav);
+    return () => window.removeEventListener("honsell:open-ai", openFromMobileNav);
+  }, []);
+
   // Panel açıq olanda: theme toggle-ı gizlə (sağ kənarda üst-üstə düşür) və
   // arxa fon səhifəsinin scroll-unu kilidlə (yalnız panel daxili scroll olsun).
   useEffect(() => {
@@ -214,7 +224,7 @@ export default function AskAiFloat() {
   }
 
   return (
-    <div className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-[calc(1.25rem+env(safe-area-inset-right))] z-[130] flex flex-col items-end gap-3 sm:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] sm:right-[calc(1.5rem+env(safe-area-inset-right))]">
+    <div className="fixed bottom-[calc(6.4rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-[130] flex flex-col items-end gap-3 xl:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] xl:right-[calc(1.5rem+env(safe-area-inset-right))]">
       {/* Söhbət paneli */}
       {open && (
         <div className="flex h-[32rem] max-h-[75vh] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[var(--background)] shadow-2xl shadow-black/40">
@@ -338,7 +348,7 @@ export default function AskAiFloat() {
       )}
 
       {/* Açıcı düymə + tooltip */}
-      <div className="flex items-end gap-2 self-end">
+      <div className="hidden items-end gap-2 self-end xl:flex">
         {!open && (
           <div
             className={`pointer-events-none mb-3 origin-bottom-right rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-lg transition-all duration-300 ${

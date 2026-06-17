@@ -190,7 +190,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   // SUCCESS (approval) flow
   const productType = tx.serviceProduct?.type;
-  if (productType === "TRY_BALANCE") {
+  // POINT_BLANK_TG, TRY_BALANCE ilə eyni e-pin kod təhvili məntiqini paylaşır:
+  // stokda kod varsa ayrılır, yoxdursa admin modal-dan manual kod daxil edir
+  // və müştəriyə email göndərilir.
+  if (productType === "TRY_BALANCE" || productType === "POINT_BLANK_TG") {
     // Admin modal-dan birbaşa kod daxil edə bilər (stokda kod olmadıqda
     // və ya hər halda manual təslim etmək istədikdə). Boşluq/defislər silinir,
     // boş string-dirsə stokdan götürmə axınına düşür.

@@ -62,7 +62,7 @@ export const DEFAULT_AI_KNOWLEDGE: Array<{
     category: "STREAMING",
     sortOrder: 30,
     content:
-      "Hansı film/serialın hansı platformada (Netflix, HBO Max, Prime Video, Gain) olduğunu göstərən katalog: /streaming/katalog. Filmlər: /streaming/filmler, Seriallar: /streaming/seriallar, İcmallar: /streaming/icmallar. Bir başlığın platformasını yalnız kataloq datası təsdiqləyirsə de — təxmin etmə.",
+      "Hansı film/serialın hansı platformada (Netflix, HBO Max, Prime Video, Gain) olduğunu göstərən katalog: /streaming/katalog. Filmlər: /streaming/filmler, Seriallar: /streaming/seriallar, İcmallar (müştəri rəyləri) Honsell İcmasındadır: /icma (İcmallar tabı). Bir başlığın platformasını yalnız kataloq datası təsdiqləyirsə de — təxmin etmə.",
   },
   {
     title: "Hədiyyə kartları",

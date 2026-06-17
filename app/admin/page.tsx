@@ -151,35 +151,35 @@ export default async function AdminDashboard() {
       label: "Cəmi istifadəçi",
       value: totalUsers.toLocaleString(),
       icon: Users,
-      tint: "text-indigo-300 bg-indigo-500/10 ring-indigo-500/30",
+      tint: "text-violet-700 bg-violet-500/10 ring-violet-500/30",
       sub: `${verifiedUsers} təsdiqlənib`,
     },
     {
       label: "Təsdiq gözləyir",
       value: pendingVerifications.toLocaleString(),
       icon: ShieldAlert,
-      tint: "text-amber-300 bg-amber-500/10 ring-amber-500/30",
+      tint: "text-amber-700 bg-amber-500/10 ring-amber-500/30",
       sub: "OTP təsdiqi gözlənilir",
     },
     {
       label: "Ümumi dövriyyə",
       value: fmtAzn(grossRevenue),
       icon: TrendingUp,
-      tint: "text-emerald-300 bg-emerald-500/10 ring-emerald-500/30",
+      tint: "text-emerald-700 bg-emerald-500/10 ring-emerald-500/30",
       sub: `${purchases._count} alış`,
     },
     {
       label: "Depozitlər",
       value: fmtAzn(deposits._sum.amountAznCents),
       icon: Wallet,
-      tint: "text-fuchsia-300 bg-fuchsia-500/10 ring-fuchsia-500/30",
+      tint: "text-fuchsia-700 bg-fuchsia-500/10 ring-fuchsia-500/30",
       sub: `${deposits._count} mədaxil`,
     },
     {
       label: "Cüzdanlardakı qalıq",
       value: fmtAzn(walletAgg._sum.walletBalance),
       icon: ShoppingCart,
-      tint: "text-cyan-300 bg-cyan-500/10 ring-cyan-500/30",
+      tint: "text-cyan-700 bg-cyan-500/10 ring-cyan-500/30",
       sub: "ümumi balans",
     },
   ];
@@ -188,7 +188,7 @@ export default async function AdminDashboard() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold">İdarə paneli</h1>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-zinc-600">
           Mağazanın anlıq vəziyyəti — istifadəçilər, satışlar və mənfəət.
         </p>
       </div>
@@ -197,7 +197,7 @@ export default async function AdminDashboard() {
         {cards.map(({ label, value, icon: Icon, tint, sub }) => (
           <div
             key={label}
-            className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5"
+            className="rounded-xl border border-admin-line bg-admin-card p-5"
           >
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase tracking-wider text-zinc-500">

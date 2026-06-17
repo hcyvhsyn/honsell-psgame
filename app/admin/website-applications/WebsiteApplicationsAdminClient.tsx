@@ -69,12 +69,12 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_TONES: Record<string, string> = {
-  NEW: "bg-blue-500/15 text-blue-300 ring-blue-500/30",
-  CONTACTED: "bg-cyan-500/15 text-cyan-300 ring-cyan-500/30",
-  PRICE_GIVEN: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
-  ACCEPTED: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
-  REJECTED: "bg-rose-500/15 text-rose-300 ring-rose-500/30",
-  COMPLETED: "bg-violet-500/15 text-violet-300 ring-violet-500/30",
+  NEW: "bg-blue-500/15 text-blue-700 ring-blue-500/30",
+  CONTACTED: "bg-cyan-500/15 text-cyan-700 ring-cyan-500/30",
+  PRICE_GIVEN: "bg-amber-500/15 text-amber-700 ring-amber-500/30",
+  ACCEPTED: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30",
+  REJECTED: "bg-rose-500/15 text-rose-700 ring-rose-500/30",
+  COMPLETED: "bg-violet-500/15 text-violet-700 ring-violet-500/30",
 };
 
 const WEBSITE_TYPE_LABELS: Record<string, string> = {
@@ -260,7 +260,7 @@ export default function WebsiteApplicationsAdminClient() {
       title: "Müraciəti sil?",
       message: (
         <p>
-          <span className="font-medium text-zinc-200">«{a.fullName}»</span> tərəfindən
+          <span className="font-medium text-zinc-800">«{a.fullName}»</span> tərəfindən
           göndərilən müraciət silinəcək.
         </p>
       ),
@@ -279,7 +279,7 @@ export default function WebsiteApplicationsAdminClient() {
   if (loading) {
     return (
       <div className="py-20 text-center">
-        <Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" />
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-violet-500" />
       </div>
     );
   }
@@ -302,12 +302,12 @@ export default function WebsiteApplicationsAdminClient() {
               className={[
                 "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
                 active
-                  ? "bg-indigo-500 text-white"
-                  : "bg-zinc-900 text-zinc-300 ring-1 ring-zinc-800 hover:bg-zinc-800",
+                  ? "bg-violet-600 text-white"
+                  : "bg-admin-card text-zinc-700 ring-1 ring-admin-line hover:bg-admin-chip2",
               ].join(" ")}
             >
               <span>{opt.label}</span>
-              <span className="rounded bg-black/30 px-1.5 py-0.5 tabular-nums">
+              <span className="rounded bg-admin-chip px-1.5 py-0.5 tabular-nums">
                 {count}
               </span>
             </button>
@@ -315,9 +315,9 @@ export default function WebsiteApplicationsAdminClient() {
         })}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
+      <div className="overflow-hidden rounded-xl border border-admin-line bg-admin-card">
         <table className="w-full text-left text-sm">
-          <thead className="bg-zinc-900/80 text-xs uppercase text-zinc-500">
+          <thead className="bg-admin-card text-xs uppercase text-zinc-500">
             <tr>
               <th className="px-5 py-4 font-medium">Tarix</th>
               <th className="px-5 py-4 font-medium">Müştəri</th>
@@ -328,7 +328,7 @@ export default function WebsiteApplicationsAdminClient() {
               <th className="px-5 py-4 font-medium text-right">Bax</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800/80">
+          <tbody className="divide-y divide-admin-line">
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-5 py-10 text-center text-zinc-500">
@@ -339,30 +339,30 @@ export default function WebsiteApplicationsAdminClient() {
             {filtered.map((a) => (
               <tr
                 key={a.id}
-                className="cursor-pointer transition hover:bg-zinc-900"
+                className="cursor-pointer transition hover:bg-admin-chip"
                 onClick={() => setOpenId(a.id)}
               >
-                <td className="px-5 py-4 tabular-nums text-xs text-zinc-400">
+                <td className="px-5 py-4 tabular-nums text-xs text-zinc-600">
                   {fmtDate(a.createdAt)}
                 </td>
                 <td className="px-5 py-4">
-                  <div className="font-medium text-zinc-100">{a.fullName}</div>
+                  <div className="font-medium text-zinc-900">{a.fullName}</div>
                   <div className="text-xs text-zinc-500">{a.phone}</div>
                 </td>
-                <td className="px-5 py-4 text-zinc-300">
+                <td className="px-5 py-4 text-zinc-700">
                   {WEBSITE_TYPE_LABELS[a.websiteType] ?? a.websiteType}
                 </td>
-                <td className="px-5 py-4 text-zinc-300">
+                <td className="px-5 py-4 text-zinc-700">
                   {a.package?.name ?? <span className="text-zinc-600">—</span>}
                 </td>
-                <td className="px-5 py-4 text-zinc-300">
+                <td className="px-5 py-4 text-zinc-700">
                   {a.budgetRange ?? <span className="text-zinc-600">—</span>}
                 </td>
                 <td className="px-5 py-4">
                   <span
                     className={[
                       "rounded px-2 py-1 text-[10px] font-semibold ring-1",
-                      STATUS_TONES[a.status] ?? "bg-zinc-800 text-zinc-300 ring-zinc-700",
+                      STATUS_TONES[a.status] ?? "bg-admin-chip text-zinc-700 ring-admin-line2",
                     ].join(" ")}
                   >
                     {STATUS_LABELS[a.status] ?? a.status}
@@ -374,7 +374,7 @@ export default function WebsiteApplicationsAdminClient() {
                       e.stopPropagation();
                       setOpenId(a.id);
                     }}
-                    className="rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700"
+                    className="rounded bg-admin-chip px-3 py-1.5 text-xs text-zinc-800 hover:bg-admin-chip2"
                   >
                     Detallar
                   </button>
@@ -387,8 +387,8 @@ export default function WebsiteApplicationsAdminClient() {
 
       {open && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
-          <div className="mx-auto my-8 w-full max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
+          <div className="mx-auto my-8 w-full max-w-3xl rounded-2xl border border-admin-line bg-admin-card shadow-2xl">
+            <div className="flex items-center justify-between border-b border-admin-line px-6 py-4">
               <div>
                 <h3 className="text-lg font-bold">{open.fullName}</h3>
                 <p className="text-xs text-zinc-500">
@@ -397,7 +397,7 @@ export default function WebsiteApplicationsAdminClient() {
               </div>
               <button
                 onClick={() => setOpenId(null)}
-                className="rounded p-2 text-zinc-500 hover:bg-zinc-900 hover:text-white"
+                className="rounded p-2 text-zinc-500 hover:bg-admin-chip hover:text-zinc-900"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -503,7 +503,7 @@ export default function WebsiteApplicationsAdminClient() {
                           <div className="text-xs uppercase tracking-wide text-zinc-500">
                             Təxmini ümumi
                           </div>
-                          <div className="mt-0.5 text-lg font-bold text-white">
+                          <div className="mt-0.5 text-lg font-bold text-zinc-900">
                             {min === max
                               ? `${min} AZN`
                               : `${min}–${max ?? min} AZN`}
@@ -515,13 +515,13 @@ export default function WebsiteApplicationsAdminClient() {
                           <div className="text-xs uppercase tracking-wide text-zinc-500">
                             Baza × əmsal
                           </div>
-                          <div className="text-zinc-100">
+                          <div className="text-zinc-900">
                             {bd.baseRange
                               ? `${bd.baseRange[0]}–${bd.baseRange[1]} AZN`
                               : "—"}{" "}
                             × {bd.complexityFactor?.toFixed(2) ?? "—"}{" "}
                             {bd.source === "fallback" && (
-                              <span className="ml-1 text-[10px] text-amber-300">
+                              <span className="ml-1 text-[10px] text-amber-700">
                                 (qaydalar)
                               </span>
                             )}
@@ -533,7 +533,7 @@ export default function WebsiteApplicationsAdminClient() {
                           <div className="text-xs uppercase tracking-wide text-zinc-500">
                             Əlavə xidmətlər
                           </div>
-                          <ul className="mt-1.5 space-y-1 text-sm text-zinc-100">
+                          <ul className="mt-1.5 space-y-1 text-sm text-zinc-900">
                             {lines.map((l) => (
                               <li
                                 key={l.addOnId}
@@ -562,8 +562,8 @@ export default function WebsiteApplicationsAdminClient() {
                         </div>
                       )}
                       {bd?.reasoning && (
-                        <div className="rounded-lg bg-zinc-900/60 p-3 text-xs text-zinc-400">
-                          <span className="font-semibold text-zinc-300">
+                        <div className="rounded-lg bg-admin-card p-3 text-xs text-zinc-600">
+                          <span className="font-semibold text-zinc-700">
                             AI qeydi:
                           </span>{" "}
                           {bd.reasoning}
@@ -595,7 +595,7 @@ export default function WebsiteApplicationsAdminClient() {
                 </label>
                 <textarea
                   rows={4}
-                  className="mt-2 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+                  className="mt-2 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900"
                   value={adminNotesDraft}
                   onChange={(e) => setAdminNotesDraft(e.target.value)}
                   placeholder="Layihə ilə bağlı daxili qeydlər..."
@@ -603,7 +603,7 @@ export default function WebsiteApplicationsAdminClient() {
                 <button
                   onClick={() => saveNotes(open.id)}
                   disabled={savingStatus || adminNotesDraft === (open.adminNotes ?? "")}
-                  className="mt-3 rounded bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                  className="mt-3 rounded bg-admin-chip px-3 py-1.5 text-xs text-zinc-800 hover:bg-admin-chip2 disabled:opacity-50"
                 >
                   Qeydləri yadda saxla
                 </button>
@@ -621,8 +621,8 @@ export default function WebsiteApplicationsAdminClient() {
                         className={[
                           "rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 transition",
                           active
-                            ? STATUS_TONES[k] ?? "bg-indigo-500 text-white"
-                            : "bg-zinc-900 text-zinc-300 ring-zinc-800 hover:bg-zinc-800",
+                            ? STATUS_TONES[k] ?? "bg-violet-600 text-white"
+                            : "bg-admin-card text-zinc-700 ring-admin-line hover:bg-admin-chip2",
                         ].join(" ")}
                       >
                         {label}
@@ -633,17 +633,17 @@ export default function WebsiteApplicationsAdminClient() {
               </Section>
             </div>
 
-            <div className="flex items-center justify-between border-t border-zinc-800 px-6 py-4">
+            <div className="flex items-center justify-between border-t border-admin-line px-6 py-4">
               <button
                 onClick={() => remove(open)}
-                className="inline-flex items-center gap-2 rounded text-xs text-rose-400 hover:text-rose-300"
+                className="inline-flex items-center gap-2 rounded text-xs text-rose-600 hover:text-rose-700"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 Müraciəti sil
               </button>
               <button
                 onClick={() => setOpenId(null)}
-                className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700"
+                className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-800 hover:bg-admin-chip2"
               >
                 Bağla
               </button>
@@ -657,8 +657,8 @@ export default function WebsiteApplicationsAdminClient() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-      <h4 className="mb-4 text-sm font-semibold text-zinc-200">{title}</h4>
+    <section className="rounded-xl border border-admin-line bg-admin-card p-5">
+      <h4 className="mb-4 text-sm font-semibold text-zinc-800">{title}</h4>
       <div className="space-y-3">{children}</div>
     </section>
   );
@@ -679,8 +679,8 @@ function Field({
       <div
         className={
           multiline
-            ? "whitespace-pre-wrap text-sm text-zinc-100"
-            : "text-sm text-zinc-100"
+            ? "whitespace-pre-wrap text-sm text-zinc-900"
+            : "text-sm text-zinc-900"
         }
       >
         {value}

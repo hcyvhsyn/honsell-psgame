@@ -207,7 +207,7 @@ export default function StreamingReviewsClient({
           </button>
         ) : (
           <Link
-            href="/login?next=/streaming/icmallar"
+            href="/login?next=/icma"
             className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 text-sm font-bold text-zinc-900 hover:bg-zinc-100"
           >
             Daxil ol
@@ -289,7 +289,7 @@ function ReviewCard({
     );
 
   async function share() {
-    const url = `${window.location.origin}/streaming/icmallar#r-${item.id}`;
+    const url = `${window.location.origin}/icma?tab=icmallar#r-${item.id}`;
     const shareData = {
       title: `${item.titleSnap} — ${item.rating}/10`,
       text: `${item.author.name} icmalı: "${item.body.slice(0, 120)}…"`,

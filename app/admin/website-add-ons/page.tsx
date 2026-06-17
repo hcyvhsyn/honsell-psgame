@@ -9,7 +9,7 @@ export default function AdminWebsiteAddOnsPage() {
         <h1 className="text-2xl font-bold tracking-tight">
           Website Xidməti — Əlavə Funksiyalar
         </h1>
-        <p className="mt-1 text-sm text-zinc-400">
+        <p className="mt-1 text-sm text-zinc-600">
           Müştəri formunda göstərilən əlavə funksiyaları və qiymətlərini idarə
           edin. Hər add-on ya sabit qiymətli (FLAT), ya da vahid başına
           qiymətli (PER_UNIT — məs. dil dəstəyi) ola bilər.

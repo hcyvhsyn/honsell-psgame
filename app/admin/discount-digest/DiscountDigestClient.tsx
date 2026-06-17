@@ -32,9 +32,9 @@ type SendStats = {
 
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-      <div className="text-2xl font-bold tabular-nums text-white">{value}</div>
-      <div className="mt-1 text-xs text-zinc-400">{label}</div>
+    <div className="rounded-xl border border-admin-line bg-admin-card p-4">
+      <div className="text-2xl font-bold tabular-nums text-zinc-900">{value}</div>
+      <div className="mt-1 text-xs text-zinc-600">{label}</div>
     </div>
   );
 }
@@ -87,12 +87,12 @@ export default function DiscountDigestClient() {
   }
 
   if (loading) {
-    return <div className="text-sm text-zinc-400">Yüklənir…</div>;
+    return <div className="text-sm text-zinc-600">Yüklənir…</div>;
   }
 
   if (error && !preview) {
     return (
-      <div className="rounded-xl border border-rose-900/50 bg-rose-950/30 p-4 text-sm text-rose-300">
+      <div className="rounded-xl border border-rose-900/50 bg-rose-950/30 p-4 text-sm text-rose-700">
         {error}
       </div>
     );
@@ -124,7 +124,7 @@ export default function DiscountDigestClient() {
           type="button"
           onClick={loadPreview}
           disabled={sending}
-          className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition hover:bg-zinc-900 disabled:opacity-40"
+          className="rounded-lg border border-admin-line2 px-4 py-2 text-sm text-zinc-700 transition hover:bg-admin-chip disabled:opacity-40"
         >
           Yenilə
         </button>
@@ -134,26 +134,26 @@ export default function DiscountDigestClient() {
       </div>
 
       {nothingToSend && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-400">
+        <div className="rounded-xl border border-admin-line bg-admin-card p-4 text-sm text-zinc-600">
           Son 7 gündə yeni endirim aşkarlanmayıb — bülleten göndərilməyəcək.
         </div>
       )}
 
       {preview.pendingThisWeek === 0 && !nothingToSend && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-400">
+        <div className="rounded-xl border border-admin-line bg-admin-card p-4 text-sm text-zinc-600">
           Bu həftəki bülleten artıq bütün aktiv müştərilərə göndərilib.
         </div>
       )}
 
       {result && (
-        <div className="rounded-xl border border-emerald-900/50 bg-emerald-950/20 p-4 text-sm text-emerald-200">
+        <div className="rounded-xl border border-emerald-900/50 bg-emerald-950/20 p-4 text-sm text-emerald-700">
           <div className="font-semibold">Göndəriş tamamlandı</div>
-          <div className="mt-1 text-emerald-300/80">
+          <div className="mt-1 text-emerald-700/80">
             Göndərildi: {result.sent} · Təkrar (keçildi): {result.skippedDedup} ·
             Uğursuz: {result.failed}
           </div>
           {result.errors.length > 0 && (
-            <ul className="mt-2 list-disc pl-5 text-xs text-rose-300">
+            <ul className="mt-2 list-disc pl-5 text-xs text-rose-700">
               {result.errors.slice(0, 5).map((e, i) => (
                 <li key={i}>{e}</li>
               ))}
@@ -163,21 +163,21 @@ export default function DiscountDigestClient() {
       )}
 
       {error && (
-        <div className="rounded-xl border border-rose-900/50 bg-rose-950/30 p-4 text-sm text-rose-300">
+        <div className="rounded-xl border border-rose-900/50 bg-rose-950/30 p-4 text-sm text-rose-700">
           {error}
         </div>
       )}
 
       {preview.games.length > 0 && (
         <div>
-          <h2 className="mb-3 text-sm font-semibold text-zinc-300">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-700">
             Bülletendə görünəcək oyunlar (önizləmə)
           </h2>
           <div className="space-y-2">
             {preview.games.map((g) => (
               <div
                 key={g.productId}
-                className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3"
+                className="flex items-center gap-3 rounded-xl border border-admin-line bg-admin-card p-3"
               >
                 {g.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -187,19 +187,19 @@ export default function DiscountDigestClient() {
                     className="h-14 w-14 shrink-0 rounded-lg object-cover"
                   />
                 ) : (
-                  <div className="h-14 w-14 shrink-0 rounded-lg bg-zinc-800" />
+                  <div className="h-14 w-14 shrink-0 rounded-lg bg-admin-chip" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium text-white">{g.title}</div>
-                  <div className="mt-0.5 text-xs text-zinc-400">
+                  <div className="truncate text-sm font-medium text-zinc-900">{g.title}</div>
+                  <div className="mt-0.5 text-xs text-zinc-600">
                     {g.originalAzn != null && (
                       <span className="mr-2 line-through">{g.originalAzn.toFixed(2)} AZN</span>
                     )}
-                    <span className="font-semibold text-white">{g.finalAzn.toFixed(2)} AZN</span>
+                    <span className="font-semibold text-zinc-900">{g.finalAzn.toFixed(2)} AZN</span>
                   </div>
                 </div>
                 {g.discountPct != null && (
-                  <span className="shrink-0 rounded-full bg-violet-500/15 px-2 py-1 text-xs font-bold text-violet-300">
+                  <span className="shrink-0 rounded-full bg-violet-500/15 px-2 py-1 text-xs font-bold text-violet-700">
                     -{g.discountPct}%
                   </span>
                 )}

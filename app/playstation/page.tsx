@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
+import { serviceProductLabel } from "@/lib/serviceProductLabel";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import SiteFooter from "@/components/SiteFooter";
 import HomeBannerSlider from "@/components/HomeBannerSlider";
@@ -68,7 +69,7 @@ export default async function PlayStationPage() {
       .findMany({
         where: { isActive: true, scope: "PLAYSTATION" },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-        include: { game: true },
+        include: { game: true, serviceProduct: true },
       })
       .catch(() => []),
     prisma.serviceProduct.findMany({
@@ -130,11 +131,29 @@ export default async function PlayStationPage() {
   const bannerSlides = banners
     .map((b) => {
       const price = b.game ? computeDisplayPrice(b.game, settings) : null;
+      let service = null;
+      const svc = b.serviceProduct;
+      if (svc) {
+        const meta = (svc.metadata as Record<string, unknown> | null) ?? {};
+        const origCents =
+          typeof meta.originalPriceAznCents === "number" && meta.originalPriceAznCents > svc.priceAznCents
+            ? meta.originalPriceAznCents
+            : null;
+        service = {
+          id: svc.id,
+          title: serviceProductLabel(svc.title, svc.metadata),
+          imageUrl: svc.imageUrl,
+          productType: svc.type,
+          finalAzn: svc.priceAznCents / 100,
+          originalAzn: origCents != null ? origCents / 100 : null,
+          discountPct: origCents != null ? Math.round((1 - svc.priceAznCents / origCents) * 100) : null,
+        };
+      }
       return {
         id: b.id,
         title: b.title,
         subtitle: b.subtitle,
-        imageUrl: b.imageUrl || b.game?.heroImageUrl || b.game?.imageUrl || "",
+        imageUrl: b.imageUrl || b.game?.heroImageUrl || b.game?.imageUrl || svc?.imageUrl || "",
         mobileImageUrl: b.mobileImageUrl ?? null,
         linkUrl: b.linkUrl,
         actionType: (b.actionType === "ADD_TO_CART" ? "ADD_TO_CART" : "LINK") as "LINK" | "ADD_TO_CART",
@@ -154,6 +173,10 @@ export default async function PlayStationPage() {
                 discountEndAt: b.game.discountTryCents != null && b.game.discountEndAt ? b.game.discountEndAt.toISOString() : null,
               }
             : null,
+        service,
+        contentPosition: b.contentPosition,
+        contentPositionMobile: b.contentPositionMobile,
+        contentTheme: b.contentTheme,
       };
     })
     .filter((b) => b.imageUrl);

@@ -71,7 +71,7 @@ export default async function AdminAiChatLogsPage({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">AI Söhbətləri</h1>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-zinc-600">
           Hansı müştəri &laquo;AI-dan soruş&raquo; köməkçisinə nə soruşub — sual və
           köməkçinin cavabı. Cəmi {total} sorğu.
         </p>
@@ -83,18 +83,18 @@ export default async function AdminAiChatLogsPage({
           name="q"
           defaultValue={q}
           placeholder="Müştəri (email/ad) və ya sual mətni..."
-          className="w-full max-w-md rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm sm:w-80"
+          className="w-full max-w-md rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm sm:w-80"
         />
         <button
           type="submit"
-          className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
+          className="rounded-md bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-500"
         >
           Axtar
         </button>
         {q && (
           <Link
             href="/admin/ai-chat-logs"
-            className="rounded-md border border-zinc-800 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900"
+            className="rounded-md border border-admin-line px-3 py-2 text-sm text-zinc-800 hover:bg-admin-chip"
           >
             Təmizlə
           </Link>
@@ -102,7 +102,7 @@ export default async function AdminAiChatLogsPage({
       </form>
 
       {logs.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-10 text-center text-sm text-zinc-500">
+        <div className="rounded-xl border border-dashed border-admin-line bg-admin-card p-10 text-center text-sm text-zinc-500">
           {q ? "Bu axtarışa uyğun nəticə yoxdur." : "Hələ AI sorğusu yoxdur."}
         </div>
       ) : (
@@ -112,23 +112,23 @@ export default async function AdminAiChatLogsPage({
             return (
               <li
                 key={l.id}
-                className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4"
+                className="rounded-xl border border-admin-line bg-admin-card p-4"
               >
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   {u ? (
                     <Link
                       href={`/admin/users/${u.id}`}
-                      className="text-sm font-semibold text-zinc-200 hover:text-indigo-300"
+                      className="text-sm font-semibold text-zinc-800 hover:text-violet-700"
                     >
                       {u.name ?? u.email}
                       <span className="ml-2 text-xs font-normal text-zinc-500">{u.email}</span>
                     </Link>
                   ) : (
-                    <span className="text-sm text-zinc-400">Naməlum istifadəçi</span>
+                    <span className="text-sm text-zinc-600">Naməlum istifadəçi</span>
                   )}
                   <div className="flex items-center gap-2">
                     {l.productCount > 0 && (
-                      <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-300 ring-1 ring-violet-500/30">
+                      <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-700 ring-1 ring-violet-500/30">
                         {l.productCount} məhsul
                       </span>
                     )}
@@ -138,12 +138,12 @@ export default async function AdminAiChatLogsPage({
 
                 <div className="space-y-2 text-sm">
                   <div className="rounded-lg bg-violet-600/10 px-3 py-2 ring-1 ring-violet-500/20">
-                    <span className="mr-1.5 text-[10px] font-bold uppercase tracking-wide text-violet-400">
+                    <span className="mr-1.5 text-[10px] font-bold uppercase tracking-wide text-violet-600">
                       Sual
                     </span>
-                    <span className="text-zinc-100">{l.question}</span>
+                    <span className="text-zinc-900">{l.question}</span>
                   </div>
-                  <div className="whitespace-pre-wrap rounded-lg bg-white/[0.03] px-3 py-2 text-zinc-300 ring-1 ring-white/5">
+                  <div className="whitespace-pre-wrap rounded-lg bg-admin-chip px-3 py-2 text-zinc-700 ring-1 ring-admin-line">
                     <span className="mr-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
                       Cavab
                     </span>
@@ -157,7 +157,7 @@ export default async function AdminAiChatLogsPage({
       )}
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-zinc-400">
+        <div className="flex items-center justify-between text-sm text-zinc-600">
           <span>
             Səhifə {page} / {totalPages}
           </span>
@@ -165,7 +165,7 @@ export default async function AdminAiChatLogsPage({
             {page > 1 && (
               <Link
                 href={buildHref({ page: String(page - 1) })}
-                className="rounded-md border border-zinc-800 px-3 py-1.5 hover:bg-zinc-900"
+                className="rounded-md border border-admin-line px-3 py-1.5 hover:bg-admin-chip"
               >
                 ← Əvvəlki
               </Link>
@@ -173,7 +173,7 @@ export default async function AdminAiChatLogsPage({
             {page < totalPages && (
               <Link
                 href={buildHref({ page: String(page + 1) })}
-                className="rounded-md border border-zinc-800 px-3 py-1.5 hover:bg-zinc-900"
+                className="rounded-md border border-admin-line px-3 py-1.5 hover:bg-admin-chip"
               >
                 Sonrakı →
               </Link>

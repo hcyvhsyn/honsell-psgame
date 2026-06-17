@@ -8,6 +8,16 @@
   --foreground: #171717;
   --ambient-1: rgba(124, 58, 237, 0.10);
   --ambient-2: rgba(99, 102, 241, 0.08);
+  --admin-bg: 237 233 246;
+  --admin-card: 251 250 254;
+  --admin-chip: 233 227 246;
+  --admin-chip2: 221 212 239;
+  --admin-line: 215 205 236;
+  --admin-line2: 196 184 222;
+  --admin-text-strong: #18181b;
+  --admin-text: #3f3f46;
+  --admin-text-muted: #71717a;
+  --admin-text-faint: #a1a1aa;
   color-scheme: light;
 }
 
@@ -17,6 +27,16 @@ html.dark {
   --foreground: #ededed;
   --ambient-1: rgba(88, 28, 135, 0.15);
   --ambient-2: rgba(124, 58, 237, 0.12);
+  --admin-bg: 8 7 13;
+  --admin-card: 17 17 26;
+  --admin-chip: 27 24 39;
+  --admin-chip2: 40 34 56;
+  --admin-line: 47 41 65;
+  --admin-line2: 68 58 95;
+  --admin-text-strong: #fafafa;
+  --admin-text: #e4e4e7;
+  --admin-text-muted: #a1a1aa;
+  --admin-text-faint: #71717a;
   color-scheme: dark;
 }
 
@@ -342,6 +362,91 @@ html.dark .honsell-logo-img {
   filter: none;
 }
 
+/* Admin paneldə logo light rejimdə qara, dark rejimdə orijinal açıq versiyada qalır. */
+.honsell-logo-img.admin-logo-black {
+  filter: brightness(0) saturate(100%);
+}
+
+:root.dark .admin-theme .honsell-logo-img.admin-logo-black,
+html.dark .admin-theme .honsell-logo-img.admin-logo-black {
+  filter: none;
+}
+
+:root.dark .admin-theme,
+html.dark .admin-theme {
+  color: var(--admin-text-strong);
+}
+
+:root.dark .admin-theme .text-zinc-950,
+:root.dark .admin-theme .text-zinc-900,
+:root.dark .admin-theme .text-zinc-800,
+html.dark .admin-theme .text-zinc-950,
+html.dark .admin-theme .text-zinc-900,
+html.dark .admin-theme .text-zinc-800 {
+  color: var(--admin-text-strong) !important;
+}
+
+:root.dark .admin-theme .text-zinc-700,
+:root.dark .admin-theme .text-zinc-600,
+html.dark .admin-theme .text-zinc-700,
+html.dark .admin-theme .text-zinc-600 {
+  color: var(--admin-text) !important;
+}
+
+:root.dark .admin-theme .text-zinc-500,
+:root.dark .admin-theme .text-zinc-400,
+html.dark .admin-theme .text-zinc-500,
+html.dark .admin-theme .text-zinc-400 {
+  color: var(--admin-text-muted) !important;
+}
+
+:root.dark .admin-theme .hover\:text-zinc-900:hover,
+:root.dark .admin-theme .hover\:text-zinc-800:hover,
+:root.dark .admin-theme .hover\:text-zinc-700:hover,
+html.dark .admin-theme .hover\:text-zinc-900:hover,
+html.dark .admin-theme .hover\:text-zinc-800:hover,
+html.dark .admin-theme .hover\:text-zinc-700:hover {
+  color: var(--admin-text-strong) !important;
+}
+
+:root.dark .admin-theme .group:hover .group-hover\:text-zinc-700,
+html.dark .admin-theme .group:hover .group-hover\:text-zinc-700 {
+  color: var(--admin-text) !important;
+}
+
+:root.dark .admin-theme .text-violet-700,
+html.dark .admin-theme .text-violet-700 {
+  color: rgb(196 181 253) !important;
+}
+
+:root.dark .admin-theme .text-emerald-700,
+html.dark .admin-theme .text-emerald-700 {
+  color: rgb(134 239 172) !important;
+}
+
+:root.dark .admin-theme .text-amber-700,
+html.dark .admin-theme .text-amber-700 {
+  color: rgb(252 211 77) !important;
+}
+
+:root.dark .admin-theme input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+:root.dark .admin-theme textarea,
+:root.dark .admin-theme select,
+html.dark .admin-theme input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+html.dark .admin-theme textarea,
+html.dark .admin-theme select {
+  background-color: rgb(var(--admin-card) / 1) !important;
+  border-color: rgb(var(--admin-line) / 1) !important;
+  color: var(--admin-text-strong) !important;
+}
+
+:root.dark .admin-theme input::placeholder,
+:root.dark .admin-theme textarea::placeholder,
+html.dark .admin-theme input::placeholder,
+html.dark .admin-theme textarea::placeholder {
+  color: var(--admin-text-faint) !important;
+}
+
 :root.light .honsell-gift-btn {
   background:
     radial-gradient(circle at 18% 0%, rgba(168, 85, 247, 0.16), transparent 45%),
@@ -556,13 +661,153 @@ html.light .auth-page-shell input.auth-page-dropdown-input {
     border-radius: inherit;
     background:
       linear-gradient(90deg, transparent 0%, rgba(124, 58, 237, 0.13) 48%, transparent 74%);
+    background-size: 190% 100%;
     opacity: 0.7;
+    animation: honsell-navbar-sheen 8s ease-in-out infinite;
     pointer-events: none;
   }
 
   .honsell-navbar-shell > * {
     position: relative;
     z-index: 1;
+  }
+
+  .honsell-nav-icon-motion {
+    transform-origin: 50% 50%;
+    transition:
+      transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      color 220ms ease,
+      filter 220ms ease,
+      opacity 220ms ease;
+    will-change: transform, filter;
+  }
+
+  .honsell-nav-action .honsell-nav-icon-motion {
+    animation: honsell-nav-icon-breathe 4.1s ease-in-out infinite;
+  }
+
+  .group:hover .honsell-nav-icon-motion,
+  .honsell-nav-action:hover .honsell-nav-icon-motion,
+  .honsell-nav-action:focus-visible .honsell-nav-icon-motion {
+    animation: honsell-nav-icon-pop 620ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    filter: drop-shadow(0 0 9px currentColor);
+  }
+
+  .honsell-nav-icon-idle {
+    animation: honsell-nav-icon-breathe 5.4s ease-in-out infinite;
+  }
+
+  .honsell-nav-action .honsell-nav-gift-icon,
+  .honsell-nav-gift-icon {
+    animation: honsell-nav-gift-lift 4.6s ease-in-out infinite;
+  }
+
+  .honsell-nav-action .honsell-nav-cart-icon,
+  .honsell-nav-cart-icon {
+    transform-origin: 42% 28%;
+    animation: honsell-nav-cart-swing 5.2s ease-in-out infinite;
+  }
+
+  .honsell-nav-active-glow {
+    animation: honsell-nav-active-glow 2.6s ease-in-out infinite;
+  }
+
+  .honsell-nav-chevron {
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), color 220ms ease;
+  }
+
+  .group:hover .honsell-nav-chevron,
+  .honsell-nav-action:hover .honsell-nav-chevron {
+    transform: translateY(1px) rotate(-6deg);
+  }
+
+  .honsell-nav-soft-link {
+    isolation: isolate;
+  }
+
+  .honsell-nav-soft-link::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background:
+      radial-gradient(circle at 20% 45%, rgba(167, 139, 250, 0.18), transparent 38%),
+      linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.08) 48%, transparent 76%);
+    background-size: 180% 180%, 220% 100%;
+    opacity: 0.22;
+    pointer-events: none;
+    animation: honsell-nav-soft-glow 7.2s ease-in-out infinite;
+  }
+
+  .honsell-nav-soft-link:hover::before,
+  .honsell-nav-soft-link:focus-visible::before {
+    opacity: 0.5;
+  }
+
+  .honsell-nav-soft-link > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .honsell-nav-featured-link {
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 24% 12%, rgba(168, 85, 247, 0.34), transparent 34%),
+      radial-gradient(circle at 84% 88%, rgba(14, 165, 233, 0.16), transparent 34%),
+      linear-gradient(135deg, rgba(12, 12, 28, 0.98), rgba(32, 20, 64, 0.94) 50%, rgba(8, 13, 39, 0.97));
+    box-shadow:
+      0 16px 40px -26px rgba(168, 85, 247, 1),
+      0 0 0 1px rgba(255, 255, 255, 0.055) inset,
+      0 1px 0 rgba(255, 255, 255, 0.12) inset;
+    text-shadow: 0 0 16px rgba(233, 213, 255, 0.36);
+  }
+
+  .honsell-nav-featured-link::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    z-index: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background:
+      linear-gradient(135deg, rgba(124, 58, 237, 0.45), rgba(217, 70, 239, 0.88), rgba(96, 165, 250, 0.62), rgba(124, 58, 237, 0.45));
+    opacity: 0.88;
+    pointer-events: none;
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.38));
+    animation: honsell-nav-featured-border-pulse 7.5s ease-in-out infinite;
+  }
+
+  .honsell-nav-featured-link::after {
+    content: "";
+    position: absolute;
+    inset: 1px auto 1px 0;
+    z-index: 0;
+    width: 48%;
+    border-radius: inherit;
+    background:
+      linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.06) 25%, rgba(236, 72, 153, 0.28) 48%, rgba(45, 212, 191, 0.2) 62%, transparent 100%);
+    mix-blend-mode: screen;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-130%) skewX(-14deg);
+    will-change: transform, opacity;
+    animation: honsell-nav-featured-sheen 8.5s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+  }
+
+  .honsell-nav-featured-link > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .honsell-nav-featured-link span:last-child {
+    color: rgba(255, 255, 255, 0.94);
   }
 
   .ps-float {
@@ -583,9 +828,133 @@ html.light .auth-page-shell input.auth-page-dropdown-input {
   }
 }
 
+@keyframes honsell-navbar-sheen {
+  0%, 100% {
+    background-position: 0% 50%;
+    opacity: 0.45;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 0.82;
+  }
+}
+
+@keyframes honsell-nav-icon-pop {
+  0%, 100% {
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+  38% {
+    transform: translateY(-2px) scale(1.12) rotate(-7deg);
+  }
+  68% {
+    transform: translateY(0) scale(0.98) rotate(4deg);
+  }
+}
+
+@keyframes honsell-nav-soft-glow {
+  0%, 100% {
+    background-position: 0% 50%, -140% 0%;
+    opacity: 0.18;
+  }
+  48% {
+    background-position: 100% 50%, 120% 0%;
+    opacity: 0.42;
+  }
+}
+
+@keyframes honsell-nav-icon-breathe {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    filter: drop-shadow(0 0 0 rgba(167, 139, 250, 0));
+    opacity: 0.86;
+  }
+  50% {
+    transform: translateY(-1.5px) scale(1.06);
+    filter: drop-shadow(0 0 10px currentColor);
+    opacity: 1;
+  }
+}
+
+@keyframes honsell-nav-gift-lift {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  42% {
+    transform: translateY(-2px) rotate(-5deg);
+  }
+  58% {
+    transform: translateY(-1px) rotate(4deg);
+  }
+}
+
+@keyframes honsell-nav-cart-swing {
+  0%, 76%, 100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  82% {
+    transform: rotate(-7deg) translateY(-1px);
+  }
+  88% {
+    transform: rotate(6deg) translateY(0);
+  }
+  94% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes honsell-nav-active-glow {
+  0%, 100% {
+    opacity: 0.56;
+    transform: scaleX(0.72);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes honsell-nav-featured-border-pulse {
+  0%, 100% {
+    opacity: 0.58;
+    filter: drop-shadow(0 0 0 rgba(168, 85, 247, 0));
+  }
+  50% {
+    opacity: 0.95;
+    filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.42));
+  }
+}
+
+@keyframes honsell-nav-featured-sheen {
+  0%, 18% {
+    opacity: 0;
+    transform: translateX(-130%) skewX(-14deg);
+  }
+  34% {
+    opacity: 0.8;
+  }
+  58% {
+    opacity: 0.24;
+    transform: translateX(235%) skewX(-14deg);
+  }
+  72%, 100% {
+    opacity: 0;
+    transform: translateX(235%) skewX(-14deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .ps-float {
+  .honsell-navbar-shell::after,
+  .honsell-nav-featured-link::before,
+  .honsell-nav-featured-link::after,
+  .honsell-nav-soft-link::before,
+  .ps-float,
+  .honsell-nav-icon-motion,
+  .honsell-nav-icon-idle,
+  .honsell-nav-gift-icon,
+  .honsell-nav-cart-icon,
+  .honsell-nav-active-glow {
     animation: none;
+    transition: none;
   }
 }
 

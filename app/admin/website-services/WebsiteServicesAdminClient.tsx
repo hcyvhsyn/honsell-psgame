@@ -134,7 +134,7 @@ export default function WebsiteServicesAdminClient() {
       title: "Paketi sil?",
       message: (
         <p>
-          <span className="font-medium text-zinc-200">«{p.name}»</span> paketi silinəcək.
+          <span className="font-medium text-zinc-800">«{p.name}»</span> paketi silinəcək.
           Bu paketə bağlı müraciətlər saxlanılacaq, paket sahəsi NULL olacaq.
         </p>
       ),
@@ -160,7 +160,7 @@ export default function WebsiteServicesAdminClient() {
   if (loading) {
     return (
       <div className="py-20 text-center">
-        <Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" />
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-violet-500" />
       </div>
     );
   }
@@ -170,15 +170,15 @@ export default function WebsiteServicesAdminClient() {
       <div className="flex justify-end">
         <button
           onClick={startNew}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
+          className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500"
         >
           <Plus className="h-4 w-4" /> Yeni paket
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
+      <div className="overflow-hidden rounded-xl border border-admin-line bg-admin-card">
         <table className="w-full text-left text-sm">
-          <thead className="bg-zinc-900/80 text-xs uppercase text-zinc-500">
+          <thead className="bg-admin-card text-xs uppercase text-zinc-500">
             <tr>
               <th className="px-5 py-4 font-medium">Sıra</th>
               <th className="px-5 py-4 font-medium">Ad</th>
@@ -188,7 +188,7 @@ export default function WebsiteServicesAdminClient() {
               <th className="px-5 py-4 font-medium text-right">Əməliyyat</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800/80">
+          <tbody className="divide-y divide-admin-line">
             {packages.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-5 py-10 text-center text-zinc-500">
@@ -197,28 +197,28 @@ export default function WebsiteServicesAdminClient() {
               </tr>
             )}
             {packages.map((p) => (
-              <tr key={p.id} className="transition hover:bg-zinc-900">
-                <td className="px-5 py-4 tabular-nums text-zinc-400">{p.sortOrder}</td>
-                <td className="px-5 py-4 font-medium text-zinc-200">
+              <tr key={p.id} className="transition hover:bg-admin-chip">
+                <td className="px-5 py-4 tabular-nums text-zinc-600">{p.sortOrder}</td>
+                <td className="px-5 py-4 font-medium text-zinc-800">
                   <span className="inline-flex items-center gap-2">
                     {p.name}
                     {p.isPopular && (
-                      <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 ring-1 ring-amber-500/30">
+                      <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-500/30">
                         <Star className="h-3 w-3" />
                         Ən çox seçilən
                       </span>
                     )}
                   </span>
                 </td>
-                <td className="px-5 py-4 text-zinc-300">{p.priceRange}</td>
-                <td className="px-5 py-4 text-zinc-400">{p.deliveryTime ?? "—"}</td>
+                <td className="px-5 py-4 text-zinc-700">{p.priceRange}</td>
+                <td className="px-5 py-4 text-zinc-600">{p.deliveryTime ?? "—"}</td>
                 <td className="px-5 py-4">
                   {p.isActive ? (
-                    <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300">
+                    <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
                       Aktiv
                     </span>
                   ) : (
-                    <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-rose-300">
+                    <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">
                       Passiv
                     </span>
                   )}
@@ -228,14 +228,14 @@ export default function WebsiteServicesAdminClient() {
                     <button
                       onClick={() => startEdit(p)}
                       title="Redaktə et"
-                      className="p-2 text-zinc-500 hover:text-indigo-400"
+                      className="p-2 text-zinc-500 hover:text-violet-600"
                     >
                       <Edit2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => remove(p)}
                       title="Sil"
-                      className="p-2 text-zinc-500 hover:text-rose-400"
+                      className="p-2 text-zinc-500 hover:text-rose-600"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -249,7 +249,7 @@ export default function WebsiteServicesAdminClient() {
 
       {editingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+          <div className="w-full max-w-xl rounded-2xl border border-admin-line bg-admin-card p-6 shadow-2xl">
             <h3 className="mb-6 text-lg font-bold">
               {editingId === "NEW" ? "Yeni paket" : "Paketi redaktə et"}
             </h3>
@@ -257,7 +257,7 @@ export default function WebsiteServicesAdminClient() {
               <label className="block text-sm">
                 Paket adı
                 <input
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="Basic / Standard / Premium Paket"
@@ -266,7 +266,7 @@ export default function WebsiteServicesAdminClient() {
               <label className="block text-sm">
                 Qiymət aralığı
                 <input
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
                   value={form.priceRange}
                   onChange={(e) => setForm({ ...form, priceRange: e.target.value })}
                   placeholder="150–300 AZN"
@@ -276,7 +276,7 @@ export default function WebsiteServicesAdminClient() {
                 Qısa təsvir
                 <textarea
                   rows={2}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                 />
@@ -285,7 +285,7 @@ export default function WebsiteServicesAdminClient() {
                 Xüsusiyyətlər (hər sətirə bir element)
                 <textarea
                   rows={6}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-xs text-emerald-300"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 font-mono text-xs text-emerald-700"
                   value={form.featuresText}
                   onChange={(e) => setForm({ ...form, featuresText: e.target.value })}
                   placeholder={`1 səhifəlik website\nMobil uyğun dizayn\nWhatsApp əlaqə düyməsi`}
@@ -295,7 +295,7 @@ export default function WebsiteServicesAdminClient() {
                 <label className="block text-sm">
                   Təhvil müddəti
                   <input
-                    className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
+                    className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
                     value={form.deliveryTime}
                     onChange={(e) => setForm({ ...form, deliveryTime: e.target.value })}
                     placeholder="3–5 gün"
@@ -305,7 +305,7 @@ export default function WebsiteServicesAdminClient() {
                   Sıralama (0 ən öndə)
                   <input
                     type="number"
-                    className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
+                    className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
                     value={form.sortOrder}
                     onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
                   />
@@ -331,7 +331,7 @@ export default function WebsiteServicesAdminClient() {
               </div>
             </div>
             {saveError && (
-              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">
                 {saveError}
               </div>
             )}
@@ -341,14 +341,14 @@ export default function WebsiteServicesAdminClient() {
                   setEditingId(null);
                   setSaveError(null);
                 }}
-                className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-300"
+                className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-700"
               >
                 İmtina
               </button>
               <button
                 onClick={save}
                 disabled={saving}
-                className="rounded bg-indigo-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                className="rounded bg-violet-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
               >
                 {saving ? "Yadda saxlanır..." : "Yadda saxla"}
               </button>

@@ -96,12 +96,18 @@ const emptyDraft: DraftState = {
 
 const DEFAULT_TRY_RATE = 0.053;
 
-function formatAzn(cents: number) {
-  return (cents / 100).toLocaleString("az-AZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Deterministic az-AZ style formatting (comma decimal, dot thousands) so server
+// and client render identical markup regardless of available ICU locale data.
+function formatNumber(n: number, digits = 2) {
+  const fixed = Math.abs(n).toFixed(digits);
+  const [intPart, fracPart] = fixed.split(".");
+  const withThousands = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const sign = n < 0 ? "-" : "";
+  return fracPart ? `${sign}${withThousands},${fracPart}` : `${sign}${withThousands}`;
 }
 
-function formatNumber(n: number, digits = 2) {
-  return n.toLocaleString("az-AZ", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+function formatAzn(cents: number) {
+  return formatNumber(cents / 100, 2);
 }
 
 export default function InGameCreditAdminClient({
@@ -362,17 +368,17 @@ export default function InGameCreditAdminClient({
   return (
     <div className="space-y-8">
       {err && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
           {err}
         </div>
       )}
 
       {/* Products section */}
-      <section className="rounded-2xl border border-white/10 bg-zinc-950/50 p-5">
+      <section className="rounded-2xl border border-admin-line bg-admin-card p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-white">{productNoun} variantları</h2>
-            <p className="text-xs text-zinc-400">
+            <h2 className="text-lg font-bold text-zinc-900">{productNoun} variantları</h2>
+            <p className="text-xs text-zinc-600">
               TRY = maya, AZN = satış. Xeyir avtomatik hesablanır (cari rate: 1 TRY = {formatNumber(tryRate, 4)} AZN).
               Hər variant öz şəkli ilə göstərilir.
             </p>
@@ -404,18 +410,18 @@ export default function InGameCreditAdminClient({
         </div>
 
         {loadingProducts ? (
-          <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-400">
+          <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-600">
             <Loader2 className="h-4 w-4 animate-spin" /> Yüklənir…
           </div>
         ) : sortedProducts.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-white/10 bg-black/30 px-4 py-10 text-center text-sm text-zinc-400">
+          <div className="rounded-xl border border-dashed border-admin-line bg-admin-chip px-4 py-10 text-center text-sm text-zinc-600">
             Hələ heç bir variant yoxdur. Yuxarıdan əlavə edin.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] text-sm">
               <thead className="text-left text-xs uppercase tracking-wide text-zinc-500">
-                <tr className="border-b border-white/10">
+                <tr className="border-b border-admin-line">
                   <th className="px-3 py-2 font-semibold">Şəkil</th>
                   <th className="px-3 py-2 font-semibold">Sıra</th>
                   <th className="px-3 py-2 font-semibold">Başlıq</th>
@@ -437,43 +443,43 @@ export default function InGameCreditAdminClient({
                   const profit = aznAmt - costAzn;
                   const marginPct = costAzn > 0 ? (profit / costAzn) * 100 : 0;
                   return (
-                    <tr key={p.id} className="border-b border-white/5 last:border-0">
+                    <tr key={p.id} className="border-b border-admin-line last:border-0">
                       <td className="px-3 py-3">
                         {p.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={p.imageUrl}
                             alt={p.title}
-                            className="h-10 w-20 rounded-lg border border-white/10 object-cover"
+                            className="h-10 w-20 rounded-lg border border-admin-line object-cover"
                           />
                         ) : (
-                          <div className="grid h-10 w-20 place-items-center rounded-lg border border-dashed border-white/10 text-zinc-600">
+                          <div className="grid h-10 w-20 place-items-center rounded-lg border border-dashed border-admin-line text-zinc-600">
                             <ImageIcon className="h-4 w-4" />
                           </div>
                         )}
                       </td>
-                      <td className="px-3 py-3 tabular-nums text-zinc-400">{p.sortOrder}</td>
-                      <td className="px-3 py-3 text-zinc-100">{p.title}</td>
-                      <td className="px-3 py-3 tabular-nums text-zinc-200">
+                      <td className="px-3 py-3 tabular-nums text-zinc-600">{p.sortOrder}</td>
+                      <td className="px-3 py-3 text-zinc-900">{p.title}</td>
+                      <td className="px-3 py-3 tabular-nums text-zinc-800">
                         {p.metadata?.amount ?? "—"} {p.metadata?.currency ?? ""}
                       </td>
                       <td className="px-3 py-3">
                         {p.metadata?.deliveryMethod === "ID_TOPUP" ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-200">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-700">
                             ID yükləmə
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-semibold text-sky-200">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-semibold text-sky-700">
                             E-PIN
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-3 tabular-nums text-zinc-300">
+                      <td className="px-3 py-3 tabular-nums text-zinc-700">
                         {tryAmt > 0 ? `${formatNumber(tryAmt)} ₺` : "—"}
                       </td>
-                      <td className="px-3 py-3 tabular-nums text-zinc-100">{formatNumber(aznAmt)} ₼</td>
+                      <td className="px-3 py-3 tabular-nums text-zinc-900">{formatNumber(aznAmt)} ₼</td>
                       <td className="px-3 py-3 tabular-nums">
-                        <div className={profit >= 0 ? "text-emerald-300" : "text-rose-300"}>
+                        <div className={profit >= 0 ? "text-emerald-700" : "text-rose-700"}>
                           {profit >= 0 ? "+" : ""}
                           {formatNumber(profit)} ₼
                         </div>
@@ -485,8 +491,8 @@ export default function InGameCreditAdminClient({
                         <span
                           className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
                             p.isActive
-                              ? "bg-emerald-500/15 text-emerald-300"
-                              : "bg-zinc-500/15 text-zinc-400"
+                              ? "bg-emerald-500/15 text-emerald-700"
+                              : "bg-zinc-500/15 text-zinc-600"
                           }`}
                         >
                           <span
@@ -503,7 +509,7 @@ export default function InGameCreditAdminClient({
                             type="button"
                             onClick={() => openEdit(p)}
                             aria-label="Redaktə et"
-                            className="grid h-8 w-8 place-items-center rounded-lg bg-white/[0.06] text-zinc-300 transition hover:bg-white/[0.12] hover:text-white"
+                            className="grid h-8 w-8 place-items-center rounded-lg bg-admin-chip text-zinc-700 transition hover:bg-admin-chip2 hover:text-zinc-900"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
@@ -511,7 +517,7 @@ export default function InGameCreditAdminClient({
                             type="button"
                             onClick={() => remove(p.id)}
                             aria-label="Sil"
-                            className="grid h-8 w-8 place-items-center rounded-lg bg-rose-500/10 text-rose-300 transition hover:bg-rose-500/20"
+                            className="grid h-8 w-8 place-items-center rounded-lg bg-rose-500/10 text-rose-700 transition hover:bg-rose-500/20"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -530,14 +536,14 @@ export default function InGameCreditAdminClient({
       {showForm && (
         <section className="rounded-2xl border border-violet-400/40 bg-violet-950/20 p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-base font-bold text-white">
+            <h3 className="text-base font-bold text-zinc-900">
               {isEditing ? "Variantı redaktə et" : "Yeni variant"}
             </h3>
             <button
               type="button"
               onClick={cancel}
               aria-label="Bağla"
-              className="grid h-8 w-8 place-items-center rounded-lg text-zinc-400 transition hover:bg-white/10 hover:text-white"
+              className="grid h-8 w-8 place-items-center rounded-lg text-zinc-600 transition hover:bg-admin-chip2 hover:text-zinc-900"
             >
               <X className="h-4 w-4" />
             </button>
@@ -552,7 +558,7 @@ export default function InGameCreditAdminClient({
                 value={draft.amount}
                 onChange={(e) => setDraft((d) => ({ ...d, amount: e.target.value }))}
                 placeholder={currencyLabel === "UC" ? "660" : "1000"}
-                className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-zinc-100 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
+                className="h-11 w-full rounded-xl border border-admin-line bg-admin-chip px-3 text-sm text-zinc-900 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
               />
             </Field>
 
@@ -561,7 +567,7 @@ export default function InGameCreditAdminClient({
                 type="number"
                 value={draft.sortOrder}
                 onChange={(e) => setDraft((d) => ({ ...d, sortOrder: e.target.value }))}
-                className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-zinc-100 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
+                className="h-11 w-full rounded-xl border border-admin-line bg-admin-chip px-3 text-sm text-zinc-900 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
               />
             </Field>
 
@@ -573,7 +579,7 @@ export default function InGameCreditAdminClient({
                 value={draft.tryPrice}
                 onChange={(e) => setDraft((d) => ({ ...d, tryPrice: e.target.value }))}
                 placeholder="200.00"
-                className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-zinc-100 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
+                className="h-11 w-full rounded-xl border border-admin-line bg-admin-chip px-3 text-sm text-zinc-900 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
               />
             </Field>
 
@@ -585,7 +591,7 @@ export default function InGameCreditAdminClient({
                 value={draft.aznPrice}
                 onChange={(e) => setDraft((d) => ({ ...d, aznPrice: e.target.value }))}
                 placeholder="14.99"
-                className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-zinc-100 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
+                className="h-11 w-full rounded-xl border border-admin-line bg-admin-chip px-3 text-sm text-zinc-900 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
               />
             </Field>
 
@@ -624,10 +630,10 @@ export default function InGameCreditAdminClient({
                   <img
                     src={draft.imageUrl}
                     alt="Önizləmə"
-                    className="h-28 w-40 rounded-xl border border-white/10 object-cover"
+                    className="h-28 w-40 rounded-xl border border-admin-line object-cover"
                   />
                 ) : (
-                  <div className="grid h-28 w-40 place-items-center rounded-xl border border-dashed border-white/10 text-xs text-zinc-500">
+                  <div className="grid h-28 w-40 place-items-center rounded-xl border border-dashed border-admin-line text-xs text-zinc-500">
                     Şəkil yoxdur
                   </div>
                 )}
@@ -636,7 +642,7 @@ export default function InGameCreditAdminClient({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
-                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-4 text-sm font-semibold text-zinc-200 transition hover:border-violet-400/40 hover:bg-white/[0.06] disabled:opacity-60"
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-admin-line bg-admin-chip px-4 text-sm font-semibold text-zinc-800 transition hover:border-violet-400/40 hover:bg-admin-chip2 disabled:opacity-60"
                   >
                     {uploading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -649,14 +655,14 @@ export default function InGameCreditAdminClient({
                     <button
                       type="button"
                       onClick={() => setDraft((d) => ({ ...d, imageUrl: "" }))}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/20"
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-500/20"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       Şəkli sil
                     </button>
                   )}
                   <p className="text-xs text-zinc-500">
-                    Tövsiyə: <span className="font-semibold text-zinc-300">{recommendedImageSize}</span>
+                    Tövsiyə: <span className="font-semibold text-zinc-700">{recommendedImageSize}</span>
                     <br />
                     PNG, JPEG və ya WEBP, max 5 MB
                   </p>
@@ -670,13 +676,13 @@ export default function InGameCreditAdminClient({
                 value={draft.description}
                 onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
                 placeholder="Bu variantın xüsusiyyəti (bonus və s.)"
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
+                className="w-full rounded-xl border border-admin-line bg-admin-chip px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
               />
             </Field>
           </div>
 
           {(draftTryNum > 0 || draftAznNum > 0) && (
-            <div className="mt-4 grid gap-3 rounded-xl border border-white/10 bg-black/30 p-4 sm:grid-cols-3">
+            <div className="mt-4 grid gap-3 rounded-xl border border-admin-line bg-admin-chip p-4 sm:grid-cols-3">
               <Stat label="Maya (AZN)" value={`${formatNumber(draftCostAzn)} ₼`} tone="neutral" />
               <Stat
                 label="Xeyir"
@@ -691,12 +697,12 @@ export default function InGameCreditAdminClient({
             </div>
           )}
 
-          <label className="mt-4 flex items-center gap-2 text-sm text-zinc-200">
+          <label className="mt-4 flex items-center gap-2 text-sm text-zinc-800">
             <input
               type="checkbox"
               checked={draft.isActive}
               onChange={(e) => setDraft((d) => ({ ...d, isActive: e.target.checked }))}
-              className="h-4 w-4 rounded border-white/30 bg-black/40 text-violet-500 focus:ring-violet-500"
+              className="h-4 w-4 rounded border-admin-line bg-admin-chip text-violet-500 focus:ring-violet-500"
             />
             Müştəri tərəfində görünür (aktiv)
           </label>
@@ -705,7 +711,7 @@ export default function InGameCreditAdminClient({
             <button
               type="button"
               onClick={cancel}
-              className="h-10 rounded-xl border border-white/10 px-4 text-sm font-semibold text-zinc-300 transition hover:bg-white/5"
+              className="h-10 rounded-xl border border-admin-line px-4 text-sm font-semibold text-zinc-700 transition hover:bg-admin-chip2"
             >
               Ləğv et
             </button>
@@ -740,41 +746,41 @@ export default function InGameCreditAdminClient({
       )}
 
       {/* Pending orders */}
-      <section className="rounded-2xl border border-white/10 bg-zinc-950/50 p-5">
+      <section className="rounded-2xl border border-admin-line bg-admin-card p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-white">Gözləyən sifarişlər</h2>
-            <p className="text-xs text-zinc-400">
+            <h2 className="text-lg font-bold text-zinc-900">Gözləyən sifarişlər</h2>
+            <p className="text-xs text-zinc-600">
               Bu siyahıdakı sifarişlər kod təyini gözləyir. (Phase 2-də assignment dialog-u əlavə olunacaq.)
             </p>
           </div>
           <button
             type="button"
             onClick={fetchOrders}
-            className="h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-300 transition hover:bg-white/5"
+            className="h-9 rounded-lg border border-admin-line px-3 text-xs font-semibold text-zinc-700 transition hover:bg-admin-chip2"
           >
             Yenilə
           </button>
         </div>
 
         {loadingOrders ? (
-          <div className="flex items-center justify-center gap-2 py-8 text-sm text-zinc-400">
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-zinc-600">
             <Loader2 className="h-4 w-4 animate-spin" /> Yüklənir…
           </div>
         ) : orders.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-white/10 bg-black/30 px-4 py-8 text-center text-sm text-zinc-400">
+          <div className="rounded-xl border border-dashed border-admin-line bg-admin-chip px-4 py-8 text-center text-sm text-zinc-600">
             Hal-hazırda gözləyən sifariş yoxdur.
           </div>
         ) : (
-          <ul className="divide-y divide-white/5">
+          <ul className="divide-y divide-admin-line">
             {orders.map((o) => {
               const meta = parseOrderMetadata(o.metadata);
               const isIdTopup = o.serviceProduct?.metadata?.deliveryMethod === "ID_TOPUP";
               return (
                 <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-zinc-100">{o.serviceProduct?.title ?? "—"}</div>
-                    <div className="text-xs text-zinc-400">
+                    <div className="font-semibold text-zinc-900">{o.serviceProduct?.title ?? "—"}</div>
+                    <div className="text-xs text-zinc-600">
                       {o.user.name ?? o.user.email} · {new Date(o.createdAt).toLocaleString("az-AZ")}
                     </div>
                     {isIdTopup && (
@@ -785,10 +791,10 @@ export default function InGameCreditAdminClient({
                     )}
                   </div>
                   <div className="text-right">
-                    <div className="font-bold tabular-nums text-zinc-100">
+                    <div className="font-bold tabular-nums text-zinc-900">
                       {formatAzn(Math.abs(o.amountAznCents))} ₼
                     </div>
-                    <div className="text-xs text-amber-300">PENDING</div>
+                    <div className="text-xs text-amber-700">PENDING</div>
                   </div>
                 </li>
               );
@@ -811,7 +817,7 @@ function Field({
 }) {
   return (
     <label className={`block ${className ?? ""}`}>
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-600">
         {label}
       </span>
       {children}
@@ -837,13 +843,13 @@ function DeliveryOption({
       className={`rounded-xl border p-3 text-left transition ${
         active
           ? "border-violet-400/70 bg-violet-500/15 ring-2 ring-violet-500/20"
-          : "border-white/10 bg-black/40 hover:border-white/20"
+          : "border-admin-line bg-admin-chip hover:border-admin-line2"
       }`}
     >
-      <div className={`text-sm font-semibold ${active ? "text-violet-100" : "text-zinc-200"}`}>
+      <div className={`text-sm font-semibold ${active ? "text-violet-100" : "text-zinc-800"}`}>
         {title}
       </div>
-      <div className="mt-0.5 text-xs text-zinc-400">{body}</div>
+      <div className="mt-0.5 text-xs text-zinc-600">{body}</div>
     </button>
   );
 }
@@ -888,24 +894,24 @@ function BynogameImportModal({
         onClick={onClose}
         className="absolute inset-0 h-full w-full bg-black/70 backdrop-blur-sm"
       />
-      <div className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
+      <div className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-admin-line bg-admin-card p-6 shadow-2xl">
         <button
           type="button"
           onClick={onClose}
           aria-label="Bağla"
-          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-lg text-zinc-400 transition hover:bg-white/10 hover:text-white"
+          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-lg text-zinc-600 transition hover:bg-admin-chip2 hover:text-zinc-900"
         >
           <X className="h-4 w-4" />
         </button>
 
         <h2 className="text-lg font-black text-white">Bynogame-dən PUBG UC import</h2>
-        <p className="mt-1 text-xs text-zinc-400">
+        <p className="mt-1 text-xs text-zinc-600">
           Bynogame səhifəsində Ctrl+A → Ctrl+C edib, mətni aşağıya yapışdırın. Sistem hər
           variantı (60 UC, 325 UC, … və Top-Up versiyalarını) parse edib qiymətləri yeniləyəcək.
         </p>
 
         <label className="mt-4 block">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-600">
             Yapışdırılan mətn
           </span>
           <textarea
@@ -913,13 +919,13 @@ function BynogameImportModal({
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Bynogame səhifəsindən kopyalanan tam mətn..."
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
+            className="w-full rounded-xl border border-admin-line bg-admin-chip px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
           />
         </label>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-600">
               Xeyir % (bütün variantlara tətbiq olunur)
             </span>
             <input
@@ -929,7 +935,7 @@ function BynogameImportModal({
               step={1}
               value={margin}
               onChange={(e) => setMargin(e.target.value)}
-              className="h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-zinc-100 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
+              className="h-11 w-full rounded-xl border border-admin-line bg-admin-chip px-3 text-sm text-zinc-900 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
             />
             <p className="mt-1 text-xs text-zinc-500">
               AZN = TRY × {tryRate.toFixed(4)} × (1 + xeyir%/100)
@@ -940,7 +946,7 @@ function BynogameImportModal({
               type="button"
               onClick={onPreview}
               disabled={!text.trim()}
-              className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-4 text-sm font-semibold text-zinc-200 transition hover:border-violet-400/40 disabled:opacity-50"
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-admin-line bg-admin-chip px-4 text-sm font-semibold text-zinc-800 transition hover:border-violet-400/40 disabled:opacity-50"
             >
               Önizlə
             </button>
@@ -948,20 +954,20 @@ function BynogameImportModal({
         </div>
 
         {preview && (
-          <div className="mt-5 rounded-xl border border-white/10 bg-black/30 p-3">
+          <div className="mt-5 rounded-xl border border-admin-line bg-admin-chip p-3">
             {preview.length === 0 ? (
-              <p className="py-4 text-center text-sm text-zinc-400">
+              <p className="py-4 text-center text-sm text-zinc-600">
                 Mətndən heç bir variant tapılmadı. Format düz deyilmi?
               </p>
             ) : (
               <>
-                <div className="mb-2 text-xs text-zinc-400">
-                  Tapıldı: <span className="font-semibold text-zinc-200">{preview.length} variant</span>
+                <div className="mb-2 text-xs text-zinc-600">
+                  Tapıldı: <span className="font-semibold text-zinc-800">{preview.length} variant</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[500px] text-xs">
                     <thead className="text-left text-zinc-500">
-                      <tr className="border-b border-white/10">
+                      <tr className="border-b border-admin-line">
                         <th className="px-2 py-1.5 font-semibold">Miqdar</th>
                         <th className="px-2 py-1.5 font-semibold">Tip</th>
                         <th className="px-2 py-1.5 font-semibold">TRY</th>
@@ -974,25 +980,25 @@ function BynogameImportModal({
                           ? item.tryPrice * tryRate * (1 + marginNum / 100)
                           : 0;
                         return (
-                          <tr key={i} className="border-b border-white/5 last:border-0">
-                            <td className="px-2 py-1.5 tabular-nums text-zinc-100">
+                          <tr key={i} className="border-b border-admin-line last:border-0">
+                            <td className="px-2 py-1.5 tabular-nums text-zinc-900">
                               {item.amount} UC
                             </td>
                             <td className="px-2 py-1.5">
                               <span
                                 className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                                   item.deliveryMethod === "ID_TOPUP"
-                                    ? "bg-amber-500/15 text-amber-200"
-                                    : "bg-sky-500/15 text-sky-200"
+                                    ? "bg-amber-500/15 text-amber-700"
+                                    : "bg-sky-500/15 text-sky-700"
                                 }`}
                               >
                                 {item.deliveryMethod === "ID_TOPUP" ? "ID yükləmə" : "E-PIN"}
                               </span>
                             </td>
-                            <td className="px-2 py-1.5 tabular-nums text-zinc-300">
+                            <td className="px-2 py-1.5 tabular-nums text-zinc-700">
                               {item.tryPrice.toFixed(2)} ₺
                             </td>
-                            <td className="px-2 py-1.5 tabular-nums text-zinc-100">
+                            <td className="px-2 py-1.5 tabular-nums text-zinc-900">
                               {validMargin ? `${azn.toFixed(2)} ₼` : "—"}
                             </td>
                           </tr>
@@ -1011,7 +1017,7 @@ function BynogameImportModal({
             ✓ Tamamlandı: <span className="font-bold">{result.updated}</span> yeniləndi,{" "}
             <span className="font-bold">{result.created}</span> yaradıldı.
             {result.created > 0 && (
-              <p className="mt-1 text-xs text-emerald-200/80">
+              <p className="mt-1 text-xs text-emerald-700/80">
                 Yeni yaradılan variantlar şəkil yüklənənə qədər müştəri tərəfində gizlidir.
               </p>
             )}
@@ -1022,7 +1028,7 @@ function BynogameImportModal({
           <button
             type="button"
             onClick={onClose}
-            className="h-10 rounded-xl border border-white/10 px-4 text-sm font-semibold text-zinc-300 transition hover:bg-white/5"
+            className="h-10 rounded-xl border border-admin-line px-4 text-sm font-semibold text-zinc-700 transition hover:bg-admin-chip2"
           >
             Bağla
           </button>
@@ -1052,10 +1058,10 @@ function Stat({
 }) {
   const color =
     tone === "good"
-      ? "text-emerald-300"
+      ? "text-emerald-700"
       : tone === "bad"
-        ? "text-rose-300"
-        : "text-zinc-100";
+        ? "text-rose-700"
+        : "text-zinc-900";
   return (
     <div>
       <div className="text-xs uppercase tracking-wide text-zinc-500">{label}</div>

@@ -33,10 +33,10 @@ export default function ActionButtons({ id }: { id: string }) {
 
   return (
     <div className="flex gap-2">
-      <button onClick={() => act("SUCCESS")} className="rounded bg-emerald-500/20 p-1 text-emerald-400 hover:bg-emerald-500/30" title="Tamamla (Success)">
+      <button onClick={() => act("SUCCESS")} className="rounded bg-emerald-500/20 p-1 text-emerald-600 hover:bg-emerald-500/30" title="Tamamla (Success)">
         <Check className="h-4 w-4" />
       </button>
-      <button onClick={() => act("FAILED")} className="rounded bg-rose-500/20 p-1 text-rose-400 hover:bg-rose-500/30" title="Rədd et (Failed)">
+      <button onClick={() => act("FAILED")} className="rounded bg-rose-500/20 p-1 text-rose-600 hover:bg-rose-500/30" title="Rədd et (Failed)">
         <X className="h-4 w-4" />
       </button>
     </div>

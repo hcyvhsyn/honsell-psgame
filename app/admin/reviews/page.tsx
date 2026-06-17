@@ -15,7 +15,7 @@ export default async function AdminReviewsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Oyun rəyləri</h1>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-zinc-600">
           Oyun səhifələrində istifadəçilərin yazdığı rəylərin moderasiyası.
           PENDING — admin onayını gözləyir; APPROVED — public görünür;
           REJECTED — rədd edilib; HIDDEN — onaylanmış, sonradan gizlədilib.

@@ -52,7 +52,7 @@ export default function QuickActionsBar({ userId, emailVerified }: Props) {
                 "Bu istifadəçinin email-ini manual olaraq təsdiqlə?"
               )
             }
-            className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-200 ring-1 ring-emerald-500/30 transition hover:bg-emerald-500/20 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-500/30 transition hover:bg-emerald-500/20 disabled:opacity-50"
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
             Email-i təsdiqlə
@@ -68,7 +68,7 @@ export default function QuickActionsBar({ userId, emailVerified }: Props) {
               "İstifadəçiyə şifrə sıfırlama kodu göndərilsin?"
             )
           }
-          className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-200 ring-1 ring-indigo-500/30 transition hover:bg-indigo-500/20 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-md bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-700 ring-1 ring-violet-500/30 transition hover:bg-violet-500/20 disabled:opacity-50"
         >
           <KeyRound className="h-3.5 w-3.5" />
           Şifrə sıfırla
@@ -78,8 +78,8 @@ export default function QuickActionsBar({ userId, emailVerified }: Props) {
         <div
           className={`rounded px-2.5 py-1 text-[11px] ${
             msg.type === "ok"
-              ? "bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30"
-              : "bg-rose-500/10 text-rose-300 ring-1 ring-rose-500/30"
+              ? "bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/30"
+              : "bg-rose-500/10 text-rose-700 ring-1 ring-rose-500/30"
           }`}
         >
           {msg.text}

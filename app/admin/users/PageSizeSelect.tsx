@@ -14,12 +14,12 @@ export default function PageSizeSelect({ value }: { value: number }) {
   }
 
   return (
-    <div className="flex items-center gap-2 text-sm text-zinc-400">
+    <div className="flex items-center gap-2 text-sm text-zinc-600">
       <span>Səhifədə:</span>
       <select
         value={value}
         onChange={onChange}
-        className="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none"
+        className="rounded-md border border-admin-line bg-admin-card px-2 py-1 text-sm focus:border-violet-500 focus:outline-none"
       >
         <option value="25">25</option>
         <option value="50">50</option>

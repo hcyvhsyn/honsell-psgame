@@ -28,8 +28,8 @@ export default function SortHeader({
     <th className={`px-4 py-3 font-medium ${className}`}>
       <Link
         href={`/admin/users?${params.toString()}`}
-        className={`inline-flex items-center gap-1 transition hover:text-zinc-200 ${
-          isActive ? "text-zinc-200" : ""
+        className={`inline-flex items-center gap-1 transition hover:text-zinc-900 ${
+          isActive ? "text-zinc-800" : ""
         }`}
       >
         {label}

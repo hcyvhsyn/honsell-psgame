@@ -4,11 +4,7 @@ import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import PlatformsPublicSection from "@/components/PlatformsPublicSection";
 import { PlatformCard } from "@/components/MarketingUI";
-import {
-  STREAMING_SERVICE_META,
-  STREAMING_SERVICES,
-  type StreamingService,
-} from "@/lib/streamingCart";
+import { getStreamingPlatformsByCategory } from "@/lib/streamingPlatforms";
 
 export const dynamic = "force-dynamic";
 
@@ -19,14 +15,11 @@ export const metadata: Metadata = {
   alternates: { canonical: "/music" },
 };
 
-// /music səhifəsində göstəriləcək MUSIC kateqoriyalı streaming xidmətləri
-// (məs. YouTube Premium). Bu xidmətlər ServiceProduct PLATFORM deyil — öz
-// detal səhifəsinə (/streaming/[slug]) yönləndirilir.
-const MUSIC_STREAMING_SERVICES = STREAMING_SERVICES.filter(
-  (s) => STREAMING_SERVICE_META[s as StreamingService].category === "MUSIC"
-);
-
 export default async function MusicPage() {
+  // /music səhifəsində göstəriləcək MUSIC kateqoriyalı platformalar
+  // (məs. YouTube Premium). Bu xidmətlər öz detal səhifəsinə (/music/[slug]) yönlənir.
+  const musicPlatforms = await getStreamingPlatformsByCategory("MUSIC");
+
   const products = await prisma.serviceProduct.findMany({
     where: { type: "PLATFORM", isActive: true },
     orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
@@ -57,10 +50,10 @@ export default async function MusicPage() {
           </div>
         </header>
 
-        {MUSIC_STREAMING_SERVICES.length > 0 && (
+        {musicPlatforms.length > 0 && (
           <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {MUSIC_STREAMING_SERVICES.map((service) => {
-              const meta = STREAMING_SERVICE_META[service as StreamingService];
+            {musicPlatforms.map((meta) => {
+              const service = meta.code;
               return (
                 <PlatformCard
                   key={service}
@@ -68,6 +61,7 @@ export default async function MusicPage() {
                   icon={<PlayCircle className="h-5 w-5 text-white" />}
                   label={meta.label}
                   sub={meta.tagline}
+                  imageUrl={meta.heroImageUrl ?? null}
                   accentClass="border-red-500/30 from-red-500/25 to-rose-500/15"
                 />
               );

@@ -7,7 +7,7 @@ export default function AdminStreamingTitlesPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight">Streaming Title-lər</h1>
-        <p className="mt-1 text-sm text-zinc-400">
+        <p className="mt-1 text-sm text-zinc-600">
           Hər platforma üçün Azərbaycanda yayımlanan film və serialları idarə et.
         </p>
       </div>

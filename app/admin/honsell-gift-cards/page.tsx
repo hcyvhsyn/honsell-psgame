@@ -94,18 +94,18 @@ export default async function HonsellGiftCardsAdminPage({
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-xs text-violet-200">
+          <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-xs text-violet-700">
             <Gift className="h-3.5 w-3.5" />
             Honsell Hədiyyə Kartları
           </div>
-          <h1 className="mt-2 text-2xl font-bold text-white">Honsell hədiyyə kartları</h1>
-          <p className="text-sm text-zinc-400">
+          <h1 className="mt-2 text-2xl font-bold text-zinc-900">Honsell hədiyyə kartları</h1>
+          <p className="text-sm text-zinc-600">
             Bütün alınmış kartlar — kod, məbləğ, alıcı, aktivləşdirən və müddət.
           </p>
         </div>
         <Link
           href="/hediyye-kartlari/honsell"
-          className="self-start rounded-lg border border-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-900"
+          className="self-start rounded-lg border border-admin-line px-3 py-1.5 text-xs text-zinc-700 hover:bg-admin-chip"
         >
           Public səhifə →
         </Link>
@@ -155,17 +155,17 @@ export default async function HonsellGiftCardsAdminPage({
         />
       </section>
 
-      <form className="flex flex-col gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 sm:flex-row sm:items-end">
+      <form className="flex flex-col gap-3 rounded-2xl border border-admin-line bg-admin-card p-4 sm:flex-row sm:items-end">
         <label className="flex-1">
           <span className="block text-[11px] uppercase tracking-wider text-zinc-500">Axtarış</span>
-          <div className="mt-1 flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 focus-within:border-violet-500/60">
+          <div className="mt-1 flex items-center gap-2 rounded-lg border border-admin-line bg-admin-card px-3 py-2 focus-within:border-violet-500/60">
             <Search className="h-4 w-4 text-zinc-500" />
             <input
               type="text"
               name="q"
               defaultValue={rawQ}
               placeholder="kod, alıcı email, aktivləşdirən email"
-              className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
+              className="w-full bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-600"
             />
           </div>
         </label>
@@ -174,7 +174,7 @@ export default async function HonsellGiftCardsAdminPage({
           <select
             name="status"
             defaultValue={statusFilter ?? ""}
-            className="mt-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-violet-500/60"
+            className="mt-1 rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-500/60"
           >
             <option value="">Hamısı</option>
             <option value="PENDING">Təslim gözləyir</option>
@@ -190,9 +190,9 @@ export default async function HonsellGiftCardsAdminPage({
         </button>
       </form>
 
-      <div className="overflow-x-auto rounded-2xl border border-zinc-800">
+      <div className="overflow-x-auto rounded-2xl border border-admin-line">
         <table className="w-full min-w-[900px] text-sm">
-          <thead className="bg-zinc-900/60 text-left text-[11px] uppercase tracking-wider text-zinc-500">
+          <thead className="bg-admin-card text-left text-[11px] uppercase tracking-wider text-zinc-500">
             <tr>
               <th className="px-3 py-2">Kod</th>
               <th className="px-3 py-2">Məbləğ</th>
@@ -215,27 +215,27 @@ export default async function HonsellGiftCardsAdminPage({
             {cards.map((c) => {
               const expired = c.expiresAt.getTime() <= now;
               return (
-                <tr key={c.id} className="border-t border-zinc-800/60 hover:bg-zinc-900/40">
-                  <td className="px-3 py-2 font-mono text-xs text-zinc-200">
+                <tr key={c.id} className="border-t border-admin-line hover:bg-admin-chip">
+                  <td className="px-3 py-2 font-mono text-xs text-zinc-800">
                     {c.code ? formatHonsellGiftCardCode(c.code) : <span className="text-zinc-600">—</span>}
                   </td>
-                  <td className="px-3 py-2 font-semibold text-white">
+                  <td className="px-3 py-2 font-semibold text-zinc-900">
                     {(c.amountAznCents / 100).toFixed(2)} AZN
                   </td>
                   <td className="px-3 py-2">
                     <StatusBadge status={c.status} expired={expired && c.status === "ACTIVE"} />
                   </td>
-                  <td className="px-3 py-2 text-xs text-zinc-300">
+                  <td className="px-3 py-2 text-xs text-zinc-700">
                     {c.purchasedBy?.email ?? <span className="text-zinc-600">—</span>}
                   </td>
-                  <td className="px-3 py-2 text-xs text-zinc-400">{dateFmt.format(c.purchasedAt)}</td>
-                  <td className="px-3 py-2 text-xs text-zinc-300">
+                  <td className="px-3 py-2 text-xs text-zinc-600">{dateFmt.format(c.purchasedAt)}</td>
+                  <td className="px-3 py-2 text-xs text-zinc-700">
                     {c.redeemedBy?.email ?? <span className="text-zinc-600">—</span>}
                   </td>
-                  <td className="px-3 py-2 text-xs text-zinc-400">
+                  <td className="px-3 py-2 text-xs text-zinc-600">
                     {c.redeemedAt ? dateFmt.format(c.redeemedAt) : <span className="text-zinc-600">—</span>}
                   </td>
-                  <td className="px-3 py-2 text-xs text-zinc-400">
+                  <td className="px-3 py-2 text-xs text-zinc-600">
                     {dateFmt.format(c.expiresAt)}
                   </td>
                 </tr>
@@ -261,16 +261,16 @@ function SummaryCard({
 }) {
   const toneCls =
     tone === "violet"
-      ? "border-violet-500/30 bg-violet-500/10 text-violet-200"
+      ? "border-violet-500/30 bg-violet-500/10 text-violet-700"
       : tone === "emerald"
-        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
         : tone === "amber"
-          ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
-          : "border-zinc-800 bg-zinc-900/40 text-zinc-300";
+          ? "border-amber-500/30 bg-amber-500/10 text-amber-700"
+          : "border-admin-line bg-admin-card text-zinc-700";
   return (
     <div className={`rounded-2xl border p-4 ${toneCls}`}>
       <div className="text-[11px] uppercase tracking-wider opacity-80">{label}</div>
-      <div className="mt-1 text-xl font-bold text-white">{value}</div>
+      <div className="mt-1 text-xl font-bold text-zinc-900">{value}</div>
       <div className="text-[11px] opacity-80">{sub}</div>
     </div>
   );
@@ -279,27 +279,27 @@ function SummaryCard({
 function StatusBadge({ status, expired }: { status: string; expired: boolean }) {
   if (expired) {
     return (
-      <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300 ring-1 ring-amber-500/30">
+      <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 ring-1 ring-amber-500/30">
         Müddəti bitib
       </span>
     );
   }
   if (status === "REDEEMED") {
     return (
-      <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/30">
+      <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-500/30">
         Aktivləşdirilib
       </span>
     );
   }
   if (status === "PENDING") {
     return (
-      <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300 ring-1 ring-amber-500/30">
+      <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 ring-1 ring-amber-500/30">
         Təslim gözləyir
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-300 ring-1 ring-violet-500/30">
+    <span className="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-700 ring-1 ring-violet-500/30">
       Aktiv
     </span>
   );

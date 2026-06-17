@@ -19,10 +19,10 @@ type Product = {
 
 export default function HonsellProductsAdmin({ products }: { products: Product[] }) {
   return (
-    <section className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
+    <section className="rounded-2xl border border-admin-line bg-admin-card p-5">
       <header>
-        <h2 className="text-sm font-semibold text-white">Nominal kartların görüntüsü</h2>
-        <p className="mt-1 text-xs text-zinc-400">
+        <h2 className="text-sm font-semibold text-zinc-900">Nominal kartların görüntüsü</h2>
+        <p className="mt-1 text-xs text-zinc-600">
           Hər nominal üçün şəkil, başlıq və təsvir redaktə olunur. Qiymət və nominal sabit qalır.
         </p>
       </header>
@@ -113,13 +113,13 @@ function ProductCard({ initial }: { initial: Product }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
+    <div className="flex flex-col gap-3 rounded-xl border border-admin-line bg-admin-card p-3">
       <div className="flex items-center justify-between">
         <span className="text-[10px] uppercase tracking-wider text-zinc-500">Nominal</span>
-        <span className="text-lg font-bold text-white">{initial.denominationAzn} AZN</span>
+        <span className="text-lg font-bold text-zinc-900">{initial.denominationAzn} AZN</span>
       </div>
 
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900">
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-admin-line bg-admin-card">
         {imageUrl ? (
           <Image src={imageUrl} alt={title} fill sizes="(max-width: 640px) 100vw, 25vw" className="object-cover" />
         ) : (
@@ -145,16 +145,16 @@ function ProductCard({ initial }: { initial: Product }) {
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="mt-1 w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-sm text-white outline-none focus:border-violet-500/60"
+          className="mt-1 w-full rounded-md border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-violet-500/60"
         />
       </label>
 
-      <label className="flex items-center gap-2 text-xs text-zinc-300">
+      <label className="flex items-center gap-2 text-xs text-zinc-700">
         <input
           type="checkbox"
           checked={isActive}
           onChange={(e) => setIsActive(e.target.checked)}
-          className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-900 text-violet-500"
+          className="h-3.5 w-3.5 rounded border-admin-line2 bg-admin-card text-violet-500"
         />
         Aktiv
       </label>
@@ -162,8 +162,8 @@ function ProductCard({ initial }: { initial: Product }) {
       <label
         className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed px-2 py-1.5 text-xs transition ${
           uploading
-            ? "border-violet-500/40 bg-violet-500/10 text-violet-200"
-            : "border-zinc-700 text-zinc-300 hover:border-violet-400/40 hover:bg-zinc-900"
+            ? "border-violet-500/40 bg-violet-500/10 text-violet-700"
+            : "border-admin-line2 text-zinc-700 hover:border-violet-400/40 hover:bg-admin-chip"
         }`}
       >
         {uploading ? (
@@ -188,7 +188,7 @@ function ProductCard({ initial }: { initial: Product }) {
         />
       </label>
       <p className="text-[10px] leading-snug text-zinc-500">
-        Tövsiyə olunan ölçü: <b className="text-zinc-300">1200×900px</b> (4:3 aspekt). Max 5 MB · PNG / JPEG / WEBP.
+        Tövsiyə olunan ölçü: <b className="text-zinc-700">1200×900px</b> (4:3 aspekt). Max 5 MB · PNG / JPEG / WEBP.
       </p>
 
       <button
@@ -204,7 +204,7 @@ function ProductCard({ initial }: { initial: Product }) {
       {status && (
         <p
           className={`text-[11px] ${
-            status.kind === "ok" ? "text-emerald-300" : "text-rose-300"
+            status.kind === "ok" ? "text-emerald-700" : "text-rose-700"
           }`}
         >
           {status.text}

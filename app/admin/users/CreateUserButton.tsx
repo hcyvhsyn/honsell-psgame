@@ -64,7 +64,7 @@ export default function CreateUserButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400"
+        className="inline-flex items-center gap-2 rounded-md bg-violet-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-violet-500"
       >
         <UserPlus className="h-4 w-4" />
         Yeni istifadəçi
@@ -80,26 +80,26 @@ export default function CreateUserButton() {
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl"
+            className="relative w-full max-w-md rounded-xl border border-admin-line bg-admin-card p-5 shadow-2xl"
           >
             <button
               type="button"
               onClick={() => !pending && close()}
-              className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-900 hover:text-zinc-200"
+              className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-admin-chip hover:text-zinc-900"
               aria-label="Bağla"
             >
               <X className="h-4 w-4" />
             </button>
 
             <div className="flex items-start gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-indigo-500/10 ring-1 ring-indigo-500/30">
-                <UserPlus className="h-5 w-5 text-indigo-300" />
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-violet-500/10 ring-1 ring-violet-500/30">
+                <UserPlus className="h-5 w-5 text-violet-700" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-zinc-100">
+                <h3 className="text-base font-semibold text-zinc-900">
                   Yeni istifadəçi yarat
                 </h3>
-                <p className="mt-1 text-sm text-zinc-400">
+                <p className="mt-1 text-sm text-zinc-600">
                   İstifadəçiyə şifrə təyin etmək və hesabı təsdiqləmək üçün email
                   göndəriləcək.
                 </p>
@@ -108,13 +108,13 @@ export default function CreateUserButton() {
 
             {success ? (
               <div className="mt-5 space-y-3">
-                <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+                <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">
                   {success}
                 </div>
                 <button
                   type="button"
                   onClick={close}
-                  className="w-full rounded-md bg-zinc-800 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-700"
+                  className="w-full rounded-md bg-admin-chip py-2 text-sm font-medium text-zinc-800 hover:bg-admin-chip2"
                 >
                   Bağla
                 </button>
@@ -122,7 +122,7 @@ export default function CreateUserButton() {
             ) : (
               <form onSubmit={submit} className="mt-5 space-y-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-zinc-400">
+                  <label className="mb-1 block text-xs font-medium text-zinc-600">
                     E-poçt *
                   </label>
                   <div className="relative">
@@ -133,12 +133,12 @@ export default function CreateUserButton() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="user@example.com"
-                      className="w-full rounded-md border border-zinc-800 bg-zinc-900/50 py-2 pl-9 pr-3 text-sm placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
+                      className="w-full rounded-md border border-admin-line bg-admin-card py-2 pl-9 pr-3 text-sm placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-zinc-400">
+                  <label className="mb-1 block text-xs font-medium text-zinc-600">
                     Ad Soyad *
                   </label>
                   <input
@@ -147,11 +147,11 @@ export default function CreateUserButton() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Ad Soyad"
-                    className="w-full rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
+                    className="w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-zinc-400">
+                  <label className="mb-1 block text-xs font-medium text-zinc-600">
                     Telefon (opsional)
                   </label>
                   <input
@@ -159,12 +159,12 @@ export default function CreateUserButton() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+994…"
-                    className="w-full rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
+                    className="w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none"
                   />
                 </div>
 
                 {error && (
-                  <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                  <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-700">
                     {error}
                   </div>
                 )}
@@ -174,14 +174,14 @@ export default function CreateUserButton() {
                     type="button"
                     onClick={close}
                     disabled={pending}
-                    className="rounded-md px-3 py-2 text-sm font-medium text-zinc-300 ring-1 ring-zinc-800 transition hover:bg-zinc-900 disabled:opacity-50"
+                    className="rounded-md px-3 py-2 text-sm font-medium text-zinc-700 ring-1 ring-admin-line transition hover:bg-admin-chip disabled:opacity-50"
                   >
                     Ləğv et
                   </button>
                   <button
                     type="submit"
                     disabled={pending}
-                    className="inline-flex items-center gap-2 rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-md bg-violet-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
                   >
                     {pending ? "Yaradılır…" : "Yarat və email göndər"}
                   </button>

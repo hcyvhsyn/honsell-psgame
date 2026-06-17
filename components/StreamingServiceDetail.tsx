@@ -1,24 +1,14 @@
 import Link from "next/link";
-import { Tv, Music, ChevronLeft, Film } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import StreamingPlanPicker from "@/components/StreamingPlanPicker";
 import PlatformsPublicSection from "@/components/PlatformsPublicSection";
-import YoutubePlanPicker from "@/components/YoutubePlanPicker";
 import StreamingFeaturedBanner, { type FeaturedSlide } from "@/components/StreamingFeaturedBanner";
-import StreamingTitleCard from "@/components/StreamingTitleCard";
 import StreamingReviewsPreview from "@/components/StreamingReviewsPreview";
 import PlatformGuidesSection from "@/components/PlatformGuidesSection";
 import NewsSection from "@/components/NewsSection";
-import type { StreamingService, StreamingServiceMeta } from "@/lib/streamingCart";
-
-const HERO_THEME: Record<StreamingService, string> = {
-  HBO_MAX: "border-purple-500/25 from-purple-600/20 via-fuchsia-600/10 to-zinc-900/40",
-  GAIN: "border-rose-500/25 from-rose-600/20 via-orange-500/10 to-zinc-900/40",
-  YOUTUBE_PREMIUM: "border-red-500/25 from-red-600/20 via-rose-500/10 to-zinc-900/40",
-  NETFLIX: "border-red-700/30 from-red-800/30 via-zinc-900/30 to-zinc-950/40",
-  PRIME_VIDEO: "border-sky-500/25 from-sky-600/20 via-blue-600/10 to-zinc-900/40",
-};
+import type { StreamingServiceMeta } from "@/lib/streamingCart";
 
 type Props = {
   svc: StreamingServiceMeta;
@@ -35,7 +25,7 @@ export default async function StreamingServiceDetail({
 }: Props) {
   const isMusic = svc.category === "MUSIC";
 
-  const [products, featured, titles] = await Promise.all([
+  const [products, featured] = await Promise.all([
     // Music kateqoriyasında paketlər PLATFORM tipində saxlanılır (musicBrand
     // ilə taglənir), digər streaming xidmətləri STREAMING tipində.
     prisma.serviceProduct.findMany({
@@ -54,13 +44,6 @@ export default async function StreamingServiceDetail({
           orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
           include: { title: true },
           take: 12,
-        }),
-    isMusic
-      ? Promise.resolve([])
-      : prisma.streamingTitle.findMany({
-          where: { service: svc.code, isActive: true, azAvailable: true },
-          orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-          take: 60,
         }),
   ]);
 
@@ -90,7 +73,6 @@ export default async function StreamingServiceDetail({
     trailerUrl: r.title.trailerUrl,
   }));
 
-  const Icon = isMusic ? Music : Tv;
   const isYoutube = svc.code === "YOUTUBE_PREMIUM";
 
   const breadcrumbJsonLd = {
@@ -102,27 +84,6 @@ export default async function StreamingServiceDetail({
     ],
   };
 
-  if (isYoutube) {
-    return (
-      <main className="min-h-screen bg-[#05070b] text-zinc-100">
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-        />
-        <SiteHeaderServer />
-        <YoutubePlanPicker
-          products={filtered.map((p) => ({
-            id: p.id,
-            title: p.title,
-            description: p.description,
-            imageUrl: p.imageUrl,
-            priceAznCents: p.priceAznCents,
-            metadata: (p.metadata as Record<string, unknown> | null) ?? null,
-          }))}
-        />
-      </main>
-    );
-  }
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -140,71 +101,21 @@ export default async function StreamingServiceDetail({
           <ChevronLeft className="h-4 w-4" /> {parent.label}
         </Link>
 
-        {!isMusic && (
+        <h1 className="sr-only">{svc.label} — {svc.tagline}</h1>
+
+        {isMusic && svc.heroImageUrl && (
+          <div className="mt-4 overflow-hidden rounded-3xl border border-white/10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={svc.heroImageUrl} alt={svc.label} className="h-48 w-full object-cover sm:h-64" />
+          </div>
+        )}
+
+        {!isMusic && slides.length > 0 && (
           <div className="mt-4">
-            {slides.length > 0 ? (
-              <StreamingFeaturedBanner slides={slides} />
-            ) : (
-              <div
-                className={`rounded-3xl border bg-gradient-to-br p-8 ${HERO_THEME[svc.code] ?? "border-fuchsia-500/20 from-fuchsia-600/15 via-purple-700/10 to-zinc-900/40"}`}
-              >
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-zinc-200">
-                  <Icon className="h-3.5 w-3.5" />
-                  Streaming
-                </div>
-                <h1 className="mt-4 text-3xl font-black text-white sm:text-4xl">{svc.label}</h1>
-                <p className="mt-2 text-sm text-zinc-300 sm:text-base">{svc.tagline}</p>
-                <p className="mt-4 max-w-3xl text-sm text-zinc-400">{svc.description}</p>
-              </div>
-            )}
+            <StreamingFeaturedBanner slides={slides} />
           </div>
         )}
       </section>
-
-      {!isMusic && (
-        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-          <header className="mb-6">
-            <h2 className="text-2xl font-black text-white sm:text-3xl">
-              Azərbaycanda yayımlananlar
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              {svc.label} kataloqundan AZ region üçün açıq olan filmlər və seriallar.
-            </p>
-          </header>
-
-          {titles.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-12 text-center">
-              <Film className="mx-auto h-10 w-10 text-zinc-600" />
-              <p className="mt-3 text-sm text-zinc-400">
-                {svc.label} üçün hələ Azərbaycanda yayımlanan kontent əlavə olunmayıb.
-              </p>
-            </div>
-          ) : (
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {titles.map((t) => (
-                <li key={t.id}>
-                  <StreamingTitleCard
-                    title={{
-                      id: t.id,
-                      title: t.title,
-                      kind: t.kind === "SERIES" ? "SERIES" : "MOVIE",
-                      year: t.year,
-                      posterUrl: t.posterUrl,
-                      dubbedLanguages: Array.isArray(t.dubbedLanguages)
-                        ? (t.dubbedLanguages as string[])
-                        : [],
-                      subtitleLanguages: Array.isArray(t.subtitleLanguages)
-                        ? (t.subtitleLanguages as string[])
-                        : [],
-                      trailerUrl: t.trailerUrl,
-                    }}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
 
       <section id="plan-sec" className="mx-auto max-w-7xl px-4 pb-14 pt-8 sm:px-6 lg:px-8">
         <header className="mb-6">
@@ -218,7 +129,12 @@ export default async function StreamingServiceDetail({
           </p>
         </header>
         {isYoutube ? (
-          <YoutubePlanPicker
+          <StreamingPlanPicker
+            productType="PLATFORM"
+            authMode="GMAIL_PASSWORD"
+            platformKind="YOUTUBE"
+            heroImageUrl={svc.heroImageUrl ?? null}
+            serviceOverride={{ code: svc.code, label: svc.label, tagline: svc.tagline, description: svc.description }}
             products={filtered.map((p) => ({
               id: p.id,
               title: p.title,
@@ -226,6 +142,7 @@ export default async function StreamingServiceDetail({
               imageUrl: p.imageUrl,
               priceAznCents: p.priceAznCents,
               metadata: (p.metadata as Record<string, unknown> | null) ?? null,
+              availableStock: 0,
             }))}
           />
         ) : isMusic ? (

@@ -7,7 +7,7 @@ export default function AdminStreamingReviewsPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight">Streaming İcmalları</h1>
-        <p className="mt-1 text-sm text-zinc-400">
+        <p className="mt-1 text-sm text-zinc-600">
           Müştərilərin yazdığı film və serial icmallarını yoxla, etibarlı icmalçılara birbaşa yayım icazəsi ver.
         </p>
       </div>

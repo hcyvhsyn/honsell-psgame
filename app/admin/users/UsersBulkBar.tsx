@@ -71,7 +71,7 @@ export function RowCheckbox({ id }: { id: string }) {
         toggle(id);
       }}
       onClick={(e) => e.stopPropagation()}
-      className="h-4 w-4 cursor-pointer rounded border-zinc-700 bg-zinc-950 text-indigo-500 focus:ring-1 focus:ring-indigo-500"
+      className="h-4 w-4 cursor-pointer rounded border-admin-line2 bg-admin-card text-violet-500 focus:ring-1 focus:ring-violet-500"
     />
   );
 }
@@ -84,7 +84,7 @@ export function HeaderCheckbox({ ids }: { ids: string[] }) {
       type="checkbox"
       checked={checked}
       onChange={() => toggleAll(ids)}
-      className="h-4 w-4 cursor-pointer rounded border-zinc-700 bg-zinc-950 text-indigo-500 focus:ring-1 focus:ring-indigo-500"
+      className="h-4 w-4 cursor-pointer rounded border-admin-line2 bg-admin-card text-violet-500 focus:ring-1 focus:ring-violet-500"
     />
   );
 }
@@ -119,12 +119,12 @@ export function BulkActionBar() {
 
   return (
     <>
-      <div className="sticky bottom-4 z-30 mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-xl border border-indigo-500/40 bg-zinc-950/95 px-4 py-3 shadow-2xl backdrop-blur">
+      <div className="sticky bottom-4 z-30 mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-xl border border-violet-500/40 bg-admin-card px-4 py-3 shadow-2xl backdrop-blur">
         <div className="flex items-center gap-2 text-sm">
-          <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-semibold text-indigo-200">
+          <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-xs font-semibold text-violet-700">
             {selected.size}
           </span>
-          <span className="text-zinc-300">istifadəçi seçildi</span>
+          <span className="text-zinc-700">istifadəçi seçildi</span>
         </div>
         <div className="flex items-center gap-1.5">
           <BulkBtn icon={<CheckCheck className="h-3.5 w-3.5" />} onClick={() => setMode("verify")} disabled={pending}>
@@ -142,7 +142,7 @@ export function BulkActionBar() {
           <button
             type="button"
             onClick={clear}
-            className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+            className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-600 hover:bg-admin-chip hover:text-zinc-900"
             title="Seçimi təmizlə"
           >
             <X className="h-4 w-4" />
@@ -179,10 +179,10 @@ function BulkBtn({
 }) {
   const cls =
     tone === "rose"
-      ? "text-rose-300 ring-rose-500/30 hover:bg-rose-500/10"
+      ? "text-rose-700 ring-rose-500/30 hover:bg-rose-500/10"
       : tone === "amber"
-        ? "text-amber-300 ring-amber-500/30 hover:bg-amber-500/10"
-        : "text-zinc-300 ring-zinc-800 hover:bg-zinc-900";
+        ? "text-amber-700 ring-amber-500/30 hover:bg-amber-500/10"
+        : "text-zinc-700 ring-admin-line hover:bg-admin-chip";
   return (
     <button
       type="button"
@@ -249,12 +249,12 @@ function ConfirmDialog({
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl"
+        className="relative w-full max-w-md rounded-xl border border-admin-line bg-admin-card p-5 shadow-2xl"
       >
-        <h3 className="text-base font-semibold text-zinc-100">{l.title}</h3>
-        <p className="mt-2 text-sm text-zinc-400">{l.desc}</p>
+        <h3 className="text-base font-semibold text-zinc-900">{l.title}</h3>
+        <p className="mt-2 text-sm text-zinc-600">{l.desc}</p>
         {error && (
-          <div className="mt-4 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+          <div className="mt-4 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-700">
             {error}
           </div>
         )}
@@ -263,7 +263,7 @@ function ConfirmDialog({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="rounded-md px-3 py-2 text-sm font-medium text-zinc-300 ring-1 ring-zinc-800 hover:bg-zinc-900 disabled:opacity-50"
+            className="rounded-md px-3 py-2 text-sm font-medium text-zinc-700 ring-1 ring-admin-line hover:bg-admin-chip disabled:opacity-50"
           >
             Ləğv et
           </button>
@@ -273,10 +273,10 @@ function ConfirmDialog({
             disabled={pending}
             className={`rounded-md px-3 py-2 text-sm font-semibold ring-1 transition disabled:opacity-50 ${
               l.tone === "rose"
-                ? "bg-rose-500/15 text-rose-200 ring-rose-500/40 hover:bg-rose-500/25"
+                ? "bg-rose-500/15 text-rose-700 ring-rose-500/40 hover:bg-rose-500/25"
                 : l.tone === "amber"
-                  ? "bg-amber-500/15 text-amber-200 ring-amber-500/40 hover:bg-amber-500/25"
-                  : "bg-emerald-500/15 text-emerald-200 ring-emerald-500/40 hover:bg-emerald-500/25"
+                  ? "bg-amber-500/15 text-amber-700 ring-amber-500/40 hover:bg-amber-500/25"
+                  : "bg-emerald-500/15 text-emerald-700 ring-emerald-500/40 hover:bg-emerald-500/25"
             }`}
           >
             {pending ? "Gözləyin…" : l.btn}

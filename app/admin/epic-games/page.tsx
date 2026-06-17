@@ -174,13 +174,13 @@ export default async function AdminEpicGamesPage({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold">
-            <Monitor className="h-6 w-6 text-indigo-400" />
+            <Monitor className="h-6 w-6 text-violet-600" />
             Epic Games
           </h1>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-zinc-600">
             {totalEpic.toLocaleString()} oyun · {onSaleCount.toLocaleString()} endirimli.
             Qiymət{" "}
-            <Link href="/admin/settings" className="text-indigo-400 hover:underline">
+            <Link href="/admin/settings" className="text-violet-600 hover:underline">
               Tənzimləmələrdəki
             </Link>{" "}
             mövqe %-i ilə hesablanır.
@@ -195,7 +195,7 @@ export default async function AdminEpicGamesPage({
             name="q"
             defaultValue={q}
             placeholder="Oyun adı ilə axtar…"
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 py-2 pl-9 pr-3 text-sm placeholder:text-zinc-500 focus:border-indigo-500 focus:outline-none"
+            className="w-full rounded-md border border-admin-line bg-admin-card py-2 pl-9 pr-3 text-sm placeholder:text-zinc-500 focus:border-violet-500 focus:outline-none"
           />
         </form>
       </div>
@@ -228,9 +228,9 @@ export default async function AdminEpicGamesPage({
         />
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-zinc-800">
+      <div className="overflow-x-auto rounded-xl border border-admin-line">
         <table className="w-full min-w-[1100px] text-sm">
-          <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
+          <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
             <tr>
               <Th>Popular</Th>
               <Th>Oyun</Th>
@@ -246,8 +246,8 @@ export default async function AdminEpicGamesPage({
                   })}
                   className={`inline-flex items-center gap-1 rounded-md px-2 py-1 ring-1 transition ${
                     sort === "PCT_DESC" || sort === "PCT_ASC"
-                      ? "bg-indigo-500/15 text-indigo-300 ring-indigo-500/30"
-                      : "bg-zinc-900 text-zinc-400 ring-zinc-800 hover:bg-zinc-800 hover:text-zinc-200"
+                      ? "bg-violet-500/15 text-violet-700 ring-violet-500/30"
+                      : "bg-admin-card text-zinc-600 ring-admin-line hover:bg-admin-chip2 hover:text-zinc-900"
                   }`}
                   title="Mənfəət faizinə görə sırala"
                 >
@@ -265,7 +265,7 @@ export default async function AdminEpicGamesPage({
               <Th>Aktiv</Th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-900">
+          <tbody className="divide-y divide-admin-line">
             {pageRows.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-5 py-8 text-center text-zinc-500">
@@ -278,7 +278,7 @@ export default async function AdminEpicGamesPage({
               const profitOk = price.netProfitAzn >= 0;
               const pct = marginPct(price.netProfitAzn, price.costAzn);
               return (
-                <tr key={g.id} className="hover:bg-zinc-900/40">
+                <tr key={g.id} className="hover:bg-admin-chip">
                   <Td>
                     <StarToggle gameId={g.id} isFeatured={g.isFeatured} />
                   </Td>
@@ -289,10 +289,10 @@ export default async function AdminEpicGamesPage({
                         <img
                           src={g.imageUrl}
                           alt=""
-                          className="h-12 w-12 rounded-md object-cover ring-1 ring-zinc-800"
+                          className="h-12 w-12 rounded-md object-cover ring-1 ring-admin-line"
                         />
                       ) : (
-                        <div className="h-12 w-12 rounded-md bg-zinc-900 ring-1 ring-zinc-800" />
+                        <div className="h-12 w-12 rounded-md bg-admin-card ring-1 ring-admin-line" />
                       )}
                       <div className="min-w-0">
                         {g.productUrl ? (
@@ -300,7 +300,7 @@ export default async function AdminEpicGamesPage({
                             href={g.productUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="truncate font-medium hover:text-indigo-300"
+                            className="truncate font-medium hover:text-violet-700"
                           >
                             {g.title}
                           </a>
@@ -311,30 +311,30 @@ export default async function AdminEpicGamesPage({
                       </div>
                     </div>
                   </Td>
-                  <Td className="text-zinc-300">{price.costAzn.toFixed(2)} ₼</Td>
-                  <Td className="text-zinc-300">
+                  <Td className="text-zinc-700">{price.costAzn.toFixed(2)} ₼</Td>
+                  <Td className="text-zinc-700">
                     {price.referenceAzn != null ? (
                       `${price.referenceAzn.toFixed(2)} ₼`
                     ) : (
-                      <span className="text-amber-400" title="Azərbaycan (USD) qiyməti tapılmadı — döşəmə tətbiq olunur">
+                      <span className="text-amber-600" title="Azərbaycan (USD) qiyməti tapılmadı — döşəmə tətbiq olunur">
                         yoxdur
                       </span>
                     )}
                   </Td>
                   <Td>
-                    <span className="font-medium text-zinc-100">
+                    <span className="font-medium text-zinc-900">
                       {price.finalAzn.toFixed(2)} ₼
                     </span>
                     {price.floored && (
-                      <span className="ml-1 text-[11px] text-amber-400">döşəmə</span>
+                      <span className="ml-1 text-[11px] text-amber-600">döşəmə</span>
                     )}
                   </Td>
                   <Td>
-                    <span className={profitOk ? "text-emerald-300" : "text-rose-300"}>
+                    <span className={profitOk ? "text-emerald-700" : "text-rose-700"}>
                       {price.netProfitAzn.toFixed(2)} ₼
                     </span>
                     {!profitOk && (
-                      <AlertTriangle className="ml-1 inline h-3.5 w-3.5 text-rose-400" />
+                      <AlertTriangle className="ml-1 inline h-3.5 w-3.5 text-rose-600" />
                     )}
                     <div className="text-[11px] text-zinc-500">
                       brüt {price.profitAzn.toFixed(2)} ₼
@@ -343,7 +343,7 @@ export default async function AdminEpicGamesPage({
                   <Td>
                     {pct != null ? (
                       <span
-                        className={`text-sm font-semibold ${profitOk ? "text-emerald-300" : "text-rose-300"}`}
+                        className={`text-sm font-semibold ${profitOk ? "text-emerald-700" : "text-rose-700"}`}
                       >
                         {pct >= 0 ? "+" : ""}
                         {pct.toFixed(0)}%
@@ -352,13 +352,13 @@ export default async function AdminEpicGamesPage({
                       <span className="text-zinc-600">—</span>
                     )}
                   </Td>
-                  <Td className="text-zinc-200">{soldByGame.get(g.id) ?? 0}</Td>
+                  <Td className="text-zinc-800">{soldByGame.get(g.id) ?? 0}</Td>
                   <Td>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${
                         g.isActive
-                          ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30"
-                          : "bg-zinc-800 text-zinc-300 ring-zinc-700"
+                          ? "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30"
+                          : "bg-admin-chip text-zinc-700 ring-admin-line2"
                       }`}
                     >
                       {g.isActive ? "Aktiv" : "Gizli"}
@@ -372,7 +372,7 @@ export default async function AdminEpicGamesPage({
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-zinc-400">
+        <div className="flex items-center justify-between text-sm text-zinc-600">
           <span>
             Səhifə {page} / {totalPages}
           </span>
@@ -380,7 +380,7 @@ export default async function AdminEpicGamesPage({
             {page > 1 && (
               <Link
                 href={buildHref({ page: String(page - 1) })}
-                className="rounded-md border border-zinc-800 px-3 py-1.5 hover:bg-zinc-900"
+                className="rounded-md border border-admin-line px-3 py-1.5 hover:bg-admin-chip"
               >
                 ← Əvvəlki
               </Link>
@@ -388,7 +388,7 @@ export default async function AdminEpicGamesPage({
             {page < totalPages && (
               <Link
                 href={buildHref({ page: String(page + 1) })}
-                className="rounded-md border border-zinc-800 px-3 py-1.5 hover:bg-zinc-900"
+                className="rounded-md border border-admin-line px-3 py-1.5 hover:bg-admin-chip"
               >
                 Növbəti →
               </Link>
@@ -410,11 +410,11 @@ function Stat({
   tint?: "default" | "rose";
 }) {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-4 py-3">
+    <div className="rounded-lg border border-admin-line bg-admin-card px-4 py-3">
       <div className="text-xs uppercase tracking-wider text-zinc-500">{label}</div>
       <div
         className={`mt-1 text-lg font-semibold ${
-          tint === "rose" ? "text-rose-300" : "text-zinc-100"
+          tint === "rose" ? "text-rose-700" : "text-zinc-900"
         }`}
       >
         {value}
@@ -448,8 +448,8 @@ function FilterRow({
               href={build(opt)}
               className={`rounded-md px-2.5 py-1 text-xs ring-1 ${
                 active
-                  ? "bg-indigo-500/15 text-indigo-300 ring-indigo-500/30"
-                  : "bg-zinc-900 text-zinc-300 ring-zinc-800 hover:bg-zinc-800"
+                  ? "bg-violet-500/15 text-violet-700 ring-violet-500/30"
+                  : "bg-admin-card text-zinc-700 ring-admin-line hover:bg-admin-chip2"
               }`}
             >
               {getLabel ? getLabel(opt) : opt}

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { revalidateBanners } from "@/lib/revalidate";
 import { isValidBannerScope } from "@/lib/contentScopes";
+import { normalizeBannerPosition, normalizeBannerTheme } from "@/components/bannerLayout";
 
 export const runtime = "nodejs";
 
@@ -18,7 +19,10 @@ export async function GET(req: Request) {
     const banners = await prisma.banner.findMany({
       where,
       orderBy: [{ scope: "asc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
-      include: { game: { select: { id: true, title: true, imageUrl: true } } },
+      include: {
+        game: { select: { id: true, title: true, imageUrl: true } },
+        serviceProduct: { select: { id: true, title: true, imageUrl: true } },
+      },
     });
     return NextResponse.json(banners);
   } catch {
@@ -35,26 +39,38 @@ export async function POST(req: Request) {
 
   try {
     if (action === "UPSERT") {
-      const { id, title, subtitle, imageUrl, mobileImageUrl, linkUrl, isActive, sortOrder, actionType, gameId, scope } = body;
+      const { id, title, subtitle, imageUrl, mobileImageUrl, linkUrl, isActive, sortOrder, actionType, gameId, serviceProductId, scope, contentPosition, contentPositionMobile, contentTheme } = body;
       const normalizedScope = scope && isValidBannerScope(String(scope)) ? String(scope) : "HOME";
 
       const normalizedAction = actionType === "ADD_TO_CART" ? "ADD_TO_CART" : "LINK";
-      if (normalizedAction === "ADD_TO_CART" && !gameId) {
-        return NextResponse.json({ error: "Səbətə əlavə üçün oyun seçilməlidir" }, { status: 400 });
+      // ADD_TO_CART banneri ya bir oyuna, ya da bir xidmət/məhsula bağlanır —
+      // ikisindən yalnız biri seçilir.
+      const isCart = normalizedAction === "ADD_TO_CART";
+      const finalGameId = isCart && gameId ? String(gameId) : null;
+      const finalServiceProductId = isCart && !finalGameId && serviceProductId ? String(serviceProductId) : null;
+      if (isCart && !finalGameId && !finalServiceProductId) {
+        return NextResponse.json({ error: "Səbətə əlavə üçün məhsul seçilməlidir" }, { status: 400 });
       }
 
-      // Oyun seçilibsə və admin şəkil yükləməyibsə, oyunun hero/cover şəklindən
-      // istifadə edirik. Bu sayədə banner sadəcə oyun adı seçməklə qurula bilir.
+      // Məhsul seçilibsə və admin şəkil yükləməyibsə, məhsulun hero/cover/logo
+      // şəklindən istifadə edirik. Bu sayədə banner sadəcə məhsul seçməklə qurulur.
       let resolvedImageUrl: string | null = imageUrl ? String(imageUrl) : null;
-      if (!resolvedImageUrl && gameId) {
+      if (!resolvedImageUrl && finalGameId) {
         const g = await prisma.game.findUnique({
-          where: { id: String(gameId) },
+          where: { id: finalGameId },
           select: { heroImageUrl: true, imageUrl: true },
         });
         resolvedImageUrl = g?.heroImageUrl ?? g?.imageUrl ?? null;
       }
+      if (!resolvedImageUrl && finalServiceProductId) {
+        const s = await prisma.serviceProduct.findUnique({
+          where: { id: finalServiceProductId },
+          select: { imageUrl: true },
+        });
+        resolvedImageUrl = s?.imageUrl ?? null;
+      }
       if (!resolvedImageUrl) {
-        return NextResponse.json({ error: "Şəkil tələb olunur (oyun seçin və ya yükləyin)" }, { status: 400 });
+        return NextResponse.json({ error: "Şəkil tələb olunur (məhsul seçin və ya yükləyin)" }, { status: 400 });
       }
 
       const payload = {
@@ -64,7 +80,11 @@ export async function POST(req: Request) {
         mobileImageUrl: mobileImageUrl ? String(mobileImageUrl) : null,
         linkUrl: normalizedAction === "LINK" ? (linkUrl || null) : null,
         actionType: normalizedAction,
-        gameId: normalizedAction === "ADD_TO_CART" ? String(gameId) : null,
+        gameId: finalGameId,
+        serviceProductId: finalServiceProductId,
+        contentPosition: normalizeBannerPosition(contentPosition),
+        contentPositionMobile: normalizeBannerPosition(contentPositionMobile),
+        contentTheme: normalizeBannerTheme(contentTheme),
         isActive: Boolean(isActive ?? true),
         sortOrder: Number(sortOrder || 0),
         scope: normalizedScope,

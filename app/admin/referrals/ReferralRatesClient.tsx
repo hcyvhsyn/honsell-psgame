@@ -157,7 +157,7 @@ export default function ReferralRatesClient() {
   if (loading) {
     return (
       <div className="flex min-h-[420px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
       </div>
     );
   }
@@ -167,12 +167,12 @@ export default function ReferralRatesClient() {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <span className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-2 text-indigo-300">
+            <span className="rounded-lg border border-violet-500/30 bg-violet-500/10 p-2 text-violet-700">
               <Percent className="h-5 w-5" />
             </span>
-            <h1 className="text-2xl font-semibold text-white">Referal faizləri</h1>
+            <h1 className="text-2xl font-semibold text-zinc-900">Referal faizləri</h1>
           </div>
-          <p className="mt-2 max-w-2xl text-sm text-zinc-400">
+          <p className="mt-2 max-w-2xl text-sm text-zinc-600">
             Bütün referal komissiya faizləri bu səhifədən idarə olunur. Digər admin
             bölmələrində məhsul və paket məlumatları saxlanılır, faizlər isə burada tək
             mənbədən yenilənir.
@@ -183,7 +183,7 @@ export default function ReferralRatesClient() {
             type="button"
             onClick={load}
             disabled={saving}
-            className="inline-flex items-center gap-2 rounded-lg border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-admin-line2 px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:border-admin-line2 disabled:opacity-50"
           >
             <RefreshCw className="h-4 w-4" /> Yenilə
           </button>
@@ -191,7 +191,7 @@ export default function ReferralRatesClient() {
             type="button"
             onClick={save}
             disabled={saving}
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Yadda saxla
@@ -200,20 +200,20 @@ export default function ReferralRatesClient() {
       </header>
 
       {message && (
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700">
           {message}
         </div>
       )}
       {error && (
-        <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
           {error}
         </div>
       )}
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/45 p-5">
+      <section className="rounded-xl border border-admin-line bg-admin-card p-5">
         <div className="mb-4 flex items-center gap-2">
-          <Gamepad2 className="h-5 w-5 text-indigo-300" />
-          <h2 className="text-base font-semibold text-white">PS Store</h2>
+          <Gamepad2 className="h-5 w-5 text-violet-700" />
+          <h2 className="text-base font-semibold text-zinc-900">PS Store</h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {psStoreFields.map((field) => (
@@ -228,10 +228,10 @@ export default function ReferralRatesClient() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/45 p-5">
+      <section className="rounded-xl border border-admin-line bg-admin-card p-5">
         <div className="mb-4 flex items-center gap-2">
-          <Percent className="h-5 w-5 text-amber-300" />
-          <h2 className="text-base font-semibold text-white">Digər referal faizləri</h2>
+          <Percent className="h-5 w-5 text-amber-700" />
+          <h2 className="text-base font-semibold text-zinc-900">Digər referal faizləri</h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <RateBox
@@ -243,10 +243,10 @@ export default function ReferralRatesClient() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/45 p-5">
+      <section className="rounded-xl border border-admin-line bg-admin-card p-5">
         <div className="mb-4 flex items-center gap-2">
-          <Tv className="h-5 w-5 text-sky-300" />
-          <h2 className="text-base font-semibold text-white">Streaming və musiqi yayımı</h2>
+          <Tv className="h-5 w-5 text-sky-700" />
+          <h2 className="text-base font-semibold text-zinc-900">Streaming və musiqi yayımı</h2>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {rates.streaming.map((item) => (
@@ -271,18 +271,18 @@ export default function ReferralRatesClient() {
         )}
       </section>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/45 p-5">
+      <section className="rounded-xl border border-admin-line bg-admin-card p-5">
         <div className="mb-4 flex items-center gap-2">
-          <Briefcase className="h-5 w-5 text-violet-300" />
-          <h2 className="text-base font-semibold text-white">Platforma məhsulları</h2>
+          <Briefcase className="h-5 w-5 text-violet-700" />
+          <h2 className="text-base font-semibold text-zinc-900">Platforma məhsulları</h2>
         </div>
         <div className="space-y-5">
           {platformsByCategory.map(([category, items]) => {
             const Icon = categoryIcon[category as keyof typeof categoryIcon] ?? Briefcase;
             return (
               <div key={category}>
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-200">
-                  <Icon className="h-4 w-4 text-indigo-300" />
+                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-800">
+                  <Icon className="h-4 w-4 text-violet-700" />
                   {items[0]?.categoryLabel ?? category}
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -332,14 +332,14 @@ function RateBox({
 }) {
   const isEnabled = enabled ?? true;
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-950/55 p-3">
+    <div className="rounded-lg border border-admin-line bg-admin-card p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-zinc-100">{label}</p>
+          <p className="truncate text-sm font-semibold text-zinc-900">{label}</p>
           <p className="mt-0.5 text-xs text-zinc-500">{hint}</p>
         </div>
         {onEnabledChange && (
-          <label className="inline-flex items-center gap-2 text-xs text-zinc-400">
+          <label className="inline-flex items-center gap-2 text-xs text-zinc-600">
             <input
               type="checkbox"
               checked={isEnabled}
@@ -359,9 +359,9 @@ function RateBox({
           value={Number.isFinite(value) ? String(value) : "0"}
           disabled={!isEnabled}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-500 disabled:opacity-50"
+          className="w-full rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-violet-500 disabled:opacity-50"
         />
-        <span className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-400">
+        <span className="rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-600">
           %
         </span>
       </div>

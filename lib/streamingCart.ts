@@ -1,7 +1,7 @@
 import type { StreamingCartDetails } from "@/lib/cart";
 
 export function validateStreamingDetails(d: StreamingCartDetails): string | null {
-  const mail = d.gmail.trim().toLowerCase();
+  const mail = (d.gmail ?? "").trim().toLowerCase();
   if (!mail) return "Gmail ünvanı daxil edin.";
   if (!/^[^\s@]+@gmail\.com$/.test(mail)) return "Yalnız Gmail ünvanı (@gmail.com) qəbul edilir.";
   return null;
@@ -28,7 +28,9 @@ export const STREAMING_DURATIONS = [1, 2, 3, 6, 12] as const;
 export type StreamingServiceCategory = "STREAMING" | "MUSIC";
 
 export type StreamingServiceMeta = {
-  code: StreamingService;
+  // Dinamik platformalar (DB-dən gələn yeni xidmətlər) üçün string saxlanır.
+  // Statik defaults üçün dəyər həmişə bir StreamingService kodudur.
+  code: string;
   slug: string;
   label: string;
   category: StreamingServiceCategory;
@@ -36,6 +38,8 @@ export type StreamingServiceMeta = {
   tagline: string;
   /** Hero açıqlaması — service page-ində istifadə olunur. */
   description: string;
+  /** Platforma hero şəkli (DB-dən). Statik defaults-da yoxdur. */
+  heroImageUrl?: string | null;
 };
 
 export const STREAMING_SERVICE_META: Record<StreamingService, StreamingServiceMeta> = {

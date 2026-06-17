@@ -231,18 +231,18 @@ export default function CollectionsAdminClient() {
     setGameDragId(null);
   }
 
-  if (loading) return <div className="py-20 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" /></div>;
+  if (loading) return <div className="py-20 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-violet-500" /></div>;
 
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <button onClick={openNew} className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400">
+        <button onClick={openNew} className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500">
           <Plus className="h-4 w-4" /> Yeni Kolleksiya
         </button>
       </div>
 
       {collections.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-16 text-center text-zinc-500">
+        <div className="rounded-xl border border-dashed border-admin-line bg-admin-card py-16 text-center text-zinc-500">
           Hələ heç bir kolleksiya yoxdur.
         </div>
       ) : (
@@ -250,9 +250,9 @@ export default function CollectionsAdminClient() {
           {collections.map((c) => (
             <div
               key={c.id}
-              className={`rounded-xl border bg-zinc-900/50 transition ${
+              className={`rounded-xl border bg-admin-card transition ${
                 dragId === c.id ? "opacity-40" : ""
-              } border-zinc-800`}
+              } border-admin-line`}
             >
               <div
                 draggable
@@ -264,13 +264,13 @@ export default function CollectionsAdminClient() {
               >
                 <GripVertical className="h-5 w-5 shrink-0 cursor-grab text-zinc-500 active:cursor-grabbing" />
                 <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 truncate font-medium text-zinc-200">
+                  <p className="flex items-center gap-2 truncate font-medium text-zinc-800">
                     {c.title}
-                    {c.isFeatured && <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />}
+                    {c.isFeatured && <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-600" />}
                   </p>
                   <p className="truncate text-xs text-zinc-500">/{c.slug} · {c.games.length} oyun</p>
                   <div className="mt-1 flex items-center gap-2">
-                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${c.isActive ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-500"}`}>
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${c.isActive ? "bg-emerald-500/20 text-emerald-600" : "bg-admin-chip text-zinc-500"}`}>
                       {c.isActive ? "Aktiv" : "Passiv"}
                     </span>
                     <span className="text-[11px] text-zinc-600">Sıra: {c.sortOrder}</span>
@@ -279,31 +279,31 @@ export default function CollectionsAdminClient() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
-                    className="rounded p-2 text-zinc-500 hover:text-indigo-400"
+                    className="rounded p-2 text-zinc-500 hover:text-violet-600"
                     aria-label="Oyunları idarə et"
                   >
                     {expandedId === c.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </button>
-                  <button onClick={() => openEdit(c)} className="rounded p-2 text-zinc-500 hover:text-indigo-400"><Edit2 className="h-4 w-4" /></button>
-                  <button onClick={() => deleteCollection(c.id)} className="rounded p-2 text-zinc-500 hover:text-rose-400"><Trash2 className="h-4 w-4" /></button>
+                  <button onClick={() => openEdit(c)} className="rounded p-2 text-zinc-500 hover:text-violet-600"><Edit2 className="h-4 w-4" /></button>
+                  <button onClick={() => deleteCollection(c.id)} className="rounded p-2 text-zinc-500 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
 
               {expandedId === c.id && (
-                <div className="border-t border-zinc-800 p-4">
+                <div className="border-t border-admin-line p-4">
                   <div className="mb-4">
-                    <label className="block text-sm text-zinc-300">
+                    <label className="block text-sm text-zinc-700">
                       <Search className="mr-1.5 inline h-4 w-4" />
                       Oyun əlavə et
                       <input
                         value={gameQuery}
                         onChange={(e) => setGameQuery(e.target.value)}
                         placeholder="Oyun adı yaz (min 2 hərf)..."
-                        className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                        className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                       />
                     </label>
                     {(searchingGames || gameOptions.length > 0) && (
-                      <div className="mt-2 max-h-48 overflow-y-auto rounded border border-zinc-800 bg-zinc-900">
+                      <div className="mt-2 max-h-48 overflow-y-auto rounded border border-admin-line bg-admin-card">
                         {searchingGames && <div className="px-3 py-2 text-xs text-zinc-500">Axtarılır...</div>}
                         {gameOptions
                           .filter((g) => !c.games.some((cg) => cg.gameId === g.id))
@@ -312,14 +312,14 @@ export default function CollectionsAdminClient() {
                               key={g.id}
                               type="button"
                               onClick={() => addGameToCollection(c.id, g.id)}
-                              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-800"
+                              className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-zinc-800 hover:bg-admin-chip2"
                             >
                               {g.imageUrl && (
                                 /* eslint-disable-next-line @next/next/no-img-element */
                                 <img src={g.imageUrl} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
                               )}
                               <span className="truncate">{g.title}</span>
-                              <Plus className="ml-auto h-4 w-4 shrink-0 text-emerald-400" />
+                              <Plus className="ml-auto h-4 w-4 shrink-0 text-emerald-600" />
                             </button>
                           ))}
                       </div>
@@ -339,7 +339,7 @@ export default function CollectionsAdminClient() {
                           onDragOver={onDragOver}
                           onDrop={() => onGameDrop(c.id, cg.gameId)}
                           onDragEnd={() => setGameDragId(null)}
-                          className={`flex items-center gap-3 rounded border border-zinc-800 bg-zinc-950 p-2 ${gameDragId === cg.gameId ? "opacity-40" : ""}`}
+                          className={`flex items-center gap-3 rounded border border-admin-line bg-admin-card p-2 ${gameDragId === cg.gameId ? "opacity-40" : ""}`}
                         >
                           <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-zinc-600 active:cursor-grabbing" />
                           {cg.game.imageUrl && (
@@ -347,12 +347,12 @@ export default function CollectionsAdminClient() {
                             <img src={cg.game.imageUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
                           )}
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm text-zinc-200">{cg.game.title}</p>
+                            <p className="truncate text-sm text-zinc-800">{cg.game.title}</p>
                             <p className="truncate text-xs text-zinc-600">{cg.game.platform ?? "—"}</p>
                           </div>
                           <button
                             onClick={() => removeGameFromCollection(c.id, cg.gameId)}
-                            className="rounded p-1.5 text-zinc-500 hover:text-rose-400"
+                            className="rounded p-1.5 text-zinc-500 hover:text-rose-600"
                             aria-label="Çıxar"
                           >
                             <X className="h-4 w-4" />
@@ -370,75 +370,75 @@ export default function CollectionsAdminClient() {
 
       {editingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+          <div className="w-full max-w-lg rounded-2xl border border-admin-line bg-admin-card p-6 shadow-2xl">
             <h3 className="mb-6 text-lg font-bold">{editingId === "NEW" ? "Yeni Kolleksiya" : "Kolleksiyanı Redaktə et"}</h3>
 
             <div className="space-y-4">
-              <label className="block text-sm text-zinc-300">
-                Başlıq <span className="text-rose-400">*</span>
+              <label className="block text-sm text-zinc-700">
+                Başlıq <span className="text-rose-600">*</span>
                 <input
                   value={editForm.title}
                   onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="Məs: Ən yaxşı RPG oyunları"
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Slug (URL) — boş buraxsanız başlıqdan avtomatik yaranır
                 <input
                   value={editForm.slug}
                   onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="en-yaxsi-rpg-oyunlari"
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Açıqlama (ixtiyari)
                 <textarea
                   value={editForm.description}
                   onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                   rows={3}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="Bu kolleksiya haqqında qısa məlumat..."
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Cover Image URL (ixtiyari)
                 <input
                   value={editForm.imageUrl}
                   onChange={(e) => setEditForm({ ...editForm, imageUrl: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="https://..."
                 />
               </label>
 
               <div className="flex gap-4">
-                <label className="block flex-1 text-sm text-zinc-300">
+                <label className="block flex-1 text-sm text-zinc-700">
                   Sıralama
                   <input
                     type="number"
                     value={editForm.sortOrder}
                     onChange={(e) => setEditForm({ ...editForm, sortOrder: e.target.value })}
-                    className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                    className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   />
                 </label>
-                <label className="flex items-end gap-2 pb-2 text-sm text-zinc-300">
+                <label className="flex items-end gap-2 pb-2 text-sm text-zinc-700">
                   <input type="checkbox" checked={editForm.isActive} onChange={(e) => setEditForm({ ...editForm, isActive: e.target.checked })} /> Aktiv
                 </label>
-                <label className="flex items-end gap-2 pb-2 text-sm text-zinc-300">
+                <label className="flex items-end gap-2 pb-2 text-sm text-zinc-700">
                   <input type="checkbox" checked={editForm.isFeatured} onChange={(e) => setEditForm({ ...editForm, isFeatured: e.target.checked })} /> Featured
                 </label>
               </div>
             </div>
 
-            {saveError && <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{saveError}</div>}
+            {saveError && <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">{saveError}</div>}
 
             <div className="mt-8 flex justify-end gap-3">
-              <button onClick={() => { setEditingId(null); setSaveError(null); }} className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700">İmtina</button>
-              <button onClick={saveCollection} disabled={saving} className="inline-flex items-center gap-2 rounded bg-indigo-500 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-400 disabled:opacity-50">
+              <button onClick={() => { setEditingId(null); setSaveError(null); }} className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-700 hover:bg-admin-chip2">İmtina</button>
+              <button onClick={saveCollection} disabled={saving} className="inline-flex items-center gap-2 rounded bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50">
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />} Yadda saxla
               </button>
             </div>

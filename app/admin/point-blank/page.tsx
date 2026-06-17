@@ -1,4 +1,4 @@
-import InGameCreditAdminClient from "@/components/admin/InGameCreditAdminClient";
+import PointBlankAdminClient from "@/components/admin/PointBlankAdminClient";
 
 export const dynamic = "force-dynamic";
 
@@ -7,16 +7,13 @@ export default function AdminPointBlankPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight">Point Blank TG</h1>
-        <p className="mt-1 text-sm text-zinc-400">
-          Point Blank TG (turqid/coin) denominasiyalarını idarə edin. Gözləyən sifarişlər aşağıda görünür və kod təyini Phase 2-də əlavə ediləcək.
+        <p className="mt-1 text-sm text-zinc-600">
+          Hər TG paketinin qiymətini, şəklini və e-pin kod stokunu idarə edin. Müştəri alanda
+          stokdan kod avtomatik təhvil verilir; stok bitəndə sifariş “Sifarişlər” bölməsində
+          əl ilə təhvil üçün görünür.
         </p>
       </div>
-      <InGameCreditAdminClient
-        type="POINT_BLANK_TG"
-        currencyLabel="TG"
-        productNoun="TG paketi"
-        recommendedImageSize="1200×600 px (2:1)"
-      />
+      <PointBlankAdminClient />
     </div>
   );
 }

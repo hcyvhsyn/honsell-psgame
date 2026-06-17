@@ -107,11 +107,23 @@ model User {
 
   discountDigests DiscountDigestNotification[]
 
+  // Tərk edilmiş səbət xatırlatması üçün serverə sinxronlaşdırılan səbət şəkli.
+  cartSnapshot CartSnapshot?
+
+  // Marketinq kampaniyaları — yaratdığı (admin) və alıcısı olduğu kampaniyalar.
+  createdCampaigns   Campaign[]          @relation("CampaignCreator")
+  campaignRecipients CampaignRecipient[]
+
   referralCycleResults ReferralCycleResult[]
 
   gameReviews     GameReview[]
   reviewReactions ReviewReaction[]
   reviewComments  ReviewComment[]
+
+  // Honsell İcması — sərbəst topluluq divarı (postlar + reaksiyalar + şərhlər).
+  communityPosts          CommunityPost[]
+  communityPostReactions  CommunityPostReaction[]
+  communityPostComments   CommunityPostComment[]
 
   // Streaming icmal sistemi — etibarlı istifadəçilərin yazdığı icmallar admin
   // moderasiyası olmadan dərhal APPROVED kimi yayımlanır.
@@ -342,6 +354,7 @@ model ServiceProduct {
   codes         ServiceCode[]
   transactions  Transaction[]
   subscriptions Subscription[]
+  banners       Banner[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -608,8 +621,18 @@ model Banner {
   linkUrl        String?
   // LINK | ADD_TO_CART
   actionType     String   @default("LINK")
+  // ADD_TO_CART banneri ya bir oyuna (gameId), ya da bir xidmət/məhsula
+  // (serviceProductId — streaming, platform, PS Plus, EA Play, hədiyyə kartı...)
+  // referans verir. Yalnız biri doldurulur.
   gameId         String?
   game           Game?    @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  serviceProductId String?
+  serviceProduct   ServiceProduct? @relation(fields: [serviceProductId], references: [id], onDelete: SetNull)
+  // Mətn blokunun yeri (9-nöqtəli ızgara) — desktop və mobil üçün ayrıca —
+  // və mətn teması (açıq/tünd). Bax: components/bannerLayout.ts
+  contentPosition       String @default("BOTTOM_LEFT")
+  contentPositionMobile String @default("BOTTOM_LEFT")
+  contentTheme          String @default("LIGHT")
   isActive       Boolean  @default(true)
   sortOrder      Int      @default(0)
   /// Bannerin göstəriləcəyi səhifə: HOME | PLAYSTATION | (gələcəkdə yeni scope-lar
@@ -619,7 +642,49 @@ model Banner {
   updatedAt      DateTime @updatedAt
 
   @@index([gameId])
+  @@index([serviceProductId])
   @@index([scope, isActive, sortOrder])
+}
+
+// ─── Navbar category assets ──────────────────────────────────────────────────
+
+/// Navbar-dakı "Kateqoriyalar" dropdown kartları üçün admin tərəfindən idarə
+/// olunan kvadrat şəkil və mətn dataları. `key` public kodda sabit təriflərlə
+/// uyğunlaşır; admin panel sadəcə bu satırları yeniləyir.
+model CategoryAsset {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  label       String
+  description String?
+  href        String
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+/// Streaming/music platforması (HBO Max, Netflix, Prime Video, YouTube Premium…).
+/// Admin tərəfindən yaradılır/redaktə/silinir. Public platforma səhifələri
+/// (/streaming/[slug], /music/[slug]) və admin bu cədvəldən oxuyur.
+/// devices/vpnRequired/platformImageUrl product metadata-da saxlanır (paket səviyyəsində).
+model StreamingPlatform {
+  id          String   @id @default(cuid())
+  code         String   @unique // PRIME_VIDEO
+  slug         String   @unique // prime
+  label        String
+  category     String   @default("STREAMING") // STREAMING | MUSIC
+  tagline      String   @default("")
+  description  String   @default("")
+  heroImageUrl String?
+  sortOrder    Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
 }
 
 // ─── Streaming Content (films & series available on streaming services) ───────
@@ -788,6 +853,9 @@ model Testimonial {
   rating        Int      @default(5)
   // GAME | PS_PLUS | GIFT_CARD | ACCOUNT_CREATION
   platform      String   @default("GAME")
+  // Müştərinin rəy yazdığı konkret məhsulun adı (snapshot). Alış sonrası dəvətdə
+  // və ya anasayfada aldığı məhsulu seçəndə doldurulur. Köhnə/ümumi rəylərdə boş.
+  productTitle  String?
   isActive      Boolean  @default(true)
   sortOrder     Int      @default(0)
   // Source order this review was written from (via post-purchase email invite).
@@ -989,6 +1057,131 @@ model DiscountDigestNotification {
 
   @@unique([userId, weekStart])
   @@index([weekStart])
+}
+
+/// Login olmuş istifadəçinin səbətinin serverdəki şəkli — tərk edilmiş səbət
+/// (abandoned cart) xatırlatma e-poçtları üçün. Səbət əslində brauzerdə
+/// (localStorage) saxlanılır; client onu dəyişdikcə /api/cart/sync bu sətri
+/// upsert edir. Səbət boşaldıqda (alış / təmizləmə) sətir silinir — yəni
+/// mövcud, dolu snapshot = "hələ alınmayıb" deməkdir.
+///
+/// TƏHLÜKƏSİZLİK: `items` yalnız təhlükəsiz sahələri saxlayır (id, başlıq,
+/// şəkil, qiymət, say, productType, store). Hesab açılışı / streaming
+/// parolları kimi həssas sahələr serverə YAZILMIR (bax: /api/cart/sync).
+model CartSnapshot {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Təmizlənmiş səbət elementləri: [{ id, title, imageUrl, finalAzn, qty, productType, store }]
+  items         Json
+  itemCount     Int @default(0) // qty cəmi
+  totalAznCents Int @default(0) // səbətin ümumi dəyəri (qəpik)
+
+  /// Səbət tərkibinin imzası (id+qty). Dəyişdikdə yeni "tərk" sayılır və
+  /// reminderSentAt sıfırlanır ki, yeni tərkib üçün bir dəfə də xatırlatma getsin.
+  signature String
+
+  /// Tərk edilmiş səbət xatırlatması göndərilən an. NULL = hələ göndərilməyib.
+  reminderSentAt DateTime?
+
+  createdAt DateTime @default(now())
+  /// Səbətin son toxunulma anı — "tərk edilmiş" yaşını bununla hesablayırıq.
+  updatedAt DateTime @updatedAt
+
+  @@index([updatedAt])
+  @@index([reminderSentAt])
+}
+
+// ─── Reklam / Kampaniya (admin əl ilə göndərdiyi toplu endirim mesajları) ─────
+//
+// Avtomatik həftəlik bülletendən (DiscountDigestNotification) fərqli olaraq,
+// admin burada auditoriyanı (filtr + əllə seçim), oyunları və kanalı (WhatsApp /
+// Email) özü seçir. `gamesSnapshot` göndərmə anındakı oyun + qiymət şəklini
+// saxlayır ki, sonradan qiymət dəyişsə də tarixçə dəqiq qalsın.
+model Campaign {
+  id          String  @id @default(cuid())
+  title       String
+  /// PROMO | REVIEW_INVITE — PROMO: endirimli oyun reklamı; REVIEW_INVITE: alıb
+  /// rəy yazmayan müştəriləri rəy yazmağa dəvət (oyun bloku yox, "Rəy yaz" CTA).
+  kind        String  @default("PROMO")
+  /// Admin yazdığı giriş mətni (oyun bloku avtomatik əlavə olunur).
+  messageText String
+  sendEmail    Boolean @default(false)
+  sendWhatsapp Boolean @default(false)
+
+  /// Göndərmə anında oyunların snapshotu:
+  /// [{ productId, title, finalAzn, originalAzn, discountPct }]
+  gamesSnapshot Json
+
+  /// DRAFT | SENDING | SENT | FAILED
+  status String @default("DRAFT")
+
+  recipientCount Int @default(0)
+  emailSent      Int @default(0)
+  emailFailed    Int @default(0)
+  waSent         Int @default(0)
+  waFailed       Int @default(0)
+
+  createdById String?
+  createdBy   User?   @relation("CampaignCreator", fields: [createdById], references: [id])
+
+  recipients CampaignRecipient[]
+  clicks     CampaignClick[]
+
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  @@index([status, createdAt])
+}
+
+/// Kampaniyanın hər bir alıcısı üzrə kanal-statusları (audit / tarixçə).
+/// emailStatus / waStatus: PENDING | SENT | FAILED | SKIPPED | N_A
+model CampaignRecipient {
+  id         String @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  email String
+  phone String?
+
+  emailStatus String @default("N_A")
+  waStatus    String @default("N_A")
+  error       String?
+
+  // Klik izləmə — bu alıcı kampaniya linkinə neçə dəfə / nə vaxt daxil olub.
+  clickCount   Int       @default(0)
+  firstClickAt DateTime?
+  lastClickAt  DateTime?
+
+  clicks CampaignClick[]
+
+  createdAt DateTime @default(now())
+
+  @@index([campaignId])
+  @@index([userId])
+}
+
+/// Kampaniya linkinə hər klik bir sətir — hansı alıcı, hansı oyun, nə vaxt.
+/// Link `/api/campaigns/click` üzərindən keçir, qeyd alınır və oyun səhifəsinə
+/// yönləndirilir.
+model CampaignClick {
+  id          String  @id @default(cuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  recipientId String?
+  recipient   CampaignRecipient? @relation(fields: [recipientId], references: [id], onDelete: SetNull)
+  userId      String?
+  productId   String
+
+  createdAt DateTime @default(now())
+
+  @@index([campaignId])
+  @@index([recipientId])
+  @@index([campaignId, productId])
 }
 
 // ─── FAQ (homepage "Tez-tez verilən suallar") ─────────────────────────────────
@@ -1519,4 +1712,76 @@ model AiChatLog {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+// ─── Honsell İcması (community wall) ──────────────────────────────────────────
+//
+// "/icma" səhifəsindəki sərbəst topluluq divarı. Üzv istənilən mövzuda qısa
+// fikir/post yazır (kateqoriyaya görə süzülür), başqaları like/dislike edə və
+// şərh yaza bilər. Oyun rəyləri (GameReview) ilə eyni moderasiya axını:
+// PENDING → admin onayı → APPROVED public görünür. Cədvəllər lib/prisma.ts-dəki
+// ensure-once pattern ilə runtime-da da yaradılır (Supabase migration olmadan).
+model CommunityPost {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // GENERAL | SERIAL | OYUN | ENDIRIM | SUAL — bax lib/community.ts.
+  category String @default("GENERAL")
+  // Opsional başlıq (qısa). Boş ola bilər.
+  title    String?
+  // 10..2000 simvol. Hər iki tərəfdə validasiya olunur.
+  body     String
+
+  // PENDING | APPROVED | REJECTED | HIDDEN — GameReview ilə eyni semantika.
+  status String @default("PENDING")
+
+  // Admin moderasiya audit-i.
+  moderatedAt    DateTime?
+  moderatedById  String?
+  moderationNote String?
+
+  reactions CommunityPostReaction[]
+  comments  CommunityPostComment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([category, status, createdAt])
+  @@index([userId])
+}
+
+model CommunityPostReaction {
+  postId String
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // +1 (Like) | -1 (Dislike). Toggle: eyni dəyər təkrar gəlsə silinir.
+  value Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([postId, userId])
+  @@index([postId, value])
+}
+
+model CommunityPostComment {
+  id     String        @id @default(cuid())
+  postId String
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  body     String
+  // Admin tərəfindən gizlənilibsə, public siyahıda görünmür.
+  isHidden Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId, createdAt])
+  @@index([userId])
 }

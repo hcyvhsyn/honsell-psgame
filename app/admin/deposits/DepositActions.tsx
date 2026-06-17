@@ -48,7 +48,7 @@ export default function DepositActions({ depositId }: { depositId: string }) {
           type="button"
           onClick={() => act("approve")}
           disabled={pending}
-          className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2.5 py-1.5 text-xs font-medium text-emerald-300 ring-1 ring-emerald-500/40 hover:bg-emerald-500/25 disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2.5 py-1.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-500/40 hover:bg-emerald-500/25 disabled:opacity-50"
         >
           <Check className="h-3.5 w-3.5" />
           Approve
@@ -57,13 +57,13 @@ export default function DepositActions({ depositId }: { depositId: string }) {
           type="button"
           onClick={() => act("reject")}
           disabled={pending}
-          className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-2.5 py-1.5 text-xs font-medium text-rose-300 ring-1 ring-rose-500/40 hover:bg-rose-500/25 disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-2.5 py-1.5 text-xs font-medium text-rose-700 ring-1 ring-rose-500/40 hover:bg-rose-500/25 disabled:opacity-50"
         >
           <X className="h-3.5 w-3.5" />
           Reject
         </button>
       </div>
-      {error && <span className="text-[10px] text-rose-300">{error}</span>}
+      {error && <span className="text-[10px] text-rose-700">{error}</span>}
     </div>
   );
 }

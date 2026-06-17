@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight, ShoppingCart, Check, Heart } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { useFavorites } from "@/lib/favorites";
+import { bannerContentWrapClass, bannerThemeClasses } from "@/components/bannerLayout";
 
 export type BannerCartGame = {
   id: string;
@@ -21,6 +22,18 @@ export type BannerCartGame = {
   discountEndAt: string | null;
 };
 
+// Oyun olmayan səbət-banneri (streaming, platform, PS Plus, EA Play,
+// hədiyyə kartı...). Favorit/platforma/detal linki kimi oyuna xas sahələr yoxdur.
+export type BannerCartService = {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  productType: string;
+  finalAzn: number;
+  originalAzn: number | null;
+  discountPct: number | null;
+};
+
 export type BannerSlide = {
   id: string;
   title: string | null;
@@ -30,7 +43,38 @@ export type BannerSlide = {
   linkUrl: string | null;
   actionType: "LINK" | "ADD_TO_CART";
   game: BannerCartGame | null;
+  service: BannerCartService | null;
+  contentPosition: string;
+  contentPositionMobile: string;
+  contentTheme: string;
 };
+
+// Banner-in səbətə əlavə olunan məhsulu — oyun və ya xidmət — üçün vahid forma.
+type BannerCartProduct = {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  finalAzn: number;
+  originalAzn: number | null;
+  discountPct: number | null;
+  productType: string;
+};
+
+function bannerProduct(b: BannerSlide): BannerCartProduct | null {
+  if (b.game) {
+    return {
+      id: b.game.id,
+      title: b.game.title,
+      imageUrl: b.game.imageUrl,
+      finalAzn: b.game.finalAzn,
+      originalAzn: b.game.originalAzn,
+      discountPct: b.game.discountPct,
+      productType: b.game.productType,
+    };
+  }
+  if (b.service) return { ...b.service };
+  return null;
+}
 
 function pad(n: number) {
   return n.toString().padStart(2, "0");
@@ -59,15 +103,15 @@ function useCountdown(iso: string | null) {
 }
 
 function bannerThumb(b: BannerSlide): string {
-  return b.game?.imageUrl || b.game?.heroImageUrl || b.imageUrl;
+  return b.game?.imageUrl || b.game?.heroImageUrl || b.service?.imageUrl || b.imageUrl;
 }
 
 function bannerHeroSrc(b: BannerSlide): string {
-  return b.game?.heroImageUrl || b.imageUrl || b.game?.imageUrl || "";
+  return b.game?.heroImageUrl || b.imageUrl || b.game?.imageUrl || b.service?.imageUrl || "";
 }
 
 function bannerTitle(b: BannerSlide): string {
-  return b.title?.trim() || b.game?.title || "";
+  return b.title?.trim() || b.game?.title || b.service?.title || "";
 }
 
 export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }) {
@@ -104,14 +148,17 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
   if (banners.length === 0 || !banner) return null;
 
   const game = banner.game;
-  const isCartAction = banner.actionType === "ADD_TO_CART" && game;
-  const inCart = isCartAction ? cart.has(game!.id) : false;
+  const product = bannerProduct(banner);
+  const isCartAction = banner.actionType === "ADD_TO_CART" && !!product;
+  const inCart = isCartAction && product ? cart.has(product.id) : false;
   const isFav = game ? favorites.hydrated && favorites.has(game.id) : false;
   const platforms = game?.platform ? game.platform.split(",") : [];
   const linkHref = !isCartAction && banner.linkUrl ? banner.linkUrl : null;
   const detailHref = game?.productId ? `/oyunlar/${game.productId}` : null;
   const title = bannerTitle(banner);
   const subtitle = banner.subtitle?.trim() || null;
+  const theme = bannerThemeClasses(banner.contentTheme);
+  const wrapClass = bannerContentWrapClass(banner.contentPosition, banner.contentPositionMobile);
 
   return (
     <div
@@ -126,7 +173,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
         onTouchEnd={onTouchEnd}
       >
         {banners.map((b, i) => {
-          const bGame = b.game;
+          const bProduct = bannerProduct(b);
           const bDesktop = bannerHeroSrc(b);
           const bMobile = b.mobileImageUrl ?? bDesktop;
           const bTitle = bannerTitle(b);
@@ -159,15 +206,15 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                   />
                 )}
               </div>
-              <div className="media-hero-overlay absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent sm:bg-gradient-to-r sm:from-black/85 sm:via-black/35 sm:to-transparent" />
-              {bGame?.discountPct != null && (
+              <div className={`media-hero-overlay absolute inset-0 ${bannerThemeClasses(b.contentTheme).gradient}`} />
+              {bProduct?.discountPct != null && (
                 <div className="absolute right-4 top-4 sm:right-5 sm:top-5">
                   <span className="flex flex-col items-center rounded-2xl bg-gradient-to-br from-rose-500 via-orange-400 to-amber-300 px-4 py-2 text-white shadow-[0_18px_42px_-16px_rgba(251,113,133,0.95)] ring-2 ring-white/35">
                     <span className="text-[10px] font-black uppercase leading-none tracking-[0.18em] text-white/85">
                       Endirim
                     </span>
                     <span className="mt-0.5 text-xl font-black leading-none tracking-tight">
-                      -%{bGame.discountPct}
+                      -%{bProduct.discountPct}
                     </span>
                   </span>
                 </div>
@@ -177,10 +224,10 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
         })}
 
         {/* Content overlay (only for current banner) */}
-        <div className="absolute inset-x-0 bottom-0 px-5 pb-12 pt-20 sm:right-auto sm:max-w-[68%] sm:px-8 sm:pb-10 lg:left-14 lg:bottom-12 lg:max-w-[560px] lg:p-0 xl:max-w-[620px]">
+        <div className={wrapClass}>
           <div className="flex flex-wrap items-center gap-2">
             {game && (
-              <p className="rounded-full border border-white/20 bg-black/35 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-200 backdrop-blur-md">
+              <p className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] backdrop-blur-md ${theme.chip}`}>
                 İndi mağazada
               </p>
             )}
@@ -190,7 +237,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                 {platforms.map((p) => (
                   <span
                     key={p}
-                    className="rounded-full border border-white/35 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-md"
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-bold backdrop-blur-md ${theme.platformChip}`}
                   >
                     {p}
                   </span>
@@ -202,43 +249,43 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
           {title && (
             detailHref ? (
               <Link href={detailHref} className="block">
-                <h2 className="mt-3 max-w-[16ch] text-[clamp(1.5rem,6vw,1.875rem)] font-black leading-[1.05] text-white drop-shadow-lg sm:max-w-[12ch] sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl">
+                <h2 className={`mt-3 max-w-[16ch] text-[clamp(1.5rem,6vw,1.875rem)] font-black leading-[1.05] sm:max-w-[12ch] sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl ${theme.title}`}>
                   {title}
                 </h2>
               </Link>
             ) : linkHref ? (
               <Link href={linkHref} className="block">
-                <h2 className="mt-3 max-w-[16ch] text-[clamp(1.5rem,6vw,1.875rem)] font-black leading-[1.05] text-white drop-shadow-lg sm:max-w-[12ch] sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl">
+                <h2 className={`mt-3 max-w-[16ch] text-[clamp(1.5rem,6vw,1.875rem)] font-black leading-[1.05] sm:max-w-[12ch] sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl ${theme.title}`}>
                   {title}
                 </h2>
               </Link>
             ) : (
-              <h2 className="mt-3 max-w-[16ch] text-[clamp(1.5rem,6vw,1.875rem)] font-black leading-[1.05] text-white drop-shadow-lg sm:max-w-[12ch] sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl">
+              <h2 className={`mt-3 max-w-[16ch] text-[clamp(1.5rem,6vw,1.875rem)] font-black leading-[1.05] sm:max-w-[12ch] sm:text-4xl lg:max-w-[15ch] lg:text-[44px] xl:text-5xl ${theme.title}`}>
                 {title}
               </h2>
             )
           )}
 
           {subtitle && (
-            <p className="mt-3 max-w-md text-sm leading-snug text-zinc-200 drop-shadow sm:text-base">{subtitle}</p>
+            <p className={`mt-3 max-w-md text-sm leading-snug sm:text-base ${theme.subtitle}`}>{subtitle}</p>
           )}
 
           {/* Price */}
-          {(game || countdownText) && (
+          {(product || countdownText) && (
             <div className="mt-5 flex flex-wrap items-end gap-x-5 gap-y-2">
-              {game && (
+              {product && (
                 <div className="flex items-baseline gap-3">
-                  {game.originalAzn != null && (
-                    <span className="relative text-base font-medium text-zinc-300 sm:text-lg">
-                      {game.originalAzn.toFixed(2)}₼
+                  {product.originalAzn != null && (
+                    <span className={`relative text-base font-medium sm:text-lg ${theme.priceOriginal}`}>
+                      {product.originalAzn.toFixed(2)}₼
                       <span
                         aria-hidden
                         className="pointer-events-none absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 -rotate-6 bg-rose-500"
                       />
                     </span>
                   )}
-                  <span className="text-2xl font-extrabold text-white sm:text-3xl">
-                    {game.finalAzn.toFixed(2)}₼
+                  <span className={`text-2xl font-extrabold sm:text-3xl ${theme.priceFinal}`}>
+                    {product.finalAzn.toFixed(2)}₼
                   </span>
                 </div>
               )}
@@ -258,13 +305,14 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
-                  if (inCart) cart.remove(game!.id);
+                  if (!product) return;
+                  if (inCart) cart.remove(product.id);
                   else cart.add({
-                    id: game!.id,
-                    title: game!.title,
-                    imageUrl: game!.imageUrl,
-                    finalAzn: game!.finalAzn,
-                    productType: game!.productType,
+                    id: product.id,
+                    title: product.title,
+                    imageUrl: product.imageUrl,
+                    finalAzn: product.finalAzn,
+                    productType: product.productType,
                   });
                 }}
                 className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold shadow-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40 ${

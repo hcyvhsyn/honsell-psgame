@@ -439,7 +439,7 @@ export default function AdminSettingsPage() {
 
   if (loading) {
     return (
-      <div className="text-sm text-zinc-300">Tənzimləmələr yüklənir…</div>
+      <div className="text-sm text-zinc-700">Tənzimləmələr yüklənir…</div>
     );
   }
 
@@ -453,13 +453,13 @@ export default function AdminSettingsPage() {
   return (
     <div className="space-y-8">
       <header className="flex items-center gap-3">
-        <SettingsIcon className="h-6 w-6 text-indigo-400" />
+        <SettingsIcon className="h-6 w-6 text-violet-600" />
         <h1 className="text-2xl font-semibold">Tənzimləmələr</h1>
       </header>
 
       <form
         onSubmit={save}
-        className="space-y-6 rounded-xl border border-zinc-800 bg-zinc-900/40 p-6"
+        className="space-y-6 rounded-xl border border-admin-line bg-admin-card p-6"
       >
         <Field
           label="TRY → AZN məzənnəsi"
@@ -499,9 +499,9 @@ export default function AdminSettingsPage() {
           />
         </div>
 
-        <div className="space-y-4 rounded-lg border border-zinc-800 bg-zinc-950/40 p-4">
+        <div className="space-y-4 rounded-lg border border-admin-line bg-admin-card p-4">
           <div>
-            <h3 className="text-sm font-semibold text-zinc-200">
+            <h3 className="text-sm font-semibold text-zinc-800">
               Epic Games qiymətləndirməsi
             </h3>
             <p className="text-xs text-zinc-500">
@@ -543,7 +543,7 @@ export default function AdminSettingsPage() {
                 ? "bg-emerald-500 hover:bg-emerald-400"
                 : saveStatus === "error"
                 ? "bg-rose-500 hover:bg-rose-400"
-                : "bg-indigo-500 hover:bg-indigo-400"
+                : "bg-violet-600 hover:bg-violet-500"
             }`}
           >
             {saving ? (
@@ -568,10 +568,10 @@ export default function AdminSettingsPage() {
             <p
               className={`rounded-md px-3 py-2 text-sm ring-1 ${
                 saveStatus === "success"
-                  ? "bg-emerald-500/10 text-emerald-300 ring-emerald-500/30"
+                  ? "bg-emerald-500/10 text-emerald-700 ring-emerald-500/30"
                   : saveStatus === "error"
-                  ? "bg-rose-500/10 text-rose-300 ring-rose-500/30"
-                  : "bg-zinc-800/60 text-zinc-200 ring-zinc-700"
+                  ? "bg-rose-500/10 text-rose-700 ring-rose-500/30"
+                  : "bg-admin-chip text-zinc-800 ring-admin-line2"
               }`}
             >
               {message}
@@ -580,11 +580,11 @@ export default function AdminSettingsPage() {
         </div>
       </form>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6">
+      <section className="rounded-xl border border-admin-line bg-admin-card p-6">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">PS Store kataloq yığımı</h2>
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-zinc-600">
               store.playstation.com saytından oyun və qiymətləri yeniləyir.
             </p>
           </div>
@@ -592,7 +592,7 @@ export default function AdminSettingsPage() {
             type="button"
             onClick={triggerScrape}
             disabled={scrape.running}
-            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium hover:bg-zinc-800 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-md border border-admin-line2 bg-admin-card px-4 py-2 text-sm font-medium hover:bg-admin-chip2 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${scrape.running ? "animate-spin" : ""}`} />
             {scrape.running ? "Yığılır…" : "PS Store yığımını başlat"}
@@ -627,32 +627,32 @@ export default function AdminSettingsPage() {
             )}
 
             {scrape.currentLabel && !scrape.error && (
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-zinc-600">
                 <span className="text-zinc-500">Hazırda: </span>
                 {scrape.currentLabel}
               </p>
             )}
 
             {scrape.error && (
-              <div className="flex items-start gap-2 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-300 ring-1 ring-rose-500/30">
+              <div className="flex items-start gap-2 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-700 ring-1 ring-rose-500/30">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{scrape.error}</span>
               </div>
             )}
 
             {scrape.finished && !scrape.error && (
-              <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/30">
+              <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 ring-1 ring-emerald-500/30">
                 <CheckCircle2 className="h-4 w-4" />
                 Yığım tamamlandı · {scrape.upserts.toLocaleString()} oyun yadda saxlandı.
               </div>
             )}
 
             {scrape.log.length > 0 && (
-              <details className="rounded-md border border-zinc-800 bg-zinc-950">
+              <details className="rounded-md border border-admin-line bg-admin-card">
                 <summary className="cursor-pointer px-3 py-2 text-xs uppercase tracking-wider text-zinc-500">
                   Fəaliyyət jurnalı ({scrape.log.length})
                 </summary>
-                <ul className="max-h-60 overflow-auto px-3 pb-3 font-mono text-[11px] leading-relaxed text-zinc-400">
+                <ul className="max-h-60 overflow-auto px-3 pb-3 font-mono text-[11px] leading-relaxed text-zinc-600">
                   {scrape.log.map((line, i) => (
                     <li key={i}>{line}</li>
                   ))}
@@ -665,11 +665,11 @@ export default function AdminSettingsPage() {
         <ScrapeHistory runs={history} loading={historyLoading} />
       </section>
 
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6">
+      <section className="rounded-xl border border-admin-line bg-admin-card p-6">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Epic Games kataloq yığımı</h2>
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-zinc-600">
               store.epicgames.com saytından oyunları çəkir — TR (TRY) və AZ (USD)
               qiymətləri ilə.
             </p>
@@ -678,7 +678,7 @@ export default function AdminSettingsPage() {
             type="button"
             onClick={triggerEpicScrape}
             disabled={epicScrape.running}
-            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium hover:bg-zinc-800 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-md border border-admin-line2 bg-admin-card px-4 py-2 text-sm font-medium hover:bg-admin-chip2 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${epicScrape.running ? "animate-spin" : ""}`} />
             {epicScrape.running ? "Yığılır…" : "Epic yığımını başlat"}
@@ -713,21 +713,21 @@ export default function AdminSettingsPage() {
             )}
 
             {epicScrape.currentLabel && !epicScrape.error && (
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-zinc-600">
                 <span className="text-zinc-500">Hazırda: </span>
                 {epicScrape.currentLabel}
               </p>
             )}
 
             {epicScrape.error && (
-              <div className="flex items-start gap-2 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-300 ring-1 ring-rose-500/30">
+              <div className="flex items-start gap-2 rounded-md bg-rose-500/10 px-3 py-2 text-sm text-rose-700 ring-1 ring-rose-500/30">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{epicScrape.error}</span>
               </div>
             )}
 
             {epicScrape.finished && !epicScrape.error && (
-              <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300 ring-1 ring-emerald-500/30">
+              <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 ring-1 ring-emerald-500/30">
                 <CheckCircle2 className="h-4 w-4" />
                 Yığım tamamlandı · {epicScrape.upserts.toLocaleString()} oyun yadda saxlandı
                 {epicScrape.skipped > 0 ? ` · ${epicScrape.skipped} ötürüldü (TRY qiyməti yox)` : ""}.
@@ -735,11 +735,11 @@ export default function AdminSettingsPage() {
             )}
 
             {epicScrape.log.length > 0 && (
-              <details className="rounded-md border border-zinc-800 bg-zinc-950">
+              <details className="rounded-md border border-admin-line bg-admin-card">
                 <summary className="cursor-pointer px-3 py-2 text-xs uppercase tracking-wider text-zinc-500">
                   Fəaliyyət jurnalı ({epicScrape.log.length})
                 </summary>
-                <ul className="max-h-60 overflow-auto px-3 pb-3 font-mono text-[11px] leading-relaxed text-zinc-400">
+                <ul className="max-h-60 overflow-auto px-3 pb-3 font-mono text-[11px] leading-relaxed text-zinc-600">
                   {epicScrape.log.map((line, i) => (
                     <li key={i}>{line}</li>
                   ))}
@@ -761,8 +761,8 @@ function ScrapeHistory({
   loading: boolean;
 }) {
   return (
-    <div className="mt-6 border-t border-zinc-800 pt-5">
-      <h3 className="mb-3 text-sm font-semibold text-zinc-200">
+    <div className="mt-6 border-t border-admin-line pt-5">
+      <h3 className="mb-3 text-sm font-semibold text-zinc-800">
         Son yığımlar
       </h3>
 
@@ -773,9 +773,9 @@ function ScrapeHistory({
           Hələ yığım qeydi yoxdur. Kataloqu doldurmaq üçün yuxarıdakı düyməni basın.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-zinc-800">
+        <div className="overflow-x-auto rounded-md border border-admin-line">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-900/60 text-left text-xs uppercase tracking-wider text-zinc-500">
+            <thead className="bg-admin-card text-left text-xs uppercase tracking-wider text-zinc-500">
               <tr>
                 <th className="px-3 py-2 font-medium">Vaxt</th>
                 <th className="px-3 py-2 font-medium">Status</th>
@@ -783,7 +783,7 @@ function ScrapeHistory({
                 <th className="px-3 py-2 font-medium text-right">Müddət</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody className="divide-y divide-admin-line">
               {runs.map((r) => (
                 <ScrapeHistoryRow key={r.id} run={r} />
               ))}
@@ -801,16 +801,16 @@ function ScrapeHistoryRow({ run }: { run: ScrapeRun }) {
   const durationMs = finished ? finished.getTime() - started.getTime() : null;
 
   return (
-    <tr className="text-zinc-300">
+    <tr className="text-zinc-700">
       <td className="px-3 py-2 align-top">
-        <div className="text-zinc-100">{formatDateTime(started)}</div>
+        <div className="text-zinc-900">{formatDateTime(started)}</div>
         <div className="text-[11px] text-zinc-500">{relative(started)}</div>
       </td>
       <td className="px-3 py-2 align-top">
         <StatusBadge status={run.status} />
         {run.error && (
           <div
-            className="mt-1 max-w-xs truncate text-[11px] text-rose-400"
+            className="mt-1 max-w-xs truncate text-[11px] text-rose-600"
             title={run.error}
           >
             {run.error}
@@ -825,7 +825,7 @@ function ScrapeHistoryRow({ run }: { run: ScrapeRun }) {
           </span>
         )}
       </td>
-      <td className="px-3 py-2 text-right align-top text-zinc-400 tabular-nums">
+      <td className="px-3 py-2 text-right align-top text-zinc-600 tabular-nums">
         {durationMs != null ? formatDuration(durationMs) : "—"}
       </td>
     </tr>
@@ -835,7 +835,7 @@ function ScrapeHistoryRow({ run }: { run: ScrapeRun }) {
 function StatusBadge({ status }: { status: string }) {
   if (status === "SUCCESS") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300 ring-1 ring-emerald-500/30">
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-500/30">
         <CheckCircle2 className="h-3 w-3" />
         Uğurlu
       </span>
@@ -843,14 +843,14 @@ function StatusBadge({ status }: { status: string }) {
   }
   if (status === "FAILED") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-300 ring-1 ring-rose-500/30">
+      <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-700 ring-1 ring-rose-500/30">
         <XCircle className="h-3 w-3" />
         Alınmadı
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-300 ring-1 ring-amber-500/30">
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-500/30">
       <Clock className="h-3 w-3" />
       İşləyir
     </span>
@@ -890,11 +890,11 @@ function formatDuration(ms: number): string {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-zinc-800 bg-zinc-950/60 p-3">
+    <div className="rounded-md border border-admin-line bg-admin-card p-3">
       <div className="text-[10px] uppercase tracking-wider text-zinc-500">
         {label}
       </div>
-      <div className="mt-1 text-lg font-semibold text-zinc-100">{value}</div>
+      <div className="mt-1 text-lg font-semibold text-zinc-900">{value}</div>
     </div>
   );
 }
@@ -908,14 +908,14 @@ function Bar({
   label: string;
   tint?: "indigo" | "emerald";
 }) {
-  const fill = tint === "emerald" ? "bg-emerald-500" : "bg-indigo-500";
+  const fill = tint === "emerald" ? "bg-emerald-500" : "bg-violet-600";
   return (
     <div>
       <div className="mb-1 flex justify-between text-xs text-zinc-500">
         <span>{label}</span>
         <span>{value}%</span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-admin-chip">
         <div
           className={`${fill} h-full transition-all duration-300`}
           style={{ width: `${value}%` }}
@@ -940,13 +940,13 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-medium text-zinc-200">{label}</span>
+      <span className="text-sm font-medium text-zinc-800">{label}</span>
       <input
         type="number"
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 focus:border-indigo-500 focus:outline-none"
+        className="mt-1 w-full rounded-md border border-admin-line2 bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
       />
       <span className="mt-1 block text-xs text-zinc-500">{hint}</span>
     </label>

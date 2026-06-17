@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
+  Bot,
   BriefcaseBusiness,
   ChevronDown,
   ChevronRight,
@@ -17,11 +18,16 @@ import {
   Globe,
   Grid2X2,
   Heart,
+  CircleHelp,
   LogIn,
-  Menu,
+  Mail,
   MessageCircle,
+  MessagesSquare,
   Monitor,
   Music2,
+  Home,
+  Search,
+  ShoppingBag,
   Sparkles,
   Target,
   type LucideIcon,
@@ -35,363 +41,177 @@ import CartIndicator from "./CartIndicator";
 import Logo from "./Logo";
 import NavSearch from "./NavSearch";
 import { useModals } from "@/lib/modals";
-
-const BRAND_PURPLE = "#6301F3";
-const BRAND_PURPLE_DARK = "#2D006F";
+import {
+  PRODUCT_CATEGORY_DEFINITIONS,
+  type ProductCategoryNavAsset,
+} from "@/lib/categoryAssets";
 
 type NavLinkItem = {
+  key?: string;
   href: string;
   label: string;
   description?: string;
+  imageUrl?: string | null;
   Icon?: LucideIcon;
+  iconClassName?: string;
   section?: "products" | "helpful";
   featured?: boolean;
   comingSoon?: boolean;
 };
 
-type NavGroup = {
-  label: string;
-  Icon: LucideIcon;
-  href?: string; // Group başlığını klikləməklə dropdown-un əsas səhifəsinə keçid.
-  description?: string;
-  items: NavLinkItem[];
+const CATEGORY_ICON_BY_KEY: Record<string, LucideIcon> = {
+  PLAYSTATION_GAMES: Gamepad2,
+  PS_PLUS: Gem,
+  PS_TRY_GIFT_CARD: Gift,
+  PSN_TURKEY_ACCOUNT: UserPlus,
+  EPIC_GAMES: Monitor,
+  NETFLIX: Video,
+  YOUTUBE_PREMIUM: Music2,
+  HBO_MAX: Video,
+  GAIN: Video,
+  EA_PLAY: Flame,
+  PUBG_UC: Target,
+  POINT_BLANK_TG: Crosshair,
+  CHATGPT: Sparkles,
+  CLAUDE: Sparkles,
+  LINKEDIN_PREMIUM: BriefcaseBusiness,
+  HONSELL_GIFT_CARD: Gift,
+  MOVIE_SERIAL_CATALOG: Clapperboard,
+  WEBSITE_SERVICE: Globe,
 };
 
-// Yeni 6-kateqoriyalı naviqasiya. Hər kateqoriya dropdown-dur və aktiv public
-// səhifəyə aparır.
-const playstationGroup: NavGroup = {
-  label: "PlayStation",
-  Icon: Gamepad2,
-  href: "/playstation",
-  description: "Oyunlar, abunəliklər və faydalı keçidlər",
-  items: [
-    {
-      href: "/oyunlar",
-      label: "Oyunlar",
-      description: "PS4 və PS5 rəqəmsal oyunları",
-      Icon: Gamepad2,
-      section: "products",
-    },
-    {
-      href: "/ps-plus",
-      label: "PS Plus",
-      description: "Essential, Extra və Deluxe paketləri",
-      Icon: Gem,
-      section: "products",
-    },
-    {
-      href: "/ea-play",
-      label: "EA Play",
-      description: "EA oyun kolleksiyası və sınaq",
-      Icon: Flame,
-      section: "products",
-    },
-    {
-      href: "/hediyye-kartlari",
-      label: "Hədiyyə Kartları",
-      description: "PSN və Honsell gift card-ları",
-      Icon: Gift,
-      section: "products",
-    },
-    {
-      href: "/hesab-acma",
-      label: "Hesab Açma",
-      description: "Türkiyə PSN hesabı yarat",
-      Icon: UserPlus,
-      section: "products",
-    },
-    {
-      href: "/kolleksiyalar",
-      label: "Kolleksiyalar",
-      description: "Seçilmiş oyun siyahıları",
-      Icon: Grid2X2,
-      section: "products",
-    },
-    {
-      href: "/reyler",
-      label: "Rəylər",
-      description: "Müştəri təcrübələri",
-      Icon: MessageCircle,
-      section: "helpful",
-    },
-    {
-      href: "/profile/favorites",
-      label: "Favoritlərim",
-      description: "Sevdiyin məhsullara bax",
-      Icon: Heart,
-      section: "helpful",
-    },
-  ],
-};
+const FEATURED_CATEGORY_KEYS = new Set(["WEBSITE_SERVICE"]);
 
-const pcGamesGroup: NavGroup = {
-  label: "PC Oyunları",
-  Icon: Monitor,
-  href: "/epic-games",
-  description: "Epic Games Store rəqəmsal PC oyunları",
-  items: [
-    {
-      href: "/epic-games",
-      label: "Epic Games",
-      description: "Epic Games Store oyun kataloqu",
-      Icon: Monitor,
-      section: "products",
-    },
-  ],
-};
+function buildProductCategoryItems(
+  categoryAssets?: ProductCategoryNavAsset[] | null,
+): NavLinkItem[] {
+  const source =
+    categoryAssets == null
+      ? PRODUCT_CATEGORY_DEFINITIONS.map((item) => ({
+          ...item,
+          imageUrl: null,
+          isActive: true,
+        }))
+      : categoryAssets;
 
-const inGameCreditGroup: NavGroup = {
-  label: "Oyun-içi Vahid",
-  Icon: Coins,
-  description: "Mobil oyunlar üçün UC, TG və digər vahid paketləri",
-  items: [
-    {
-      href: "/pubg-uc",
-      label: "PUBG UC",
-      description: "PUBG Mobile üçün UC paketləri",
-      Icon: Target,
-      section: "products",
-    },
-    {
-      href: "/point-blank",
-      label: "Point Blank TG",
-      description: "Point Blank üçün TG paketləri",
-      Icon: Crosshair,
-      section: "products",
-    },
-  ],
-};
+  return source
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label, "az"))
+    .map((item) => ({
+      key: item.key,
+      href: item.href,
+      label: item.label,
+      description: item.description ?? undefined,
+      imageUrl: item.imageUrl,
+      Icon: CATEGORY_ICON_BY_KEY[item.key] ?? Grid2X2,
+      featured: FEATURED_CATEGORY_KEYS.has(item.key),
+    }));
+}
 
-const streamingGroup: NavGroup = {
-  label: "Yayım",
-  Icon: Video,
-  href: "/streaming",
-  description: "Streaming xidmətləri, icmallar və izləmə listi",
-  items: [
-    {
-      href: "/streaming",
-      label: "Bütün xidmətlər",
-      description: "Aktiv streaming paketləri",
-      Icon: Video,
-      section: "products",
-    },
-    {
-      href: "/streaming/katalog",
-      label: "Film və Seriallar",
-      description: "Bütün film və serial kataloqu",
-      Icon: Clapperboard,
-      section: "products",
-    },
-    {
-      href: "/streaming/netflix",
-      label: "Netflix",
-      description: "Film və serial platforması",
-      Icon: Video,
-      section: "products",
-    },
-    {
-      href: "/streaming/hbo-max",
-      label: "HBO Max",
-      description: "Premium film və serial arxivi",
-      Icon: Video,
-      section: "products",
-    },
-    {
-      href: "/streaming/gain",
-      label: "Gain",
-      description: "Yerli və xarici kontent",
-      Icon: Video,
-      section: "products",
-    },
-    {
-      href: "/streaming/icmallar",
-      label: "İcmallar",
-      description: "Baxışlar və tövsiyələr",
-      Icon: MessageCircle,
-      section: "helpful",
-    },
-    {
-      href: "/streaming/izleme-listim",
-      label: "İzləmə Listim",
-      description: "Seçdiklərini saxla",
-      Icon: Heart,
-      section: "helpful",
-    },
-  ],
-};
-
-const musicGroup: NavGroup = {
-  label: "Musiqi",
-  Icon: Music2,
-  href: "/music",
-  description: "Premium musiqi və video paketləri",
-  items: [
-    {
-      href: "/music",
-      label: "Bütün musiqi paketləri",
-      description: "Musiqi xidmətlərinə bax",
-      Icon: Music2,
-    },
-    {
-      href: "/music/youtube",
-      label: "YouTube Premium",
-      description: "Reklamsız video və musiqi",
-      Icon: Video,
-    },
-  ],
-};
-
-const workGroup: NavGroup = {
-  label: "İş",
-  Icon: BriefcaseBusiness,
-  href: "/work",
-  description: "Peşəkar platformalar və karyera alətləri",
-  items: [
-    {
-      href: "/work",
-      label: "İş platformaları",
-      description: "Peşəkar hesab xidmətləri",
-      Icon: BriefcaseBusiness,
-    },
-    {
-      href: "/work/linkedin-premium",
-      label: "LinkedIn Premium",
-      description: "LinkedIn paketləri",
-      Icon: BriefcaseBusiness,
-    },
-  ],
-};
-
-const aiGroup: NavGroup = {
-  label: "AI",
-  Icon: Sparkles,
-  href: "/ai",
-  description: "Süni intellekt paketləri və brendlər",
-  items: [
-    {
-      href: "/ai",
-      label: "Süni intellekt paketləri",
-      description: "AI alətlərinə giriş",
-      Icon: Sparkles,
-    },
-    {
-      href: "/ai/claude",
-      label: "Claude",
-      description: "Claude AI paketləri",
-      Icon: Sparkles,
-    },
-    {
-      href: "/ai/chatgpt",
-      label: "ChatGPT",
-      description: "ChatGPT paketləri",
-      Icon: Sparkles,
-    },
-  ],
-};
-
-const servicesGroup: NavGroup = {
-  label: "Xidmətlər",
-  Icon: Globe,
-  href: "/xidmetler",
-  description: "Biznes üçün rəqəmsal xidmətlər",
-  items: [
-    {
-      href: "/xidmetler/website",
-      label: "Website Hazırlanması",
-      description: "Bizneslər üçün satış yönümlü saytlar",
-      Icon: Globe,
-      section: "products",
-      featured: true,
-    },
-  ],
-};
-
-const otherGroup: NavGroup = {
-  label: "Digər",
-  Icon: Grid2X2,
-  description: "Bələdçilər və sayt məlumatları",
-  items: [
-    {
-      href: "/bilmeli-olduglarin",
-      label: "Bələdçilər",
-      description: "Faydalı məqalələr",
-      Icon: MessageCircle,
-    },
-    {
-      href: "/haqqimizda",
-      label: "Haqqımızda",
-      description: "Honsell haqqında",
-      Icon: User,
-    },
-    {
-      href: "/mexfilik-siyaseti",
-      label: "Məxfilik siyasəti",
-      description: "Məlumat təhlükəsizliyi",
-      Icon: Globe,
-    },
-  ],
-};
-
-const navGroups: NavGroup[] = [
-  playstationGroup,
-  pcGamesGroup,
-  inGameCreditGroup,
-  streamingGroup,
-  musicGroup,
-  workGroup,
-  aiGroup,
-  servicesGroup,
-  otherGroup,
+const utilityLinks: NavLinkItem[] = [
+  {
+    href: "/icma",
+    label: "İcma",
+    description: "Fikirlər, serial icmalları və referal",
+    Icon: MessagesSquare,
+    iconClassName: "text-sky-500 dark:text-sky-300",
+  },
+  {
+    href: "/qazan",
+    label: "Qazan",
+    description: "Referal qazancı və hesablayıcı",
+    Icon: Coins,
+    iconClassName: "text-amber-500 dark:text-amber-300",
+  },
+  {
+    href: "/bilmeli-olduglarin",
+    label: "Bələdçilər",
+    description: "Faydalı məqalələr və izahlar",
+    Icon: MessageCircle,
+    iconClassName: "text-indigo-500 dark:text-indigo-300",
+  },
+  {
+    href: "/faq",
+    label: "Yardım",
+    description: "Sual-cavab mərkəzi",
+    Icon: CircleHelp,
+    iconClassName: "text-cyan-500 dark:text-cyan-300",
+  },
+  {
+    href: "/haqqimizda",
+    label: "Haqqımızda",
+    description: "Honsell haqqında",
+    Icon: User,
+    iconClassName: "text-rose-500 dark:text-rose-300",
+  },
 ];
 
-// Mobile drawer flattens the groups but keeps section headings.
-const mobileSections: { heading?: string; items: NavLinkItem[] }[] = navGroups.map((g) => ({
-  heading: g.label,
-  items: g.items,
-}));
+const honsellGiftCardLink: NavLinkItem = {
+  href: "/hediyye-kartlari/honsell",
+  label: "Honsell Hədiyyə kartları",
+  description: "Honsell hədiyyə kartları",
+  Icon: Gift,
+  iconClassName: "text-fuchsia-100",
+  featured: true,
+};
 
 export default function SiteHeader({
   user,
+  categoryAssets,
 }: {
   user?: {
     name?: string | null;
     walletBalance?: number;
     cashbackBalanceCents?: number;
   } | null;
+  categoryAssets?: ProductCategoryNavAsset[] | null;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [desktopCategoriesOpen, setDesktopCategoriesOpen] = useState(false);
   const pathname = usePathname();
   const { open } = useModals();
-  const headerRef = useRef<HTMLElement | null>(null);
-  const [headerHeight, setHeaderHeight] = useState(0);
+  const productCategoryItems = buildProductCategoryItems(categoryAssets);
 
-  // Prevent body scroll when menu is open
+  // Prevent background scroll only for the mobile sheet; desktop categories stay in page flow.
   useEffect(() => {
     if (menuOpen) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
     return () => { document.body.style.overflow = ""; };
   }, [menuOpen]);
 
-  // Mobil header bar-ın hündürlüyü dəyişkəndir (axtarış sətri ayrı sətirə düşür,
-  // simulyatorda safe-area da əlavə olunur). Drawer-i həmin hündürlüyə kilidlə­yi­
-  // rik ki, üst tərəfi header-in altında kəsilməsin.
-  useLayoutEffect(() => {
-    const node = headerRef.current;
-    if (!node || typeof ResizeObserver === "undefined") return;
-    const update = () => setHeaderHeight(node.offsetHeight);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(node);
-    window.addEventListener("resize", update);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, []);
+  useEffect(() => {
+    if (!desktopCategoriesOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+
+      const panel = document.getElementById("desktop-categories-panel");
+      const trigger = document.querySelector("[data-desktop-categories-trigger]");
+      if (panel?.contains(target) || trigger?.contains(target)) return;
+
+      setDesktopCategoriesOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [desktopCategoriesOpen]);
+
+  useEffect(() => {
+    setDesktopCategoriesOpen(false);
+  }, [pathname]);
+
+  function closeMobileCategories() {
+    setMenuOpen(false);
+  }
+
+  function openAiAssistant() {
+    window.dispatchEvent(new CustomEvent("honsell:open-ai"));
+  }
 
   return (
     <>
-      <header ref={headerRef} className="sticky top-0 z-50 bg-white/85 dark:bg-[#03030A]/85 px-4 py-3 backdrop-blur-xl sm:px-6">
+      <header className="sticky top-0 z-50 bg-white/85 dark:bg-[#03030A]/85 px-4 py-3 backdrop-blur-xl sm:px-6">
         <div className="honsell-navbar-shell mx-auto flex w-full max-w-7xl flex-col rounded-[24px]">
           <div
             className="grid min-h-[66px] grid-cols-[auto_1fr] items-center gap-3 px-4 py-3 md:grid-cols-[150px_minmax(220px,1fr)_auto] md:px-5 xl:grid-cols-[170px_minmax(260px,1fr)_auto] xl:gap-4 xl:px-6"
@@ -408,45 +228,28 @@ export default function SiteHeader({
             <div className="flex min-w-0 items-center justify-end gap-2 xl:gap-3">
               <CartIndicator />
 
-              <Link
-                href="/hediyye-kartlari/honsell"
-                className="hidden h-10 items-center gap-2 rounded-[18px] border border-violet-300/40 bg-violet-50 px-3 text-sm font-bold text-violet-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition hover:bg-violet-100 dark:border-violet-400/30 dark:bg-violet-950/30 dark:text-white dark:hover:bg-violet-900/40 sm:inline-flex"
-              >
-                <Gift className="h-4 w-4" />
-                <span>Hədiyyə kartları</span>
-              </Link>
-
               {user ? (
                 <UserAccountDropdown user={user} />
               ) : (
                 <div className="hidden items-center gap-2 sm:flex">
-                  <button
-                    type="button"
-                    onClick={() => open("login")}
-                    className="inline-flex h-10 items-center gap-2 rounded-[18px] border border-zinc-200 bg-white/75 px-3 text-sm font-semibold text-zinc-900 transition hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-100 dark:hover:bg-white/[0.075]"
-                  >
-                    <LogIn className="h-4 w-4" /> Daxil ol
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => open("register")}
-                    className="inline-flex h-10 items-center gap-2 rounded-[18px] bg-gradient-to-r from-violet-700 to-fuchsia-700 px-3 text-sm font-bold text-white shadow-[0_0_30px_-14px_rgba(124,58,237,0.9)] transition hover:from-violet-600 hover:to-fuchsia-600"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    Qeydiyyat
-                  </button>
+	                  <button
+	                    type="button"
+	                    onClick={() => open("login")}
+	                    className="group honsell-nav-action inline-flex h-10 items-center gap-2 rounded-[18px] border border-zinc-200 bg-white/75 px-3 text-sm font-semibold text-zinc-900 transition hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-100 dark:hover:bg-white/[0.075]"
+	                  >
+		                    <LogIn className="honsell-nav-icon-motion h-4 w-4 text-cyan-500 dark:text-cyan-300" /> Daxil ol
+	                  </button>
+	                  <button
+	                    type="button"
+	                    onClick={() => open("register")}
+	                    className="group honsell-nav-action inline-flex h-10 items-center gap-2 rounded-[18px] bg-gradient-to-r from-violet-700 to-fuchsia-700 px-3 text-sm font-bold text-white shadow-[0_0_30px_-14px_rgba(124,58,237,0.9)] transition hover:from-violet-600 hover:to-fuchsia-600"
+	                  >
+		                    <UserPlus className="honsell-nav-icon-motion honsell-nav-icon-idle h-4 w-4 text-white" />
+	                    Qeydiyyat
+	                  </button>
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={() => setMenuOpen((v) => !v)}
-                className="flex h-10 w-10 items-center justify-center rounded-[16px] border border-zinc-200 bg-white/75 text-zinc-700 transition hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-200 dark:hover:bg-white/[0.075] xl:hidden"
-                aria-label="Menyu"
-                aria-expanded={menuOpen}
-              >
-                {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
             </div>
 
             <div className="col-span-2 md:hidden">
@@ -458,124 +261,47 @@ export default function SiteHeader({
             className="hidden min-h-[64px] items-center justify-between gap-4 border-t border-zinc-200 px-6 dark:border-violet-300/15 xl:flex"
             style={{ zIndex: 20 }}
           >
-            <nav className="flex min-w-0 items-center gap-5" aria-label="Əsas naviqasiya">
-              {navGroups.map((g) => (
-                <NavDropdown key={g.label} group={g} active={isGroupActive(g, pathname)} pathname={pathname} />
+            <nav className="flex min-w-0 flex-1 items-center gap-3" aria-label="Əsas naviqasiya">
+              <CategoriesDropdown
+                active={isAnyCategoryActive(productCategoryItems, pathname)}
+                open={desktopCategoriesOpen}
+                onToggle={() => setDesktopCategoriesOpen((value) => !value)}
+                onClose={() => setDesktopCategoriesOpen(false)}
+              />
+              {utilityLinks.map((item) => (
+                <DesktopNavLink key={item.href} item={item} pathname={pathname} />
               ))}
+              <DesktopContactButton onClick={openAiAssistant} />
             </nav>
 
+            <div className="ml-auto flex shrink-0 items-center">
+              <DesktopNavLink item={honsellGiftCardLink} pathname={pathname} />
+            </div>
           </div>
+
+          {desktopCategoriesOpen && (
+            <DesktopCategoryPanel
+              items={productCategoryItems}
+              pathname={pathname}
+              onClose={() => setDesktopCategoriesOpen(false)}
+            />
+          )}
         </div>
       </header>
 
-      {/* Mobile Drawer */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-40 xl:hidden" role="dialog" aria-modal="true" aria-label="Menyu">
-          <button
-            type="button"
-            aria-label="Menyunu bağla"
-            onClick={() => setMenuOpen(false)}
-            className="absolute inset-0 h-full w-full bg-black/70 backdrop-blur-sm"
-          />
-          <div
-            className="absolute inset-x-0 flex flex-col overflow-hidden rounded-b-3xl border-b border-zinc-200 dark:border-white/10 bg-white dark:bg-[#09090C] shadow-2xl"
-            style={{
-              top: headerHeight || undefined,
-              maxHeight: headerHeight
-                ? `calc(100dvh - ${headerHeight}px)`
-                : "calc(100dvh - 7.5rem)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-4"
-              style={{ WebkitOverflowScrolling: "touch" }}
-            >
-              <div className="grid gap-5">
-                {/* Account block — always at the top so primary action is reachable */}
-                {user ? (
-                  <Link
-                    href="/profile"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-gradient-to-r from-violet-50 to-white p-3 dark:border-white/10 dark:from-white/[0.06] dark:to-white/[0.02]"
-                  >
-                    <span
-                      className="grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br text-white"
-                      style={{ backgroundImage: `linear-gradient(135deg, ${BRAND_PURPLE}, ${BRAND_PURPLE_DARK})` }}
-                    >
-                      <User className="h-5 w-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-zinc-900 dark:text-white">
-                        {user.name ?? "Hesab"}
-                      </p>
-                      {user.walletBalance !== undefined && (
-                        <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
-                          Cüzdan {(user.walletBalance / 100).toFixed(2)} ₼
-                          {typeof user.cashbackBalanceCents === "number" && user.cashbackBalanceCents > 0
-                            ? ` · CB ${(user.cashbackBalanceCents / 100).toFixed(2)} ₼`
-                            : ""}
-                        </p>
-                      )}
-                    </div>
-                    <span className="text-zinc-500">→</span>
-                  </Link>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => { setMenuOpen(false); open("login"); }}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200 dark:hover:bg-white/10"
-                    >
-                      <LogIn className="h-4 w-4" /> Daxil ol
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setMenuOpen(false); open("register"); }}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl px-3 py-3 text-sm font-semibold text-white shadow-[0_10px_30px_-16px_rgba(99,1,243,0.95)]"
-                      style={{ backgroundImage: `linear-gradient(90deg, ${BRAND_PURPLE}, ${BRAND_PURPLE_DARK})` }}
-                    >
-                      <UserPlus className="h-4 w-4" /> Qeydiyyat
-                    </button>
-                  </div>
-                )}
+      <MobileBottomNav
+        pathname={pathname}
+        categoriesOpen={menuOpen}
+        onOpenCategories={() => setMenuOpen(true)}
+        onOpenAi={openAiAssistant}
+      />
 
-                {/* Nav sections */}
-                {mobileSections.map((section, idx) => (
-                  <div key={section.heading ?? `section-${idx}`} className="grid gap-2">
-                    {section.heading && (
-                      <p className="px-1 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                        {section.heading}
-                      </p>
-                    )}
-                    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.02]">
-                      {section.items.map((item, i) => (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => setMenuOpen(false)}
-                          className={`flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium transition hover:bg-violet-50 active:bg-zinc-100 dark:hover:bg-white/[0.05] dark:active:bg-white/10 ${
-                            i > 0 ? "border-t border-zinc-200 dark:border-white/5" : ""
-                          } ${item.featured ? "text-rose-600 dark:text-rose-200" : "text-zinc-700 dark:text-zinc-200"}`}
-                        >
-                          <span className="truncate">{item.label}</span>
-                          <span className="flex items-center gap-2">
-                            {item.comingSoon && (
-                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-amber-300/40 dark:bg-amber-400/15 dark:text-amber-200 dark:ring-amber-300/30">
-                                Tezliklə
-                              </span>
-                            )}
-                            <span className="text-zinc-400 dark:text-zinc-600">→</span>
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+      {menuOpen && (
+        <MobileCategorySheet
+          items={productCategoryItems}
+          pathname={pathname}
+          onClose={closeMobileCategories}
+        />
       )}
     </>
   );
@@ -586,205 +312,510 @@ function hrefMatches(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function isGroupActive(group: NavGroup, pathname: string) {
-  if (group.href && hrefMatches(pathname, group.href)) return true;
-  return group.items.some((item) => hrefMatches(pathname, item.href));
+function isAnyCategoryActive(items: NavLinkItem[], pathname: string) {
+  return items.some((item) => hrefMatches(pathname, item.href));
 }
 
-function NavDropdown({
-  group,
-  active,
+function DesktopNavLink({
+  item,
   pathname,
 }: {
-  group: NavGroup;
-  active: boolean;
+  item: NavLinkItem;
   pathname: string;
 }) {
-  // Dropdown title-i qrupun əsas səhifəsinə (varsa) link-ə çevrilir; əks halda
-  // sadəcə görsəl trigger düymədir. ChevronDown panelin açıldığını göstərir.
-  const hasSectionedItems = group.items.some((item) => item.section);
-  const productItems = group.items.filter((item) => item.section !== "helpful");
-  const helpfulItems = group.items.filter((item) => item.section === "helpful");
-  const sections = hasSectionedItems
-    ? [
-        { title: "SATIŞ MƏHSULLARI", items: productItems },
-        { title: "FAYDALI BÖLMƏLƏR", items: helpfulItems },
-      ].filter((section) => section.items.length > 0)
-    : [{ title: "BÖLMƏLƏR", items: group.items }];
-  const triggerClass =
-    `relative inline-flex h-10 items-center gap-2 rounded-[18px] px-1 text-sm font-semibold transition group-focus-within:text-zinc-900 dark:group-focus-within:text-white ${
-      active
-        ? "text-zinc-900 dark:text-white"
-        : "text-zinc-700 dark:text-zinc-200/90 hover:text-zinc-900 dark:hover:text-white"
-    }`;
-  const Icon = group.Icon;
-
-  // Panel sabit enlidir (520px). Ən sağdakı qruplarda `left-0` ilə açılsa panel
-  // ekranın sağ kənarından kənara çıxır. Triggerin viewport-dakı yerini ölçüb,
-  // sağa daşacaqsa paneli `right-0`-a keçirib sola doğru açırıq.
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [alignRight, setAlignRight] = useState(false);
-
-  useLayoutEffect(() => {
-    const node = containerRef.current;
-    if (!node) return;
-    const PANEL_WIDTH = 520;
-    const MARGIN = 24; // max-w-[calc(100vw-3rem)] ilə eyni boşluq
-    const update = () => {
-      const left = node.getBoundingClientRect().left;
-      setAlignRight(left + PANEL_WIDTH > window.innerWidth - MARGIN);
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  const triggerContent = (
-    <>
-      <Icon className="h-5 w-5 shrink-0 text-zinc-700 dark:text-zinc-100" />
-      <span className="relative z-10">{group.label}</span>
-      <ChevronDown className="relative z-10 h-4 w-4 text-violet-400" />
-      {active && (
-        <span className="pointer-events-none absolute inset-x-2 -bottom-2 h-px bg-gradient-to-r from-transparent via-violet-300 to-transparent" />
-      )}
-    </>
-  );
+  const active = hrefMatches(pathname, item.href);
+  const Icon = item.Icon;
+  const featured = item.featured;
+  const iconColorClass = item.iconClassName ?? "text-violet-500 dark:text-violet-300";
 
   return (
-    <div ref={containerRef} className="group relative">
-      {group.href ? (
-        <Link href={group.href} className={triggerClass}>
-          {triggerContent}
-        </Link>
-      ) : (
-        <button type="button" className={triggerClass}>
-          {triggerContent}
-        </button>
+    <Link
+      href={item.href}
+      className={`group honsell-nav-action relative inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[18px] border px-2.5 text-sm font-semibold transition ${
+        featured
+          ? "honsell-nav-featured-link border-violet-300/45 pl-3 pr-3.5 text-white"
+          : active
+            ? "honsell-nav-soft-link border-violet-300/25 bg-white/55 text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:bg-white/[0.055] dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+            : "honsell-nav-soft-link border-transparent text-zinc-700 hover:border-violet-300/25 hover:bg-white/45 hover:text-zinc-950 dark:text-zinc-200/90 dark:hover:border-violet-300/20 dark:hover:bg-white/[0.045] dark:hover:text-white"
+      }`}
+    >
+      {Icon && (
+        <Icon
+          className={`honsell-nav-icon-motion h-4 w-4 shrink-0 ${
+            featured ? "honsell-nav-gift-icon" : active ? "honsell-nav-icon-idle" : ""
+          } ${iconColorClass}`}
+          aria-hidden="true"
+        />
       )}
-      {/*
-        Wrapper-in `pt-3`-ı vizual boşluğu (12px) saxlayır, amma boşluq özü
-        hover hədəfidir — kursor triggerdən panelə keçəndə group hover-i
-        kəsilmir.
-      */}
-      <div className={`invisible absolute top-full z-50 w-[520px] max-w-[calc(100vw-3rem)] pt-3 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${alignRight ? "right-0" : "left-0"}`}>
-        <div className="relative overflow-hidden rounded-[20px] border border-violet-300/45 bg-[radial-gradient(circle_at_7%_7%,rgba(168,85,247,0.10),transparent_31%),radial-gradient(circle_at_94%_10%,rgba(59,130,246,0.08),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.97))] p-4 shadow-[0_22px_70px_-42px_rgba(124,58,237,0.35)] backdrop-blur-2xl dark:border-violet-400/[0.45] dark:bg-[radial-gradient(circle_at_7%_7%,rgba(168,85,247,0.24),transparent_31%),radial-gradient(circle_at_94%_10%,rgba(59,130,246,0.16),transparent_28%),linear-gradient(135deg,rgba(17,19,32,0.98),rgba(5,7,15,0.97))] dark:shadow-[0_22px_70px_-34px_rgba(168,85,247,0.85)]">
-          <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/70 to-transparent" />
-          <div className="pointer-events-none absolute inset-x-8 bottom-0 h-16 bg-violet-700/10 blur-3xl" />
+      <span>{item.label}</span>
+      {active && (
+        <span className="honsell-nav-active-glow pointer-events-none absolute inset-x-2 -bottom-2 h-px bg-gradient-to-r from-transparent via-violet-300 to-transparent" />
+      )}
+    </Link>
+  );
+}
 
-          <div className="relative">
-            <div className="flex items-center gap-3 pb-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-violet-300/45 bg-violet-100 text-violet-700 shadow-[0_0_28px_-18px_rgba(168,85,247,0.65)] dark:border-violet-400/[0.45] dark:bg-violet-950/30 dark:text-white dark:shadow-[0_0_28px_-18px_rgba(168,85,247,0.95)]">
-                {group.label === "PlayStation" ? <PlayStationMark /> : <Icon className="h-5 w-5" />}
-              </span>
-              <div className="min-w-0">
-                <p className="text-xl font-black text-zinc-950 dark:text-white">{group.label}</p>
-                <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
-                  {group.description ?? "Seçilmiş keçidlər və xidmətlər"}
-                </p>
-              </div>
+function DesktopContactButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group honsell-nav-action honsell-nav-soft-link relative inline-flex h-10 items-center gap-2 rounded-[18px] border border-transparent px-2.5 text-sm font-semibold text-zinc-700 transition hover:border-emerald-300/25 hover:bg-white/45 hover:text-zinc-950 dark:text-zinc-200/90 dark:hover:border-emerald-300/20 dark:hover:bg-white/[0.045] dark:hover:text-white"
+    >
+      <Mail
+        className="honsell-nav-icon-motion h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-300"
+        aria-hidden="true"
+      />
+      <span>Əlaqə</span>
+    </button>
+  );
+}
+
+function CategoriesDropdown({
+  active,
+  open,
+  onToggle,
+  onClose,
+}: {
+  active: boolean;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") onClose();
+        }}
+        className={`group honsell-nav-action honsell-nav-soft-link relative inline-flex h-12 items-center gap-3 rounded-[18px] border px-4 text-sm font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60 ${
+          open
+            ? "border-violet-400 bg-violet-500/10 text-violet-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+            : active
+              ? "border-transparent text-zinc-950 dark:text-white"
+              : "border-transparent text-zinc-700 hover:text-zinc-950 dark:text-zinc-200/90 dark:hover:text-white"
+        }`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls="desktop-categories-panel"
+        data-desktop-categories-trigger
+      >
+        {open ? (
+          <X className="honsell-nav-icon-motion h-5 w-5 shrink-0 text-fuchsia-300" />
+        ) : (
+          <Grid2X2 className="honsell-nav-icon-motion honsell-nav-icon-idle h-5 w-5 shrink-0 text-violet-500 dark:text-violet-300" />
+        )}
+        <span className="relative z-10">Kateqoriyalar</span>
+        {!open && (
+          <ChevronDown className="honsell-nav-chevron relative z-10 h-4 w-4 text-violet-400" />
+        )}
+        {(active || open) && (
+          <span className="honsell-nav-active-glow pointer-events-none absolute inset-x-2 -bottom-2 h-px bg-gradient-to-r from-transparent via-violet-300 to-transparent" />
+        )}
+      </button>
+    </div>
+  );
+}
+
+function DesktopCategoryPanel({
+  items,
+  pathname,
+  onClose,
+}: {
+  items: NavLinkItem[];
+  pathname: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      id="desktop-categories-panel"
+      className="relative mx-4 mb-4 hidden overflow-hidden rounded-[22px] border border-violet-300/20 bg-[radial-gradient(circle_at_18%_0%,rgba(124,58,237,0.14),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))] text-white shadow-[0_22px_70px_-50px_rgba(124,58,237,0.9)] backdrop-blur-xl xl:block"
+      role="menu"
+      aria-label="Kateqoriyalar"
+    >
+      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-violet-300/45 to-transparent" />
+      <div
+        className="max-h-[min(54dvh,34rem)] overflow-y-auto px-5 py-5"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-violet-300">
+              <Grid2X2 className="h-6 w-6" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xl font-black tracking-tight text-white">Kateqoriyalar</p>
+              <p className="mt-0.5 text-sm font-semibold text-slate-400">
+                {items.length} kateqoriya
+              </p>
             </div>
-
-            {sections.map((section) => (
-              <DropdownSection
-                key={section.title}
-                title={section.title}
-                items={section.items}
-                pathname={pathname}
-                fallbackIcon={Icon}
-              />
-            ))}
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Kateqoriyaları bağla"
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-violet-500/15 text-violet-300 transition hover:bg-violet-500/25 hover:text-white"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="grid gap-3 xl:grid-cols-4">
+          {items.map((item) => (
+            <CategoryMenuItem
+              key={item.href}
+              item={item}
+              active={hrefMatches(pathname, item.href)}
+              onNavigate={onClose}
+            />
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
-function DropdownSection({
-  title,
-  items,
-  pathname,
-  fallbackIcon,
+function CategoryMenuItem({
+  item,
+  active,
+  onNavigate,
 }: {
-  title: string;
-  items: NavLinkItem[];
-  pathname: string;
-  fallbackIcon: LucideIcon;
+  item: NavLinkItem;
+  active: boolean;
+  onNavigate?: () => void;
 }) {
-  if (items.length === 0) return null;
-  const gridClass = items.length === 1 ? "grid-cols-1" : "grid-cols-2";
+  const Icon = item.Icon ?? Grid2X2;
 
   return (
-    <div className="mt-4 first:mt-0">
-      <div className="mb-2.5 flex items-center gap-3">
-        <p className="shrink-0 text-xs font-black uppercase text-violet-600 dark:text-violet-300">{title}</p>
-        <span className="h-px flex-1 bg-zinc-200 dark:bg-white/10" />
-      </div>
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      role="menuitem"
+      className={`group/card flex min-h-[78px] min-w-0 items-center gap-4 rounded-2xl border px-4 py-3 transition ${
+        active
+          ? "border-violet-400/65 bg-violet-500/12 text-violet-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+          : "border-white/10 bg-white/[0.035] text-slate-100 hover:border-violet-300/45 hover:bg-white/[0.055]"
+      }`}
+    >
+      <span
+        className={`relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border ${
+          active
+            ? "border-violet-300/55 bg-violet-400/15 text-violet-100"
+            : "border-white/10 bg-black/20 text-slate-200"
+        }`}
+      >
+        {item.imageUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+        ) : item.key === "PLAYSTATION_GAMES" ? (
+          <PlayStationMark compact />
+        ) : (
+          <Icon className="h-6 w-6" />
+        )}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="flex min-w-0 items-center gap-2">
+          <span
+            className={`truncate text-base font-black tracking-tight ${
+              active ? "text-violet-300" : "text-white"
+            }`}
+          >
+            {item.label}
+          </span>
+        </span>
+        {item.description && (
+          <span className="mt-0.5 line-clamp-1 text-sm font-semibold text-slate-400">
+            {item.description}
+          </span>
+        )}
+      </span>
+      <span
+        className={`grid h-9 w-9 shrink-0 place-items-center rounded-full transition ${
+          active
+            ? "bg-violet-500/20 text-violet-300"
+            : "text-slate-600 group-hover/card:bg-white/[0.05] group-hover/card:text-slate-200"
+        }`}
+      >
+        <ChevronRight className="h-5 w-5" />
+      </span>
+    </Link>
+  );
+}
 
-      <div className={`grid ${gridClass} gap-2`}>
-        {items.map((item) => (
-          <DropdownMenuItem
-            key={item.href}
-            item={item}
-            active={hrefMatches(pathname, item.href)}
-            fallbackIcon={fallbackIcon}
-          />
-        ))}
+function MobileBottomNav({
+  pathname,
+  categoriesOpen,
+  onOpenCategories,
+  onOpenAi,
+}: {
+  pathname: string;
+  categoriesOpen: boolean;
+  onOpenCategories: () => void;
+  onOpenAi: () => void;
+}) {
+  const productsActive = hrefMatches(pathname, "/oyunlar");
+  const profileActive = hrefMatches(pathname, "/profile");
+
+  return (
+    <nav
+      className="honsell-mobile-bottom-nav fixed inset-x-0 bottom-0 z-[70] px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] xl:hidden"
+      aria-label="Mobil naviqasiya"
+    >
+      <div className="relative mx-auto grid h-[78px] max-w-[30rem] grid-cols-[1fr_1fr_1.12fr_1fr_1fr] items-end rounded-t-[28px] border border-b-0 border-white/10 bg-[#10172a]/95 px-2 pt-3 shadow-[0_-22px_70px_-36px_rgba(79,70,229,0.75),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-2xl">
+        <MobileBottomNavItem
+          href="/"
+          label="Ana səhifə"
+          Icon={Home}
+          active={pathname === "/"}
+          iconClassName="text-sky-300"
+        />
+        <MobileBottomNavItem
+          label="Kateqoriyalar"
+          Icon={Grid2X2}
+          active={categoriesOpen}
+          onClick={onOpenCategories}
+          iconClassName="text-violet-300"
+        />
+
+	        <Link
+	          href="/profile"
+	          aria-current={profileActive ? "page" : undefined}
+	          className="group honsell-nav-action -mt-8 flex min-w-0 flex-col items-center justify-end gap-1 text-center"
+	        >
+	          <span className="grid h-[58px] w-[58px] place-items-center rounded-full border-[6px] border-[#10172a] bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-[0_18px_42px_-18px_rgba(124,58,237,1)] transition group-active:scale-95">
+	            <User className="honsell-nav-icon-motion h-6 w-6" />
+	          </span>
+          <span className="max-w-full truncate text-[11px] font-black leading-3 text-violet-100">
+            Profilim
+          </span>
+        </Link>
+
+        <MobileBottomNavItem
+          href="/oyunlar"
+          label="Məhsullar"
+          Icon={ShoppingBag}
+          active={productsActive}
+          iconClassName="text-amber-300"
+        />
+        <MobileBottomNavItem
+          label="AI bot"
+          Icon={Bot}
+          onClick={onOpenAi}
+          accent
+          iconClassName="text-emerald-300"
+        />
+      </div>
+    </nav>
+  );
+}
+
+function MobileBottomNavItem({
+  href,
+  label,
+  Icon,
+  active = false,
+  accent = false,
+  iconClassName,
+  onClick,
+}: {
+  href?: string;
+  label: string;
+  Icon: LucideIcon;
+  active?: boolean;
+  accent?: boolean;
+  iconClassName?: string;
+  onClick?: () => void;
+}) {
+  const content = (
+    <>
+      <span className={`relative grid h-9 w-11 place-items-center rounded-2xl transition ${
+        active
+          ? "bg-violet-500/20 text-violet-100"
+          : accent
+            ? "text-emerald-300"
+            : "text-slate-400"
+      }`}>
+	        <Icon className={`honsell-nav-icon-motion h-5 w-5 ${active || accent ? "honsell-nav-icon-idle" : ""} ${iconClassName ?? ""}`} />
+        {accent && (
+          <span className="absolute right-1 top-0 h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.18)]" />
+        )}
+      </span>
+      <span className={`max-w-[76px] truncate text-[11px] font-black leading-3 ${
+        active ? "text-violet-100" : "text-slate-400"
+      }`}>
+        {label}
+      </span>
+    </>
+  );
+
+  const className = "group honsell-nav-action flex min-w-0 flex-col items-center justify-end gap-1 pb-2 text-center transition active:scale-95";
+
+  if (href) {
+    return (
+      <Link href={href} aria-current={active ? "page" : undefined} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onClick} className={className} aria-pressed={active}>
+      {content}
+    </button>
+  );
+}
+
+function MobileCategorySheet({
+  items,
+  pathname,
+  onClose,
+}: {
+  items: NavLinkItem[];
+  pathname: string;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const cleanQuery = query.trim().toLocaleLowerCase("az");
+  const filteredItems = cleanQuery
+    ? items.filter((item) =>
+        `${item.label} ${item.description ?? ""}`.toLocaleLowerCase("az").includes(cleanQuery)
+      )
+    : items;
+
+  return (
+    <div className="fixed inset-0 z-[120] xl:hidden" role="dialog" aria-modal="true" aria-label="Kateqoriyalar">
+      <button
+        type="button"
+        aria-label="Kateqoriyaları bağla"
+        onClick={onClose}
+        className="absolute inset-0 h-full w-full bg-black/65 backdrop-blur-sm"
+      />
+
+      <div
+        className="absolute inset-x-0 bottom-0 mx-auto flex h-[min(86dvh,46rem)] max-w-[34rem] flex-col overflow-hidden rounded-t-[30px] border border-b-0 border-white/10 bg-[#10172a] text-white shadow-[0_-28px_80px_-40px_rgba(99,102,241,0.95)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="shrink-0 border-b border-white/10 px-5 pb-4 pt-3">
+          <div className="mx-auto mb-5 h-1.5 w-20 rounded-full bg-white/[0.12]" />
+          <div className="flex items-center gap-4">
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-violet-400/45 bg-violet-500/15 text-violet-200">
+              <Grid2X2 className="h-7 w-7" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-2xl font-black tracking-tight">Kateqoriyalar</p>
+              <p className="mt-0.5 text-sm font-bold text-slate-400">
+                {filteredItems.length} kateqoriya
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Bağla"
+              className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
+
+        <div className="shrink-0 border-b border-white/10 px-5 py-4">
+          <label className="relative block">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Kateqoriya axtar..."
+              className="h-14 w-full rounded-[22px] border border-white/10 bg-white/[0.055] pl-12 pr-4 text-base font-bold text-white outline-none placeholder:text-slate-500 focus:border-violet-400/60 focus:bg-white/[0.075]"
+            />
+          </label>
+        </div>
+
+        <div
+          className="flex-1 overflow-y-auto px-5 py-4"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          {filteredItems.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3 pb-4">
+              {filteredItems.map((item) => (
+                <MobileCategorySheetCard
+                  key={item.href}
+                  item={item}
+                  active={hrefMatches(pathname, item.href)}
+                  onNavigate={onClose}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid min-h-[12rem] place-items-center rounded-2xl border border-white/10 bg-white/[0.035] px-6 text-center">
+              <p className="text-sm font-semibold text-slate-400">Bu adda kateqoriya tapılmadı.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="shrink-0 border-t border-white/10 bg-[#10172a]/95 px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4">
+          <Link
+            href="/oyunlar"
+            onClick={onClose}
+            className="inline-flex h-14 w-full items-center justify-center gap-3 rounded-[22px] bg-gradient-to-r from-violet-500 to-fuchsia-500 text-base font-black text-white shadow-[0_18px_48px_-24px_rgba(168,85,247,1)] transition active:scale-[0.99]"
+          >
+            <Gamepad2 className="h-5 w-5" />
+            Bütün məhsullar
+            <ChevronRight className="h-5 w-5" />
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
 
-function DropdownMenuItem({
+function MobileCategorySheetCard({
   item,
   active,
-  fallbackIcon,
+  onNavigate,
 }: {
   item: NavLinkItem;
   active: boolean;
-  fallbackIcon: LucideIcon;
+  onNavigate: () => void;
 }) {
-  const ItemIcon = item.Icon ?? fallbackIcon;
+  const Icon = item.Icon ?? Grid2X2;
 
   return (
     <Link
       href={item.href}
-      className={`group/item relative flex min-h-[48px] items-center gap-2.5 rounded-xl border px-2.5 py-2 transition ${
-        item.featured
-          ? "border-rose-400/70 bg-rose-50 text-rose-700 shadow-[0_0_28px_-20px_rgba(251,113,133,0.55)] hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-100 dark:shadow-[0_0_28px_-20px_rgba(251,113,133,0.95)] dark:hover:bg-rose-500/[0.15]"
-          : active
-            ? "border-violet-300/[0.55] bg-violet-50 text-zinc-950 dark:bg-violet-500/[0.12] dark:text-white"
-            : "border-zinc-200 bg-white text-zinc-700 hover:border-violet-300/40 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-100 dark:hover:bg-white/[0.065]"
+      onClick={onNavigate}
+      className={`group flex min-h-[76px] min-w-0 items-center gap-3 rounded-[20px] border px-3 py-3 transition active:scale-[0.99] ${
+        active
+          ? "border-violet-300/55 bg-violet-500/20"
+          : "border-white/10 bg-white/[0.045] hover:border-violet-300/40 hover:bg-white/[0.065]"
       }`}
     >
-      <span
-        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${
-          item.featured
-            ? "border-rose-300/30 bg-rose-100 text-rose-600 dark:bg-rose-300/[0.15] dark:text-rose-200"
-            : "border-zinc-200 bg-violet-50 text-violet-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-violet-100"
-        }`}
-      >
-        <ItemIcon className="h-4 w-4" />
+      <span className={`relative grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-2xl border ${
+        active
+          ? "border-violet-300/50 bg-violet-400/20 text-violet-100"
+          : "border-white/10 bg-black/20 text-slate-200"
+      }`}>
+        {item.imageUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+        ) : item.key === "PLAYSTATION_GAMES" ? (
+          <PlayStationMark compact />
+        ) : (
+          <Icon className="h-5 w-5" />
+        )}
       </span>
-
       <span className="min-w-0 flex-1">
-        <span className={`block truncate text-sm font-black ${item.featured ? "text-rose-600 dark:text-rose-200" : "text-zinc-950 dark:text-white"}`}>
+        <span className="block truncate text-sm font-black text-white">
           {item.label}
         </span>
         {item.description && (
-          <span className="mt-0.5 block truncate text-xs font-medium text-zinc-500 dark:text-zinc-300">
+          <span className="mt-0.5 block truncate text-xs font-semibold text-slate-400">
             {item.description}
           </span>
         )}
       </span>
-
-      {item.comingSoon && (
-        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-amber-300/40 dark:bg-amber-400/15 dark:text-amber-200 dark:ring-amber-300/30">
-          Tezliklə
-        </span>
-      )}
-      {item.featured && <Sparkles className="h-3.5 w-3.5 shrink-0 fill-rose-300/20 text-rose-300" />}
-      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 transition group-hover/item:translate-x-1 group-hover/item:text-zinc-950 dark:text-zinc-300 dark:group-hover/item:text-white" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-slate-500 transition group-hover:translate-x-0.5 group-hover:text-slate-200" />
     </Link>
   );
 }
@@ -837,14 +868,14 @@ function UserAccountDropdown({
     >
       <Link
         href="/profile"
-        className="flex h-10 max-w-[180px] items-center gap-2 rounded-[18px] border border-zinc-200 bg-white/75 px-3 text-sm font-bold text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition hover:border-violet-400/35 hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:bg-white/[0.075]"
+        className="group honsell-nav-action flex h-10 max-w-[180px] items-center gap-2 rounded-[18px] border border-zinc-200 bg-white/75 px-3 text-sm font-bold text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition hover:border-violet-400/35 hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:bg-white/[0.075]"
         aria-label="Hesab menyusu"
       >
-        <span className="grid h-7 w-7 place-items-center rounded-xl bg-violet-50 text-violet-700 dark:bg-white/5 dark:text-zinc-200">
-          <User className="h-4 w-4" />
+        <span className="grid h-7 w-7 place-items-center rounded-xl bg-violet-50 text-rose-600 dark:bg-white/5 dark:text-rose-300">
+          <User className="honsell-nav-icon-motion honsell-nav-icon-idle h-4 w-4" />
         </span>
         <span className="truncate">{user.name?.split(" ")[0] ?? "Hesab"}</span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-violet-400" />
+        <ChevronDown className="honsell-nav-chevron h-4 w-4 shrink-0 text-violet-400" />
       </Link>
 
       <div
@@ -859,7 +890,7 @@ function UserAccountDropdown({
           <div className="relative">
             <div className="flex items-center gap-3 px-1 pb-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-violet-300/45 bg-violet-100 text-violet-700 shadow-[0_0_28px_-18px_rgba(168,85,247,0.65)] dark:border-violet-400/[0.45] dark:bg-violet-950/30 dark:text-white">
-                <User className="h-5 w-5" />
+                <User className="honsell-nav-icon-motion h-5 w-5" />
               </span>
               <div className="min-w-0">
                 <p className="truncate text-base font-black text-zinc-950 dark:text-white">
@@ -880,7 +911,7 @@ function UserAccountDropdown({
                     className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 transition hover:border-violet-300/40 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.035] dark:hover:bg-white/[0.065]"
                   >
                     <span className="flex items-center gap-2 text-[11px] font-black uppercase text-violet-600 dark:text-violet-300">
-                      <Wallet className="h-3.5 w-3.5" />
+                      <Wallet className="honsell-nav-icon-motion h-3.5 w-3.5" />
                       Cüzdan
                     </span>
                     <span className="mt-1 block text-base font-black tabular-nums text-zinc-950 dark:text-white">
@@ -892,7 +923,7 @@ function UserAccountDropdown({
                 {cashback !== null && cashback > 0 && (
                   <div className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-white/[0.035]">
                     <span className="flex items-center gap-2 text-[11px] font-black uppercase text-emerald-600 dark:text-emerald-300">
-                      <Gem className="h-3.5 w-3.5" />
+                      <Gem className="honsell-nav-icon-motion h-3.5 w-3.5" />
                       Cashback
                     </span>
                     <span className="mt-1 block text-base font-black tabular-nums text-zinc-950 dark:text-white">
@@ -944,7 +975,7 @@ function AccountMenuItem({
             : "border-zinc-200 bg-violet-50 text-violet-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-violet-100"
         }`}
       >
-        <Icon className="h-4 w-4" />
+        <Icon className="honsell-nav-icon-motion h-4 w-4" />
       </span>
       <span className={`min-w-0 flex-1 truncate text-sm font-black ${featured ? "text-rose-600 dark:text-rose-200" : "text-zinc-950 dark:text-white"}`}>
         {label}

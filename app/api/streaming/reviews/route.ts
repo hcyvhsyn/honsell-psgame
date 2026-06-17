@@ -4,6 +4,11 @@ import { Prisma } from "@/lib/generated/prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { findProfanity } from "@/lib/profanityFilter";
 import { STREAMING_SERVICES } from "@/lib/streamingCart";
+import {
+  COMMUNITY_REVIEW_COOLDOWN_MS,
+  cooldownRemainingMs,
+  formatWait,
+} from "@/lib/community";
 
 export const runtime = "nodejs";
 
@@ -95,6 +100,20 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Login tələb olunur" }, { status: 401 });
+
+  // Spam əleyhinə: 30 saniyədə bir icmal (rəy).
+  const lastReview = await prisma.streamingReview.findFirst({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  const reviewWait = cooldownRemainingMs(lastReview?.createdAt, COMMUNITY_REVIEW_COOLDOWN_MS);
+  if (reviewWait > 0) {
+    return NextResponse.json(
+      { error: `Çox tez-tez icmal yazırsan. ${formatWait(reviewWait)} sonra yenidən cəhd et.` },
+      { status: 429 },
+    );
+  }
 
   const body = await req.json().catch(() => ({}));
   const {

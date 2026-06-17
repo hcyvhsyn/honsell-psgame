@@ -57,14 +57,14 @@ export default function GamesProfitChart({
   const focused = hover != null ? days[hover] : null;
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+    <section className="rounded-xl border border-admin-line bg-admin-card p-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-md bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30">
+            <span className="grid h-7 w-7 place-items-center rounded-md bg-emerald-500/10 text-emerald-700 ring-1 ring-emerald-500/30">
               <TrendingUp className="h-3.5 w-3.5" />
             </span>
-            <h2 className="text-sm font-semibold text-white">
+            <h2 className="text-sm font-semibold text-zinc-900">
               PlayStation oyun mənfəəti — son 30 gün
             </h2>
           </div>
@@ -97,7 +97,7 @@ export default function GamesProfitChart({
                 <span className="w-14 shrink-0 text-right text-[10px] text-zinc-600 tabular-nums">
                   {fmtAzn(maxValue * p)}
                 </span>
-                <div className="h-px flex-1 bg-zinc-800/70" />
+                <div className="h-px flex-1 bg-admin-chip" />
               </div>
             ))}
           </div>
@@ -149,34 +149,34 @@ export default function GamesProfitChart({
           ) : null}
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-4 text-[11px] text-zinc-400">
+        <div className="mt-3 flex flex-wrap items-center gap-4 text-[11px] text-zinc-600">
           <Legend color="bg-emerald-500/25" label="Dövriyyə (müştəri ödəyir)" />
           <Legend color="bg-rose-500/50" label="Maya (TRY × FX)" />
           <span className="text-zinc-600">Fərq = mənfəət</span>
         </div>
 
         {focused ? (
-          <div className="mt-3 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 text-xs">
+          <div className="mt-3 rounded-lg border border-admin-line bg-admin-card p-3 text-xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-mono text-zinc-300">{focused.date}</span>
+              <span className="font-mono text-zinc-700">{focused.date}</span>
               <span className="text-zinc-500">{focused.orderCount} sifariş</span>
             </div>
             <div className="mt-1 grid grid-cols-3 gap-2 text-[11px]">
               <div>
                 <div className="text-zinc-500">Dövriyyə</div>
-                <div className="font-semibold text-zinc-200">
+                <div className="font-semibold text-zinc-800">
                   {fmtAzn(focused.revenueAznCents)}
                 </div>
               </div>
               <div>
                 <div className="text-zinc-500">Maya</div>
-                <div className="font-semibold text-rose-300">
+                <div className="font-semibold text-rose-700">
                   {fmtAzn(focused.costAznCents)}
                 </div>
               </div>
               <div>
                 <div className="text-zinc-500">Mənfəət</div>
-                <div className="font-semibold text-emerald-300">
+                <div className="font-semibold text-emerald-700">
                   {fmtAzn(focused.profitAznCents)}
                 </div>
               </div>
@@ -208,12 +208,12 @@ function UnknownCostPanel({
     <div className="mt-5 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-2">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
           <div>
             <h3 className="text-sm font-semibold text-amber-100">
               Maya dəyəri naməlum olan sifarişlər
             </h3>
-            <p className="mt-0.5 text-[11px] text-amber-200/80">
+            <p className="mt-0.5 text-[11px] text-amber-700/80">
               Bu sifarişlər mənfəət hesabına daxil edilmir. Səbəb: scrape-də TRY
               qiyməti yoxdur, ya da köhnə tranzaksiyadır (alış snapshot-u yoxdur).
               Oyunu yenidən scrape edin və ya admin paneldən qiymət təyin edin.
@@ -221,10 +221,10 @@ function UnknownCostPanel({
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] uppercase tracking-wider text-amber-200/70">
+          <div className="text-[10px] uppercase tracking-wider text-amber-700/70">
             Naməlum
           </div>
-          <div className="text-sm font-semibold text-amber-200">
+          <div className="text-sm font-semibold text-amber-700">
             {unknown.orderCount} sifariş · {fmtAzn(unknown.revenueAznCents)}
           </div>
         </div>
@@ -238,7 +238,7 @@ function UnknownCostPanel({
               className="flex items-center justify-between gap-3 py-1.5 text-xs"
             >
               <span className="truncate text-amber-100">{g.title}</span>
-              <span className="shrink-0 font-mono text-[11px] text-amber-200/80">
+              <span className="shrink-0 font-mono text-[11px] text-amber-700/80">
                 {g.orderCount}× · {fmtAzn(g.revenueAznCents)}
               </span>
             </li>
@@ -250,7 +250,7 @@ function UnknownCostPanel({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="mt-2 text-[11px] font-medium text-amber-300 hover:underline"
+          className="mt-2 text-[11px] font-medium text-amber-700 hover:underline"
         >
           {open
             ? "Yığ"
@@ -272,12 +272,12 @@ function Stat({
 }) {
   const cls =
     tone === "emerald"
-      ? "text-emerald-300"
+      ? "text-emerald-700"
       : tone === "rose"
-        ? "text-rose-300"
+        ? "text-rose-700"
         : tone === "violet"
-          ? "text-violet-300"
-          : "text-zinc-200";
+          ? "text-violet-700"
+          : "text-zinc-800";
   return (
     <div className="text-right">
       <div className="text-[10px] uppercase tracking-wider text-zinc-500">

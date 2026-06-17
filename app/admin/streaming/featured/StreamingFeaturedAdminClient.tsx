@@ -173,8 +173,8 @@ export default function StreamingFeaturedAdminClient() {
             onClick={() => setActiveScope(s.key)}
             className={`rounded-full px-4 py-2 text-sm transition ${
               activeScope === s.key
-                ? "bg-indigo-500 text-white"
-                : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                ? "bg-violet-600 text-white"
+                : "bg-admin-card text-zinc-700 hover:bg-admin-chip2"
             }`}
           >
             {s.label}
@@ -189,16 +189,16 @@ export default function StreamingFeaturedAdminClient() {
       <div className="flex justify-end">
         <button
           onClick={() => { setPicking(true); setPickerQuery(""); setPickerOptions([]); }}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
+          className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500"
         >
           <Plus className="h-4 w-4" /> Title əlavə et
         </button>
       </div>
 
       {loading ? (
-        <div className="py-20 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" /></div>
+        <div className="py-20 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-violet-500" /></div>
       ) : items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-16 text-center text-zinc-500">
+        <div className="rounded-xl border border-dashed border-admin-line bg-admin-card py-16 text-center text-zinc-500">
           Bu scope üçün hələ banner elementi yoxdur. &ldquo;Title əlavə et&rdquo; düyməsini klikləyin.
         </div>
       ) : (
@@ -211,29 +211,29 @@ export default function StreamingFeaturedAdminClient() {
               onDragOver={(e) => onDragOver(e, it.id)}
               onDrop={() => onDrop(it.id)}
               onDragEnd={() => { setDragId(null); setDragOverId(null); }}
-              className={`flex items-center gap-3 rounded-xl border bg-zinc-900/50 p-3 transition ${
+              className={`flex items-center gap-3 rounded-xl border bg-admin-card p-3 transition ${
                 dragId === it.id ? "opacity-40" : ""
-              } ${dragOverId === it.id && dragId !== it.id ? "border-indigo-500" : "border-zinc-800"}`}
+              } ${dragOverId === it.id && dragId !== it.id ? "border-violet-500" : "border-admin-line"}`}
             >
               <GripVertical className="h-5 w-5 shrink-0 cursor-grab text-zinc-500 active:cursor-grabbing" />
-              <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded bg-zinc-900">
+              <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded bg-admin-card">
                 {(it.title.backdropUrl || it.title.posterUrl) ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={it.title.backdropUrl ?? it.title.posterUrl ?? ""} alt="" className="h-full w-full object-cover" />
                 ) : null}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-zinc-100">{it.title.title}</p>
+                <p className="truncate font-medium text-zinc-900">{it.title.title}</p>
                 <p className="truncate text-xs text-zinc-500">
                   {STREAMING_SERVICE_LABELS[it.title.service] ?? it.title.service} · {it.title.kind === "SERIES" ? "Serial" : "Film"}
                   {it.title.year ? ` · ${it.title.year}` : ""}
                 </p>
                 <div className="mt-1 flex flex-wrap items-center gap-1">
-                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${it.isActive ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-500"}`}>
+                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${it.isActive ? "bg-emerald-500/20 text-emerald-600" : "bg-admin-chip text-zinc-500"}`}>
                     {it.isActive ? "Aktiv" : "Passiv"}
                   </span>
                   {!it.title.azAvailable && (
-                    <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/15 text-amber-300">
+                    <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/15 text-amber-700">
                       AZ-da yox
                     </span>
                   )}
@@ -243,13 +243,13 @@ export default function StreamingFeaturedAdminClient() {
                 <button
                   onClick={() => toggleActive(it)}
                   title={it.isActive ? "Passiv et" : "Aktiv et"}
-                  className={`rounded p-2 ${it.isActive ? "text-emerald-400 hover:text-emerald-300" : "text-zinc-500 hover:text-zinc-300"}`}
+                  className={`rounded p-2 ${it.isActive ? "text-emerald-600 hover:text-emerald-700" : "text-zinc-500 hover:text-zinc-700"}`}
                 >
                   {it.isActive ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                 </button>
                 <button
                   onClick={() => removeItem(it.id)}
-                  className="rounded p-2 text-zinc-500 hover:text-rose-400"
+                  className="rounded p-2 text-zinc-500 hover:text-rose-600"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -262,10 +262,10 @@ export default function StreamingFeaturedAdminClient() {
       {/* Picker modal */}
       {picking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+          <div className="max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-admin-line bg-admin-card p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-bold">Title seç</h3>
-              <button onClick={() => setPicking(false)} className="text-zinc-500 hover:text-white">
+              <button onClick={() => setPicking(false)} className="text-zinc-500 hover:text-zinc-900">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -273,10 +273,10 @@ export default function StreamingFeaturedAdminClient() {
               value={pickerQuery}
               onChange={(e) => setPickerQuery(e.target.value)}
               placeholder="Başlıq yaz..."
-              className="w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
               autoFocus
             />
-            <div className="mt-3 max-h-96 overflow-y-auto rounded border border-zinc-800 bg-zinc-900">
+            <div className="mt-3 max-h-96 overflow-y-auto rounded border border-admin-line bg-admin-card">
               {searching && <div className="px-3 py-2 text-xs text-zinc-500">Axtarılır...</div>}
               {!searching && pickerOptions.length === 0 && (
                 <div className="px-3 py-6 text-center text-xs text-zinc-500">
@@ -290,9 +290,9 @@ export default function StreamingFeaturedAdminClient() {
                   key={t.id}
                   type="button"
                   onClick={() => addTitle(t.id)}
-                  className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-800"
+                  className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-zinc-800 hover:bg-admin-chip2"
                 >
-                  <div className="relative h-12 w-9 shrink-0 overflow-hidden rounded bg-zinc-900">
+                  <div className="relative h-12 w-9 shrink-0 overflow-hidden rounded bg-admin-card">
                     {t.posterUrl && (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={t.posterUrl} alt="" className="h-full w-full object-cover" />

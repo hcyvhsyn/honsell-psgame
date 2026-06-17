@@ -160,7 +160,7 @@ export default function SearchSuggestionsAdminClient() {
   if (loading) {
     return (
       <div className="py-20 text-center">
-        <Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" />
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-violet-500" />
       </div>
     );
   }
@@ -171,15 +171,15 @@ export default function SearchSuggestionsAdminClient() {
         <button
           type="button"
           onClick={startNew}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
+          className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500"
         >
           <Plus className="h-4 w-4" /> Yeni sırauma
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
+      <div className="overflow-hidden rounded-xl border border-admin-line bg-admin-card">
         <table className="w-full text-left text-sm">
-          <thead className="bg-zinc-900/80 text-xs uppercase text-zinc-500">
+          <thead className="bg-admin-card text-xs uppercase text-zinc-500">
             <tr>
               <th className="px-5 py-4 font-medium">İkon</th>
               <th className="px-5 py-4 font-medium">Mətn</th>
@@ -188,25 +188,25 @@ export default function SearchSuggestionsAdminClient() {
               <th className="px-5 py-4 font-medium text-right">Əməliyyat</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800/80">
+          <tbody className="divide-y divide-admin-line">
             {rows.map((r) => {
               const Icon = iconOf(r.iconKey);
               return (
-                <tr key={r.id} className="transition hover:bg-zinc-900">
+                <tr key={r.id} className="transition hover:bg-admin-chip">
                   <td className="px-5 py-4">
-                    <span className="inline-grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-200">
+                    <span className="inline-grid h-9 w-9 place-items-center rounded-xl border border-admin-line bg-admin-chip text-zinc-800">
                       <Icon className="h-4 w-4" />
                     </span>
                   </td>
-                  <td className="px-5 py-4 font-medium text-zinc-100">{r.label}</td>
-                  <td className="px-5 py-4 tabular-nums text-zinc-400">{r.sortOrder}</td>
+                  <td className="px-5 py-4 font-medium text-zinc-900">{r.label}</td>
+                  <td className="px-5 py-4 tabular-nums text-zinc-600">{r.sortOrder}</td>
                   <td className="px-5 py-4">
                     {r.isActive ? (
-                      <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-300">
+                      <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-700">
                         Aktiv
                       </span>
                     ) : (
-                      <span className="rounded bg-rose-500/20 px-2 py-0.5 text-xs text-rose-400">
+                      <span className="rounded bg-rose-500/20 px-2 py-0.5 text-xs text-rose-600">
                         Passiv
                       </span>
                     )}
@@ -216,14 +216,14 @@ export default function SearchSuggestionsAdminClient() {
                       <button
                         onClick={() => startEdit(r)}
                         title="Redaktə et"
-                        className="p-2 text-zinc-500 hover:text-indigo-400"
+                        className="p-2 text-zinc-500 hover:text-violet-600"
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => remove(r)}
                         title="Sil"
-                        className="p-2 text-zinc-500 hover:text-rose-400"
+                        className="p-2 text-zinc-500 hover:text-rose-600"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -243,7 +243,7 @@ export default function SearchSuggestionsAdminClient() {
 
       {editingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl border border-admin-line bg-admin-card p-6 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="text-lg font-bold">Populyar axtarış</h3>
               <button
@@ -251,7 +251,7 @@ export default function SearchSuggestionsAdminClient() {
                   setEditingId(null);
                   setError(null);
                 }}
-                className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-white"
+                className="rounded p-1 text-zinc-500 hover:bg-admin-chip2 hover:text-zinc-900"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -261,7 +261,7 @@ export default function SearchSuggestionsAdminClient() {
               <label className="block text-sm">
                 Mətn (istifadəçi gördüyü)
                 <input
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
                   value={form.label}
                   maxLength={60}
                   onChange={(e) => setForm({ ...form, label: e.target.value })}
@@ -272,7 +272,7 @@ export default function SearchSuggestionsAdminClient() {
               <label className="block text-sm">
                 İkon
                 <select
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
                   value={form.iconKey}
                   onChange={(e) =>
                     setForm({ ...form, iconKey: e.target.value as SearchSuggestionIconKey })
@@ -295,8 +295,8 @@ export default function SearchSuggestionsAdminClient() {
                         onClick={() => setForm({ ...form, iconKey: k })}
                         className={`inline-flex h-9 w-9 place-items-center justify-center rounded-lg border transition ${
                           active
-                            ? "border-indigo-500/60 bg-indigo-500/15 text-indigo-200"
-                            : "border-white/10 bg-white/[0.04] text-zinc-400 hover:border-white/20 hover:text-white"
+                            ? "border-violet-500/60 bg-violet-500/15 text-violet-700"
+                            : "border-admin-line bg-admin-chip text-zinc-600 hover:border-admin-line2 hover:text-zinc-900"
                         }`}
                         title={SEARCH_SUGGESTION_ICON_LABEL[k]}
                       >
@@ -311,13 +311,13 @@ export default function SearchSuggestionsAdminClient() {
                 Sıralama (kiçik rəqəm ön sırada görünür)
                 <input
                   type="number"
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
                   value={form.sortOrder}
                   onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value || 0) })}
                 />
               </label>
 
-              <label className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-sm">
+              <label className="flex items-center gap-2 rounded-lg border border-admin-line bg-admin-card p-3 text-sm">
                 <input
                   type="checkbox"
                   checked={form.isActive}
@@ -328,7 +328,7 @@ export default function SearchSuggestionsAdminClient() {
             </div>
 
             {error && (
-              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">
                 {error}
               </div>
             )}
@@ -339,14 +339,14 @@ export default function SearchSuggestionsAdminClient() {
                   setEditingId(null);
                   setError(null);
                 }}
-                className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-300"
+                className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-700"
               >
                 İmtina
               </button>
               <button
                 onClick={save}
                 disabled={saving || !form.label.trim()}
-                className="inline-flex items-center gap-2 rounded bg-indigo-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded bg-violet-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 Yadda saxla

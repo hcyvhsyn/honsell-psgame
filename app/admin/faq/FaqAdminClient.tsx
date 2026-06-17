@@ -127,8 +127,8 @@ export default function FaqAdminClient() {
             title={s.description}
             className={`rounded-full px-3 py-1.5 text-xs transition ${
               activeScope === s.key
-                ? "bg-indigo-500 text-white"
-                : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                ? "bg-violet-600 text-white"
+                : "bg-admin-card text-zinc-700 hover:bg-admin-chip2"
             }`}
           >
             {s.label}
@@ -140,36 +140,36 @@ export default function FaqAdminClient() {
       </p>
 
       {/* Create */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+      <div className="rounded-xl border border-admin-line bg-admin-card p-4">
         <div className="grid gap-3 md:grid-cols-2">
           <div>
-            <label className="text-xs text-zinc-400">Sual</label>
+            <label className="text-xs text-zinc-600">Sual</label>
             <input
               value={newQ}
               onChange={(e) => setNewQ(e.target.value)}
-              className="mt-1 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm"
               placeholder="Məs: Ödəniş necə aparılır?"
             />
           </div>
           <div>
-            <label className="text-xs text-zinc-400">Sıra (sortOrder)</label>
+            <label className="text-xs text-zinc-600">Sıra (sortOrder)</label>
             <input
               type="number"
               value={newSort}
               onChange={(e) => setNewSort(Number(e.target.value))}
-              className="mt-1 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm"
             />
           </div>
           <div className="md:col-span-2">
-            <label className="text-xs text-zinc-400">Cavab</label>
+            <label className="text-xs text-zinc-600">Cavab</label>
             <textarea
               value={newA}
               onChange={(e) => setNewA(e.target.value)}
-              className="mt-1 min-h-[90px] w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm"
+              className="mt-1 min-h-[90px] w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm"
               placeholder="Cavabı yaz..."
             />
           </div>
-          <label className="inline-flex items-center gap-2 text-xs text-zinc-300">
+          <label className="inline-flex items-center gap-2 text-xs text-zinc-700">
             <input
               type="checkbox"
               checked={newActive}
@@ -184,7 +184,7 @@ export default function FaqAdminClient() {
             type="button"
             disabled={pending}
             onClick={createFaq}
-            className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400 disabled:opacity-50"
+            className="rounded-md bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
           >
             Əlavə et ({FAQ_SCOPES.find((s) => s.key === activeScope)?.label})
           </button>
@@ -192,11 +192,11 @@ export default function FaqAdminClient() {
             type="button"
             disabled={pending}
             onClick={refresh}
-            className="rounded-md border border-zinc-800 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-900 disabled:opacity-50"
+            className="rounded-md border border-admin-line px-3 py-2 text-sm text-zinc-800 hover:bg-admin-chip disabled:opacity-50"
           >
             Yenilə
           </button>
-          {error && <span className="text-sm text-rose-300">{error}</span>}
+          {error && <span className="text-sm text-rose-700">{error}</span>}
         </div>
       </div>
 
@@ -204,13 +204,13 @@ export default function FaqAdminClient() {
       {loading ? (
         <div className="py-10 text-center text-sm text-zinc-500">Yüklənir...</div>
       ) : faqs.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 p-10 text-center text-zinc-500">
+        <div className="rounded-xl border border-dashed border-admin-line bg-admin-card p-10 text-center text-zinc-500">
           Bu scope üçün hələ FAQ yoxdur.
         </div>
       ) : (
         <div className="space-y-3">
           {faqs.map((f) => (
-            <div key={f.id} className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
+            <div key={f.id} className="rounded-xl border border-admin-line bg-admin-card p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-3">
                   <input
@@ -222,7 +222,7 @@ export default function FaqAdminClient() {
                       )
                     }
                     onBlur={(e) => patchFaq(f.id, { sortOrder: Number(e.target.value) })}
-                    className="w-24 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-sm"
+                    className="w-24 rounded-md border border-admin-line bg-admin-card px-2 py-1.5 text-sm"
                     title="sortOrder"
                   />
                   <select
@@ -232,13 +232,13 @@ export default function FaqAdminClient() {
                       setFaqs((prev) => prev.map((x) => (x.id === f.id ? { ...x, scope: newScope } : x)));
                       patchFaq(f.id, { scope: newScope });
                     }}
-                    className="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-sm"
+                    className="rounded-md border border-admin-line bg-admin-card px-2 py-1.5 text-sm"
                   >
                     {FAQ_SCOPES.map((s) => (
                       <option key={s.key} value={s.key}>{s.label}</option>
                     ))}
                   </select>
-                  <label className="inline-flex items-center gap-2 text-xs text-zinc-300">
+                  <label className="inline-flex items-center gap-2 text-xs text-zinc-700">
                     <input
                       type="checkbox"
                       checked={f.isActive}
@@ -256,7 +256,7 @@ export default function FaqAdminClient() {
                   type="button"
                   disabled={pending}
                   onClick={() => deleteFaq(f.id)}
-                  className="rounded-md bg-rose-500/15 px-3 py-2 text-xs font-semibold text-rose-200 ring-1 ring-rose-500/30 hover:bg-rose-500/25 disabled:opacity-50"
+                  className="rounded-md bg-rose-500/15 px-3 py-2 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/30 hover:bg-rose-500/25 disabled:opacity-50"
                 >
                   Sil
                 </button>
@@ -264,7 +264,7 @@ export default function FaqAdminClient() {
 
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 <div>
-                  <label className="text-xs text-zinc-400">Sual</label>
+                  <label className="text-xs text-zinc-600">Sual</label>
                   <input
                     value={f.question}
                     onChange={(e) =>
@@ -273,11 +273,11 @@ export default function FaqAdminClient() {
                       )
                     }
                     onBlur={() => patchFaq(f.id, { question: f.question })}
-                    className="mt-1 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-400">Cavab</label>
+                  <label className="text-xs text-zinc-600">Cavab</label>
                   <textarea
                     value={f.answer}
                     onChange={(e) =>
@@ -286,7 +286,7 @@ export default function FaqAdminClient() {
                       )
                     }
                     onBlur={() => patchFaq(f.id, { answer: f.answer })}
-                    className="mt-1 min-h-[90px] w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm"
+                    className="mt-1 min-h-[90px] w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm"
                   />
                 </div>
               </div>

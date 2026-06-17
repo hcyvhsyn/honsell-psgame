@@ -152,7 +152,7 @@ export default async function AdminSalesPage({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Satışlar</h1>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-zinc-600">
           Hər oyundan neçə dənə satılıb. {uniqueGames.toLocaleString()} fərqli
           məhsul, ümumi {totalSold.toLocaleString()} ədəd satış.
         </p>
@@ -185,9 +185,9 @@ export default async function AdminSalesPage({
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-800">
+      <div className="overflow-hidden rounded-xl border border-admin-line">
         <table className="w-full text-sm">
-          <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
+          <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
             <tr>
               <Th>Məhsul</Th>
               <Th>Tip</Th>
@@ -199,7 +199,7 @@ export default async function AdminSalesPage({
               <Th>Sonuncu satış</Th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-900">
+          <tbody className="divide-y divide-admin-line">
             {slice.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-5 py-8 text-center text-zinc-500">
@@ -208,7 +208,7 @@ export default async function AdminSalesPage({
               </tr>
             )}
             {slice.map((r) => (
-              <tr key={r.game.id} className="hover:bg-zinc-900/40">
+              <tr key={r.game.id} className="hover:bg-admin-chip">
                 <Td>
                   <div className="flex items-center gap-3">
                     {r.game.imageUrl ? (
@@ -219,19 +219,19 @@ export default async function AdminSalesPage({
                         className="h-10 w-10 shrink-0 rounded object-cover"
                       />
                     ) : (
-                      <div className="h-10 w-10 shrink-0 rounded bg-zinc-800" />
+                      <div className="h-10 w-10 shrink-0 rounded bg-admin-chip" />
                     )}
                     <div className="min-w-0">
                       {r.game.productId ? (
                         <Link
                           href={`/oyunlar/${r.game.productId}`}
                           target="_blank"
-                          className="line-clamp-1 font-medium text-zinc-100 hover:text-indigo-300"
+                          className="line-clamp-1 font-medium text-zinc-900 hover:text-violet-700"
                         >
                           {r.game.title}
                         </Link>
                       ) : (
-                        <span className="line-clamp-1 font-medium text-zinc-100">
+                        <span className="line-clamp-1 font-medium text-zinc-900">
                           {r.game.title}
                         </span>
                       )}
@@ -244,20 +244,20 @@ export default async function AdminSalesPage({
                 <Td>
                   <TypeBadge productType={r.game.productType} />
                 </Td>
-                <Td className="text-zinc-400">{r.game.platform ?? "—"}</Td>
-                <Td className="text-right font-semibold text-zinc-100">
+                <Td className="text-zinc-600">{r.game.platform ?? "—"}</Td>
+                <Td className="text-right font-semibold text-zinc-900">
                   {r.soldCount.toLocaleString()}
                 </Td>
-                <Td className="text-right font-semibold text-emerald-300">
+                <Td className="text-right font-semibold text-emerald-700">
                   {fmtAzn(r.revenueCents)}
                 </Td>
-                <Td className="text-right text-zinc-300">
+                <Td className="text-right text-zinc-700">
                   {fmtAzn(r.avgSaleCents)}
                 </Td>
-                <Td className="text-right text-zinc-400">
+                <Td className="text-right text-zinc-600">
                   {r.savingsCents > 0 ? fmtAzn(r.savingsCents) : "—"}
                 </Td>
-                <Td className="text-zinc-400">{fmtDate(r.lastSoldAt)}</Td>
+                <Td className="text-zinc-600">{fmtDate(r.lastSoldAt)}</Td>
               </tr>
             ))}
           </tbody>
@@ -273,7 +273,7 @@ export default async function AdminSalesPage({
             {safePage > 1 && (
               <Link
                 href={buildHref({ page: String(safePage - 1) })}
-                className="rounded-lg border border-zinc-800 px-3 py-1.5 text-zinc-300 hover:bg-zinc-900"
+                className="rounded-lg border border-admin-line px-3 py-1.5 text-zinc-700 hover:bg-admin-chip"
               >
                 ← Əvvəlki
               </Link>
@@ -281,7 +281,7 @@ export default async function AdminSalesPage({
             {safePage < totalPages && (
               <Link
                 href={buildHref({ page: String(safePage + 1) })}
-                className="rounded-lg border border-zinc-800 px-3 py-1.5 text-zinc-300 hover:bg-zinc-900"
+                className="rounded-lg border border-admin-line px-3 py-1.5 text-zinc-700 hover:bg-admin-chip"
               >
                 Növbəti →
               </Link>
@@ -303,11 +303,11 @@ function SumCard({
   accent?: "emerald";
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+    <div className="rounded-xl border border-admin-line bg-admin-card p-4">
       <p className="text-xs uppercase tracking-wider text-zinc-500">{label}</p>
       <p
         className={`mt-1 text-lg font-semibold tabular-nums ${
-          accent === "emerald" ? "text-emerald-300" : "text-zinc-100"
+          accent === "emerald" ? "text-emerald-700" : "text-zinc-900"
         }`}
       >
         {value}
@@ -342,8 +342,8 @@ function FilterRow({
             href={build(opt)}
             className={`rounded-lg border px-3 py-1 text-xs font-semibold transition ${
               active
-                ? "border-indigo-500 bg-indigo-500/15 text-indigo-200"
-                : "border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                ? "border-violet-500 bg-violet-500/15 text-violet-700"
+                : "border-admin-line text-zinc-600 hover:border-admin-line2 hover:text-zinc-900"
             }`}
           >
             {optionLabels?.[opt] ?? opt}
@@ -356,10 +356,10 @@ function FilterRow({
 
 function TypeBadge({ productType }: { productType: string }) {
   const styles: Record<string, string> = {
-    GAME: "bg-indigo-500/15 text-indigo-300",
-    ADDON: "bg-fuchsia-500/15 text-fuchsia-300",
-    CURRENCY: "bg-emerald-500/15 text-emerald-300",
-    OTHER: "bg-sky-500/15 text-sky-300",
+    GAME: "bg-violet-500/15 text-violet-700",
+    ADDON: "bg-fuchsia-500/15 text-fuchsia-700",
+    CURRENCY: "bg-emerald-500/15 text-emerald-700",
+    OTHER: "bg-sky-500/15 text-sky-700",
   };
   const labels: Record<string, string> = {
     GAME: "Oyun",
@@ -370,7 +370,7 @@ function TypeBadge({ productType }: { productType: string }) {
   return (
     <span
       className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${
-        styles[productType] ?? "bg-zinc-800 text-zinc-300"
+        styles[productType] ?? "bg-admin-chip text-zinc-700"
       }`}
     >
       {labels[productType] ?? productType}

@@ -255,18 +255,18 @@ export default function EaPlayAdminClient() {
   return (
     <div className="space-y-10">
       {/* Şəkil + Description */}
-      <section className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+      <section className="space-y-4 rounded-xl border border-admin-line bg-admin-card p-5">
         <header>
-          <h2 className="text-lg font-semibold text-zinc-200">Şəkil və təsvir</h2>
-          <p className="mt-1 text-sm text-zinc-400">
+          <h2 className="text-lg font-semibold text-zinc-800">Şəkil və təsvir</h2>
+          <p className="mt-1 text-sm text-zinc-600">
             Şəkil və description hər iki müddət üçün eyni olur (1/12 ay).
           </p>
         </header>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
+          <div className="rounded-xl border border-admin-line bg-admin-card p-4">
             <div className="space-y-3">
-              <div className="block text-sm text-zinc-300">
+              <div className="block text-sm text-zinc-700">
                 <span>Şəkil</span>
                 <input
                   id="eaplay-upload"
@@ -284,14 +284,14 @@ export default function EaPlayAdminClient() {
                   }}
                 />
                 {assets.imageUrl ? (
-                  <div className="mt-2 flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 p-2">
+                  <div className="mt-2 flex items-center gap-3 rounded border border-admin-line bg-admin-card p-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={assets.imageUrl} alt="" className="h-16 w-16 rounded object-cover" />
-                    <div className="flex-1 truncate text-xs text-zinc-400">{assets.imageUrl}</div>
+                    <div className="flex-1 truncate text-xs text-zinc-600">{assets.imageUrl}</div>
                     <button
                       type="button"
                       onClick={() => setAssets((prev) => ({ ...prev, imageUrl: "" }))}
-                      className="rounded p-1 text-zinc-500 hover:text-rose-400"
+                      className="rounded p-1 text-zinc-500 hover:text-rose-600"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -304,7 +304,7 @@ export default function EaPlayAdminClient() {
                       const el = document.getElementById("eaplay-upload") as HTMLInputElement | null;
                       el?.click();
                     }}
-                    className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded border border-dashed border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-400 hover:border-indigo-500 hover:text-indigo-400 disabled:opacity-50"
+                    className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded border border-dashed border-admin-line2 bg-admin-card px-3 py-2 text-xs text-zinc-600 hover:border-violet-500 hover:text-violet-600 disabled:opacity-50"
                   >
                     {uploading ? (
                       <>
@@ -316,18 +316,18 @@ export default function EaPlayAdminClient() {
                   </button>
                 )}
                 <p className="mt-1 text-[11px] text-zinc-500">
-                  Tövsiyə olunan ölçü: <b className="text-zinc-300">1200×900px</b> (4:3 aspekt) — EA Play kartları public-də 4:3 nisbətdə render olunur.
+                  Tövsiyə olunan ölçü: <b className="text-zinc-700">1200×900px</b> (4:3 aspekt) — EA Play kartları public-də 4:3 nisbətdə render olunur.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
-            <label className="block text-sm text-zinc-300">
+          <div className="rounded-xl border border-admin-line bg-admin-card p-4">
+            <label className="block text-sm text-zinc-700">
               Description
               <textarea
                 rows={5}
-                className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                 value={assets.description}
                 onChange={(e) =>
                   setAssets((prev) => ({ ...prev, description: e.target.value }))
@@ -339,7 +339,7 @@ export default function EaPlayAdminClient() {
               type="button"
               disabled={saving}
               onClick={saveAssets}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400 disabled:opacity-50"
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Yadda saxla
@@ -352,14 +352,14 @@ export default function EaPlayAdminClient() {
       <div>
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-200">Plan qiymətləri</h2>
-            <p className="mt-1 text-sm text-zinc-400">
+            <h2 className="text-lg font-semibold text-zinc-800">Plan qiymətləri</h2>
+            <p className="mt-1 text-sm text-zinc-600">
               TRY = maya qiyməti, AZN = satış qiyməti (əl ilə daxil et). Xeyir avtomatik hesablanır.
             </p>
           </div>
           <button
             onClick={loadProducts}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-admin-chip px-3 py-1.5 text-sm text-zinc-700 hover:bg-admin-chip2"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Yenilə
           </button>
@@ -367,12 +367,12 @@ export default function EaPlayAdminClient() {
 
         {loading ? (
           <div className="py-16 text-center">
-            <Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" />
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-violet-500" />
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
+          <div className="overflow-hidden rounded-xl border border-admin-line bg-admin-card">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-900/80 text-xs uppercase text-zinc-500">
+              <thead className="bg-admin-card text-xs uppercase text-zinc-500">
                 <tr>
                   <th className="px-5 py-4 text-left font-medium">Müddət</th>
                   <th className="px-5 py-4 text-left font-medium">TRY (maya)</th>
@@ -381,7 +381,7 @@ export default function EaPlayAdminClient() {
                   <th className="px-5 py-4 text-left font-medium">Əməliyyat</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/80">
+              <tbody className="divide-y divide-admin-line">
                 {DURATIONS.map((dur) => {
                   const p = getProduct(dur);
                   const k = keyFor(dur);
@@ -389,8 +389,8 @@ export default function EaPlayAdminClient() {
                   const aznVal = aznInputs[k] ?? "";
                   const profit = computeProfit(tryVal, aznVal);
                   return (
-                    <tr key={dur} className="hover:bg-zinc-900/40">
-                      <td className="px-5 py-4 font-semibold text-zinc-300">{dur} ay</td>
+                    <tr key={dur} className="hover:bg-admin-chip">
+                      <td className="px-5 py-4 font-semibold text-zinc-700">{dur} ay</td>
                       <td className="px-5 py-4">
                         <input
                           value={tryVal}
@@ -399,7 +399,7 @@ export default function EaPlayAdminClient() {
                           }
                           type="number"
                           step="0.01"
-                          className="w-full max-w-[160px] rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
+                          className="w-full max-w-[160px] rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 focus:border-violet-500 focus:outline-none"
                           placeholder="məs: 219.99"
                         />
                       </td>
@@ -411,7 +411,7 @@ export default function EaPlayAdminClient() {
                           }
                           type="number"
                           step="0.01"
-                          className="w-full max-w-[160px] rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
+                          className="w-full max-w-[160px] rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 focus:border-violet-500 focus:outline-none"
                           placeholder="məs: 14.99"
                         />
                       </td>
@@ -419,10 +419,10 @@ export default function EaPlayAdminClient() {
                         <span
                           className={`font-semibold ${
                             profit.positive === null
-                              ? "text-zinc-200"
+                              ? "text-zinc-800"
                               : profit.positive
-                                ? "text-emerald-300"
-                                : "text-rose-300"
+                                ? "text-emerald-700"
+                                : "text-rose-700"
                           }`}
                         >
                           {profit.value} AZN
@@ -434,7 +434,7 @@ export default function EaPlayAdminClient() {
                             type="button"
                             disabled={saving}
                             onClick={() => saveRow(dur)}
-                            className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2.5 py-1.5 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25 disabled:opacity-50"
+                            className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25 disabled:opacity-50"
                           >
                             <Check className="h-3.5 w-3.5" /> Yadda saxla
                           </button>
@@ -443,7 +443,7 @@ export default function EaPlayAdminClient() {
                               type="button"
                               disabled={saving}
                               onClick={() => deleteProduct(p.id, p.title)}
-                              className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-2.5 py-1.5 text-xs font-semibold text-rose-200 ring-1 ring-rose-500/30 hover:bg-rose-500/25 disabled:opacity-50"
+                              className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-2.5 py-1.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/30 hover:bg-rose-500/25 disabled:opacity-50"
                             >
                               <Trash2 className="h-3.5 w-3.5" /> Sil
                             </button>
@@ -462,17 +462,17 @@ export default function EaPlayAdminClient() {
       {/* Gözləyən sifarişlər */}
       <div>
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-200">
+          <h2 className="text-lg font-semibold text-zinc-800">
             Gözləyən sifarişlər
             {orders.length > 0 && (
-              <span className="ml-2 rounded-full bg-amber-500/20 px-2 py-0.5 text-sm font-semibold text-amber-300 ring-1 ring-amber-500/30">
+              <span className="ml-2 rounded-full bg-amber-500/20 px-2 py-0.5 text-sm font-semibold text-amber-700 ring-1 ring-amber-500/30">
                 {orders.length}
               </span>
             )}
           </h2>
           <button
             onClick={loadOrders}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-admin-chip px-3 py-1.5 text-sm text-zinc-700 hover:bg-admin-chip2"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Yenilə
           </button>
@@ -480,16 +480,16 @@ export default function EaPlayAdminClient() {
 
         {ordersLoading ? (
           <div className="py-10 text-center">
-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-indigo-500" />
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-violet-500" />
           </div>
         ) : orders.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-12 text-center text-zinc-500">
+          <div className="rounded-xl border border-dashed border-admin-line bg-admin-card py-12 text-center text-zinc-500">
             Gözləyən EA Play sifarişi yoxdur.
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
+          <div className="overflow-hidden rounded-xl border border-admin-line bg-admin-card">
             <table className="w-full text-left text-sm">
-              <thead className="bg-zinc-900/80 text-xs uppercase text-zinc-500">
+              <thead className="bg-admin-card text-xs uppercase text-zinc-500">
                 <tr>
                   <th className="px-5 py-4 font-medium">Müştəri</th>
                   <th className="px-5 py-4 font-medium">Plan</th>
@@ -499,25 +499,25 @@ export default function EaPlayAdminClient() {
                   <th className="px-5 py-4 font-medium">Əməliyyat</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/80">
+              <tbody className="divide-y divide-admin-line">
                 {orders.map((o) => (
-                  <tr key={o.id} className="hover:bg-zinc-900/40">
+                  <tr key={o.id} className="hover:bg-admin-chip">
                     <td className="px-5 py-4">
-                      <div className="font-medium text-zinc-200">{o.user.name || "—"}</div>
+                      <div className="font-medium text-zinc-800">{o.user.name || "—"}</div>
                       <div className="text-xs text-zinc-500">{o.user.email}</div>
                     </td>
-                    <td className="px-5 py-4 text-zinc-300">{o.serviceProduct?.title ?? "—"}</td>
+                    <td className="px-5 py-4 text-zinc-700">{o.serviceProduct?.title ?? "—"}</td>
                     <td className="px-5 py-4">
                       {o.psnAccount ? (
                         <div>
-                          <div className="font-medium text-zinc-200">{o.psnAccount.label}</div>
+                          <div className="font-medium text-zinc-800">{o.psnAccount.label}</div>
                           <div className="text-xs text-zinc-500">{o.psnAccount.psnEmail}</div>
                         </div>
                       ) : (
                         <span className="text-zinc-500">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-4 font-semibold text-zinc-200">
+                    <td className="px-5 py-4 font-semibold text-zinc-800">
                       {(Math.abs(o.amountAznCents) / 100).toFixed(2)} AZN
                     </td>
                     <td className="px-5 py-4 text-xs text-zinc-500">
@@ -534,14 +534,14 @@ export default function EaPlayAdminClient() {
                         <button
                           onClick={() => processOrder(o.id, "SUCCESS")}
                           title="Tamamla"
-                          className="rounded bg-emerald-500/20 p-1.5 text-emerald-400 hover:bg-emerald-500/30"
+                          className="rounded bg-emerald-500/20 p-1.5 text-emerald-600 hover:bg-emerald-500/30"
                         >
                           <Check className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => processOrder(o.id, "FAILED")}
                           title="Rədd et"
-                          className="rounded bg-rose-500/20 p-1.5 text-rose-400 hover:bg-rose-500/30"
+                          className="rounded bg-rose-500/20 p-1.5 text-rose-600 hover:bg-rose-500/30"
                         >
                           <XIcon className="h-4 w-4" />
                         </button>

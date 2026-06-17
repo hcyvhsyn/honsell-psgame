@@ -127,7 +127,7 @@ export default async function AdminGamesPage({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Games</h1>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-zinc-600">
             {total.toLocaleString()} catalog items.
           </p>
         </div>
@@ -147,7 +147,7 @@ export default async function AdminGamesPage({
             name="q"
             defaultValue={q}
             placeholder="Search title…"
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 py-2 pl-9 pr-3 text-sm placeholder:text-zinc-500 focus:border-indigo-500 focus:outline-none"
+            className="w-full rounded-md border border-admin-line bg-admin-card py-2 pl-9 pr-3 text-sm placeholder:text-zinc-500 focus:border-violet-500 focus:outline-none"
           />
         </form>
       </div>
@@ -190,21 +190,21 @@ export default async function AdminGamesPage({
           href={buildHref({ featured: featuredOnly ? "0" : "1", page: "1" })}
           className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs ring-1 transition ${
             featuredOnly
-              ? "bg-amber-500/15 text-amber-300 ring-amber-500/40"
-              : "bg-zinc-900 text-zinc-300 ring-zinc-800 hover:bg-zinc-800"
+              ? "bg-amber-500/15 text-amber-700 ring-amber-500/40"
+              : "bg-admin-card text-zinc-700 ring-admin-line hover:bg-admin-chip2"
           }`}
         >
           <Star className={`h-3.5 w-3.5 ${featuredOnly ? "fill-amber-300" : ""}`} />
           Featured only
-          <span className="rounded bg-zinc-800/80 px-1.5 py-0.5 text-[10px] text-zinc-300">
+          <span className="rounded bg-admin-chip px-1.5 py-0.5 text-[10px] text-zinc-700">
             {featuredCount}
           </span>
         </Link>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-zinc-800">
+      <div className="overflow-x-auto rounded-xl border border-admin-line">
         <table className="w-full min-w-[1100px] text-sm">
-          <thead className="bg-zinc-900/60 text-xs uppercase tracking-wider text-zinc-500">
+          <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
             <tr>
               <Th>Popular</Th>
               <Th>Game</Th>
@@ -216,7 +216,7 @@ export default async function AdminGamesPage({
               <Th>Active</Th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-900">
+          <tbody className="divide-y divide-admin-line">
             {games.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-5 py-8 text-center text-zinc-500">
@@ -225,7 +225,7 @@ export default async function AdminGamesPage({
               </tr>
             )}
             {games.map((g) => (
-              <tr key={g.id} className="hover:bg-zinc-900/40">
+              <tr key={g.id} className="hover:bg-admin-chip">
                 <Td>
                   <StarToggle gameId={g.id} isFeatured={g.isFeatured} />
                 </Td>
@@ -236,10 +236,10 @@ export default async function AdminGamesPage({
                       <img
                         src={g.imageUrl}
                         alt=""
-                        className="h-12 w-12 rounded-md object-cover ring-1 ring-zinc-800"
+                        className="h-12 w-12 rounded-md object-cover ring-1 ring-admin-line"
                       />
                     ) : (
-                      <div className="h-12 w-12 rounded-md bg-zinc-900 ring-1 ring-zinc-800" />
+                      <div className="h-12 w-12 rounded-md bg-admin-card ring-1 ring-admin-line" />
                     )}
                     <div className="min-w-0">
                       <div className="truncate font-medium">{g.title}</div>
@@ -249,14 +249,14 @@ export default async function AdminGamesPage({
                     </div>
                   </div>
                 </Td>
-                <Td className="text-zinc-300">{g.platform ?? "—"}</Td>
-                <Td className="text-zinc-300">{g.productType}</Td>
-                <Td className="text-zinc-300">
+                <Td className="text-zinc-700">{g.platform ?? "—"}</Td>
+                <Td className="text-zinc-700">{g.productType}</Td>
+                <Td className="text-zinc-700">
                   {g.store === "EPIC" ? (
                     <EpicPriceCell game={g} settings={settings} />
                   ) : g.discountTryCents != null ? (
                     <>
-                      <span className="text-emerald-300">
+                      <span className="text-emerald-700">
                         {fmtTry(g.discountTryCents)}
                       </span>
                       <span className="ml-2 text-xs text-zinc-500 line-through">
@@ -267,20 +267,20 @@ export default async function AdminGamesPage({
                     fmtTry(g.priceTryCents)
                   )}
                 </Td>
-                <Td className="text-zinc-300">
+                <Td className="text-zinc-700">
                   {g.discountTryCents != null && g.discountEndAt ? (
                     <DiscountEnd date={g.discountEndAt} />
                   ) : (
                     <span className="text-zinc-600">—</span>
                   )}
                 </Td>
-                <Td className="text-zinc-200">{g._count.transactions}</Td>
+                <Td className="text-zinc-800">{g._count.transactions}</Td>
                 <Td>
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${
                       g.isActive
-                        ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30"
-                        : "bg-zinc-800 text-zinc-300 ring-zinc-700"
+                        ? "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30"
+                        : "bg-admin-chip text-zinc-700 ring-admin-line2"
                     }`}
                   >
                     {g.isActive ? "Active" : "Hidden"}
@@ -293,7 +293,7 @@ export default async function AdminGamesPage({
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-zinc-400">
+        <div className="flex items-center justify-between text-sm text-zinc-600">
           <span>
             Page {page} of {totalPages}
           </span>
@@ -301,7 +301,7 @@ export default async function AdminGamesPage({
             {page > 1 && (
               <Link
                 href={buildHref({ page: String(page - 1) })}
-                className="rounded-md border border-zinc-800 px-3 py-1.5 hover:bg-zinc-900"
+                className="rounded-md border border-admin-line px-3 py-1.5 hover:bg-admin-chip"
               >
                 ← Previous
               </Link>
@@ -309,7 +309,7 @@ export default async function AdminGamesPage({
             {page < totalPages && (
               <Link
                 href={buildHref({ page: String(page + 1) })}
-                className="rounded-md border border-zinc-800 px-3 py-1.5 hover:bg-zinc-900"
+                className="rounded-md border border-admin-line px-3 py-1.5 hover:bg-admin-chip"
               >
                 Next →
               </Link>
@@ -342,7 +342,7 @@ function EpicPriceCell({
   return (
     <div className="space-y-0.5">
       <div className="flex items-baseline gap-2">
-        <span className="font-medium text-zinc-100">{p.finalAzn.toFixed(2)} ₼</span>
+        <span className="font-medium text-zinc-900">{p.finalAzn.toFixed(2)} ₼</span>
         {p.referenceAzn != null && p.finalAzn < p.referenceAzn && (
           <span className="text-xs text-zinc-500 line-through">
             {p.referenceAzn.toFixed(2)} ₼
@@ -351,9 +351,9 @@ function EpicPriceCell({
       </div>
       <div className="text-[11px] text-zinc-500">
         Maya: {p.costAzn.toFixed(2)} ₼
-        {p.floored && <span className="ml-1 text-amber-400">· döşəmə</span>}
+        {p.floored && <span className="ml-1 text-amber-600">· döşəmə</span>}
       </div>
-      <div className={`text-[11px] ${profitOk ? "text-emerald-400" : "text-rose-400"}`}>
+      <div className={`text-[11px] ${profitOk ? "text-emerald-600" : "text-rose-600"}`}>
         Xalis mənfəət: {p.netProfitAzn.toFixed(2)} ₼
         {p.costAzn > 0 && (
           <span className="ml-1 font-medium">
@@ -393,8 +393,8 @@ function FilterRow({
               href={build(opt)}
               className={`rounded-md px-2.5 py-1 text-xs ring-1 ${
                 active
-                  ? "bg-indigo-500/15 text-indigo-300 ring-indigo-500/30"
-                  : "bg-zinc-900 text-zinc-300 ring-zinc-800 hover:bg-zinc-800"
+                  ? "bg-violet-500/15 text-violet-700 ring-violet-500/30"
+                  : "bg-admin-card text-zinc-700 ring-admin-line hover:bg-admin-chip2"
               }`}
             >
               {getLabel ? getLabel(opt) : opt}
@@ -416,12 +416,12 @@ function DiscountEnd({ date }: { date: Date }) {
   });
   let hint: { text: string; className: string };
   if (days < 0) hint = { text: "Bitib", className: "text-zinc-500" };
-  else if (days === 0) hint = { text: "Bu gün", className: "text-rose-300" };
-  else if (days <= 3) hint = { text: `${days} gün`, className: "text-amber-300" };
+  else if (days === 0) hint = { text: "Bu gün", className: "text-rose-700" };
+  else if (days <= 3) hint = { text: `${days} gün`, className: "text-amber-700" };
   else hint = { text: `${days} gün`, className: "text-zinc-500" };
   return (
     <div>
-      <div className="text-zinc-200">{dateStr}</div>
+      <div className="text-zinc-800">{dateStr}</div>
       <div className={`text-xs ${hint.className}`}>{hint.text}</div>
     </div>
   );

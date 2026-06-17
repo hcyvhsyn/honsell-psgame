@@ -159,8 +159,8 @@ export default function PlatformGuidesAdminClient() {
             title={s.description}
             className={`rounded-full px-3 py-1.5 text-xs transition ${
               activeScope === s.key
-                ? "bg-indigo-500 text-white"
-                : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                ? "bg-violet-600 text-white"
+                : "bg-admin-card text-zinc-700 hover:bg-admin-chip2"
             }`}
           >
             {s.label}
@@ -171,44 +171,44 @@ export default function PlatformGuidesAdminClient() {
       <div className="flex justify-end">
         <button
           onClick={openNew}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
+          className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500"
         >
           <Plus className="h-4 w-4" /> Yeni Bələdçi
         </button>
       </div>
 
       {loading ? (
-        <div className="py-20 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" /></div>
+        <div className="py-20 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-violet-500" /></div>
       ) : items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-16 text-center text-zinc-500">
+        <div className="rounded-xl border border-dashed border-admin-line bg-admin-card py-16 text-center text-zinc-500">
           Bu scope üçün hələ bələdçi yoxdur.
         </div>
       ) : (
         <div className="space-y-3">
           {items.map((g) => (
-            <article key={g.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <article key={g.id} className="rounded-xl border border-admin-line bg-admin-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-bold text-white">{g.title}</p>
+                  <p className="truncate text-base font-bold text-zinc-900">{g.title}</p>
                   <p className="text-xs text-zinc-500">/{g.slug}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => toggleActive(g)}
                     title={g.isActive ? "Passiv et" : "Aktiv et"}
-                    className={`rounded p-1.5 ${g.isActive ? "text-emerald-400" : "text-zinc-500"} hover:bg-zinc-800`}
+                    className={`rounded p-1.5 ${g.isActive ? "text-emerald-600" : "text-zinc-500"} hover:bg-admin-chip2`}
                   >
                     {g.isActive ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                   </button>
-                  <button onClick={() => openEdit(g)} className="rounded p-1.5 text-zinc-500 hover:text-indigo-400">
+                  <button onClick={() => openEdit(g)} className="rounded p-1.5 text-zinc-500 hover:text-violet-600">
                     <Edit2 className="h-4 w-4" />
                   </button>
-                  <button onClick={() => deleteItem(g.id)} className="rounded p-1.5 text-zinc-500 hover:text-rose-400">
+                  <button onClick={() => deleteItem(g.id)} className="rounded p-1.5 text-zinc-500 hover:text-rose-600">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
-              {g.summary && <p className="mt-2 text-sm text-zinc-300">{g.summary}</p>}
+              {g.summary && <p className="mt-2 text-sm text-zinc-700">{g.summary}</p>}
             </article>
           ))}
         </div>
@@ -217,31 +217,31 @@ export default function PlatformGuidesAdminClient() {
       {/* Edit modal */}
       {editingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-admin-line bg-admin-card p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-bold">{editingId === "NEW" ? "Yeni Bələdçi" : "Bələdçini redaktə et"}</h3>
-              <button onClick={() => setEditingId(null)} className="text-zinc-500 hover:text-white">
+              <button onClick={() => setEditingId(null)} className="text-zinc-500 hover:text-zinc-900">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm text-zinc-300 sm:col-span-2">
-                Başlıq <span className="text-rose-400">*</span>
+              <label className="block text-sm text-zinc-700 sm:col-span-2">
+                Başlıq <span className="text-rose-600">*</span>
                 <input
                   value={editForm.title}
                   onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="HBO Max-ı necə yükləmək olar?"
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Scope
                 <select
                   value={editForm.scope}
                   onChange={(e) => setEditForm({ ...editForm, scope: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                 >
                   {PLATFORM_GUIDE_SCOPES.map((s) => (
                     <option key={s.key} value={s.key}>{s.label}</option>
@@ -249,44 +249,44 @@ export default function PlatformGuidesAdminClient() {
                 </select>
               </label>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Slug (avtomatik yaradılır)
                 <input
                   value={editForm.slug}
                   onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="hbo-max-yukleme"
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300 sm:col-span-2">
+              <label className="block text-sm text-zinc-700 sm:col-span-2">
                 Qısa təsvir
                 <input
                   value={editForm.summary}
                   onChange={(e) => setEditForm({ ...editForm, summary: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="Bir cümləlik təsvir — kart preview-da göstəriləcək"
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300 sm:col-span-2">
-                Mətn <span className="text-rose-400">*</span>
+              <label className="block text-sm text-zinc-700 sm:col-span-2">
+                Mətn <span className="text-rose-600">*</span>
                 <textarea
                   value={editForm.body}
                   onChange={(e) => setEditForm({ ...editForm, body: e.target.value })}
                   rows={10}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="Tam mətn — paragraflar, addımlar..."
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300 sm:col-span-2">
+              <label className="block text-sm text-zinc-700 sm:col-span-2">
                 YouTube video linki (opsional)
                 <input
                   type="url"
                   value={editForm.videoUrl}
                   onChange={(e) => setEditForm({ ...editForm, videoUrl: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="https://www.youtube.com/watch?v=..."
                 />
                 <p className="mt-1 text-[11px] text-zinc-500">
@@ -294,17 +294,17 @@ export default function PlatformGuidesAdminClient() {
                 </p>
               </label>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Sıralama
                 <input
                   type="number"
                   value={editForm.sortOrder}
                   onChange={(e) => setEditForm({ ...editForm, sortOrder: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                 />
               </label>
 
-              <label className="flex items-end gap-2 pb-2 text-sm text-zinc-300">
+              <label className="flex items-end gap-2 pb-2 text-sm text-zinc-700">
                 <input
                   type="checkbox"
                   checked={editForm.isActive}
@@ -315,7 +315,7 @@ export default function PlatformGuidesAdminClient() {
             </div>
 
             {saveError && (
-              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">
                 {saveError}
               </div>
             )}
@@ -323,14 +323,14 @@ export default function PlatformGuidesAdminClient() {
             <div className="mt-8 flex justify-end gap-3">
               <button
                 onClick={() => setEditingId(null)}
-                className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
+                className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-700 hover:bg-admin-chip2"
               >
                 İmtina
               </button>
               <button
                 onClick={save}
                 disabled={saving}
-                className="inline-flex items-center gap-2 rounded bg-indigo-500 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-400 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />} Yadda saxla
               </button>

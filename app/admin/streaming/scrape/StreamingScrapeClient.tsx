@@ -258,11 +258,11 @@ export default function StreamingScrapeClient() {
   return (
     <div className="space-y-6">
       {/* Run card */}
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6">
+      <section className="rounded-xl border border-admin-line bg-admin-card p-6">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Yeni yığım</h2>
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-zinc-600">
               Seçilmiş platformaları sıra ilə işlət. Hər biri ~30sn-2dq çəkə bilər.
             </p>
           </div>
@@ -270,7 +270,7 @@ export default function StreamingScrapeClient() {
             type="button"
             onClick={triggerScrape}
             disabled={run.running || run.selected.size === 0}
-            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium hover:bg-zinc-800 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-md border border-admin-line2 bg-admin-card px-4 py-2 text-sm font-medium hover:bg-admin-chip2 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${run.running ? "animate-spin" : ""}`} />
             {run.running ? "İşlənir…" : "Yığımı başlat"}
@@ -289,8 +289,8 @@ export default function StreamingScrapeClient() {
                 disabled={run.running}
                 className={`rounded-full border px-3 py-1 text-xs font-semibold transition disabled:opacity-50 ${
                   active
-                    ? "border-indigo-500 bg-indigo-500/30 text-white"
-                    : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                    ? "border-violet-500 bg-violet-500/15 text-violet-700"
+                    : "border-admin-line2 bg-admin-card text-zinc-700 hover:bg-admin-chip2"
                 }`}
               >
                 {PLATFORM_LABEL[p]}
@@ -322,18 +322,18 @@ export default function StreamingScrapeClient() {
             )}
 
             {run.error && (
-              <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+              <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">
                 <AlertTriangle className="mr-2 inline h-4 w-4" />
                 {run.error}
               </div>
             )}
 
             {run.log.length > 0 && (
-              <details className="rounded-md border border-zinc-800 bg-zinc-950/50">
-                <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-zinc-400">
+              <details className="rounded-md border border-admin-line bg-admin-card">
+                <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-zinc-600">
                   Log ({run.log.length})
                 </summary>
-                <ul className="max-h-56 space-y-0.5 overflow-auto px-3 py-2 font-mono text-[11px] text-zinc-300">
+                <ul className="max-h-56 space-y-0.5 overflow-auto px-3 py-2 font-mono text-[11px] text-zinc-700">
                   {run.log.map((l, i) => (
                     <li key={i}>{l}</li>
                   ))}
@@ -345,22 +345,22 @@ export default function StreamingScrapeClient() {
       </section>
 
       {/* Last run / 24h summary */}
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6">
+      <section className="rounded-xl border border-admin-line bg-admin-card p-6">
         <header className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Son yığım və statistika</h2>
           <button
             type="button"
             onClick={loadStatus}
-            className="text-xs text-zinc-400 hover:text-white"
+            className="text-xs text-zinc-600 hover:text-zinc-900"
           >
             Yenilə
           </button>
         </header>
 
         {statusLoading ? (
-          <p className="text-sm text-zinc-400">Yüklənir…</p>
+          <p className="text-sm text-zinc-600">Yüklənir…</p>
         ) : !status?.lastRun ? (
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-zinc-600">
             <Film className="mr-2 inline h-4 w-4" /> Hələ heç bir streaming yığımı işə salınmayıb.
           </p>
         ) : (
@@ -396,17 +396,17 @@ export default function StreamingScrapeClient() {
                   return (
                     <div
                       key={p}
-                      className="rounded-md border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs"
+                      className="rounded-md border border-admin-line bg-admin-card px-3 py-2 text-xs"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-white">{PLATFORM_LABEL[p]}</span>
+                        <span className="font-semibold text-zinc-900">{PLATFORM_LABEL[p]}</span>
                         <StatusPill status={sum.status} />
                       </div>
-                      <div className="mt-1 text-zinc-400">
+                      <div className="mt-1 text-zinc-600">
                         {sum.scrapedCount} başlıq · +{sum.added} / ~{sum.updated} / -{sum.removed}
                       </div>
                       {sum.error && (
-                        <div className="mt-1 truncate text-rose-300" title={sum.error}>
+                        <div className="mt-1 truncate text-rose-700" title={sum.error}>
                           {sum.error}
                         </div>
                       )}
@@ -441,25 +441,25 @@ function PlatformCard({
           : Clock;
   const iconClass =
     data.state === "running"
-      ? "text-indigo-300 animate-spin"
+      ? "text-violet-700 animate-spin"
       : data.state === "done"
-        ? "text-emerald-400"
+        ? "text-emerald-600"
         : data.state === "failed"
-          ? "text-rose-400"
+          ? "text-rose-600"
           : "text-zinc-500";
 
   return (
     <div
       className={`rounded-lg border px-3 py-2.5 ${
-        selected ? "border-zinc-700 bg-zinc-950/60" : "border-zinc-800/50 bg-zinc-950/20 opacity-50"
+        selected ? "border-admin-line2 bg-admin-card" : "border-admin-line bg-admin-card opacity-50"
       }`}
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-white">{PLATFORM_LABEL[platform]}</span>
+        <span className="text-xs font-bold text-zinc-900">{PLATFORM_LABEL[platform]}</span>
         <Icon className={`h-4 w-4 ${iconClass}`} />
       </div>
       {data.summary ? (
-        <div className="mt-1 text-[11px] text-zinc-400">
+        <div className="mt-1 text-[11px] text-zinc-600">
           {data.summary.scrapedCount} başlıq · +{data.summary.added} ~{data.summary.updated} -
           {data.summary.removed}
         </div>
@@ -483,14 +483,14 @@ function Stat({
 }) {
   const toneClass =
     tone === "emerald"
-      ? "text-emerald-300"
+      ? "text-emerald-700"
       : tone === "amber"
-        ? "text-amber-300"
+        ? "text-amber-700"
         : tone === "rose"
-          ? "text-rose-300"
-          : "text-white";
+          ? "text-rose-700"
+          : "text-zinc-900";
   return (
-    <div className="rounded-md border border-zinc-800 bg-zinc-950/50 px-3 py-2">
+    <div className="rounded-md border border-admin-line bg-admin-card px-3 py-2">
       <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{label}</div>
       <div className={`mt-1 text-base font-semibold ${toneClass}`}>{value}</div>
     </div>
@@ -500,10 +500,10 @@ function Stat({
 function StatusPill({ status }: { status: string }) {
   const cls =
     status === "SUCCESS"
-      ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30"
+      ? "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30"
       : status === "PARTIAL"
-        ? "bg-amber-500/15 text-amber-300 ring-amber-500/30"
-        : "bg-rose-500/15 text-rose-300 ring-rose-500/30";
+        ? "bg-amber-500/15 text-amber-700 ring-amber-500/30"
+        : "bg-rose-500/15 text-rose-700 ring-rose-500/30";
   return (
     <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ring-1 ${cls}`}>
       {status}

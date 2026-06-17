@@ -450,6 +450,21 @@ export default function CartView({
       });
       return;
     }
+    const missingPlatformAccounts = items.find(
+      (i) =>
+        !i.gift &&
+        i.productType === "PLATFORM" &&
+        i.streaming?.accounts &&
+        (i.streaming.accounts.length === 0 ||
+          i.streaming.accounts.some((a) => !a.email?.trim() || !a.password)),
+    );
+    if (missingPlatformAccounts) {
+      setMessage({
+        kind: "error",
+        text: `${missingPlatformAccounts.title} üçün bütün hesab məlumatlarını doldurun (Redaktə et).`,
+      });
+      return;
+    }
     setBusy(true);
     setMessage(null);
     try {
@@ -545,6 +560,18 @@ export default function CartView({
             text = `Hədiyyə kart sifarişiniz qəbul edildi və hazırda gözləmədədir. Kodunuz hazır olduqda email ilə göndəriləcək və Sifarişlər bölməsində görünəcək.${tryBalanceSuffix}`;
           } else {
             text = `Hədiyyə kartınız sisteminizə yükləndi. Kodunuzu Sifarişlər bölməsindən görə bilərsiniz.${tryBalanceSuffix}`;
+          }
+          if (gameFulfillmentSentence) {
+            text = `${text.trim()} ${gameFulfillmentSentence}`;
+          }
+        }
+        if (data.hasPointBlank) {
+          const pbSuffix = pendingGameQty > 0 ? "" : checkoutBalanceSuffix(data);
+          const pendingCount = Number(data.pointBlankPendingCount ?? 0);
+          if (pendingCount > 0) {
+            text = `Point Blank sifarişiniz qəbul edildi və hazırda gözləmədədir. Kodunuz hazır olduqda email ilə göndəriləcək və Sifarişlər bölməsində görünəcək.${pbSuffix}`;
+          } else {
+            text = `Point Blank TG kodunuz hazırdır. Kodunuzu Sifarişlər bölməsindən görə bilərsiniz.${pbSuffix}`;
           }
           if (gameFulfillmentSentence) {
             text = `${text.trim()} ${gameFulfillmentSentence}`;
@@ -653,7 +680,8 @@ export default function CartView({
               item.productType === "ACCOUNT_CREATION" ? () => openAccountCartEdit(item) : undefined
             }
             onEditPlatform={
-              item.productType === "PLATFORM" && item.streaming?.gmail
+              item.productType === "PLATFORM" &&
+              (item.streaming?.gmail || item.streaming?.accounts?.length)
                 ? () => openPlatformCartEdit(item)
                 : undefined
             }
@@ -1309,7 +1337,37 @@ function CartLine({
                 </span>
               </div>
             ) : null}
-            {item.productType === "PLATFORM" && item.streaming?.gmail ? (
+            {item.productType === "PLATFORM" && item.streaming?.accounts?.length ? (
+              <div
+                className={`mt-1.5 w-full max-w-md space-y-1.5 rounded-md border px-2.5 py-1.5 ${platformCreds.accentClass}`}
+              >
+                {item.streaming.accounts.map((acc, idx) => (
+                  <div key={idx} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className={`text-[9px] font-semibold uppercase tracking-wider ${platformCreds.labelTextClass}`}>
+                      Hesab {idx + 1}
+                    </span>
+                    <span className="truncate text-[11px] font-medium text-zinc-200">
+                      {acc.email}
+                    </span>
+                    {acc.password && (
+                      <span className="font-mono text-[11px] tracking-wider text-zinc-400">
+                        {"•".repeat(Math.min(acc.password.length, 8))}
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {onEditPlatform ? (
+                  <button
+                    type="button"
+                    onClick={onEditPlatform}
+                    className={`inline-flex items-center gap-1 text-[10px] font-semibold ${platformCreds.labelTextClass} transition hover:text-white`}
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Redaktə
+                  </button>
+                ) : null}
+              </div>
+            ) : item.productType === "PLATFORM" && item.streaming?.gmail ? (
               <div
                 className={`mt-1.5 flex w-full max-w-md flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-2.5 py-1.5 ${platformCreds.accentClass}`}
               >
@@ -1470,6 +1528,13 @@ function platformCredentialMeta(item: CartItem): {
       emailLabel: "YouTube (Gmail)",
       accentClass: "border-red-500/25 bg-red-500/[0.07]",
       labelTextClass: "text-red-300",
+    };
+  }
+  if (kind === "SPOTIFY") {
+    return {
+      emailLabel: "Spotify hesabı",
+      accentClass: "border-emerald-500/25 bg-emerald-500/[0.07]",
+      labelTextClass: "text-emerald-300",
     };
   }
   return {

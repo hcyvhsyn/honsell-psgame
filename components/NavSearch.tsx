@@ -249,9 +249,9 @@ export default function NavSearch() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Axtar"
-        className="group inline-flex h-11 w-full items-center gap-3 rounded-[20px] border border-violet-200 bg-white/85 px-4 text-left text-sm text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.65),0_0_28px_-22px_rgba(124,58,237,0.45)] transition hover:border-violet-300 hover:bg-white hover:text-zinc-800 dark:border-violet-500/30 dark:bg-[#090914]/85 dark:text-zinc-400 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_28px_-22px_rgba(124,58,237,0.9)] dark:hover:border-violet-400/50 dark:hover:bg-[#101022] dark:hover:text-zinc-200 md:h-12 xl:h-12"
+        className="group honsell-nav-action inline-flex h-11 w-full items-center gap-3 rounded-[20px] border border-violet-200 bg-white/85 px-4 text-left text-sm text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.65),0_0_28px_-22px_rgba(124,58,237,0.45)] transition hover:border-violet-300 hover:bg-white hover:text-zinc-800 dark:border-violet-500/30 dark:bg-[#090914]/85 dark:text-zinc-400 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_28px_-22px_rgba(124,58,237,0.9)] dark:hover:border-violet-400/50 dark:hover:bg-[#101022] dark:hover:text-zinc-200 md:h-12 xl:h-12"
       >
-        <SearchIcon className="h-5 w-5 shrink-0 text-zinc-500 dark:text-zinc-200" />
+        <SearchIcon className="honsell-nav-icon-motion honsell-nav-icon-idle h-5 w-5 shrink-0 text-sky-500 dark:text-sky-300" />
         <span className="min-w-0 flex-1 truncate">GTA V, Netflix, PS Plus, Spotify axtar...</span>
         <span className="hidden rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-500 dark:border-white/10 dark:bg-white/[0.07] dark:text-zinc-200 md:inline">
           ⌘K

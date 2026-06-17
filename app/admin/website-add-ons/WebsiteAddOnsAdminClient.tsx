@@ -170,7 +170,7 @@ export default function WebsiteAddOnsAdminClient() {
       title: "Əlavə xidməti sil?",
       message: (
         <p>
-          <span className="font-medium text-zinc-200">«{a.name}»</span> add-on
+          <span className="font-medium text-zinc-800">«{a.name}»</span> add-on
           silinəcək.
         </p>
       ),
@@ -187,7 +187,7 @@ export default function WebsiteAddOnsAdminClient() {
   if (loading) {
     return (
       <div className="py-20 text-center">
-        <Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" />
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-violet-500" />
       </div>
     );
   }
@@ -200,16 +200,16 @@ export default function WebsiteAddOnsAdminClient() {
         </p>
         <button
           onClick={startNew}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-400"
+          className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-violet-500"
         >
           <Plus className="h-4 w-4" />
           Yeni add-on
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
+      <div className="overflow-hidden rounded-xl border border-admin-line bg-admin-card">
         <table className="w-full text-left text-sm">
-          <thead className="bg-zinc-900/80 text-xs uppercase text-zinc-500">
+          <thead className="bg-admin-card text-xs uppercase text-zinc-500">
             <tr>
               <th className="px-4 py-3 font-medium">Ad / Slug</th>
               <th className="px-4 py-3 font-medium">Kateqoriya</th>
@@ -218,7 +218,7 @@ export default function WebsiteAddOnsAdminClient() {
               <th className="px-4 py-3 font-medium text-right">Əməliyyat</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800/80">
+          <tbody className="divide-y divide-admin-line">
             {items.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-zinc-500">
@@ -227,20 +227,20 @@ export default function WebsiteAddOnsAdminClient() {
               </tr>
             )}
             {items.map((a) => (
-              <tr key={a.id} className="hover:bg-zinc-900">
+              <tr key={a.id} className="hover:bg-admin-chip">
                 <td className="px-4 py-3">
-                  <div className="font-medium text-zinc-100">{a.name}</div>
+                  <div className="font-medium text-zinc-900">{a.name}</div>
                   <div className="text-xs text-zinc-500">{a.slug}</div>
                 </td>
-                <td className="px-4 py-3 text-zinc-300">{a.category ?? "—"}</td>
-                <td className="px-4 py-3 text-zinc-200">{formatPrice(a)}</td>
+                <td className="px-4 py-3 text-zinc-700">{a.category ?? "—"}</td>
+                <td className="px-4 py-3 text-zinc-800">{formatPrice(a)}</td>
                 <td className="px-4 py-3">
                   <span
                     className={[
                       "rounded px-2 py-1 text-[10px] font-semibold ring-1",
                       a.isActive
-                        ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30"
-                        : "bg-zinc-800 text-zinc-400 ring-zinc-700",
+                        ? "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30"
+                        : "bg-admin-chip text-zinc-600 ring-admin-line2",
                     ].join(" ")}
                   >
                     {a.isActive ? "Aktiv" : "Söndürülüb"}
@@ -250,13 +250,13 @@ export default function WebsiteAddOnsAdminClient() {
                   <div className="inline-flex gap-1">
                     <button
                       onClick={() => startEdit(a)}
-                      className="rounded p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                      className="rounded p-1.5 text-zinc-600 hover:bg-admin-chip2 hover:text-zinc-900"
                     >
                       <Edit2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => remove(a)}
-                      className="rounded p-1.5 text-rose-400 hover:bg-zinc-800 hover:text-rose-300"
+                      className="rounded p-1.5 text-rose-600 hover:bg-admin-chip2 hover:text-rose-700"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -270,8 +270,8 @@ export default function WebsiteAddOnsAdminClient() {
 
       {editingId && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
-          <div className="mx-auto my-8 w-full max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl">
-            <div className="border-b border-zinc-800 px-6 py-4">
+          <div className="mx-auto my-8 w-full max-w-2xl rounded-2xl border border-admin-line bg-admin-card shadow-2xl">
+            <div className="border-b border-admin-line px-6 py-4">
               <h3 className="text-lg font-bold">
                 {editingId === "NEW" ? "Yeni add-on" : "Add-on-u redaktə et"}
               </h3>
@@ -312,10 +312,10 @@ export default function WebsiteAddOnsAdminClient() {
               />
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-600">
                   Qiymət tipi
                 </label>
-                <div className="mt-2 inline-flex rounded-lg border border-zinc-800 bg-zinc-900 p-1">
+                <div className="mt-2 inline-flex rounded-lg border border-admin-line bg-admin-card p-1">
                   {(["FLAT", "PER_UNIT"] as const).map((t) => (
                     <button
                       key={t}
@@ -324,8 +324,8 @@ export default function WebsiteAddOnsAdminClient() {
                       className={[
                         "rounded px-3 py-1.5 text-xs font-semibold transition",
                         form.pricingType === t
-                          ? "bg-indigo-500 text-white"
-                          : "text-zinc-400 hover:text-white",
+                          ? "bg-violet-600 text-white"
+                          : "text-zinc-600 hover:text-zinc-900",
                       ].join(" ")}
                     >
                       {t === "FLAT" ? "Sabit qiymət" : "Vahid başına"}
@@ -369,30 +369,30 @@ export default function WebsiteAddOnsAdminClient() {
                   type="checkbox"
                   checked={form.isActive}
                   onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                  className="h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-indigo-500 focus:ring-indigo-500"
+                  className="h-4 w-4 rounded border-admin-line2 bg-admin-card text-violet-500 focus:ring-violet-500"
                 />
-                <span className="text-sm text-zinc-200">Aktiv (müştəri görür)</span>
+                <span className="text-sm text-zinc-800">Aktiv (müştəri görür)</span>
               </label>
 
               {error && (
-                <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+                <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">
                   {error}
                 </div>
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-zinc-800 px-6 py-4">
+            <div className="flex items-center justify-end gap-2 border-t border-admin-line px-6 py-4">
               <button
                 onClick={cancel}
                 disabled={saving}
-                className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-800 hover:bg-admin-chip2 disabled:opacity-50"
               >
                 Ləğv et
               </button>
               <button
                 onClick={save}
                 disabled={saving}
-                className="inline-flex items-center gap-2 rounded bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 Yadda saxla
@@ -418,7 +418,7 @@ function TextInput({
 }) {
   return (
     <label className="block">
-      <span className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <span className="block text-xs font-semibold uppercase tracking-wide text-zinc-600">
         {label}
       </span>
       <input
@@ -426,7 +426,7 @@ function TextInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1.5 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500"
+        className="mt-1.5 w-full rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-500"
       />
     </label>
   );
@@ -445,7 +445,7 @@ function NumberInput({
 }) {
   return (
     <label className="block">
-      <span className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <span className="block text-xs font-semibold uppercase tracking-wide text-zinc-600">
         {label}
       </span>
       <input
@@ -453,7 +453,7 @@ function NumberInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1.5 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500"
+        className="mt-1.5 w-full rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-500"
       />
     </label>
   );
@@ -472,7 +472,7 @@ function TextArea({
 }) {
   return (
     <label className="block">
-      <span className="block text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <span className="block text-xs font-semibold uppercase tracking-wide text-zinc-600">
         {label}
       </span>
       <textarea
@@ -480,7 +480,7 @@ function TextArea({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1.5 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500"
+        className="mt-1.5 w-full rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-500"
       />
     </label>
   );

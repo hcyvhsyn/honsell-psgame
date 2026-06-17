@@ -97,7 +97,9 @@ export async function GET(req: NextRequest) {
         where: {
           type: "SERVICE_PURCHASE",
           status: "PENDING",
-          serviceProduct: { type: "TRY_BALANCE" },
+          // TRY_BALANCE və POINT_BLANK_TG eyni e-pin kod təhvili axınını
+          // paylaşır — hər ikisi bu siyahıda modal ilə manual təsdiqlənir.
+          serviceProduct: { type: { in: ["TRY_BALANCE", "POINT_BLANK_TG"] } },
         },
         orderBy: { createdAt: "desc" },
         take: 200,

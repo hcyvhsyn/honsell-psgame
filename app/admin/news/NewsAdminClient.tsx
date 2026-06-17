@@ -281,21 +281,21 @@ export default function NewsAdminClient() {
             title={s.description}
             className={`rounded-full px-3 py-1.5 text-xs transition ${
               view.kind === "scope" && view.scope === s.key
-                ? "bg-indigo-500 text-white"
-                : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                ? "bg-violet-600 text-white"
+                : "bg-admin-card text-zinc-700 hover:bg-admin-chip2"
             }`}
           >
             {s.label}
           </button>
         ))}
-        <span className="hidden h-6 w-px bg-zinc-800 sm:inline-block" />
+        <span className="hidden h-6 w-px bg-admin-chip sm:inline-block" />
         <button
           type="button"
           onClick={() => setView({ kind: "home" })}
           className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition ${
             isHomeView
               ? "bg-amber-400 text-zinc-900"
-              : "border border-amber-400/40 bg-amber-400/10 text-amber-200 hover:bg-amber-400/20"
+              : "border border-amber-400/40 bg-amber-400/10 text-amber-700 hover:bg-amber-400/20"
           }`}
         >
           <Home className="h-3.5 w-3.5" /> Ana Səhifə Seçimi
@@ -303,7 +303,7 @@ export default function NewsAdminClient() {
       </div>
 
       {isHomeView ? (
-        <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-xs text-amber-200">
+        <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-xs text-amber-700">
           Bütün scope-lardan yaradılmış xəbərlər. Pin işarəsinə klikləyərək hansılarının
           ana səhifədə görünəcəyini seç. <span className="font-bold">{homeSelectedCount}</span>{" "}
           xəbər ana səhifə üçün seçilib.
@@ -312,7 +312,7 @@ export default function NewsAdminClient() {
         <div className="flex justify-end">
           <button
             onClick={openNew}
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-400"
+            className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500"
           >
             <Plus className="h-4 w-4" /> Yeni Xəbər
           </button>
@@ -321,10 +321,10 @@ export default function NewsAdminClient() {
 
       {loading ? (
         <div className="py-20 text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" />
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-violet-500" />
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-16 text-center text-zinc-500">
+        <div className="rounded-xl border border-dashed border-admin-line bg-admin-card py-16 text-center text-zinc-500">
           {isHomeView ? "Hələ heç bir xəbər yaradılmayıb." : "Bu scope üçün hələ xəbər yoxdur."}
         </div>
       ) : (
@@ -335,10 +335,10 @@ export default function NewsAdminClient() {
               className={`flex gap-4 rounded-xl border p-4 transition ${
                 isHomeView && n.showOnHome
                   ? "border-amber-400/40 bg-amber-400/5"
-                  : "border-zinc-800 bg-zinc-900/50"
+                  : "border-admin-line bg-admin-card"
               }`}
             >
-              <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded-lg bg-zinc-900 ring-1 ring-white/10">
+              <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded-lg bg-admin-card ring-1 ring-admin-line">
                 {n.coverImageUrl ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
@@ -361,9 +361,9 @@ export default function NewsAdminClient() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-base font-bold text-white">{n.title}</p>
+                    <p className="truncate text-base font-bold text-zinc-900">{n.title}</p>
                     <p className="text-xs text-zinc-500">
-                      <span className="text-zinc-400">{scopeLabel(n.scope)}</span>
+                      <span className="text-zinc-600">{scopeLabel(n.scope)}</span>
                       {n.category ? ` · ${n.category}` : ""}
                       {n.publishedAt
                         ? ` · ${new Date(n.publishedAt).toLocaleDateString("az-AZ", {
@@ -382,7 +382,7 @@ export default function NewsAdminClient() {
                         className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                           n.showOnHome
                             ? "bg-amber-400 text-zinc-900 hover:bg-amber-300"
-                            : "border border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-amber-400/50 hover:text-amber-300"
+                            : "border border-admin-line2 bg-admin-card text-zinc-600 hover:border-amber-400/50 hover:text-amber-700"
                         }`}
                       >
                         {n.showOnHome ? (
@@ -400,8 +400,8 @@ export default function NewsAdminClient() {
                         <button
                           onClick={() => toggleHome(n)}
                           title={n.showOnHome ? "Ana səhifədən çıxar" : "Ana səhifəyə də göstər"}
-                          className={`rounded p-1.5 hover:bg-zinc-800 ${
-                            n.showOnHome ? "text-amber-300" : "text-zinc-500"
+                          className={`rounded p-1.5 hover:bg-admin-chip2 ${
+                            n.showOnHome ? "text-amber-700" : "text-zinc-500"
                           }`}
                         >
                           <Pin className={`h-4 w-4 ${n.showOnHome ? "fill-current" : ""}`} />
@@ -409,8 +409,8 @@ export default function NewsAdminClient() {
                         <button
                           onClick={() => toggleFeatured(n)}
                           title={n.isFeatured ? "Featured-dan çıxar" : "Featured et"}
-                          className={`rounded p-1.5 hover:bg-zinc-800 ${
-                            n.isFeatured ? "text-amber-300" : "text-zinc-500"
+                          className={`rounded p-1.5 hover:bg-admin-chip2 ${
+                            n.isFeatured ? "text-amber-700" : "text-zinc-500"
                           }`}
                         >
                           <Star className={`h-4 w-4 ${n.isFeatured ? "fill-current" : ""}`} />
@@ -418,8 +418,8 @@ export default function NewsAdminClient() {
                         <button
                           onClick={() => togglePublished(n)}
                           title={n.isPublished ? "Drafta gətir" : "Yayımla"}
-                          className={`rounded p-1.5 hover:bg-zinc-800 ${
-                            n.isPublished ? "text-emerald-400" : "text-zinc-500"
+                          className={`rounded p-1.5 hover:bg-admin-chip2 ${
+                            n.isPublished ? "text-emerald-600" : "text-zinc-500"
                           }`}
                         >
                           {n.isPublished ? (
@@ -430,13 +430,13 @@ export default function NewsAdminClient() {
                         </button>
                         <button
                           onClick={() => openEdit(n)}
-                          className="rounded p-1.5 text-zinc-500 hover:text-indigo-400"
+                          className="rounded p-1.5 text-zinc-500 hover:text-violet-600"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => deleteItem(n.id)}
-                          className="rounded p-1.5 text-zinc-500 hover:text-rose-400"
+                          className="rounded p-1.5 text-zinc-500 hover:text-rose-600"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -445,7 +445,7 @@ export default function NewsAdminClient() {
                   </div>
                 </div>
                 {n.excerpt && (
-                  <p className="mt-2 line-clamp-2 text-sm text-zinc-300">{n.excerpt}</p>
+                  <p className="mt-2 line-clamp-2 text-sm text-zinc-700">{n.excerpt}</p>
                 )}
               </div>
             </article>
@@ -456,36 +456,36 @@ export default function NewsAdminClient() {
       {/* Edit modal */}
       {editingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-admin-line bg-admin-card p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-bold">
                 {editingId === "NEW" ? "Yeni Xəbər" : "Xəbəri redaktə et"}
               </h3>
               <button
                 onClick={() => setEditingId(null)}
-                className="text-zinc-500 hover:text-white"
+                className="text-zinc-500 hover:text-zinc-900"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm text-zinc-300 sm:col-span-2">
-                Başlıq <span className="text-rose-400">*</span>
+              <label className="block text-sm text-zinc-700 sm:col-span-2">
+                Başlıq <span className="text-rose-600">*</span>
                 <input
                   value={editForm.title}
                   onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="GTA VI rəsmi treyleri yayımlandı"
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300">
-                Scope <span className="text-rose-400">*</span>
+              <label className="block text-sm text-zinc-700">
+                Scope <span className="text-rose-600">*</span>
                 <select
                   value={editForm.scope}
                   onChange={(e) => setEditForm({ ...editForm, scope: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                 >
                   {CREATE_SCOPES.map((s) => (
                     <option key={s.key} value={s.key}>
@@ -498,24 +498,24 @@ export default function NewsAdminClient() {
                 </span>
               </label>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Kategori
                 <input
                   value={editForm.category}
                   onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="Yenilik · Endirim · Müsahibə"
                 />
               </label>
 
               {/* Cover şəkil — fayl upload */}
-              <div className="text-sm text-zinc-300 sm:col-span-2">
+              <div className="text-sm text-zinc-700 sm:col-span-2">
                 <span className="mb-1 block">Cover şəkil</span>
                 <p className="mb-2 text-[11px] text-zinc-500">
-                  Tövsiyə olunan ölçü: <b className="text-zinc-300">1920×1080px</b> (16:9 aspekt) — featured xəbər kartında 21:9, normal kartda 16:9 nisbətdə kropuna alır.
+                  Tövsiyə olunan ölçü: <b className="text-zinc-700">1920×1080px</b> (16:9 aspekt) — featured xəbər kartında 21:9, normal kartda 16:9 nisbətdə kropuna alır.
                 </p>
                 {editForm.coverImageUrl ? (
-                  <div className="relative overflow-hidden rounded-lg border border-zinc-800">
+                  <div className="relative overflow-hidden rounded-lg border border-admin-line">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={editForm.coverImageUrl}
@@ -549,7 +549,7 @@ export default function NewsAdminClient() {
                   </div>
                 ) : (
                   <label
-                    className={`flex h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-zinc-700 bg-zinc-900/50 text-center transition hover:border-indigo-500/60 hover:bg-zinc-900 ${
+                    className={`flex h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-admin-line2 bg-admin-card text-center transition hover:border-violet-500/60 hover:bg-admin-chip ${
                       uploading ? "pointer-events-none opacity-60" : ""
                     }`}
                   >
@@ -566,13 +566,13 @@ export default function NewsAdminClient() {
                     />
                     {uploading ? (
                       <>
-                        <Loader2 className="h-6 w-6 animate-spin text-indigo-400" />
-                        <span className="text-xs text-zinc-400">Yüklənir...</span>
+                        <Loader2 className="h-6 w-6 animate-spin text-violet-600" />
+                        <span className="text-xs text-zinc-600">Yüklənir...</span>
                       </>
                     ) : (
                       <>
                         <Upload className="h-6 w-6 text-zinc-500" />
-                        <span className="text-sm font-semibold text-zinc-300">
+                        <span className="text-sm font-semibold text-zinc-700">
                           Şəkil seç
                         </span>
                         <span className="text-[11px] text-zinc-500">
@@ -584,59 +584,59 @@ export default function NewsAdminClient() {
                 )}
               </div>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Slug (avtomatik)
                 <input
                   value={editForm.slug}
                   onChange={(e) => setEditForm({ ...editForm, slug: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="gta-vi-treyleri"
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Yayımlanma tarixi
                 <input
                   type="datetime-local"
                   value={editForm.publishedAt}
                   onChange={(e) => setEditForm({ ...editForm, publishedAt: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300 sm:col-span-2">
+              <label className="block text-sm text-zinc-700 sm:col-span-2">
                 Qısa anons (excerpt)
                 <textarea
                   value={editForm.excerpt}
                   onChange={(e) => setEditForm({ ...editForm, excerpt: e.target.value })}
                   rows={2}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="2 cümləlik anons — kartlarda göstəriləcək"
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300 sm:col-span-2">
-                Mətn <span className="text-rose-400">*</span>
+              <label className="block text-sm text-zinc-700 sm:col-span-2">
+                Mətn <span className="text-rose-600">*</span>
                 <textarea
                   value={editForm.body}
                   onChange={(e) => setEditForm({ ...editForm, body: e.target.value })}
                   rows={10}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   placeholder="Tam xəbər mətni — paragraflar, detallar..."
                 />
               </label>
 
-              <label className="block text-sm text-zinc-300">
+              <label className="block text-sm text-zinc-700">
                 Sıralama
                 <input
                   type="number"
                   value={editForm.sortOrder}
                   onChange={(e) => setEditForm({ ...editForm, sortOrder: e.target.value })}
-                  className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                 />
               </label>
 
-              <div className="flex flex-col gap-2 pt-1 text-sm text-zinc-300">
+              <div className="flex flex-col gap-2 pt-1 text-sm text-zinc-700">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -653,7 +653,7 @@ export default function NewsAdminClient() {
                   />
                   <Star
                     className={`h-3.5 w-3.5 ${
-                      editForm.isFeatured ? "fill-amber-300 text-amber-300" : "text-zinc-500"
+                      editForm.isFeatured ? "fill-amber-300 text-amber-700" : "text-zinc-500"
                     }`}
                   />
                   Featured (hero kart)
@@ -666,7 +666,7 @@ export default function NewsAdminClient() {
                   />
                   <Home
                     className={`h-3.5 w-3.5 ${
-                      editForm.showOnHome ? "text-amber-300" : "text-zinc-500"
+                      editForm.showOnHome ? "text-amber-700" : "text-zinc-500"
                     }`}
                   />
                   Ana səhifədə də göstər
@@ -675,7 +675,7 @@ export default function NewsAdminClient() {
             </div>
 
             {saveError && (
-              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">
                 {saveError}
               </div>
             )}
@@ -683,14 +683,14 @@ export default function NewsAdminClient() {
             <div className="mt-8 flex justify-end gap-3">
               <button
                 onClick={() => setEditingId(null)}
-                className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
+                className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-700 hover:bg-admin-chip2"
               >
                 İmtina
               </button>
               <button
                 onClick={save}
                 disabled={saving || uploading}
-                className="inline-flex items-center gap-2 rounded bg-indigo-500 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-400 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />} Yadda saxla
               </button>

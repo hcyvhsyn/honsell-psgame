@@ -210,7 +210,7 @@ const TABS = [
   { id: "game", label: "Oyun çatdırılması" },
   { id: "psplus", label: "PS Plus" },
   { id: "eaplay", label: "EA Play" },
-  { id: "gift", label: "Hədiyyə kart (TRY)" },
+  { id: "gift", label: "Hədiyyə kart (TRY) / Point Blank" },
   { id: "honsell", label: "Honsell Hədiyyə kart" },
   { id: "account", label: "Hesab açma" },
   { id: "epic", label: "Epic hesab açma" },
@@ -227,7 +227,7 @@ const TAB_DESCRIPTIONS: Record<TabId, string> = {
   game: "PSN-ə oyun çatdırılması — mərhələni yeniləyin və ya tamamlayın.",
   psplus: "PS Plus aktivləşdirilməsi gözləyən sifarişlər.",
   eaplay: "EA Play aktivləşdirilməsi gözləyən sifarişlər.",
-  gift: "TRY Balance kodu modal-da daxil edilir və müştəriyə göndərilir.",
+  gift: "TRY Balance / Point Blank TG e-pin kodu modal-da daxil edilir və müştəriyə göndərilir. (Stokda kod olanlar avtomatik təhvil verilib.)",
   honsell: "Honsell Hədiyyə kartları — kod avtomatik yaradılır, müştəriyə email + WhatsApp göndərilir.",
   account: "Yeni PSN hesab açma sorğuları.",
   epic: "Yeni Türkiyə Epic Games hesab açma sorğuları — təsdiqlədikdə hesab yaradılır.",
@@ -638,10 +638,10 @@ export default function OrdersAdminClient() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-zinc-800/70 pb-4">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-admin-line pb-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Sifarişlər</h1>
-          <p className="mt-1 text-sm text-zinc-400">
+          <p className="mt-1 text-sm text-zinc-600">
             Aktiv işlərinizi soldakı kateqoriyalardan açın və idarə edin.
           </p>
         </div>
@@ -652,7 +652,7 @@ export default function OrdersAdminClient() {
             type="button"
             onClick={() => (tab === "cancelled" ? loadCancelled() : load())}
             disabled={pending || (tab === "cancelled" ? cancelledLoading : loading)}
-            className="inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-admin-chip px-3 py-2 text-sm text-zinc-800 hover:bg-admin-chip2 disabled:opacity-50"
           >
             <RefreshCw className="h-4 w-4" />
             Yenilə
@@ -661,14 +661,14 @@ export default function OrdersAdminClient() {
       </header>
 
       {error && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-700">
           {error}
         </div>
       )}
 
       <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
-          <nav className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
+          <nav className="overflow-hidden rounded-xl border border-admin-line bg-admin-card">
             <SidebarGroup label="Oyun & PSN">
               <NavItem
                 id="game"
@@ -778,11 +778,11 @@ export default function OrdersAdminClient() {
         </aside>
 
         <section className="min-w-0 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-800/70 bg-zinc-900/30 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-admin-line bg-admin-card px-4 py-3">
             <div className="flex min-w-0 items-center gap-3">
               <TabIcon id={tab} />
               <div className="min-w-0">
-                <h2 className="truncate text-base font-semibold text-zinc-100">
+                <h2 className="truncate text-base font-semibold text-zinc-900">
                   {activeTabLabel}
                 </h2>
                 <p className="mt-0.5 truncate text-xs text-zinc-500">
@@ -790,7 +790,7 @@ export default function OrdersAdminClient() {
                 </p>
               </div>
             </div>
-            <span className="shrink-0 rounded-full bg-zinc-950 px-3 py-1 text-xs font-bold tabular-nums text-zinc-200 ring-1 ring-zinc-800">
+            <span className="shrink-0 rounded-full bg-admin-card px-3 py-1 text-xs font-bold tabular-nums text-zinc-800 ring-1 ring-admin-line">
               {activeTabCount} sifariş
             </span>
           </div>
@@ -802,14 +802,14 @@ export default function OrdersAdminClient() {
           error={cancelledError}
         />
       ) : loading || !data ? (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-10 text-center text-sm text-zinc-400">
+        <div className="rounded-xl border border-admin-line bg-admin-card p-10 text-center text-sm text-zinc-600">
           Yüklənir…
         </div>
       ) : (
         <>
           {tab === "game" && (
             data.gameOrders.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-12 text-center text-sm text-zinc-500">
+              <div className="rounded-xl border border-dashed border-admin-line bg-admin-card py-12 text-center text-sm text-zinc-500">
                 Gözləyən oyun sifarişi yoxdur.
               </div>
             ) : (
@@ -839,7 +839,7 @@ export default function OrdersAdminClient() {
 
           {tab === "eaplay" && (
             (data.eaPlayOrders ?? []).length === 0 ? (
-              <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-12 text-center text-sm text-zinc-500">
+              <div className="rounded-xl border border-dashed border-admin-line bg-admin-card py-12 text-center text-sm text-zinc-500">
                 Gözləyən EA Play sifarişi yoxdur.
               </div>
             ) : (
@@ -864,7 +864,7 @@ export default function OrdersAdminClient() {
 
           {tab === "psplus" && (
             data.psPlusOrders.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-12 text-center text-sm text-zinc-500">
+              <div className="rounded-xl border border-dashed border-admin-line bg-admin-card py-12 text-center text-sm text-zinc-500">
                 Gözləyən PS Plus sifarişi yoxdur.
               </div>
             ) : (
@@ -936,7 +936,7 @@ export default function OrdersAdminClient() {
                       type="button"
                       disabled={pending}
                       onClick={() => deliverHonsell(c.id)}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-md bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-200 ring-1 ring-violet-500/30 hover:bg-violet-500/25 disabled:opacity-50"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-md bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-500/30 hover:bg-violet-500/25 disabled:opacity-50"
                     >
                       <Check className="h-3.5 w-3.5" />
                       Təslim et
@@ -1106,16 +1106,16 @@ export default function OrdersAdminClient() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg rounded-2xl border border-rose-500/30 bg-zinc-950 p-6 shadow-2xl"
+            className="w-full max-w-lg rounded-2xl border border-rose-500/30 bg-admin-card p-6 shadow-2xl"
           >
             <div className="flex items-start gap-3">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rose-500/10 ring-1 ring-rose-500/30">
-                <X className="h-5 w-5 text-rose-300" />
+                <X className="h-5 w-5 text-rose-700" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-lg font-bold text-zinc-100">Sifarişi ləğv et</h3>
-                <p className="mt-1 text-sm text-zinc-400">
-                  <span className="text-zinc-200">{cancelTarget.title}</span> sifarişini
+                <h3 className="text-lg font-bold text-zinc-900">Sifarişi ləğv et</h3>
+                <p className="mt-1 text-sm text-zinc-600">
+                  <span className="text-zinc-800">{cancelTarget.title}</span> sifarişini
                   ləğv edirsiniz. Səbəbi müştərinin sifariş tarixçəsində görünəcək və ödəniş
                   müvafiq balansa geri qaytarılacaq.
                 </p>
@@ -1123,7 +1123,7 @@ export default function OrdersAdminClient() {
             </div>
 
             <label className="mt-5 block text-sm">
-              <span className="text-zinc-300">Ləğv etmə səbəbi</span>
+              <span className="text-zinc-700">Ləğv etmə səbəbi</span>
               <textarea
                 value={cancelReason}
                 onChange={(e) => {
@@ -1134,7 +1134,7 @@ export default function OrdersAdminClient() {
                 rows={4}
                 maxLength={1000}
                 placeholder="Məs. Stokda yoxdur, müştəri ilə əlaqə qurula bilmədi, yanlış məlumat..."
-                className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-rose-500 focus:outline-none"
+                className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-600 focus:border-rose-500 focus:outline-none"
               />
               <div className="mt-1 text-right text-[10px] text-zinc-500">
                 {cancelReason.length} / 1000
@@ -1142,7 +1142,7 @@ export default function OrdersAdminClient() {
             </label>
 
             {cancelError && (
-              <div className="mt-3 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+              <div className="mt-3 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">
                 {cancelError}
               </div>
             )}
@@ -1156,7 +1156,7 @@ export default function OrdersAdminClient() {
                   setCancelError(null);
                 }}
                 disabled={pending}
-                className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-300 disabled:opacity-50"
+                className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-700 disabled:opacity-50"
               >
                 İmtina
               </button>
@@ -1176,14 +1176,14 @@ export default function OrdersAdminClient() {
 
       {giftCardApprovingId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl border border-admin-line bg-admin-card p-6 shadow-2xl">
             <h3 className="mb-2 text-lg font-bold">Hədiyyə kart kodunu daxil et</h3>
-            <p className="mb-5 text-sm text-zinc-400">
+            <p className="mb-5 text-sm text-zinc-600">
               Bu kod müştərinin email ünvanına göndərilir və profilində görünür. Sifariş tamamlanmış sayılacaq.
             </p>
 
             <label className="block text-sm">
-              <span className="text-zinc-300">E-pin / kod</span>
+              <span className="text-zinc-700">E-pin / kod</span>
               <input
                 type="text"
                 value={giftCardCode}
@@ -1195,12 +1195,12 @@ export default function OrdersAdminClient() {
                 spellCheck={false}
                 autoCapitalize="characters"
                 placeholder="Məs. ABCD-EFG-1234"
-                className="mt-1 w-full rounded border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm tracking-widest text-emerald-300"
+                className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 font-mono text-sm tracking-widest text-emerald-700"
               />
             </label>
 
             {giftCardFormError && (
-              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">
                 {giftCardFormError}
               </div>
             )}
@@ -1213,7 +1213,7 @@ export default function OrdersAdminClient() {
                   setGiftCardFormError(null);
                   setGiftCardCode("");
                 }}
-                className="rounded bg-zinc-800 px-4 py-2 text-sm text-zinc-300"
+                className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-700"
               >
                 İmtina
               </button>
@@ -1270,7 +1270,7 @@ function RequestOtpButton({ orderId }: { orderId: string }) {
         onClick={send}
         disabled={status === "sending" || status === "sent"}
         title="Müştəriyə PlayStation OTP kodunu istəyən WhatsApp mesajı göndər"
-        className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500/15 px-3 py-2 text-xs font-semibold text-sky-200 ring-1 ring-sky-500/30 hover:bg-sky-500/25 disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500/15 px-3 py-2 text-xs font-semibold text-sky-700 ring-1 ring-sky-500/30 hover:bg-sky-500/25 disabled:opacity-50"
       >
         {status === "sending" ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1284,7 +1284,7 @@ function RequestOtpButton({ orderId }: { orderId: string }) {
             : "OTP kodunu istə"}
       </button>
       {status === "error" && error && (
-        <span className="max-w-[220px] text-[10px] text-rose-300">{error}</span>
+        <span className="max-w-[220px] text-[10px] text-rose-700">{error}</span>
       )}
     </div>
   );
@@ -1321,10 +1321,10 @@ function GameOrderCard({
     isEpic && !o.epicAccount && Boolean(meta.orderCode && epicCreationOrderCodes.has(meta.orderCode));
 
   return (
-    <li className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
+    <li className="overflow-hidden rounded-xl border border-admin-line bg-admin-card">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
         <div className="flex min-w-0 flex-1 items-start gap-3">
-          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900">
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-admin-card">
             {o.game?.imageUrl ? (
               <Image src={o.game.imageUrl} alt="" fill className="object-cover" sizes="56px" />
             ) : (
@@ -1334,53 +1334,53 @@ function GameOrderCard({
             )}
           </div>
           <div className="min-w-0">
-            <p className="truncate font-medium text-white">{o.game?.title ?? "—"}</p>
+            <p className="truncate font-medium text-zinc-900">{o.game?.title ?? "—"}</p>
             <Link
               href={`/admin/users/${o.user.id}`}
-              className="truncate text-xs text-zinc-500 hover:text-zinc-300"
+              className="truncate text-xs text-zinc-500 hover:text-zinc-700"
             >
               {o.user.name || "—"} · {o.user.email}
             </Link>
             {meta.orderCode ? (
-              <p className="text-[11px] font-mono text-amber-200/90">Kod: {meta.orderCode}</p>
+              <p className="text-[11px] font-mono text-amber-700/90">Kod: {meta.orderCode}</p>
             ) : null}
             {o.user.phone && <p className="text-[11px] text-zinc-500">Tel: {o.user.phone}</p>}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-zinc-950 px-2 py-0.5 text-[10px] text-zinc-400 ring-1 ring-zinc-800">
+          <span className="rounded-full bg-admin-card px-2 py-0.5 text-[10px] text-zinc-600 ring-1 ring-admin-line">
             {paymentSource}
           </span>
-          <span className="text-sm tabular-nums text-zinc-300">{amount} AZN</span>
+          <span className="text-sm tabular-nums text-zinc-700">{amount} AZN</span>
           <button
             type="button"
             onClick={toggleExpand}
-            className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-white"
+            className="rounded-lg p-1.5 text-zinc-500 hover:bg-admin-chip2 hover:text-zinc-900"
           >
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-zinc-800/80 px-4 py-2 text-[11px] text-zinc-500">
+      <div className="flex flex-wrap items-center gap-2 border-t border-admin-line px-4 py-2 text-[11px] text-zinc-500">
         <StageChip icon={<PhoneForwarded className="h-3 w-3" />} label={GAME_STAGE_LABEL_AZ[stage]} />
         {o.game?.platform && (
-          <span className="rounded bg-zinc-800 px-2 py-0.5">Platform: {o.game.platform}</span>
+          <span className="rounded bg-admin-chip px-2 py-0.5">Platform: {o.game.platform}</span>
         )}
         {isEpic && o.epicAccount && (
-          <span className="rounded bg-zinc-800 px-2 py-0.5">
+          <span className="rounded bg-admin-chip px-2 py-0.5">
             Epic: {o.epicAccount.displayName || o.epicAccount.label} — {o.epicAccount.epicEmail}
           </span>
         )}
         {!isEpic && o.psnAccount && (
-          <span className="rounded bg-zinc-800 px-2 py-0.5">
+          <span className="rounded bg-admin-chip px-2 py-0.5">
             PSN: {o.psnAccount.label} — {o.psnAccount.psnEmail}
           </span>
         )}
       </div>
 
       {expanded && (
-        <div className="space-y-3 border-t border-zinc-800 bg-zinc-950/50 px-4 py-4">
+        <div className="space-y-3 border-t border-admin-line bg-admin-card px-4 py-4">
           {o.game?.productUrl ? (
             <CopyableField
               label={isEpic ? "Epic Store linki" : "PS Store linki"}
@@ -1396,7 +1396,7 @@ function GameOrderCard({
 
           <div className="flex flex-wrap gap-2">
             <select
-              className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+              className="rounded-lg border border-admin-line2 bg-admin-card px-2 py-1.5 text-xs text-zinc-900 focus:border-violet-500 focus:outline-none"
               value={stage}
               onChange={(e) => {
                 const v = e.target.value as GameOrderStage;
@@ -1456,7 +1456,7 @@ function GameOrderCard({
 
 function StageChip({ icon, label }: { icon: ReactNode; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 font-medium text-indigo-200">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 font-medium text-violet-700">
       {icon}
       {label}
     </span>
@@ -1466,19 +1466,19 @@ function StageChip({ icon, label }: { icon: ReactNode; label: string }) {
 function PsnDetailsBlock({ psn }: { psn: PsnAccountSummary | null }) {
   if (!psn) {
     return (
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700">
         PSN hesabı seçilməyib. Müştəri hesab seçməyib və ya silib.
       </div>
     );
   }
   return (
-    <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-3 py-2.5">
-      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-indigo-200">
+    <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2.5">
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-violet-700">
         <KeyRound className="h-3.5 w-3.5" /> PSN hesab məlumatları
-        <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-normal text-zinc-300 ring-1 ring-zinc-800">
+        <span className="rounded-full bg-admin-card px-2 py-0.5 text-[10px] font-normal text-zinc-700 ring-1 ring-admin-line">
           {psn.label}
         </span>
-        <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-normal text-zinc-300 ring-1 ring-zinc-800">
+        <span className="rounded-full bg-admin-card px-2 py-0.5 text-[10px] font-normal text-zinc-700 ring-1 ring-admin-line">
           {psn.psModel}
         </span>
       </div>
@@ -1501,7 +1501,7 @@ function EpicDetailsBlock({
   if (!epic) {
     if (pendingCreation) {
       return (
-        <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-xs text-violet-200">
+        <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-xs text-violet-700">
           Müştəri bu sifarişdə Epic hesab açılışını da sifariş edib. Hesabı
           yaratdıqdan sonra oyunu həmin hesaba yükləyin (məlumatlar “Epic hesab
           açma” bölməsindədir).
@@ -1509,19 +1509,19 @@ function EpicDetailsBlock({
       );
     }
     return (
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700">
         Epic hesabı seçilməyib. Müştəri hesab seçməyib və ya silib.
       </div>
     );
   }
   return (
     <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2.5">
-      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-violet-200">
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-violet-700">
         <KeyRound className="h-3.5 w-3.5" /> Epic hesab məlumatları
-        <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-normal text-zinc-300 ring-1 ring-zinc-800">
+        <span className="rounded-full bg-admin-card px-2 py-0.5 text-[10px] font-normal text-zinc-700 ring-1 ring-admin-line">
           {epic.label}
         </span>
-        <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-normal text-zinc-300 ring-1 ring-zinc-800">
+        <span className="rounded-full bg-admin-card px-2 py-0.5 text-[10px] font-normal text-zinc-700 ring-1 ring-admin-line">
           PC
         </span>
       </div>
@@ -1540,7 +1540,7 @@ function CredField({ label, value }: { label: string; value: string }) {
       <span className="w-14 shrink-0 text-[10px] uppercase tracking-wider text-zinc-500">
         {label}
       </span>
-      <span className="min-w-0 flex-1 truncate font-mono text-xs text-zinc-100">{value}</span>
+      <span className="min-w-0 flex-1 truncate font-mono text-xs text-zinc-900">{value}</span>
       <button
         type="button"
         onClick={() => {
@@ -1548,7 +1548,7 @@ function CredField({ label, value }: { label: string; value: string }) {
             navigator.clipboard.writeText(value);
           }
         }}
-        className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+        className="rounded p-1 text-zinc-500 hover:bg-admin-chip2 hover:text-zinc-900"
         title="Kopyala"
       >
         <Copy className="h-3 w-3" />
@@ -1603,7 +1603,7 @@ function DetailField({
       </span>
       <span
         className={`min-w-0 flex-1 text-xs ${
-          sensitive ? "text-emerald-300" : "text-zinc-100"
+          sensitive ? "text-emerald-700" : "text-zinc-900"
         } ${mono ? "break-all font-mono tracking-wide" : "break-words"}`}
       >
         {value}
@@ -1615,7 +1615,7 @@ function DetailField({
             navigator.clipboard.writeText(value);
           }
         }}
-        className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+        className="rounded p-1 text-zinc-500 hover:bg-admin-chip2 hover:text-zinc-900"
         title="Kopyala"
       >
         <Copy className="h-3 w-3" />
@@ -1652,19 +1652,19 @@ function PsPlusOrderCard({
   const amount = Math.abs(o.amountAznCents / 100).toFixed(2);
 
   return (
-    <li className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
+    <li className="overflow-hidden rounded-xl border border-admin-line bg-admin-card">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
         <div className="flex min-w-0 flex-1 items-start gap-3">
-          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-amber-500/10 text-amber-300 ring-1 ring-amber-500/30">
+          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-amber-500/10 text-amber-700 ring-1 ring-amber-500/30">
             <Crown className="h-6 w-6" />
           </div>
           <div className="min-w-0">
-            <p className="truncate font-medium text-white">
+            <p className="truncate font-medium text-zinc-900">
               {o.serviceProduct?.title ?? "PS Plus"}
             </p>
             <Link
               href={`/admin/users/${o.user.id}`}
-              className="truncate text-xs text-zinc-500 hover:text-zinc-300"
+              className="truncate text-xs text-zinc-500 hover:text-zinc-700"
             >
               {o.user.name || "—"} · {o.user.email}
             </Link>
@@ -1672,40 +1672,40 @@ function PsPlusOrderCard({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-zinc-950 px-2 py-0.5 text-[10px] text-zinc-400 ring-1 ring-zinc-800">
+          <span className="rounded-full bg-admin-card px-2 py-0.5 text-[10px] text-zinc-600 ring-1 ring-admin-line">
             {paymentSource}
           </span>
-          <span className="text-sm tabular-nums text-zinc-300">{amount} AZN</span>
+          <span className="text-sm tabular-nums text-zinc-700">{amount} AZN</span>
           <button
             type="button"
             onClick={toggleExpand}
-            className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-white"
+            className="rounded-lg p-1.5 text-zinc-500 hover:bg-admin-chip2 hover:text-zinc-900"
           >
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-zinc-800/80 px-4 py-2 text-[11px] text-zinc-500">
+      <div className="flex flex-wrap items-center gap-2 border-t border-admin-line px-4 py-2 text-[11px] text-zinc-500">
         {tier && (
-          <span className="rounded bg-amber-500/10 px-2 py-0.5 font-semibold uppercase tracking-wider text-amber-200 ring-1 ring-amber-500/30">
+          <span className="rounded bg-amber-500/10 px-2 py-0.5 font-semibold uppercase tracking-wider text-amber-700 ring-1 ring-amber-500/30">
             {tier}
           </span>
         )}
-        {dur && <span className="rounded bg-zinc-800 px-2 py-0.5">{dur} ay</span>}
+        {dur && <span className="rounded bg-admin-chip px-2 py-0.5">{dur} ay</span>}
         {o.psnAccount ? (
-          <span className="rounded bg-zinc-800 px-2 py-0.5">
+          <span className="rounded bg-admin-chip px-2 py-0.5">
             PSN: {o.psnAccount.label} — {o.psnAccount.psnEmail}
           </span>
         ) : (
-          <span className="rounded bg-amber-500/10 px-2 py-0.5 text-amber-200 ring-1 ring-amber-500/30">
+          <span className="rounded bg-amber-500/10 px-2 py-0.5 text-amber-700 ring-1 ring-amber-500/30">
             PSN seçilməyib
           </span>
         )}
       </div>
 
       {expanded && (
-        <div className="space-y-3 border-t border-zinc-800 bg-zinc-950/50 px-4 py-4">
+        <div className="space-y-3 border-t border-admin-line bg-admin-card px-4 py-4">
           <PsnDetailsBlock psn={o.psnAccount} />
 
           <div className="flex flex-wrap gap-2">
@@ -1752,9 +1752,9 @@ function OrdersTable({
   empty: string;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/40">
+    <div className="overflow-x-auto rounded-xl border border-admin-line bg-admin-card">
       <table className="w-full min-w-[960px] text-sm">
-        <thead className="bg-zinc-900/70 text-xs uppercase tracking-wider text-zinc-500">
+        <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
           <tr>
             <Th>Müştəri</Th>
             <Th>Məhsul</Th>
@@ -1764,7 +1764,7 @@ function OrdersTable({
             <Th className="text-right">Action</Th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-800/70">
+        <tbody className="divide-y divide-admin-line">
           {rows.length === 0 ? (
             <tr>
               <td colSpan={6} className="px-5 py-10 text-center text-zinc-500">
@@ -1773,24 +1773,24 @@ function OrdersTable({
             </tr>
           ) : (
             rows.map((r) => (
-              <tr key={r.id} className="hover:bg-zinc-900/40">
+              <tr key={r.id} className="hover:bg-admin-chip">
                 <Td>
                   <Link className="block" href={`/admin/users/${r.userId}`}>
-                    <div className="truncate text-zinc-100">{r.userLabel}</div>
+                    <div className="truncate text-zinc-900">{r.userLabel}</div>
                     <div className="truncate text-xs text-zinc-500">{r.userSub}</div>
                   </Link>
                 </Td>
                 <Td>
-                  <div className="truncate text-zinc-100">{r.item}</div>
+                  <div className="truncate text-zinc-900">{r.item}</div>
                   <div className="text-xs text-zinc-500">{r.itemSub}</div>
                 </Td>
                 <Td>
-                  <span className="rounded-full bg-zinc-950 px-2 py-0.5 text-[11px] text-zinc-300 ring-1 ring-zinc-800">
+                  <span className="rounded-full bg-admin-card px-2 py-0.5 text-[11px] text-zinc-700 ring-1 ring-admin-line">
                     {r.paymentSource}
                   </span>
                 </Td>
-                <Td className="font-semibold text-zinc-100">{r.amount}</Td>
-                <Td className="text-zinc-400">{r.date}</Td>
+                <Td className="font-semibold text-zinc-900">{r.amount}</Td>
+                <Td className="text-zinc-600">{r.date}</Td>
                 <Td className="text-right">{r.actions}</Td>
               </tr>
             ))
@@ -1816,7 +1816,7 @@ function RowActions({
         type="button"
         disabled={pending}
         onClick={onApprove}
-        className="inline-flex items-center justify-center gap-1.5 rounded-md bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 ring-1 ring-emerald-500/30 hover:bg-emerald-500/20 disabled:opacity-50"
+        className="inline-flex items-center justify-center gap-1.5 rounded-md bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-500/30 hover:bg-emerald-500/20 disabled:opacity-50"
       >
         <Check className="h-3.5 w-3.5" />
         Təsdiq
@@ -1825,7 +1825,7 @@ function RowActions({
         type="button"
         disabled={pending}
         onClick={onReject}
-        className="inline-flex items-center justify-center gap-1.5 rounded-md bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-200 ring-1 ring-rose-500/30 hover:bg-rose-500/20 disabled:opacity-50"
+        className="inline-flex items-center justify-center gap-1.5 rounded-md bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/30 hover:bg-rose-500/20 disabled:opacity-50"
       >
         <X className="h-3.5 w-3.5" />
         Rədd
@@ -1871,6 +1871,8 @@ function parsePlatformCustomerCreds(metadata?: string | null): {
   emailLabel: string;
   /// Plan etiketləri (məs. "LinkedIn Career · 6 ay") admin sıralamada faydalıdır.
   planLabel?: string;
+  /// Çoxhesablı planlar (Spotify Duo/Family) üçün N hesab cütü.
+  accounts?: { email: string; password: string }[];
 } {
   if (!metadata) return { hasCredentials: false, emailLabel: "Gmail" };
   try {
@@ -1880,9 +1882,32 @@ function parsePlatformCustomerCreds(metadata?: string | null): {
     const category = String(m.category ?? "");
     const musicBrand = String(m.musicBrand ?? "");
     const planType = String(m.planType ?? "").toUpperCase();
+    const planTier = String(m.planTier ?? "").toUpperCase();
     const isYoutube = category === "MUSIC" && musicBrand === "YOUTUBE_PREMIUM";
     const isLinkedIn =
       category === "WORK" && (planType === "CAREER" || planType === "BUSINESS");
+
+    // Çoxhesablı planlar (məs. Spotify) — accounts massivi.
+    const accounts = Array.isArray(m.accounts)
+      ? (m.accounts as unknown[])
+          .map((a) => {
+            const o = a && typeof a === "object" ? (a as Record<string, unknown>) : null;
+            return {
+              email: o && typeof o.email === "string" ? o.email : "",
+              password: o && typeof o.password === "string" ? o.password : "",
+            };
+          })
+          .filter((a) => a.email)
+      : undefined;
+
+    if (accounts?.length) {
+      return {
+        hasCredentials: true,
+        emailLabel: "Email",
+        accounts,
+        planLabel: planTier ? `Spotify ${planTier}` : undefined,
+      };
+    }
 
     const gmail = typeof m.gmail === "string" ? m.gmail : undefined;
     const password = typeof m.customerPassword === "string" ? m.customerPassword : undefined;
@@ -1913,10 +1938,10 @@ function StatCard({
   tone?: "default" | "amber" | "rose" | "indigo";
 }) {
   const map: Record<string, string> = {
-    default: "border-zinc-800 bg-zinc-900/60 text-zinc-200",
-    amber: "border-amber-500/30 bg-amber-500/10 text-amber-200",
-    rose: "border-rose-500/30 bg-rose-500/10 text-rose-200",
-    indigo: "border-indigo-500/30 bg-indigo-500/10 text-indigo-200",
+    default: "border-admin-line bg-admin-card text-zinc-800",
+    amber: "border-amber-500/30 bg-amber-500/10 text-amber-700",
+    rose: "border-rose-500/30 bg-rose-500/10 text-rose-700",
+    indigo: "border-violet-500/30 bg-violet-500/10 text-violet-700",
   };
   return (
     <div className={`min-w-[88px] rounded-lg border px-3 py-1.5 ${map[tone]}`}>
@@ -1936,7 +1961,7 @@ function SidebarGroup({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-b border-zinc-800/70 p-2 last:border-0">
+    <div className="border-b border-admin-line p-2 last:border-0">
       <div className="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
         {label}
       </div>
@@ -1970,18 +1995,18 @@ function NavItem({
       className={[
         "flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm transition",
         active
-          ? "bg-indigo-500/15 text-indigo-100 ring-1 ring-indigo-500/30"
-          : "text-zinc-300 hover:bg-zinc-800/60 hover:text-zinc-100",
+          ? "bg-violet-500/15 text-violet-100 ring-1 ring-violet-500/30"
+          : "text-zinc-700 hover:bg-admin-chip2 hover:text-zinc-900",
       ].join(" ")}
     >
-      <span className={active ? "text-indigo-300" : "text-zinc-500"}>{icon}</span>
+      <span className={active ? "text-violet-700" : "text-zinc-500"}>{icon}</span>
       <span className="flex-1 truncate">{label}</span>
       <span
         className={[
           "min-w-[1.75rem] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold tabular-nums ring-1",
           hasItems
-            ? "bg-amber-500/15 text-amber-200 ring-amber-500/30"
-            : "bg-zinc-950 text-zinc-500 ring-zinc-800",
+            ? "bg-amber-500/15 text-amber-700 ring-amber-500/30"
+            : "bg-admin-card text-zinc-500 ring-admin-line",
         ].join(" ")}
       >
         {count}
@@ -1992,21 +2017,21 @@ function NavItem({
 
 function TabIcon({ id }: { id: TabId }) {
   const map: Record<TabId, React.ReactNode> = {
-    game: <Gamepad2 className="h-5 w-5 text-indigo-300" />,
-    psplus: <Crown className="h-5 w-5 text-amber-300" />,
-    eaplay: <Trophy className="h-5 w-5 text-amber-300" />,
-    gift: <Gift className="h-5 w-5 text-emerald-300" />,
-    honsell: <Gift className="h-5 w-5 text-violet-300" />,
-    account: <UserPlus className="h-5 w-5 text-emerald-300" />,
-    epic: <UserPlus className="h-5 w-5 text-violet-300" />,
-    streaming: <Tv className="h-5 w-5 text-rose-300" />,
-    ai: <Sparkles className="h-5 w-5 text-fuchsia-300" />,
-    music: <Music className="h-5 w-5 text-pink-300" />,
-    work: <Briefcase className="h-5 w-5 text-sky-300" />,
-    cancelled: <XCircle className="h-5 w-5 text-zinc-400" />,
+    game: <Gamepad2 className="h-5 w-5 text-violet-700" />,
+    psplus: <Crown className="h-5 w-5 text-amber-700" />,
+    eaplay: <Trophy className="h-5 w-5 text-amber-700" />,
+    gift: <Gift className="h-5 w-5 text-emerald-700" />,
+    honsell: <Gift className="h-5 w-5 text-violet-700" />,
+    account: <UserPlus className="h-5 w-5 text-emerald-700" />,
+    epic: <UserPlus className="h-5 w-5 text-violet-700" />,
+    streaming: <Tv className="h-5 w-5 text-rose-700" />,
+    ai: <Sparkles className="h-5 w-5 text-fuchsia-700" />,
+    music: <Music className="h-5 w-5 text-pink-700" />,
+    work: <Briefcase className="h-5 w-5 text-sky-700" />,
+    cancelled: <XCircle className="h-5 w-5 text-zinc-600" />,
   };
   return (
-    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-zinc-900 ring-1 ring-zinc-800">
+    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-admin-card ring-1 ring-admin-line">
       {map[id]}
     </div>
   );
@@ -2023,30 +2048,30 @@ function CancelledOrdersView({
 }) {
   if (loading && orders === null) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-10 text-center text-sm text-zinc-400">
+      <div className="rounded-xl border border-admin-line bg-admin-card p-10 text-center text-sm text-zinc-600">
         Yüklənir…
       </div>
     );
   }
   if (error) {
     return (
-      <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+      <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-700">
         {error}
       </div>
     );
   }
   if (!orders || orders.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 py-12 text-center text-sm text-zinc-500">
+      <div className="rounded-xl border border-dashed border-admin-line bg-admin-card py-12 text-center text-sm text-zinc-500">
         Ləğv edilmiş sifariş yoxdur.
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
+    <div className="overflow-hidden rounded-xl border border-admin-line bg-admin-card">
       <table className="w-full text-sm">
-        <thead className="bg-zinc-900/70 text-xs uppercase tracking-wider text-zinc-500">
+        <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
           <tr>
             <Th>Müştəri</Th>
             <Th>Məhsul</Th>
@@ -2057,40 +2082,40 @@ function CancelledOrdersView({
             <Th>Ləğv tarixi</Th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-800/70">
+        <tbody className="divide-y divide-admin-line">
           {orders.map((o) => {
             const meta = parseCancelMeta(o.metadata);
             const refundSource = getPaymentSource(o.metadata);
             return (
-              <tr key={o.id} className="hover:bg-zinc-900/40 align-top">
+              <tr key={o.id} className="hover:bg-admin-chip align-top">
                 <Td>
                   <Link className="block" href={`/admin/users/${o.user.id}`}>
-                    <div className="truncate text-zinc-100">
+                    <div className="truncate text-zinc-900">
                       {o.user.name ?? o.user.email}
                     </div>
                     <div className="truncate text-xs text-zinc-500">{o.user.email}</div>
                   </Link>
                 </Td>
                 <Td>
-                  <div className="truncate text-zinc-100">{cancelledItemLabel(o)}</div>
+                  <div className="truncate text-zinc-900">{cancelledItemLabel(o)}</div>
                   {meta.fromStatus && meta.fromStatus !== "PENDING" && (
-                    <div className="text-[10px] uppercase tracking-wider text-amber-300/80">
+                    <div className="text-[10px] uppercase tracking-wider text-amber-700/80">
                       Əvvəlki status: {meta.fromStatus}
                     </div>
                   )}
                 </Td>
                 <Td>
-                  <span className="rounded-full bg-zinc-950 px-2 py-0.5 text-[11px] text-zinc-300 ring-1 ring-zinc-800">
+                  <span className="rounded-full bg-admin-card px-2 py-0.5 text-[11px] text-zinc-700 ring-1 ring-admin-line">
                     {cancelledTypeLabel(o)}
                   </span>
                 </Td>
                 <Td className="max-w-[320px]">
-                  <div className="whitespace-pre-wrap break-words text-zinc-200">
+                  <div className="whitespace-pre-wrap break-words text-zinc-800">
                     {meta.reason ?? <span className="text-zinc-500">—</span>}
                   </div>
                 </Td>
                 <Td>
-                  <span className="rounded-full bg-zinc-950 px-2 py-0.5 text-[11px] text-zinc-300 ring-1 ring-zinc-800">
+                  <span className="rounded-full bg-admin-card px-2 py-0.5 text-[11px] text-zinc-700 ring-1 ring-admin-line">
                     {refundSource === "REFERRAL"
                       ? "Referral"
                       : refundSource === "WALLET"
@@ -2100,10 +2125,10 @@ function CancelledOrdersView({
                           : "—"}
                   </span>
                 </Td>
-                <Td className="font-semibold text-zinc-100">
+                <Td className="font-semibold text-zinc-900">
                   {fmtAzn(o.amountAznCents)}
                 </Td>
-                <Td className="text-zinc-400">
+                <Td className="text-zinc-600">
                   {meta.cancelledAt ? fmtDate(meta.cancelledAt) : fmtDate(o.createdAt)}
                 </Td>
               </tr>
@@ -2135,16 +2160,32 @@ function PlatformOrdersTable({
         const creds = parsePlatformCustomerCreds(o.metadata);
         const itemSub = creds.hasCredentials ? (
           <div className="space-y-1.5">
-            <div className="text-xs text-zinc-400">
+            <div className="text-xs text-zinc-600">
               {creds.planLabel ? `${creds.planLabel} · ` : ""}
               {platformDurationLabel(o)}
             </div>
-            <div className="space-y-1">
-              {creds.gmail && <CopyableField label={creds.emailLabel} value={creds.gmail} />}
-              {creds.password && (
-                <CopyableField label="Şifrə" value={creds.password} masked mono />
-              )}
-            </div>
+            {creds.accounts?.length ? (
+              <div className="space-y-2">
+                {creds.accounts.map((acc, idx) => (
+                  <div key={idx} className="space-y-1 border-l-2 border-emerald-500/30 pl-2">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                      Hesab {idx + 1}
+                    </div>
+                    <CopyableField label={creds.emailLabel} value={acc.email} />
+                    {acc.password && (
+                      <CopyableField label="Şifrə" value={acc.password} masked mono />
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {creds.gmail && <CopyableField label={creds.emailLabel} value={creds.gmail} />}
+                {creds.password && (
+                  <CopyableField label="Şifrə" value={creds.password} masked mono />
+                )}
+              </div>
+            )}
           </div>
         ) : (
           platformDurationLabel(o)

@@ -34,6 +34,7 @@ type Props = {
   brand: string;
   currencyLabel: string;
   brandSubtitle: string;
+  imageShape?: "wide" | "square";
 };
 
 type Tab = "EPIN" | "ID_TOPUP";
@@ -44,6 +45,7 @@ export default function InGameCreditClient({
   brand,
   currencyLabel,
   brandSubtitle,
+  imageShape = "wide",
 }: Props) {
   const [addedId, setAddedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("EPIN");
@@ -133,55 +135,119 @@ export default function InGameCreditClient({
   }
 
   const showBothTabs = epinPlans.length > 0 && idTopupPlans.length > 0;
+  const squareArtwork = imageShape === "square";
 
   return (
     <div className="space-y-8">
       {/* Hero */}
-      <section className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-violet-950/40 via-zinc-950 to-zinc-950">
-        <div className="grid gap-0 md:grid-cols-[1fr_1.1fr]">
-          <div className="relative aspect-[16/9] w-full md:aspect-auto md:min-h-[280px]">
-            {heroImage ? (
-              <Image
-                src={heroImage}
-                alt={`${brand} ${currencyLabel}`}
-                fill
-                priority
-                sizes="(max-width: 768px) 100vw, 50vw"
-                className="object-cover"
-              />
-            ) : (
-              <div className="grid h-full place-items-center bg-gradient-to-br from-violet-900/40 to-zinc-900">
-                <Coins className="h-16 w-16 text-violet-300/40" />
+      <section
+        className={
+          squareArtwork
+            ? "overflow-hidden rounded-[2rem] border border-violet-300/20 bg-[linear-gradient(135deg,rgba(24,24,27,0.98),rgba(50,18,88,0.78),rgba(9,9,11,0.98))] shadow-[0_24px_80px_-48px_rgba(168,85,247,0.7)]"
+            : "overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-violet-950/40 via-zinc-950 to-zinc-950"
+        }
+      >
+        <div
+          className={
+            squareArtwork
+              ? "grid gap-0 lg:grid-cols-[1.08fr_0.92fr]"
+              : "grid gap-0 md:grid-cols-[1fr_1.1fr]"
+          }
+        >
+          {squareArtwork ? (
+            <>
+              <div className="flex flex-col justify-center gap-5 p-6 sm:p-8 lg:p-10">
+                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Rəsmi e-pin kod
+                </div>
+                <div>
+                  <h2 className="max-w-2xl text-3xl font-black tracking-tight text-white sm:text-5xl">
+                    {brand} {currencyLabel} paketləri
+                  </h2>
+                  <p className="mt-4 max-w-xl text-sm leading-6 text-zinc-300 sm:text-base">
+                    {heroDescription || brandSubtitle}
+                  </p>
+                </div>
+
+                <div className="grid max-w-xl grid-cols-3 gap-2">
+                  <HeroMetric icon={<Zap className="h-4 w-4" />} label="Çatdırılma" value="Sürətli" />
+                  <HeroMetric icon={<Coins className="h-4 w-4" />} label="Variant" value={`${plans.length}`} />
+                  <HeroMetric icon={<KeyRound className="h-4 w-4" />} label="Kod" value="E-PIN" />
+                </div>
               </div>
-            )}
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent md:bg-gradient-to-r" />
-          </div>
 
-          <div className="flex flex-col justify-center gap-4 p-6 md:p-8">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-200">
-              <Sparkles className="h-3.5 w-3.5" />
-              Anlıq çatdırılma
-            </div>
-            <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
-              {brand} {currencyLabel} paketləri
-            </h2>
-            <p className="max-w-prose text-sm text-zinc-300">{heroDescription || brandSubtitle}</p>
+              <div className="flex items-center justify-center p-5 sm:p-8 lg:p-10">
+                <div className="relative aspect-square w-full max-w-[390px] overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-900 shadow-2xl shadow-black/35">
+                  {heroImage ? (
+                    <Image
+                      src={heroImage}
+                      alt={`${brand} ${currencyLabel}`}
+                      fill
+                      priority
+                      sizes="(max-width: 1024px) 80vw, 390px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="grid h-full place-items-center bg-[linear-gradient(135deg,rgba(124,58,237,0.24),rgba(39,39,42,0.95))]">
+                      <Coins className="h-16 w-16 text-violet-200/50" />
+                    </div>
+                  )}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-zinc-950/90 to-transparent p-5">
+                    <div className="inline-flex rounded-full border border-white/10 bg-black/40 px-3 py-1 text-xs font-black text-white backdrop-blur">
+                      {currencyLabel} kodları
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="relative aspect-[16/9] w-full md:aspect-auto md:min-h-[280px]">
+                {heroImage ? (
+                  <Image
+                    src={heroImage}
+                    alt={`${brand} ${currencyLabel}`}
+                    fill
+                    priority
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="grid h-full place-items-center bg-gradient-to-br from-violet-900/40 to-zinc-900">
+                    <Coins className="h-16 w-16 text-violet-300/40" />
+                  </div>
+                )}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent md:bg-gradient-to-r" />
+              </div>
 
-            <div className="mt-2 flex flex-wrap gap-3 text-xs text-zinc-400">
-              <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                Rəsmi kodlar
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Zap className="h-4 w-4 text-amber-300" />
-                Sürətli təsdiq
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Coins className="h-4 w-4 text-violet-300" />
-                {plans.length} variant
-              </span>
-            </div>
-          </div>
+              <div className="flex flex-col justify-center gap-4 p-6 md:p-8">
+                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-200">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Anlıq çatdırılma
+                </div>
+                <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                  {brand} {currencyLabel} paketləri
+                </h2>
+                <p className="max-w-prose text-sm text-zinc-300">{heroDescription || brandSubtitle}</p>
+
+                <div className="mt-2 flex flex-wrap gap-3 text-xs text-zinc-400">
+                  <span className="inline-flex items-center gap-1.5">
+                    <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                    Rəsmi kodlar
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Zap className="h-4 w-4 text-amber-300" />
+                    Sürətli təsdiq
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Coins className="h-4 w-4 text-violet-300" />
+                    {plans.length} variant
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -206,7 +272,13 @@ export default function InGameCreditClient({
       )}
 
       {/* Tab description */}
-      <div className="-mt-2 text-sm text-zinc-400">
+      <div
+        className={
+          squareArtwork
+            ? "rounded-2xl border border-emerald-300/15 bg-emerald-400/[0.07] px-4 py-3 text-sm leading-6 text-zinc-300"
+            : "-mt-2 text-sm text-zinc-400"
+        }
+      >
         {activeTab === "EPIN" ? (
           <>
             <span className="font-semibold text-zinc-200">E-PIN kod:</span> Ödənişdən sonra
@@ -224,10 +296,23 @@ export default function InGameCreditClient({
 
       {/* Denomination grid */}
       <section>
-        <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-zinc-400">
-          Paketi seç
-        </h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+        <div className="mb-4 flex items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">
+              Paketlər
+            </p>
+            <h3 className="mt-1 text-xl font-black tracking-tight text-white sm:text-2xl">
+              Paketi seç
+            </h3>
+          </div>
+        </div>
+        <div
+          className={
+            squareArtwork
+              ? "grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4"
+              : "grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4"
+          }
+        >
           {sorted.map((plan) => {
             const inCart = cart.has(plan.id);
             const amount = Number(plan.metadata?.amount ?? 0);
@@ -235,20 +320,31 @@ export default function InGameCreditClient({
             return (
               <article
                 key={plan.id}
-                className={`group relative flex flex-col overflow-hidden rounded-2xl border bg-zinc-950 transition ${
+                className={`group relative flex min-w-0 flex-col overflow-hidden border bg-zinc-950 transition ${
+                  squareArtwork ? "rounded-[1.35rem] p-2.5" : "rounded-2xl"
+                } ${
                   isBest
                     ? "border-violet-400/60 shadow-[0_18px_44px_-22px_rgba(124,58,237,0.65)]"
                     : "border-white/10 hover:border-violet-400/35"
                 }`}
               >
-                {/* Per-variant image — 2:1 to match the 1200×600 admin recommendation */}
-                <div className="relative aspect-[2/1] w-full overflow-hidden bg-zinc-900">
+                <div
+                  className={
+                    squareArtwork
+                      ? "relative aspect-square w-full overflow-hidden rounded-2xl bg-zinc-900"
+                      : "relative aspect-[2/1] w-full overflow-hidden bg-zinc-900"
+                  }
+                >
                   {plan.imageUrl ? (
                     <Image
                       src={plan.imageUrl}
                       alt={plan.title}
                       fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      sizes={
+                        squareArtwork
+                          ? "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                          : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      }
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
@@ -264,9 +360,18 @@ export default function InGameCreditClient({
                   )}
                 </div>
 
-                <div className="flex flex-col gap-3 p-4">
+                <div className={squareArtwork ? "flex flex-1 flex-col gap-3 p-1.5 pt-3" : "flex flex-col gap-3 p-4"}>
                   <div>
-                    <div className="text-2xl font-black tabular-nums text-white">
+                    <p className="line-clamp-1 text-xs font-semibold text-zinc-500">
+                      {plan.title}
+                    </p>
+                    <div
+                      className={
+                        squareArtwork
+                          ? "mt-1 text-xl font-black tabular-nums text-white sm:text-2xl"
+                          : "text-2xl font-black tabular-nums text-white"
+                      }
+                    >
                       {amount.toLocaleString("en-US")}{" "}
                       <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                         {plan.metadata?.currency ?? currencyLabel}
@@ -274,8 +379,8 @@ export default function InGameCreditClient({
                     </div>
                   </div>
 
-                  <div className="text-lg font-bold tabular-nums text-zinc-100">
-                    {(plan.priceAznCents / 100).toFixed(2)} ₼
+                  <div className="mt-auto text-lg font-bold tabular-nums text-zinc-100">
+                    {(plan.priceAznCents / 100).toFixed(2)}₼
                   </div>
 
                   <button
@@ -305,7 +410,13 @@ export default function InGameCreditClient({
       </section>
 
       {/* How it works */}
-      <section className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:grid-cols-3 sm:p-6">
+      <section
+        className={
+          squareArtwork
+            ? "grid gap-3 rounded-[1.5rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))] p-5 sm:grid-cols-3 sm:p-6"
+            : "grid gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:grid-cols-3 sm:p-6"
+        }
+      >
         <Step n={1} title="Paketi seç" body="Yuxarıdakı variantlardan ehtiyacın olan miqdarı seç." />
         <Step
           n={2}
@@ -340,6 +451,26 @@ export default function InGameCreditClient({
           }}
         />
       )}
+    </div>
+  );
+}
+
+function HeroMetric({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.045] p-3">
+      <div className="flex items-center gap-2 text-violet-100">
+        {icon}
+        <span className="truncate text-sm font-black">{value}</span>
+      </div>
+      <p className="mt-1 truncate text-[11px] font-semibold text-zinc-500">{label}</p>
     </div>
   );
 }

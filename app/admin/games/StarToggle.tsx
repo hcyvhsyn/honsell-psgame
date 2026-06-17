@@ -40,8 +40,8 @@ export default function StarToggle({
       title={optimistic ? "Unfeature" : "Mark as Most Popular"}
       className={`grid h-8 w-8 place-items-center rounded-md ring-1 transition disabled:opacity-50 ${
         optimistic
-          ? "bg-amber-500/15 text-amber-300 ring-amber-500/40 hover:bg-amber-500/25"
-          : "bg-zinc-900 text-zinc-500 ring-zinc-800 hover:bg-zinc-800 hover:text-zinc-300"
+          ? "bg-amber-500/15 text-amber-700 ring-amber-500/40 hover:bg-amber-500/25"
+          : "bg-admin-card text-zinc-500 ring-admin-line hover:bg-admin-chip2 hover:text-zinc-700"
       }`}
     >
       <Star

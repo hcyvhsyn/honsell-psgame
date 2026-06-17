@@ -3,17 +3,13 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
-  ArrowRight,
-  Brain,
   Gamepad2,
+  Gift,
   Home,
-  Monitor,
-  Music,
+  MessageCircle,
   Search,
-  Tv,
+  Sparkles,
 } from "lucide-react";
-import SiteHeaderServer from "@/components/SiteHeaderServer";
-import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
   title: "Səhifə tapılmadı",
@@ -21,122 +17,91 @@ export const metadata: Metadata = {
 };
 
 const quickLinks = [
-  { href: "/playstation", label: "PlayStation", Icon: Gamepad2 },
-  { href: "/epic-games", label: "PC oyunları", Icon: Monitor },
-  { href: "/streaming", label: "Streaming", Icon: Tv },
-  { href: "/music", label: "Musiqi", Icon: Music },
-  { href: "/ai", label: "AI", Icon: Brain },
+  { href: "/", label: "Ana səhifə", Icon: Home },
+  { href: "/oyunlar", label: "Oyun kataloqu", Icon: Gamepad2 },
+  { href: "/streaming", label: "Streaming", Icon: Sparkles },
+  { href: "/hediyye-kartlari/honsell", label: "Hədiyyə kartları", Icon: Gift },
 ];
 
 export default function NotFound() {
   return (
-    <>
-      <SiteHeaderServer />
-      <main className="relative isolate min-h-[calc(100vh-220px)] overflow-hidden bg-[#07080c] text-[#ffffff]">
-        <div className="absolute inset-0 grid grid-cols-2 opacity-35 sm:grid-cols-4">
-          {[
-            { src: "/ps-controller.png", label: "PlayStation" },
-            { src: "/youtube.png", label: "YouTube" },
-            { src: "/epic-white-logo.png", label: "Epic Games" },
-            { src: "/honsell-logo.svg", label: "Honsell" },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className="relative min-h-[190px] border border-white/5"
-              style={{ position: "relative", minHeight: 190 }}
+    <main className="relative z-[200] grid min-h-screen place-items-center overflow-hidden bg-[#080812] px-4 py-10 text-[#f8f7ff] sm:px-6">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(124,58,237,0.22),transparent_30%,rgba(14,165,233,0.14)_64%,rgba(16,185,129,0.14))]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:linear-gradient(rgba(255,255,255,0.45)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.45)_1px,transparent_1px)] [background-size:38px_38px]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-6 bottom-0 h-px bg-gradient-to-r from-transparent via-violet-300/45 to-transparent" />
+
+      <section className="relative mx-auto flex w-full max-w-5xl flex-col items-center text-center">
+        <Link href="/" aria-label="Honsell ana səhifə" className="mb-10 inline-flex">
+          <Image
+            src="/honsell-logo.svg"
+            alt="Honsell"
+            width={176}
+            height={32}
+            priority
+            className="h-8 w-auto"
+          />
+        </Link>
+
+        <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.06] px-3 py-1.5 text-xs font-black uppercase tracking-[0.24em] text-violet-100 shadow-[0_18px_58px_-34px_rgba(124,58,237,0.95)] backdrop-blur">
+          <Search className="h-3.5 w-3.5 text-cyan-200" />
+          404
+        </div>
+
+        <h1 className="mt-6 max-w-4xl text-5xl font-black leading-[0.92] tracking-tight text-[#f8f7ff] sm:text-7xl lg:text-8xl">
+          Bu səhifə artıq burada deyil
+        </h1>
+
+        <p className="mt-6 max-w-2xl text-base leading-7 text-[#c8c3d8] sm:text-lg">
+          Link dəyişmiş, məhsul köçürülmüş və ya ünvan səhv yazılmış ola bilər.
+          Səni ən doğru yerə qaytaraq.
+        </p>
+
+        <div className="mt-8 flex w-full max-w-xl flex-col gap-3 sm:flex-row sm:justify-center">
+          <Link
+            href="/"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#f8f7ff] px-5 py-3 text-sm font-black text-[#0d0d18] shadow-[0_22px_60px_-32px_rgba(255,255,255,0.9)] transition hover:-translate-y-0.5 hover:bg-[#ebe8ff] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+          >
+            <Home className="h-4 w-4" />
+            Ana səhifəyə qayıt
+          </Link>
+          <Link
+            href="/oyunlar"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.07] px-5 py-3 text-sm font-black text-[#f8f7ff] shadow-[0_18px_48px_-34px_rgba(14,165,233,0.9)] backdrop-blur transition hover:-translate-y-0.5 hover:border-cyan-200/45 hover:bg-white/[0.11] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/70"
+          >
+            <Search className="h-4 w-4 text-cyan-200" />
+            Kataloqda axtar
+          </Link>
+        </div>
+
+        <div className="mt-9 grid w-full max-w-3xl grid-cols-2 gap-2 sm:grid-cols-4">
+          {quickLinks.map(({ href, label, Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className="group flex min-h-[92px] flex-col items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-4 text-sm font-bold text-[#ddd8ee] transition hover:-translate-y-0.5 hover:border-violet-200/40 hover:bg-white/[0.08] hover:text-[#f8f7ff] focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-200/65"
             >
-              <Image
-                src={item.src}
-                alt=""
-                fill
-                sizes="(max-width: 640px) 50vw, 25vw"
-                className="object-contain p-12 opacity-80"
-                style={{ objectFit: "contain", padding: "3rem", opacity: 0.8 }}
-              />
-            </div>
+              <span className="grid h-10 w-10 place-items-center rounded-lg border border-white/10 bg-[#0d1020]/70 text-violet-100 transition group-hover:border-cyan-200/35 group-hover:text-cyan-100">
+                <Icon className="h-5 w-5" />
+              </span>
+              <span className="leading-tight">{label}</span>
+            </Link>
           ))}
         </div>
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,8,12,0.98)_0%,rgba(7,8,12,0.86)_48%,rgba(7,8,12,0.52)_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(14,165,233,0.18),transparent_34%),radial-gradient(circle_at_20%_80%,rgba(244,63,94,0.16),transparent_34%)]" />
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-sky-400 to-rose-400" />
 
-        <section className="relative mx-auto grid min-h-[calc(100vh-220px)] max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-          <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-white/[0.15] bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-white/[0.78] backdrop-blur-md">
-              404 · Səhifə tapılmadı
-            </p>
-            <h1 className="mt-6 max-w-3xl text-5xl font-black leading-[0.95] tracking-tight text-[#ffffff] sm:text-7xl lg:text-8xl">
-              Bu keçid artıq burada deyil.
-            </h1>
-            <p className="mt-6 max-w-xl text-base leading-7 text-white/[0.72] sm:text-lg">
-              Link köhnəlmiş, ünvan səhv yazılmış və ya məhsul başqa bölməyə
-              köçürülmüş ola bilər. Kataloqdan davam edə bilərsən.
-            </p>
+        <Link
+          href="/faq"
+          className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-[#a9a3bc] transition hover:text-[#f8f7ff]"
+        >
+          <MessageCircle className="h-4 w-4 text-emerald-200" />
+          Yardım bölməsinə keç
+        </Link>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/"
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-black text-zinc-950 shadow-[0_18px_50px_-22px_rgba(255,255,255,0.7)] transition hover:bg-zinc-100"
-              >
-                <Home className="h-4 w-4" />
-                Ana səhifə
-              </Link>
-              <Link
-                href="/oyunlar"
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-bold text-[#ffffff] backdrop-blur-md transition hover:bg-white/[0.15]"
-              >
-                <Search className="h-4 w-4" />
-                Kataloqda axtar
-              </Link>
-            </div>
-          </div>
-
-          <div className="rounded-[28px] border border-white/[0.12] bg-white/[0.08] p-4 shadow-[0_28px_90px_-52px_rgba(255,255,255,0.55)] backdrop-blur-md sm:p-5">
-            <div className="rounded-[22px] border border-white/[0.10] bg-black/20 p-4 sm:p-5">
-              <div className="flex items-center justify-between gap-4 border-b border-white/[0.10] pb-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/50">
-                    Sürətli keçidlər
-                  </p>
-                  <h2 className="mt-1 text-2xl font-black text-[#ffffff]">
-                    Hansı bölməyə qayıdaq?
-                  </h2>
-                </div>
-                <span className="hidden rounded-full border border-white/[0.12] bg-white/[0.08] px-3 py-1 text-sm font-black text-white/70 sm:inline-flex">
-                  404
-                </span>
-              </div>
-
-              <div className="mt-4 grid gap-3">
-                {quickLinks.map(({ href, label, Icon }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="group flex min-h-[64px] items-center justify-between rounded-2xl border border-white/[0.10] bg-white/[0.06] px-4 py-3 transition hover:-translate-y-0.5 hover:bg-white/[0.11] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                  >
-                    <span className="flex min-w-0 items-center gap-3">
-                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/[0.12]">
-                        <Icon className="h-5 w-5 !text-white" />
-                      </span>
-                      <span className="truncate text-sm font-bold text-[#ffffff]">{label}</span>
-                    </span>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-white/70 transition group-hover:translate-x-1 group-hover:!text-white" />
-                  </Link>
-                ))}
-              </div>
-
-              <Link
-                href="/"
-                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/[0.12] bg-black/20 px-4 py-3 text-sm font-bold text-white/80 transition hover:bg-black/30 hover:!text-white"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Başlanğıca dön
-              </Link>
-            </div>
-          </div>
-        </section>
-      </main>
-      <SiteFooter />
-    </>
+        <div className="mt-10 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#77708c]">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Honsell Store
+        </div>
+      </section>
+    </main>
   );
 }

@@ -2,22 +2,20 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import StreamingServiceDetail from "@/components/StreamingServiceDetail";
 import {
-  getStreamingServiceBySlug,
-  STREAMING_SERVICE_META,
-  STREAMING_SERVICES,
-  type StreamingService,
-} from "@/lib/streamingCart";
+  getStreamingPlatformBySlug,
+  getStreamingPlatformsByCategory,
+} from "@/lib/streamingPlatforms";
 
 export const revalidate = 1800;
 
 type Params = { slug: string };
 
-export function generateStaticParams(): Array<Params> {
+export async function generateStaticParams(): Promise<Array<Params>> {
   // Yalnız STREAMING kateqoriyalı xidmətlər bu route altında listlənir.
   // MUSIC kateqoriyalı xidmətlər /music/[slug] altında yaşayır.
-  return STREAMING_SERVICES.filter(
-    (s) => STREAMING_SERVICE_META[s as StreamingService].category === "STREAMING"
-  ).map((s) => ({ slug: STREAMING_SERVICE_META[s as StreamingService].slug }));
+  // Yeni platformalar (DB-dən) dynamicParams ilə on-demand render olunur.
+  const platforms = await getStreamingPlatformsByCategory("STREAMING");
+  return platforms.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({
@@ -26,7 +24,7 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const svc = getStreamingServiceBySlug(slug);
+  const svc = await getStreamingPlatformBySlug(slug);
   if (!svc) return { title: "Streaming xidməti tapılmadı" };
   const title = `${svc.label} — Filmlər və Seriallar | Honsell`;
   const url = `/streaming/${svc.slug}`;
@@ -48,7 +46,7 @@ export default async function StreamingServicePage({
   params: Promise<Params>;
 }) {
   const { slug } = await params;
-  const svc = getStreamingServiceBySlug(slug);
+  const svc = await getStreamingPlatformBySlug(slug);
   if (!svc) notFound();
 
   // MUSIC kateqoriyalı xidmətlər (YouTube Premium) /music/[slug] altındadır —
