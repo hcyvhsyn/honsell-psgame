@@ -1,7 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    unoptimized: true,
+    // Optimizasiya AÇIQ — Next şəkilləri cihaza görə ölçüləndirir, AVIF/WebP-ə
+    // çevirir və uzun müddət keşləyir. (Əvvəl `unoptimized: true` idi — bütün
+    // şəkillər tam orijinal ölçüdə yüklənirdi, bu da yavaşlığın əsas səbəbi idi.)
+    formats: ["image/avif", "image/webp"],
+    // Çevrilmiş şəkil 31 gün keşdə qalsın — təkrar transformasiyanı azaldır
+    // (həm sürət, həm Vercel image-optimization xərci üçün).
+    minimumCacheTTL: 2678400,
     remotePatterns: [
       { protocol: "https", hostname: "image.api.playstation.com" },
       { protocol: "https", hostname: "**.playstation.net" },

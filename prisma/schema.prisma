@@ -924,6 +924,9 @@ model Settings {
   // Rəy yazan istifadəçinin affiliate linkindən gələn alışlardan qazandığı %.
   // Final satış məbləği üzərindən tətbiq olunur. Default 5%.
   reviewAffiliateRatePct          Float  @default(5)
+  // Müştəri aldığı məhsula rəy yazanda aldığı məhsulun qiymətinin % qədər
+  // cashback (cashbackBalance-a). Rəy təsdiqlənəndə verilir. Default 1%.
+  reviewCashbackRatePct           Float  @default(1)
 
   // Bank card the customer transfers funds to during manual deposit.
   depositCardNumber String?

@@ -52,11 +52,11 @@ export default async function HomeTestimonials() {
     if (purchases > 0) reviewName = user.name ?? user.email.split("@")[0];
   }
 
-  // Rəy azdırsa (3-dən az) və yazmağa uyğun müştəri də yoxdursa — bölməni gizlət.
-  // Uyğun müştəri varsa, rəy az olsa belə CTA üçün bölməni göstəririk.
-  if (testimonials.length < 3 && !reviewName) return null;
+  // Heç təsdiqlənmiş rəy yoxdursa və yazmağa uyğun müştəri də yoxdursa — gizlət.
+  // Ən azı bir təsdiqlənmiş rəy varsa, onu göstəririk (3 şərti yoxdur).
+  if (testimonials.length === 0 && !reviewName) return null;
 
-  const showGrid = testimonials.length >= 3;
+  const showGrid = testimonials.length > 0;
 
   return (
     <section id="reyler" className="py-16">

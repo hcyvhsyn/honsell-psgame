@@ -145,6 +145,7 @@ export async function GET() {
     },
     other: {
       reviewAffiliateRatePct: settings.reviewAffiliateRatePct,
+      reviewCashbackRatePct: settings.reviewCashbackRatePct,
     },
     streaming,
     platforms,
@@ -169,6 +170,7 @@ export async function POST(req: Request) {
       referralGiftCardsPct: parseRate(psStore.giftCards, "Gift Card faizi"),
       referralAccountCreationPct: parseRate(psStore.accountCreation, "Hesab açma faizi"),
       reviewAffiliateRatePct: parseRate(other.reviewAffiliateRatePct, "Rəy affiliate faizi"),
+      reviewCashbackRatePct: parseRate(other.reviewCashbackRatePct, "Rəy cashback faizi"),
     };
 
     await prisma.settings.upsert({

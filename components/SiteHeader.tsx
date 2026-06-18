@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -507,8 +508,13 @@ function CategoryMenuItem({
         }`}
       >
         {item.imageUrl ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+          <Image
+            src={item.imageUrl}
+            alt=""
+            fill
+            sizes="56px"
+            className="object-cover"
+          />
         ) : item.key === "PLAYSTATION_GAMES" ? (
           <PlayStationMark compact />
         ) : (
@@ -797,8 +803,13 @@ function MobileCategorySheetCard({
           : "border-white/10 bg-black/20 text-slate-200"
       }`}>
         {item.imageUrl ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+          <Image
+            src={item.imageUrl}
+            alt=""
+            fill
+            sizes="44px"
+            className="object-cover"
+          />
         ) : item.key === "PLAYSTATION_GAMES" ? (
           <PlayStationMark compact />
         ) : (

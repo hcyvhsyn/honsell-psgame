@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSettings } from "@/lib/pricing";
+import { cleanupCommunityText } from "@/lib/communityModeration";
+import { awardReviewCashback } from "@/lib/reviewCashback";
+import { REVIEW_TEXT_MIN, REVIEW_TEXT_MAX } from "@/lib/reviewTextLimits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,15 +34,15 @@ export async function POST(
   const text = typeof body.text === "string" ? body.text.trim() : "";
   const nameRaw = typeof body.name === "string" ? body.name.trim() : "";
 
-  if (text.length < 10) {
+  if (text.length < REVIEW_TEXT_MIN) {
     return NextResponse.json(
-      { error: "Rəy ən azı 10 simvol olmalıdır." },
+      { error: `Rəy ən azı ${REVIEW_TEXT_MIN} simvol olmalıdır.` },
       { status: 400 }
     );
   }
-  if (text.length > 1000) {
+  if (text.length > REVIEW_TEXT_MAX) {
     return NextResponse.json(
-      { error: "Rəy çox uzundur (max 1000 simvol)." },
+      { error: `Rəy çox uzundur (max ${REVIEW_TEXT_MAX} simvol).` },
       { status: 400 }
     );
   }
@@ -55,12 +59,24 @@ export async function POST(
     displayName = u?.name ?? u?.email.split("@")[0] ?? "Müştəri";
   }
 
+  // AI orfoqrafiya düzəlişi + təhlükəsizlik yoxlaması.
+  const cleaned = await cleanupCommunityText({ text, kind: "post", maxLength: REVIEW_TEXT_MAX });
+  if (!cleaned.safeToPublish) {
+    return NextResponse.json(
+      { error: "Rəydə yolverilməz məzmun aşkarlandı. Zəhmət olmasa yenidən yaz." },
+      { status: 400 }
+    );
+  }
+  const finalText = cleaned.text.length >= REVIEW_TEXT_MIN ? cleaned.text : text;
+
+  let cashbackCents = 0;
   try {
+    const settings = await getSettings();
     await prisma.$transaction(async (ptx) => {
-      await ptx.testimonial.create({
+      const testimonial = await ptx.testimonial.create({
         data: {
           name: displayName,
-          text,
+          text: finalText,
           rating,
           platform: invite.productType,
           productTitle: invite.productTitle,
@@ -74,6 +90,14 @@ export async function POST(
         where: { id: invite.id },
         data: { usedAt: new Date() },
       });
+      // Dəvət axını rəyi dərhal aktiv olduğu üçün cashback indi verilir.
+      const result = await awardReviewCashback(ptx, {
+        userId: invite.userId,
+        sourceTransactionId: invite.transactionId,
+        reviewCashbackRatePct: settings.reviewCashbackRatePct,
+        testimonialId: testimonial.id,
+      });
+      if (result) cashbackCents = result.cashbackCents;
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Naməlum xəta";
@@ -84,5 +108,5 @@ export async function POST(
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, cashbackAzn: cashbackCents / 100 });
 }

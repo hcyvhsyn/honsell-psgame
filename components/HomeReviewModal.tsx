@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Star, Loader2, CheckCircle2, X, PenLine, ShoppingBag } from "lucide-react";
+import { Star, Loader2, CheckCircle2, X, PenLine, ShoppingBag, Gift, Sparkles } from "lucide-react";
+import { REVIEW_TEXT_MIN, REVIEW_TEXT_MAX } from "@/lib/reviewTextLimits";
 
-type PurchasedProduct = { key: string; title: string; platform: string };
+type ReviewablePurchase = {
+  transactionId: string;
+  title: string;
+  platform: string;
+  priceAznCents: number;
+};
 
 const PLATFORM_LABELS: Record<string, string> = {
   GAME: "Oyun",
@@ -13,40 +19,47 @@ const PLATFORM_LABELS: Record<string, string> = {
 };
 
 /**
- * Anasayfada "Rəy yaz" düyməsi + modal forma. Yalnız uyğun (ən azı bir uğurlu
- * sifarişi olan) istifadəçiyə render olunur. Modal açılanda müştərinin aldığı
- * REAL məhsulları çəkir; müştəri konkret məhsulu seçib ona rəy yazır.
- * /api/reviews-ə göndərir; rəy `isActive:false` ilə yaranır və admin
- * təsdiqindən sonra anasayfada görünür.
+ * Anasayfada "Rəy yaz" düyməsi + modal forma. Yalnız uyğun (rəy yazılmamış
+ * uğurlu alışı olan) istifadəçiyə render olunur. Modal açılanda müştərinin
+ * real alışlarını (məhsul + qiymət) çəkir; müştəri konkret alışı seçib rəy
+ * yazır. Rəy təsdiqlənəndə məhsul qiymətinin müəyyən %-i cashback qazanılır.
  */
 export default function HomeReviewModal({ defaultName }: { defaultName: string }) {
   const [open, setOpen] = useState(false);
-  const [products, setProducts] = useState<PurchasedProduct[] | null>(null);
-  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [purchases, setPurchases] = useState<ReviewablePurchase[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [cashbackRatePct, setCashbackRatePct] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
   const [rating, setRating] = useState(5);
   const [hover, setHover] = useState<number | null>(null);
   const [text, setText] = useState("");
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
+  const [earnedAzn, setEarnedAzn] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const shown = useMemo(() => hover ?? rating, [hover, rating]);
+  const selectedPurchase = useMemo(
+    () => purchases?.find((p) => p.transactionId === selected) ?? null,
+    [purchases, selected],
+  );
+  const cashbackFor = (cents: number) => (cents * cashbackRatePct) / 100 / 100;
 
-  // Modal ilk dəfə açılanda aldığı məhsulları çək.
+  // Modal ilk dəfə açılanda rəy yazıla bilən alışları çək.
   useEffect(() => {
-    if (!open || products !== null || loadingProducts) return;
-    setLoadingProducts(true);
+    if (!open || purchases !== null || loading) return;
+    setLoading(true);
     fetch("/api/reviews/my-products")
       .then((r) => r.json())
       .then((d) => {
-        const list: PurchasedProduct[] = Array.isArray(d.products) ? d.products : [];
-        setProducts(list);
-        if (list.length === 1) setSelected(list[0].title);
+        const list: ReviewablePurchase[] = Array.isArray(d.purchases) ? d.purchases : [];
+        setPurchases(list);
+        if (typeof d.cashbackRatePct === "number") setCashbackRatePct(d.cashbackRatePct);
+        if (list.length === 1) setSelected(list[0].transactionId);
       })
-      .catch(() => setProducts([]))
-      .finally(() => setLoadingProducts(false));
-  }, [open, products, loadingProducts]);
+      .catch(() => setPurchases([]))
+      .finally(() => setLoading(false));
+  }, [open, purchases, loading]);
 
   function reset() {
     setSelected(null);
@@ -54,6 +67,7 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
     setText("");
     setError(null);
     setDone(false);
+    setEarnedAzn(0);
   }
 
   function close() {
@@ -67,24 +81,27 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
       setError("Rəy yazdığın məhsulu seç.");
       return;
     }
-    if (text.trim().length < 10) {
-      setError("Rəy ən azı 10 simvol olmalıdır.");
+    if (text.trim().length < REVIEW_TEXT_MIN) {
+      setError(`Rəy ən azı ${REVIEW_TEXT_MIN} simvol olmalıdır.`);
       return;
     }
     startTransition(async () => {
       const res = await fetch("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rating, text: text.trim(), productTitle: selected }),
+        body: JSON.stringify({ rating, text: text.trim(), transactionId: selected }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error ?? "Göndərmək alınmadı.");
         return;
       }
+      if (selectedPurchase) setEarnedAzn(cashbackFor(selectedPurchase.priceAznCents));
       setDone(true);
     });
   }
+
+  const textLen = text.trim().length;
 
   return (
     <>
@@ -94,7 +111,7 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
         className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-bold text-zinc-950 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.06] dark:text-white dark:hover:bg-white/[0.1]"
       >
         <PenLine className="h-4 w-4" />
-        Rəy yaz
+        Rəy yaz · {cashbackRatePct}% cashback
       </button>
 
       {open && (
@@ -115,7 +132,13 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
                 <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
                 <h2 className="mt-3 text-lg font-black text-zinc-900 dark:text-white">Təşəkkürlər!</h2>
                 <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                  Rəyin alındı. Yoxlamadan sonra anasayfada görünəcək.
+                  Rəyin alındı. Yoxlanıb təsdiqləndikdən sonra anasayfada görünəcək
+                  {earnedAzn > 0 && (
+                    <>
+                      {" "}və <span className="font-bold text-emerald-600">{earnedAzn.toFixed(2)}₼ cashback</span> hesabına keçəcək.
+                    </>
+                  )}
+                  {earnedAzn === 0 && "."}
                 </p>
                 <button
                   type="button"
@@ -132,29 +155,38 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
                   Rəyin <span className="font-semibold">{defaultName}</span> adı ilə görünəcək.
                 </p>
 
-                {/* Məhsul seçimi — istifadəçinin aldığı real məhsullar */}
+                {/* Cashback məlumat zolağı */}
+                <div className="mt-3 flex items-start gap-2 rounded-xl border border-emerald-300/50 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-200">
+                  <Gift className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    Ən azı {REVIEW_TEXT_MIN} simvolluq rəy yaz — təsdiqdən sonra məhsulun{" "}
+                    <b>{cashbackRatePct}%-i cashback</b> hesabına keçsin.
+                  </span>
+                </div>
+
+                {/* Alış seçimi — istifadəçinin real alışları */}
                 <div className="mt-5">
                   <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
                     Hansı məhsula rəy yazırsan?
                   </div>
 
-                  {loadingProducts || products === null ? (
+                  {loading || purchases === null ? (
                     <div className="mt-3 flex items-center gap-2 text-sm text-zinc-500">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Məhsulların yüklənir...
+                      <Loader2 className="h-4 w-4 animate-spin" /> Alışların yüklənir...
                     </div>
-                  ) : products.length === 0 ? (
+                  ) : purchases.length === 0 ? (
                     <div className="mt-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-400">
-                      Hələ tamamlanmış sifarişin yoxdur. Rəy yazmaq üçün əvvəlcə bir məhsul al.
+                      Rəy yazılmamış sifarişin yoxdur. Yeni bir məhsul aldıqdan sonra ona rəy yaza bilərsən.
                     </div>
                   ) : (
                     <div className="mt-2 grid max-h-44 gap-1.5 overflow-y-auto pr-1">
-                      {products.map((p) => {
-                        const active = selected === p.title;
+                      {purchases.map((p) => {
+                        const active = selected === p.transactionId;
                         return (
                           <button
-                            key={p.key}
+                            key={p.transactionId}
                             type="button"
-                            onClick={() => setSelected(p.title)}
+                            onClick={() => setSelected(p.transactionId)}
                             className={[
                               "flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition",
                               active
@@ -172,17 +204,17 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
                             >
                               <ShoppingBag className="h-4 w-4" />
                             </span>
-                            <span className="min-w-0">
+                            <span className="min-w-0 flex-1">
                               <span className="block truncate text-sm font-semibold text-zinc-900 dark:text-white">
                                 {p.title}
                               </span>
                               <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">
-                                {PLATFORM_LABELS[p.platform] ?? "Məhsul"}
+                                {PLATFORM_LABELS[p.platform] ?? "Məhsul"} · {(p.priceAznCents / 100).toFixed(2)}₼
                               </span>
                             </span>
-                            {active && (
-                              <CheckCircle2 className="ml-auto h-5 w-5 shrink-0 text-violet-600 dark:text-violet-300" />
-                            )}
+                            <span className="shrink-0 text-right text-[11px] font-bold text-emerald-600 dark:text-emerald-300">
+                              +{cashbackFor(p.priceAznCents).toFixed(2)}₼
+                            </span>
                           </button>
                         );
                       })}
@@ -190,7 +222,7 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
                   )}
                 </div>
 
-                {products && products.length > 0 && (
+                {purchases && purchases.length > 0 && (
                   <>
                     <div className="mt-5">
                       <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
@@ -223,15 +255,20 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
                     <label className="mt-5 block">
                       <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Rəyin</span>
                       <textarea
-                        rows={4}
+                        rows={5}
                         value={text}
                         onChange={(e) => setText(e.target.value)}
-                        placeholder="Təcrübən necə oldu? Çatdırılma, dəstək, qiymət — hər nə vacibdirsə..."
-                        maxLength={1000}
+                        placeholder="Təcrübən necə oldu? Çatdırılma, dəstək, qiymət, məhsulun keyfiyyəti — hər nə vacibdirsə ən azı bir neçə cümlə yaz..."
+                        maxLength={REVIEW_TEXT_MAX}
                         className="mt-1 w-full resize-none rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-violet-500 focus:outline-none dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
                       />
-                      <div className="mt-1 flex justify-end text-[10px] text-zinc-400">
-                        {text.length}/1000 (min 10)
+                      <div className="mt-1 flex items-center justify-between text-[10px]">
+                        <span className="flex items-center gap-1 text-zinc-400">
+                          <Sparkles className="h-3 w-3" /> Orfoqrafik səhvlər AI ilə avtomatik düzəldilir
+                        </span>
+                        <span className={textLen < REVIEW_TEXT_MIN ? "text-rose-500" : "text-emerald-600"}>
+                          {textLen}/{REVIEW_TEXT_MAX} (min {REVIEW_TEXT_MIN})
+                        </span>
                       </div>
                     </label>
 
@@ -248,7 +285,9 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
                       className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:opacity-50"
                     >
                       {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-                      Rəyi göndər
+                      {selectedPurchase
+                        ? `Rəyi göndər · +${cashbackFor(selectedPurchase.priceAznCents).toFixed(2)}₼`
+                        : "Rəyi göndər"}
                     </button>
                   </>
                 )}

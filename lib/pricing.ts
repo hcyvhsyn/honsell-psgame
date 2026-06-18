@@ -30,6 +30,8 @@ export type PricingSettings = {
   referralStreamingProfitSharePct: number;
   /** Rəy affiliate komissiya faizi (final qiymət üzərindən). */
   reviewAffiliateRatePct: number;
+  /** Aldığı məhsula rəy yazan müştəriyə verilən cashback faizi (qiymət üzərindən). */
+  reviewCashbackRatePct: number;
 };
 
 export type DisplayPrice = {
@@ -88,6 +90,7 @@ export async function getSettings(): Promise<PricingSettings> {
       referralAccountCreationPct: s.referralAccountCreationPct ?? 0,
       referralStreamingProfitSharePct: s.referralStreamingProfitSharePct ?? 10,
       reviewAffiliateRatePct: s.reviewAffiliateRatePct ?? 5,
+      reviewCashbackRatePct: s.reviewCashbackRatePct ?? 1,
     };
   } catch (err) {
     // Prod DB might not be migrated yet (missing new Settings columns).
@@ -105,7 +108,8 @@ export async function getSettings(): Promise<PricingSettings> {
       msg.includes("referralGiftCardsPct") ||
       msg.includes("referralAccountCreationPct") ||
       msg.includes("referralStreamingProfitSharePct") ||
-      msg.includes("reviewAffiliateRatePct");
+      msg.includes("reviewAffiliateRatePct") ||
+      msg.includes("reviewCashbackRatePct");
     if (!missingNewColumns) throw err;
 
     const rows = await prisma.$queryRaw<
@@ -148,6 +152,7 @@ export async function getSettings(): Promise<PricingSettings> {
       referralAccountCreationPct: 0,
       referralStreamingProfitSharePct: 10,
       reviewAffiliateRatePct: 5,
+      reviewCashbackRatePct: 1,
     };
   }
 }

@@ -44,6 +44,7 @@ type ReferralRates = {
   psStore: PsStoreRates;
   other: {
     reviewAffiliateRatePct: number;
+    reviewCashbackRatePct: number;
   };
   streaming: StreamingRate[];
   platforms: PlatformRate[];
@@ -51,7 +52,7 @@ type ReferralRates = {
 
 const emptyRates: ReferralRates = {
   psStore: { games: 0, psPlus: 0, giftCards: 0, accountCreation: 0 },
-  other: { reviewAffiliateRatePct: 0 },
+  other: { reviewAffiliateRatePct: 0, reviewCashbackRatePct: 0 },
   streaming: [],
   platforms: [],
 };
@@ -239,6 +240,12 @@ export default function ReferralRatesClient() {
             hint="Təsdiqlənmiş oyun rəyi linkindən gələn alış"
             value={rates.other.reviewAffiliateRatePct}
             onChange={(value) => setOtherRate("reviewAffiliateRatePct", value)}
+          />
+          <RateBox
+            label="Rəy cashback"
+            hint="Aldığı məhsula rəy yazan müştəriyə qiymətin %-i (təsdiqdə)"
+            value={rates.other.reviewCashbackRatePct}
+            onChange={(value) => setOtherRate("reviewCashbackRatePct", value)}
           />
         </div>
       </section>

@@ -69,3 +69,72 @@ export async function getUserPurchasedProducts(userId: string): Promise<Purchase
 
   return [...byTitle.values()];
 }
+
+export type ReviewablePurchase = {
+  /** Alış əməliyyatının id-si — rəy bu konkret alışa bağlanır (cashback üçün). */
+  transactionId: string;
+  title: string;
+  platform: TestimonialPlatform;
+  /** Ödənilmiş məbləğ (qəpik, müsbət). Cashback bunun üzərindən hesablanır. */
+  priceAznCents: number;
+};
+
+/**
+ * İstifadəçinin uğurlu alışları — hələ rəy yazılmamış olanlar (Testimonial.
+ * transactionId-də olmayanlar). Hər sətir bir konkret alışdır: rəy modalı
+ * məhsul + qiymət göstərir, rəy həmin alışa bağlanıb 1% cashback hesablanır.
+ */
+export async function getUserReviewablePurchases(userId: string): Promise<ReviewablePurchase[]> {
+  const rows = await prisma.transaction
+    .findMany({
+      where: {
+        userId,
+        status: "SUCCESS",
+        type: { in: ["PURCHASE", "SERVICE_PURCHASE"] },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        amountAznCents: true,
+        game: { select: { title: true } },
+        serviceProduct: { select: { title: true, type: true } },
+      },
+    })
+    .catch(() => []);
+
+  if (rows.length === 0) return [];
+
+  // Artıq rəy yazılmış alışları çıxar (Testimonial.transactionId).
+  const reviewed = await prisma.testimonial
+    .findMany({
+      where: { transactionId: { in: rows.map((r) => r.id) } },
+      select: { transactionId: true },
+    })
+    .catch(() => []);
+  const reviewedIds = new Set(reviewed.map((t) => t.transactionId).filter(Boolean) as string[]);
+
+  const out: ReviewablePurchase[] = [];
+  for (const row of rows) {
+    if (reviewedIds.has(row.id)) continue;
+
+    let title: string | null = null;
+    let platform: TestimonialPlatform = "GAME";
+    if (row.game?.title) {
+      title = row.game.title;
+      platform = "GAME";
+    } else if (row.serviceProduct?.title) {
+      title = row.serviceProduct.title;
+      platform = serviceTypeToPlatform(row.serviceProduct.type);
+    }
+    if (!title) continue;
+
+    out.push({
+      transactionId: row.id,
+      title,
+      platform,
+      priceAznCents: Math.abs(row.amountAznCents),
+    });
+  }
+
+  return out;
+}

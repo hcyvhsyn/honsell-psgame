@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getSettings } from "@/lib/pricing";
+import { awardReviewCashback } from "@/lib/reviewCashback";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,7 +36,36 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   try {
     const updated = await prisma.testimonial.update({ where: { id: params.id }, data });
-    return NextResponse.json({ ok: true, testimonial: updated });
+
+    // Rəy təsdiqlənəndə (aktiv) və konkret alışa bağlıdırsa — 1% cashback ver.
+    // İdempotentdir: təkrar aktiv/deaktiv etmək ikinci dəfə pul yazmaz.
+    let cashbackCents = 0;
+    if (data.isActive === true && updated.transactionId) {
+      try {
+        const purchase = await prisma.transaction.findUnique({
+          where: { id: updated.transactionId },
+          select: { userId: true },
+        });
+        if (purchase?.userId) {
+          const settings = await getSettings();
+          const result = await awardReviewCashback(prisma, {
+            userId: purchase.userId,
+            sourceTransactionId: updated.transactionId,
+            reviewCashbackRatePct: settings.reviewCashbackRatePct,
+            testimonialId: updated.id,
+          });
+          if (result) cashbackCents = result.cashbackCents;
+        }
+      } catch (e) {
+        // Cashback xətası təsdiqi bloklamasın — loglayıb davam edirik.
+        console.error("review cashback on approve failed", {
+          testimonialId: updated.id,
+          message: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+
+    return NextResponse.json({ ok: true, testimonial: updated, cashbackAzn: cashbackCents / 100 });
   } catch {
     return NextResponse.json({ error: "Rəy tapılmadı." }, { status: 404 });
   }
