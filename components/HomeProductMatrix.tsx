@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Check, PackageSearch, ShoppingCart } from "lucide-react";
+import { ArrowRight, Check, PackageSearch, ShoppingCart } from "lucide-react";
 import { useCart } from "@/lib/cart";
 
 export type HomeProductMatrixItem = {
@@ -15,6 +15,10 @@ export type HomeProductMatrixItem = {
   productType: string;
   badge: string;
   store?: string | null;
+  /// Checkout-da email/şifrə tələb edən paketlər (Spotify çoxhesablı, YouTube,
+  /// LinkedIn, GMAIL-çatdırılma streaming) birbaşa səbətə atıla bilməz — düymə
+  /// məhsulun səhifəsinə yönləndirir ki, müştəri məlumatı orada daxil etsin.
+  requiresAccount?: boolean;
 };
 
 const ACCENTS = [
@@ -115,20 +119,34 @@ export default function HomeProductMatrix({
                       {product.finalAzn.toFixed(2)}₼
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => addProduct(product)}
-                    disabled={inCart}
-                    aria-label={inCart ? "Səbətdədir" : `${product.title} səbətə əlavə et`}
-                    title={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
-                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition ${
-                      inCart
-                        ? "bg-emerald-400/15 text-emerald-300 ring-1 ring-emerald-300/30"
-                        : "bg-white text-zinc-950 hover:bg-violet-200"
-                    }`}
-                  >
-                    {inCart ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
-                  </button>
+                  {product.requiresAccount ? (
+                    // Bu paket email/şifrə tələb edir — birbaşa səbətə atmaq əvəzinə
+                    // məhsulun səhifəsinə yönləndiririk ki, müştəri hesab məlumatını
+                    // orada daxil etsin (əks halda checkout xəta verir).
+                    <Link
+                      href={product.href}
+                      aria-label={`${product.title} — hesab məlumatı daxil et`}
+                      title="Hesab məlumatı tələb olunur"
+                      className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-zinc-950 transition hover:bg-violet-200"
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => addProduct(product)}
+                      disabled={inCart}
+                      aria-label={inCart ? "Səbətdədir" : `${product.title} səbətə əlavə et`}
+                      title={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
+                      className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition ${
+                        inCart
+                          ? "bg-emerald-400/15 text-emerald-300 ring-1 ring-emerald-300/30"
+                          : "bg-white text-zinc-950 hover:bg-violet-200"
+                      }`}
+                    >
+                      {inCart ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+                    </button>
+                  )}
                 </div>
               </article>
             );

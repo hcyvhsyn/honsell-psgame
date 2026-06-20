@@ -49,6 +49,12 @@ type ServiceInfo = {
 type Props = {
   products: Product[];
   service: ServiceInfo;
+  /** SEO üçün H1 mətnini override edir (səhifədə yalnız bir H1 olsun). */
+  seoHeading?: string;
+  /** Hero altındakı təsviri (açar söz zəngin) mətni override edir. */
+  seoIntro?: string;
+  /** Hero görselinin alt text-i (generic deyil, açar söz zəngin olsun). */
+  heroAlt?: string;
 };
 
 type PlanMeta = {
@@ -155,7 +161,13 @@ function serviceCopy(service: ServiceInfo) {
   );
 }
 
-export default function SpotifyPlanPicker({ products, service }: Props) {
+export default function SpotifyPlanPicker({
+  products,
+  service,
+  seoHeading,
+  seoIntro,
+  heroAlt,
+}: Props) {
   const cart = useCart();
   const router = useRouter();
   const [activeTier, setActiveTier] = useState<SpotifyPlanTier | null>(null);
@@ -256,10 +268,10 @@ export default function SpotifyPlanPicker({ products, service }: Props) {
                 Premium music
               </div>
               <h1 className="mt-5 max-w-3xl text-4xl font-black leading-[0.96] text-[#f5fff7] sm:text-6xl lg:text-7xl">
-                {service.label}
+                {seoHeading ?? service.label}
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#b8c8bd] sm:text-lg">
-                {serviceCopy(service)}
+                {seoIntro ?? serviceCopy(service)}
               </p>
             </div>
 
@@ -295,7 +307,9 @@ export default function SpotifyPlanPicker({ products, service }: Props) {
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={heroImage}
-                alt={service.label}
+                alt={heroAlt ?? service.label}
+                loading="eager"
+                fetchPriority="high"
                 className="absolute inset-0 h-full w-full object-cover"
               />
             ) : (

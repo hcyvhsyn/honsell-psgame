@@ -24,6 +24,8 @@ type SafeCartItem = {
   qty: number;
   productType: string;
   store?: string;
+  /** Bu sətir dostuna HƏDİYYƏ kimi alınır? Eyni məhsul həm alış, həm hədiyyə ola bilər. */
+  gift?: boolean;
 };
 
 function sanitizeItems(raw: unknown): SafeCartItem[] {
@@ -45,6 +47,7 @@ function sanitizeItems(raw: unknown): SafeCartItem[] {
       qty,
       productType: typeof it.productType === "string" ? it.productType : "",
       ...(typeof it.store === "string" ? { store: it.store } : {}),
+      ...(it.gift ? { gift: true } : {}),
     });
   }
   return out;
@@ -53,7 +56,7 @@ function sanitizeItems(raw: unknown): SafeCartItem[] {
 /** Səbət tərkibinin imzası — id+qty dəyişikliyini aşkar etmək üçün. */
 function cartSignature(items: SafeCartItem[]): string {
   const basis = items
-    .map((i) => `${i.id}:${i.qty}`)
+    .map((i) => `${i.id}:${i.gift ? "g" : "n"}:${i.qty}`)
     .sort()
     .join("|");
   return crypto.createHash("sha1").update(basis).digest("hex").slice(0, 16);

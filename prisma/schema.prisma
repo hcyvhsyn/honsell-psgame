@@ -264,7 +264,7 @@ model Game {
   // the backfill job or scraper post-step populates it. `embeddingHash` is a
   // short fingerprint of the text we embedded (title + edition + platform);
   // when it changes, the row is re-embedded.
-  embedding     Float[]
+  embedding     Float[] @default([])
   embeddingHash String?
 
   transactions Transaction[]

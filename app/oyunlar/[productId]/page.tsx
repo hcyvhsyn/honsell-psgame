@@ -463,6 +463,12 @@ export default async function GameDetailPage({
                       finalAzn: display.finalAzn,
                       productType: game.productType,
                     }}
+                    discounted={display.discountPct != null}
+                    discountEndAt={
+                      display.discountPct != null && game.discountEndAt
+                        ? game.discountEndAt.toISOString()
+                        : null
+                    }
                   />
                 </div>
 

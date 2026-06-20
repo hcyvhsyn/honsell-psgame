@@ -7,11 +7,13 @@ import {
   LANDING_SERVICE_TYPES,
   LANDING_SERVICE_ORDER,
   isHiddenFromLanding,
+  landingServiceRequiresAccount,
 } from "@/lib/landingServices";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import SiteFooter from "@/components/SiteFooter";
 import HomeBannerSlider from "@/components/HomeBannerSlider";
 import HomeProductMatrix, { type HomeProductMatrixItem } from "@/components/HomeProductMatrix";
+import HomeScrollTuning from "@/components/HomeScrollTuning";
 import HomeTrustBar from "@/components/HomeTrustBar";
 import HomeDiscountCarousel from "@/components/HomeDiscountCarousel";
 import HomeTestimonials from "@/components/HomeTestimonials";
@@ -164,6 +166,13 @@ function serviceHref(type: string, metadata: unknown, title: string): string {
       }
       if (platform.category === "MUSIC" && platform.musicBrand === "YOUTUBE_PREMIUM") {
         return "/music/youtube";
+      }
+      // Spotify çoxhesablı paketləri (Individual/Duo/Family) Spotify SEO səhifəsinə.
+      if (
+        platform.category === "MUSIC" &&
+        String(meta?.musicBrand ?? "").toUpperCase() === "SPOTIFY"
+      ) {
+        return "/music/spotify-premium";
       }
       if (platform.category === "WORK" && title.toLowerCase().includes("linkedin")) {
         return "/work/linkedin-premium";
@@ -438,6 +447,7 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
       finalAzn: service.priceAznCents / 100,
       productType: service.type,
       badge: serviceBadge(service.type, service.metadata),
+      requiresAccount: landingServiceRequiresAccount(service.type, service.metadata),
     }));
 }
 
@@ -669,6 +679,7 @@ export default async function HomePage() {
         />
       )}
       <SiteHeaderServer />
+      <HomeScrollTuning />
 
       <h1 className="sr-only">{SITE_NAME} — {SITE_DESCRIPTION}</h1>
 

@@ -129,6 +129,10 @@ export default function GameCard({
     productType: game.productType,
     store: isEpic ? "EPIC" : "PS",
   };
+  // Məhsul aktiv endirimdədirsə, hədiyyə sətrinə endirimin bitmə tarixini ötürürük
+  // ki, müştəriyə "endirim müddətində aktivləşdir" xəbərdarlığı göstərilə bilsin.
+  const giftDiscountEndAt = game.discountPct != null ? game.discountEndAt : null;
+  const isDiscounted = game.discountPct != null;
   const platforms = game.platform ? game.platform.split(",").map((p) => p.trim()).filter(Boolean) : [];
   const detailHref = game.productId ? `/oyunlar/${game.productId}` : null;
   const productTypeBadge = getProductTypeBadge(game.productType);
@@ -311,7 +315,7 @@ export default function GameCard({
               </button>
               <button
                 type="button"
-                onClick={() => !giftInCart && addGift(cartPayload)}
+                onClick={() => !giftInCart && addGift(cartPayload, undefined, giftDiscountEndAt)}
                 disabled={giftInCart}
                 aria-label={giftInCart ? "Hədiyyə kimi səbətdədir" : "Dostuna hədiyyə et"}
                 title={giftInCart ? "Hədiyyə kimi səbətdədir" : "Dostuna hədiyyə et"}
@@ -326,35 +330,55 @@ export default function GameCard({
             </div>
           ) : (
             <>
-              {inCart ? (
+              {/* Səbət + Hədiyyə düymələri yan-yana. Müştəri eyni oyunu HƏM özünə
+                  ala, HƏM dostuna hədiyyə edə bilər — iki düymə müstəqil işləyir. */}
+              <div className="flex items-stretch gap-2">
+                {inCart ? (
+                  <button
+                    type="button"
+                    onClick={() => remove(game.id)}
+                    title="Səbətdən sil"
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-2 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 sm:gap-2 sm:px-3 sm:py-3 sm:text-sm"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="truncate">Səbətdə</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => add(cartPayload)}
+                    title="Səbətə əlavə et"
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#6D28D9] px-2 py-2 text-xs font-semibold text-white shadow-lg shadow-purple-500/20 transition-all duration-200 hover:bg-[#5B21B6] sm:gap-2 sm:px-3 sm:py-3 sm:text-sm"
+                  >
+                    <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="truncate">Səbətə</span>
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => remove(game.id)}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-2 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 sm:gap-2 sm:px-4 sm:py-3 sm:text-sm"
+                  onClick={() =>
+                    giftInCart ? remove(game.id, true) : addGift(cartPayload, undefined, giftDiscountEndAt)
+                  }
+                  title={giftInCart ? "Hədiyyədən sil" : "Dostuna hədiyyə et"}
+                  className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-semibold transition sm:gap-2 sm:px-3 sm:py-3 sm:text-sm ${
+                    giftInCart
+                      ? "border-fuchsia-500/40 bg-fuchsia-500/15 text-fuchsia-200 hover:bg-fuchsia-500/25"
+                      : "border-fuchsia-500/30 bg-transparent text-fuchsia-300 hover:bg-fuchsia-500/10"
+                  }`}
                 >
-                  <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="truncate">Səbətdən sil</span>
+                  <Gift className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="truncate">Hədiyyə</span>
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => add(cartPayload)}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#6D28D9] px-2 py-2 text-xs font-semibold text-white shadow-lg shadow-purple-500/20 transition-all duration-200 hover:bg-[#5B21B6] sm:gap-2 sm:px-4 sm:py-3 sm:text-sm"
-                >
-                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="truncate">Səbətə əlavə et</span>
-                </button>
+              </div>
+
+              {/* Endirimli məhsul hədiyyə edilibsə müştərini xəbərdar edirik:
+                  dost endirim müddətində aktivləşdirməlidir, əks halda yalnız
+                  ödənilən (endirimli) məbləğ qədər hədiyyə dəyəri keçərli olur. */}
+              {giftInCart && isDiscounted && (
+                <p className="mt-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-left text-[10px] font-medium leading-snug text-amber-300 sm:text-[11px]">
+                  ⚠️ Endirimli hədiyyə: dostunuz endirim müddətində aktivləşdirməlidir.
+                  Gec aktivləşdirsə, yalnız ödədiyiniz {game.finalAzn.toFixed(2)}₼ məbləğ qədər
+                  hədiyyə dəyəri keçərli olacaq.
+                </p>
               )}
-              <button
-                type="button"
-                onClick={() => (giftInCart ? remove(game.id) : addGift(cartPayload))}
-                className={`inline-flex w-full items-center justify-center gap-1.5 rounded-xl border px-2 py-1.5 text-[11px] font-semibold transition sm:gap-2 sm:px-4 sm:py-2 sm:text-xs ${
-                  giftInCart
-                    ? "border-fuchsia-500/40 bg-fuchsia-500/15 text-fuchsia-200 hover:bg-fuchsia-500/25"
-                    : "border-fuchsia-500/30 bg-transparent text-fuchsia-300 hover:bg-fuchsia-500/10"
-                }`}
-              >
-                <Gift className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="truncate">{giftInCart ? "Hədiyyədən sil" : "Dostuna hədiyyə et"}</span>
-              </button>
             </>
           )}
         </div>

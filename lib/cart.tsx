@@ -87,8 +87,16 @@ export type CartItem = {
    * sifariş edildiyini bildirir — ödənişdən sonra çatdırılma üçün PSN/Epic hesabı
    * tələb olunmur (onu hədiyyəni açan dost verəcək) və sistem 11 simvollu kod
    * yaradır. `message` — alıcının dostuna opsional qeydi.
+   *
+   * Eyni məhsul səbətdə HƏM adi alış, HƏM də hədiyyə kimi paralel ola bilər —
+   * sətrlər (id + gift bayrağı) cütü ilə fərqləndirilir.
+   *
+   * `discountEndAt` — məhsul hədiyyə kimi əlavə olunduğu anda endirim aktiv idisə,
+   * endirimin bitmə tarixi (ISO). Səbətdə/checkout-da müştəriyə xəbərdarlıq göstərmək
+   * üçündür: dost endirim müddətində aktivləşdirməsə, yalnız ödənilmiş (endirimli)
+   * məbləğ qədər hədiyyə dəyəri keçərli olacaq.
    */
-  gift?: { message?: string };
+  gift?: { message?: string; discountEndAt?: string };
 };
 
 /** Qiymət dəyişikliyi / artıq mövcud olmayan məhsul bildirişi. */
@@ -101,19 +109,30 @@ type CartContextValue = {
   count: number;
   totalAzn: number;
   add: (item: Omit<CartItem, "qty">) => void;
-  /** Məhsulu dostuna hədiyyə olaraq səbətə əlavə edir (gift bayrağı ilə). */
-  addGift: (item: Omit<CartItem, "qty" | "gift">, message?: string) => void;
+  /**
+   * Məhsulu dostuna hədiyyə olaraq səbətə əlavə edir (gift bayrağı ilə). Adi alış
+   * sətrini əvəz ETMİR — eyni məhsul həm alış, həm hədiyyə kimi paralel qala bilər.
+   * `discountEndAt` verilərsə hədiyyə sətrində saxlanır (endirim xəbərdarlığı üçün).
+   */
+  addGift: (
+    item: Omit<CartItem, "qty" | "gift">,
+    message?: string,
+    discountEndAt?: string | null,
+  ) => void;
   /** Hədiyyə sətrinin dostuna mesajını yeniləyir. */
   setGiftMessage: (id: string, message: string) => void;
   /** Bu məhsul səbətdə HƏDİYYƏ kimi var? */
   hasGift: (id: string) => boolean;
-  setQty: (id: string, qty: number) => void;
+  /** `gift=true` verilsə yalnız hədiyyə sətrinin sayını dəyişir, əks halda adi alış sətrinin. */
+  setQty: (id: string, qty: number, gift?: boolean) => void;
   updateAccountCreation: (id: string, details: AccountCreationCartDetails) => void;
   updateEpicAccountCreation: (id: string, details: EpicAccountCreationCartDetails) => void;
   updateStreaming: (id: string, details: StreamingCartDetails) => void;
   updateInGameCredit: (id: string, details: InGameCreditCartDetails) => void;
-  remove: (id: string) => void;
+  /** `gift=true` verilsə yalnız hədiyyə sətrini silir, əks halda adi alış sətrini. */
+  remove: (id: string, gift?: boolean) => void;
   clear: () => void;
+  /** Bu məhsul səbətdə ADİ ALIŞ (hədiyyə yox) kimi var? */
   has: (id: string) => boolean;
   hydrated: boolean;
   /** Qiymət/mövcudluq bildirişləri (səbəti freshlenmiş qiymətlərlə yenilədikdən sonra). */
@@ -269,21 +288,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         item.productType === "STREAMING" ||
         item.productType === "PLATFORM"
       ) {
-        const rest = prev.filter((i) => i.id !== item.id);
+        // Bu tiplər heç vaxt hədiyyə olmur — yalnız adi alış sətrini əvəz edirik.
+        const rest = prev.filter((i) => !(i.id === item.id && !i.gift));
         return [...rest, { ...item, qty: 1, gift: undefined }];
       }
-      const existing = prev.find((i) => i.id === item.id);
+      // Yalnız ADİ ALIŞ sətrinə baxırıq — eyni məhsulun hədiyyə sətri (varsa)
+      // toxunulmaz qalır ki, müştəri həm özünə ala, həm dostuna hədiyyə edə bilsin.
+      const existing = prev.find((i) => i.id === item.id && !i.gift);
       if (existing) {
-        // Mövcud sətir HƏDİYYƏ idisə, adi "səbətə əlavə et" onu adi sətrə çevirir.
-        if (existing.gift) {
-          return prev.map((i) =>
-            i.id === item.id ? { ...item, qty: 1, gift: undefined } : i
-          );
-        }
         // Cash cards / addons can be bought in multiples; full games stay at 1.
         if (item.productType === "GAME" || item.productType === "PS_PLUS" || item.productType === "EA_PLAY") return prev;
         return prev.map((i) =>
-          i.id === item.id ? { ...i, qty: i.qty + 1 } : i
+          i.id === item.id && !i.gift ? { ...i, qty: i.qty + 1 } : i
         );
       }
       return [...prev, { ...item, qty: 1 }];
@@ -291,13 +307,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addGift = useCallback(
-    (item: Omit<CartItem, "qty" | "gift">, message?: string) => {
+    (
+      item: Omit<CartItem, "qty" | "gift">,
+      message?: string,
+      discountEndAt?: string | null,
+    ) => {
       setItems((prev) => {
-        // Hədiyyə həmişə tək nüsxə (qty 1) və məhsulun mövcud sətrini əvəz edir.
-        const rest = prev.filter((i) => i.id !== item.id);
+        // Hədiyyə həmişə tək nüsxə (qty 1) və yalnız mövcud HƏDİYYƏ sətrini əvəz
+        // edir — eyni məhsulun adi alış sətri (varsa) toxunulmaz qalır.
+        const rest = prev.filter((i) => !(i.id === item.id && i.gift));
         return [
           ...rest,
-          { ...item, qty: 1, gift: { message: message?.trim() || undefined } },
+          {
+            ...item,
+            qty: 1,
+            gift: {
+              message: message?.trim() || undefined,
+              discountEndAt: discountEndAt || undefined,
+            },
+          },
         ];
       });
     },
@@ -312,11 +340,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const setQty = useCallback((id: string, qty: number) => {
+  const setQty = useCallback((id: string, qty: number, gift = false) => {
     setItems((prev) =>
       qty <= 0
-        ? prev.filter((i) => i.id !== id)
-        : prev.map((i) => (i.id === id ? { ...i, qty } : i))
+        ? prev.filter((i) => !(i.id === id && Boolean(i.gift) === gift))
+        : prev.map((i) =>
+            i.id === id && Boolean(i.gift) === gift ? { ...i, qty } : i
+          )
     );
   }, []);
 
@@ -361,14 +391,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const remove = useCallback((id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  const remove = useCallback((id: string, gift = false) => {
+    setItems((prev) => prev.filter((i) => !(i.id === id && Boolean(i.gift) === gift)));
   }, []);
 
   const clear = useCallback(() => setItems([]), []);
 
   const has = useCallback(
-    (id: string) => items.some((i) => i.id === id),
+    (id: string) => items.some((i) => i.id === id && !i.gift),
     [items]
   );
 

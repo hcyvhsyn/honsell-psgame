@@ -671,11 +671,11 @@ export default function CartView({
       <ul className="space-y-3">
         {items.map((item) => (
           <CartLine
-            key={item.id}
+            key={`${item.id}:${item.gift ? "g" : "n"}`}
             item={item}
-            onIncrement={() => setQty(item.id, item.qty + 1)}
-            onDecrement={() => setQty(item.id, item.qty - 1)}
-            onRemove={() => remove(item.id)}
+            onIncrement={() => setQty(item.id, item.qty + 1, Boolean(item.gift))}
+            onDecrement={() => setQty(item.id, item.qty - 1, Boolean(item.gift))}
+            onRemove={() => remove(item.id, Boolean(item.gift))}
             onEditAccountCreation={
               item.productType === "ACCOUNT_CREATION" ? () => openAccountCartEdit(item) : undefined
             }
@@ -1326,6 +1326,22 @@ function CartLine({
                   className="w-full rounded-md border border-fuchsia-500/25 bg-zinc-950/50 px-2.5 py-1.5 text-[12px] text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-fuchsia-500/60"
                 />
               </div>
+            ) : null}
+            {item.gift?.discountEndAt ? (
+              <p className="mt-2 w-full max-w-md rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-medium leading-snug text-amber-300">
+                ⚠️ Endirimli hədiyyə — dostunuz{" "}
+                <span className="font-semibold tabular-nums">
+                  {new Date(item.gift.discountEndAt).toLocaleString("az-AZ", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>{" "}
+                tarixinədək aktivləşdirməlidir. Gec aktivləşdirsə, yalnız ödənilən{" "}
+                {item.finalAzn.toFixed(2)}₼ məbləğ qədər hədiyyə dəyəri keçərli olacaq.
+              </p>
             ) : null}
             {item.productType === "STREAMING" && item.streaming?.gmail ? (
               <div className="mt-1.5 inline-flex max-w-full items-center gap-1.5 rounded-md border border-fuchsia-500/25 bg-fuchsia-500/[0.07] px-2 py-1">
