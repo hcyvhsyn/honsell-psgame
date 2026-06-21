@@ -1,14 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Receipt, Gamepad2 } from "lucide-react";
+import { Receipt, Gamepad2, Star, CheckCircle2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { getSettings } from "@/lib/pricing";
+import { getUserReviewablePurchases } from "@/lib/userPurchasedProducts";
 import {
   parseGameOrderMeta,
 } from "@/lib/gameOrderFulfillment";
 import { formatHonsellGiftCardCode } from "@/lib/honsellGiftCard";
 import { formatProductGiftCode } from "@/lib/productGiftShared";
 import CopyableField from "@/components/CopyableField";
+import OrderReviewButton from "@/components/OrderReviewButton";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +71,29 @@ export default async function OrdersPage() {
     }
   }
 
+  // Rəy təşviqi: hələ rəy yazılmamış uğurlu alışlar (Testimonial-da olmayanlar)
+  // və rəy üçün verilən cashback faizi. Düymə yalnız bu alışlarda görünür ki,
+  // /api/reviews validasiyası ilə üst-üstə düşsün.
+  const [settings, reviewable] = await Promise.all([
+    getSettings(),
+    getUserReviewablePurchases(user.id),
+  ]);
+  const reviewCashbackPct = settings.reviewCashbackRatePct ?? 1;
+  const reviewableIds = new Set(reviewable.map((p) => p.transactionId));
+
+  // Artıq rəy yazılmış alışlar — "Rəy yazılıb" nişanı üçün.
+  const reviewedRows = rows.length
+    ? await prisma.testimonial
+        .findMany({
+          where: { transactionId: { in: rows.map((r) => r.id) } },
+          select: { transactionId: true },
+        })
+        .catch(() => [] as { transactionId: string | null }[])
+    : [];
+  const reviewedIds = new Set(
+    reviewedRows.map((t) => t.transactionId).filter(Boolean) as string[],
+  );
+
   return (
     <section className="space-y-4">
       <header>
@@ -76,6 +102,22 @@ export default async function OrdersPage() {
           Alışların statusu və PSN bağlaması. Oyunlar admin tərəfindən icra olunana qədər mərhələlər burada görünür.
         </p>
       </header>
+
+      {reviewableIds.size > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-400/40 bg-gradient-to-r from-amber-500/10 to-orange-500/10 px-4 py-3">
+          <Star className="mt-0.5 h-5 w-5 shrink-0 fill-amber-300 text-amber-300" />
+          <div>
+            <p className="text-sm font-semibold text-amber-100">
+              Rəy yazıb cashback qazanın!
+            </p>
+            <p className="mt-0.5 text-xs leading-relaxed text-amber-200/90">
+              Rəy yazılmamış <b>{reviewableIds.size}</b> sifarişiniz var. Hər biri
+              üçün rəy yazıb həmin sifarişin <b>{reviewCashbackPct}%</b>-i qədər
+              cashback qazana bilərsiniz.
+            </p>
+          </div>
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-10 text-center">
@@ -344,6 +386,23 @@ export default async function OrdersPage() {
                     </div>
                   );
                 })()}
+
+                {reviewableIds.has(r.id) ? (
+                  <div className="pt-1.5">
+                    <OrderReviewButton
+                      transactionId={r.id}
+                      productTitle={displayTitle}
+                      cashbackPct={reviewCashbackPct}
+                    />
+                  </div>
+                ) : reviewedIds.has(r.id) ? (
+                  <div className="pt-1.5">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-400/90">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Rəy yazılıb
+                    </span>
+                  </div>
+                ) : null}
               </div>
 
               <div className="text-right sm:ml-auto">
