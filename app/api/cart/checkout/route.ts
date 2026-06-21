@@ -46,7 +46,7 @@ import {
   PRODUCT_GIFT_CLAIM_PATH,
 } from "@/lib/productGift";
 import { sendProductGiftCodeEmail } from "@/lib/resend";
-import { MIN_CART_AZN, MIN_CART_AZN_CENTS } from "@/lib/cartLimits";
+import { MIN_CART_AZN_CENTS } from "@/lib/cartLimits";
 
 export const runtime = "nodejs";
 
@@ -745,18 +745,22 @@ export async function POST(req: Request) {
   const giftTotalCents = giftLines.reduce((sum, g) => sum + g.unitListCents * g.qty, 0);
   const totalCents = lines.reduce((sum, l) => sum + l.lineCents, 0) + giftTotalCents;
 
-  // Minimum sifariş məbləği. Müştəri tərəfdə də yoxlanılır (CartView), bu isə
-  // server-tərəf last-line of-defense — birbaşa API çağırışlarına qarşı.
-  if (totalCents < MIN_CART_AZN_CENTS) {
-    return NextResponse.json(
-      {
-        error: `Minimum sifariş məbləği ${MIN_CART_AZN} AZN-dir. Səbətə daha çox məhsul əlavə edin.`,
-        minCartAzn: MIN_CART_AZN,
-        cartTotalAzn: Number((totalCents / 100).toFixed(2)),
-      },
-      { status: 400 }
-    );
+  if (totalCents <= 0) {
+    return NextResponse.json({ error: "Sifariş məbləği etibarsızdır." }, { status: 400 });
   }
+
+  // Epoint-in minimum işləm məbləği 5 AZN-dir. Sebet bundan azdırsa ödənişi
+  // bloklamaq əvəzinə KARTDAN minimum 5 AZN tutub aradakı fərqi müştərinin
+  // cüzdanına kredit olaraq qaytarırıq (round-up to wallet). Beləcə 4.98 kimi
+  // məbləğlərdə müştəri "azca da məhsul əlavə et" tələsinə düşmür — fərq
+  // növbəti alış üçün balansda qalır. Cüzdan/referal ödənişlərində gateway
+  // yoxdur, ona görə round-up mənasızdır: dəqiq sebet məbləği tutulur.
+  const isCardPayment =
+    body.paymentMethod === "epoint" || body.paymentMethod === "epoint-widget";
+  const chargeCents = isCardPayment
+    ? Math.max(totalCents, MIN_CART_AZN_CENTS)
+    : totalCents;
+  const topUpCents = chargeCents - totalCents;
 
   const spentAzn = await getLifetimeSpendAznForLoyalty(prisma, user.id);
   const loyalty = getLoyaltyTier(spentAzn);
@@ -935,6 +939,7 @@ export async function POST(req: Request) {
       createdAt,
       checkout: {
         totalCents,
+        topUpCents,
         loyalty: {
           label: loyalty.label,
           cashbackPct: loyalty.cashbackPct,
@@ -943,19 +948,23 @@ export async function POST(req: Request) {
       },
     };
 
+    // Karta minimum 5 AZN (chargeCents) tutulur. amountAznCents = chargeCents
+    // saxlanır ki, /result və /reconcile-dakı amount-mismatch yoxlaması
+    // epoint-in bildirdiyi məbləğlə üst-üstə düşsün. Məhsul fulfillment-i və
+    // cashback isə metadata.checkout.totalCents (real sebet) üzərindən gedir.
     const payment = await prisma.transaction.create({
       data: {
         userId: user.id,
         type: EPOINT_CART_PAYMENT_TYPE,
         status: "PENDING",
-        amountAznCents: totalCents,
+        amountAznCents: chargeCents,
         metadata: JSON.stringify(metadata),
       },
       select: { id: true },
     });
 
     const origin = requestOrigin(req);
-    const amountAzn = Number((totalCents / 100).toFixed(2));
+    const amountAzn = Number((chargeCents / 100).toFixed(2));
     const description = `Honsell sifariş ${orderCode}: ${amountAzn.toFixed(2)} AZN`;
     const successUrl = `${origin}/success?order_id=${encodeURIComponent(payment.id)}&order_code=${encodeURIComponent(orderCode)}`;
     const errorUrl = `${origin}/error?order_id=${encodeURIComponent(payment.id)}&order_code=${encodeURIComponent(orderCode)}`;

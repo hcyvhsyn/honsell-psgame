@@ -159,6 +159,12 @@ export type EpointCartPaymentMetadata = {
   createdAt: string;
   checkout: {
     totalCents: number;
+    /**
+     * Sebet 5 AZN-dən az olduqda epoint minimumunu ödəmək üçün kartdan əlavə
+     * tutulan və finalize zamanı müştərinin cüzdanına kredit olunan fərq (qəpik).
+     * 0 və ya yoxdursa round-up tətbiq olunmayıb (adi sifariş).
+     */
+    topUpCents?: number;
     loyalty: {
       label: string;
       cashbackPct: number;
@@ -234,6 +240,7 @@ export async function finalizeEpointCartCheckout(
     cashbackCents: number;
     totalCommissionCents: number;
     tryBalancePendingCount: number;
+    walletTopUpCents: number;
     orderCode: string;
     honsellGiftCards: IssuedHonsellGiftCard[];
     productGifts: IssuedProductGift[];
@@ -264,6 +271,33 @@ export async function finalizeEpointCartCheckout(
       },
     });
     if (paymentUpdate.count !== 1) return null;
+
+    // Round-up artığı: sebet 5 AZN-dən az idi, ona görə kartdan minimum 5 AZN
+    // tutuldu. Aradakı fərq müştərinin cüzdan balansına kredit olunur. Bu blok
+    // updateMany count===1 guard-ından sonradır — yəni dəqiq bir dəfə işləyir.
+    const topUpCents = meta.checkout.topUpCents ?? 0;
+    if (topUpCents > 0) {
+      await tx.user.update({
+        where: { id: payment.userId },
+        data: { walletBalance: { increment: topUpCents } },
+      });
+      await tx.transaction.create({
+        data: {
+          userId: payment.userId,
+          type: "DEPOSIT",
+          status: "SUCCESS",
+          amountAznCents: topUpCents,
+          metadata: JSON.stringify({
+            kind: "CART_MIN_ROUNDUP",
+            paymentSource: "EPOINT",
+            orderCode: meta.orderCode,
+            epointPaymentId: payment.id,
+            cartTotalCents: meta.checkout.totalCents,
+            chargedCents: meta.checkout.totalCents + topUpCents,
+          }),
+        },
+      });
+    }
 
     const purchaseIds: string[] = [];
     const serviceOrderIds: string[] = [];
@@ -727,6 +761,7 @@ export async function finalizeEpointCartCheckout(
       cashbackCents,
       totalCommissionCents,
       tryBalancePendingCount,
+      walletTopUpCents: topUpCents,
       orderCode: meta.orderCode,
       honsellGiftCards,
       productGifts,
@@ -782,5 +817,6 @@ export async function finalizeEpointCartCheckout(
     cashbackAzn: summary.cashbackCents / 100,
     commissionPaidAzn: summary.totalCommissionCents / 100,
     tryBalancePendingCount: summary.tryBalancePendingCount,
+    walletTopUpAzn: summary.walletTopUpCents / 100,
   };
 }

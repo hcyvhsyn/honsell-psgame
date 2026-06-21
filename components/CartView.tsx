@@ -897,18 +897,21 @@ export default function CartView({
               {belowMinimum && (
                 <div
                   role="status"
-                  className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200"
+                  className="flex items-start gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2.5 text-xs text-sky-200"
                 >
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>
-                    Minimum sifariş məbləği <b>{MIN_CART_AZN} AZN</b>-dir. Sebətə{" "}
-                    <b>{missingForMinimumAzn.toFixed(2)} AZN</b> dəyərində məhsul
-                    əlavə edin ki, ödənişi tamamlaya biləsiniz.
+                    Sifariş məbləği <b>{MIN_CART_AZN} AZN</b>-dən azdır.{" "}
+                    <b>Kartla</b> ödəsəniz <b>{MIN_CART_AZN.toFixed(2)} AZN</b>{" "}
+                    tutulacaq, artıq qalan <b>{missingForMinimumAzn.toFixed(2)} AZN</b>{" "}
+                    cüzdan balansınıza əlavə olunub növbəti alışda istifadə oluna
+                    bilər. <b>Cüzdanla</b> ödəsəniz dəqiq{" "}
+                    <b>{totalAzn.toFixed(2)} AZN</b> tutulur.
                   </span>
                 </div>
               )}
 
-              {insufficientWallet && !belowMinimum ? (
+              {insufficientWallet ? (
                 <Link
                   href="/profile/wallet"
                   onClick={onNavigate}
@@ -923,7 +926,7 @@ export default function CartView({
                 <button
                   type="button"
                   onClick={() => checkout("wallet")}
-                  disabled={busy || belowMinimum || insufficientWallet}
+                  disabled={busy || insufficientWallet}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {busy ? "İşlənir..." : "Cüzdanla ödə"}
@@ -933,7 +936,7 @@ export default function CartView({
               <button
                 type="button"
                 onClick={() => checkout("epoint")}
-                disabled={busy || belowMinimum}
+                disabled={busy}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {busy ? "İşlənir..." : "Kartla birbaşa ödə"}
@@ -951,7 +954,7 @@ export default function CartView({
                     <button
                       type="button"
                       onClick={() => checkout("epoint-widget", "apple")}
-                      disabled={busy || belowMinimum}
+                      disabled={busy}
                       aria-label="Apple Pay ilə ödə"
                       className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -966,7 +969,7 @@ export default function CartView({
                     <button
                       type="button"
                       onClick={() => checkout("epoint-widget", "google")}
-                      disabled={busy || belowMinimum}
+                      disabled={busy}
                       aria-label="Google Pay ilə ödə"
                       className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-700 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >

@@ -265,6 +265,12 @@ model Game {
   // short fingerprint of the text we embedded (title + edition + platform);
   // when it changes, the row is re-embedded.
   embedding     Float[] @default([])
+  // pgvector mirror of `embedding`, kept in sync by the `game_embedding_vec_sync`
+  // DB trigger. Semantic search runs an HNSW ANN query against this column
+  // (see lib/semantic-search.ts) instead of loading every Float[] into JS.
+  // Prisma has no native vector type, so it's Unsupported — read/written only
+  // via raw SQL + the trigger. Index: Game_embeddingVec_hnsw_idx (migration).
+  embeddingVec  Unsupported("vector(512)")?
   embeddingHash String?
 
   transactions Transaction[]
