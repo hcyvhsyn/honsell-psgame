@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { uploadAdminImage } from "@/lib/uploadImageClient";
 import { Loader2, Plus, Edit2, Trash2, Upload, X, Eye, EyeOff, Film, Tv as TvIcon, Search, Sparkles, Play } from "lucide-react";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { STREAMING_SERVICE_LABELS, STREAMING_SERVICES, type StreamingService } from "@/lib/streamingCart";
 import { LANGUAGE_OPTIONS, type LanguageCode } from "@/lib/streamingLanguages";
 import { useDialog } from "@/lib/dialogs";
@@ -236,28 +236,15 @@ export default function StreamingTitlesAdminClient() {
     }
     setUploading(target);
     try {
-      const init = await fetch("/api/admin/streaming/titles/image-upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentType: file.type }),
-      });
-      const initData = await init.json();
-      if (!init.ok) {
-        await dialog.alert({ title: "Upload hazırlanmadı", message: initData.error ?? "Upload hazırlanmadı", tone: "danger" });
-        return;
-      }
-      const supabase = getSupabaseBrowser();
-      const { error: upErr } = await supabase.storage
-        .from(initData.bucket)
-        .uploadToSignedUrl(initData.path, initData.token, file);
-      if (upErr) {
-        await dialog.alert({ title: "Upload alınmadı", message: upErr.message, tone: "danger" });
+      const up = await uploadAdminImage("/api/admin/streaming/titles/image-upload", file);
+      if (!up.ok) {
+        await dialog.alert({ title: "Upload hazırlanmadı", message: up.error ?? "Upload hazırlanmadı", tone: "danger" });
         return;
       }
       setEditForm((prev) =>
         target === "poster"
-          ? { ...prev, posterUrl: initData.publicUrl }
-          : { ...prev, backdropUrl: initData.publicUrl }
+          ? { ...prev, posterUrl: up.url }
+          : { ...prev, backdropUrl: up.url }
       );
     } finally {
       setUploading(null);

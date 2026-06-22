@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { cdnImageUrl } from "@/lib/cdnImage";
 import Link from "next/link";
 import { ArrowRight, Check, PackageSearch, ShoppingCart } from "lucide-react";
 import { useCart } from "@/lib/cart";
@@ -86,7 +87,7 @@ export default function HomeProductMatrix({
                   <div className="relative aspect-square overflow-hidden rounded-xl bg-zinc-900">
                     {product.imageUrl ? (
                       <Image
-                        src={product.imageUrl}
+                        src={cdnImageUrl(product.imageUrl)}
                         alt={product.title}
                         fill
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"

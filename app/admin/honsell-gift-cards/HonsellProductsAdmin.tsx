@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { uploadAdminImage } from "@/lib/uploadImageClient";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Image as ImageIcon, Loader2, Upload, X } from "lucide-react";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 type Product = {
   id: string;
@@ -62,25 +62,12 @@ function ProductCard({ initial }: { initial: Product }) {
     setUploading(true);
     setStatus(null);
     try {
-      const init = await fetch("/api/admin/services/image-upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentType: file.type }),
-      });
-      const initData = await init.json();
-      if (!init.ok) {
-        setStatus({ kind: "error", text: initData?.error ?? "Upload hazırlanmadı." });
+      const up = await uploadAdminImage("/api/admin/services/image-upload", file);
+      if (!up.ok) {
+        setStatus({ kind: "error", text: up.error ?? "Upload hazırlanmadı." });
         return;
       }
-      const supabase = getSupabaseBrowser();
-      const { error: upErr } = await supabase.storage
-        .from(initData.bucket)
-        .uploadToSignedUrl(initData.path, initData.token, file);
-      if (upErr) {
-        setStatus({ kind: "error", text: `Upload alınmadı: ${upErr.message}` });
-        return;
-      }
-      setImageUrl(initData.publicUrl);
+      setImageUrl(up.url);
     } finally {
       setUploading(false);
     }

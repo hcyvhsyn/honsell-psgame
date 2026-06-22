@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { cdnImageUrl } from "@/lib/cdnImage";
 import { ChevronLeft, ChevronRight, ShoppingCart, Check, Heart } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { useFavorites } from "@/lib/favorites";
@@ -185,7 +186,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
               <div className="absolute inset-0 sm:hidden">
                 {bMobile && (
                   <Image
-                    src={bMobile}
+                    src={cdnImageUrl(bMobile)}
                     alt={bTitle || "Banner"}
                     fill
                     sizes="100vw"
@@ -197,7 +198,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
               <div className="absolute inset-0 hidden sm:block">
                 {bDesktop && (
                   <Image
-                    src={bDesktop}
+                    src={cdnImageUrl(bDesktop)}
                     alt={bTitle || "Banner"}
                     fill
                     sizes="(max-width: 1280px) 100vw, 1000px"
@@ -422,7 +423,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-900">
                     {thumb && (
                       <Image
-                        src={thumb}
+                        src={cdnImageUrl(thumb)}
                         alt={t || "Banner"}
                         fill
                         sizes="56px"

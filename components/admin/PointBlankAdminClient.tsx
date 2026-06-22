@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { uploadAdminImage } from "@/lib/uploadImageClient";
 import {
   Boxes,
   Image as ImageIcon,
@@ -11,7 +12,6 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 const TYPE = "POINT_BLANK_TG";
 
@@ -137,19 +137,9 @@ export default function PointBlankAdminClient() {
     }
     setUploading(true);
     try {
-      const init = await fetch(`${apiBase}/image-upload`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentType: file.type, type: TYPE }),
-      });
-      const initData = await init.json();
-      if (!init.ok) throw new Error(initData?.error ?? "Upload hazırlanmadı");
-      const supabase = getSupabaseBrowser();
-      const { error: upErr } = await supabase.storage
-        .from(initData.bucket)
-        .uploadToSignedUrl(initData.path, initData.token, file);
-      if (upErr) throw new Error(upErr.message);
-      setDraft((d) => ({ ...d, imageUrl: initData.publicUrl as string }));
+      const up = await uploadAdminImage(`${apiBase}/image-upload`, file, { type: TYPE });
+      if (!up.ok) throw new Error(up.error ?? "Upload hazırlanmadı");
+      setDraft((d) => ({ ...d, imageUrl: up.url as string }));
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Upload alınmadı");
     } finally {

@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import AccountCreationOfferModal from "@/components/AccountCreationOfferModal";
 import Link from "next/link";
 import Image from "next/image";
+import { cdnImageUrl } from "@/lib/cdnImage";
 import { ArrowRight } from "lucide-react";
 
 export type HesabAcmaProduct = {
@@ -98,7 +99,7 @@ function CategoryCardBackdrop({ imageUrl }: { imageUrl?: string | null }) {
     <>
       {imageUrl ? (
         <Image
-          src={imageUrl}
+          src={cdnImageUrl(imageUrl)}
           alt=""
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 16vw"

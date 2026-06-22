@@ -5,6 +5,7 @@ import Image from "next/image";
 import { X } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 import { validateAccountCreationDetails } from "@/lib/accountCreationCart";
+import { ACCOUNT_PASSWORD_RULES_AZ } from "@/lib/accountPasswordRules";
 
 export default function AccountCreationCartEditModal({
   open,
@@ -161,6 +162,14 @@ export default function AccountCreationCartEditModal({
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Minimum 8 simvol"
             />
+            <ul className="mt-1.5 space-y-0.5 text-[11px] text-zinc-500">
+              {ACCOUNT_PASSWORD_RULES_AZ.map((rule) => (
+                <li key={rule} className="flex gap-1.5">
+                  <span className="text-zinc-600">•</span>
+                  <span>{rule}</span>
+                </li>
+              ))}
+            </ul>
           </label>
 
           {err && (

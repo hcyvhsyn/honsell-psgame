@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { uploadAdminImage } from "@/lib/uploadImageClient";
 import { Loader2, Plus, Edit2, Upload, X, Trash2, Check, Pencil } from "lucide-react";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { useDialog } from "@/lib/dialogs";
 
 type Product = {
@@ -144,25 +144,12 @@ export default function MusicAdminClient() {
       await dialog.alert({ title: "Fayl çox böyükdür", message: "Maksimum 5 MB", tone: "warning" });
       return null;
     }
-    const init = await fetch("/api/admin/services/image-upload", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contentType: file.type }),
-    });
-    const initData = await init.json();
-    if (!init.ok) {
-      await dialog.alert({ title: "Upload hazırlanmadı", message: initData.error ?? "Xəta", tone: "danger" });
+    const up = await uploadAdminImage("/api/admin/services/image-upload", file);
+    if (!up.ok) {
+      await dialog.alert({ title: "Upload hazırlanmadı", message: up.error ?? "Xəta", tone: "danger" });
       return null;
     }
-    const supabase = getSupabaseBrowser();
-    const { error: upErr } = await supabase.storage
-      .from(initData.bucket)
-      .uploadToSignedUrl(initData.path, initData.token, file);
-    if (upErr) {
-      await dialog.alert({ title: "Upload alınmadı", message: upErr.message, tone: "danger" });
-      return null;
-    }
-    return String(initData.publicUrl ?? "");
+    return String(up.url ?? "");
   }
 
   // ─── Platforma idarəsi ────────────────────────────────────────────────────

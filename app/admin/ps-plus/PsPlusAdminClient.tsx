@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { uploadAdminImage } from "@/lib/uploadImageClient";
 import { Loader2, Trash2, Check, X as XIcon, RefreshCw, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { useDialog } from "@/lib/dialogs";
 
 type ServiceProduct = {
@@ -113,25 +113,12 @@ export default function PsPlusAdminClient() {
     }
     setUploadingTier(tier);
     try {
-      const init = await fetch("/api/admin/ps-plus/image-upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentType: file.type, tier }),
-      });
-      const initData = await init.json();
-      if (!init.ok) {
-        await dialog.alert({ title: "Upload hazırlanmadı", message: initData.error ?? "Upload hazırlanmadı", tone: "danger" });
+      const up = await uploadAdminImage("/api/admin/ps-plus/image-upload", file, { tier });
+      if (!up.ok) {
+        await dialog.alert({ title: "Upload hazırlanmadı", message: up.error ?? "Upload hazırlanmadı", tone: "danger" });
         return;
       }
-      const supabase = getSupabaseBrowser();
-      const { error: upErr } = await supabase.storage
-        .from(initData.bucket)
-        .uploadToSignedUrl(initData.path, initData.token, file);
-      if (upErr) {
-        await dialog.alert({ title: "Upload alınmadı", message: upErr.message, tone: "danger" });
-        return;
-      }
-      return initData.publicUrl as string;
+      return up.url as string;
     } finally {
       setUploadingTier(null);
     }

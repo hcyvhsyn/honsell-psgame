@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { uploadAdminImage } from "@/lib/uploadImageClient";
 import { Loader2, Plus, Edit2, Trash2, Upload, X, GripVertical, Eye, EyeOff } from "lucide-react";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { BANNER_SCOPES } from "@/lib/contentScopes";
 import { useDialog } from "@/lib/dialogs";
 import { BANNER_POSITIONS, bannerPreviewWrapClass, bannerPreviewGradient, bannerThemeClasses, type BannerPosition, type BannerTheme } from "@/components/bannerLayout";
@@ -244,25 +244,14 @@ export default function BannersAdminClient() {
     }
     setUploadingImage(target);
     try {
-      const init = await fetch("/api/admin/banners/image-upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentType: file.type }),
-      });
-      const initData = await init.json();
-      if (!init.ok) {
-        await dialog.alert({ title: "Upload hazırlanmadı", message: initData.error ?? "Upload hazırlanmadı", tone: "danger" });
-        return;
-      }
-      const supabase = getSupabaseBrowser();
-      const { error: upErr } = await supabase.storage.from(initData.bucket).uploadToSignedUrl(initData.path, initData.token, file);
-      if (upErr) {
-        await dialog.alert({ title: "Upload alınmadı", message: upErr.message, tone: "danger" });
+      const up = await uploadAdminImage("/api/admin/banners/image-upload", file);
+      if (!up.ok) {
+        await dialog.alert({ title: "Upload hazırlanmadı", message: up.error ?? "Upload hazırlanmadı", tone: "danger" });
         return;
       }
       setEditForm((prev) => target === "desktop"
-        ? { ...prev, imageUrl: initData.publicUrl }
-        : { ...prev, mobileImageUrl: initData.publicUrl });
+        ? { ...prev, imageUrl: up.url }
+        : { ...prev, mobileImageUrl: up.url });
     } finally {
       setUploadingImage(null);
     }

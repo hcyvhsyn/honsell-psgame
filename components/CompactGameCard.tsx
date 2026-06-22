@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { cdnImageUrl } from "@/lib/cdnImage";
 import Link from "next/link";
 import { Gamepad2, Plus, Check } from "lucide-react";
 import { useCart } from "@/lib/cart";
@@ -25,7 +26,7 @@ export default function CompactGameCard({ game }: { game: GameCardData }) {
     <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-zinc-900">
       {game.imageUrl ? (
         <Image
-          src={game.imageUrl}
+          src={cdnImageUrl(game.imageUrl)}
           alt={game.title}
           fill
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 200px"

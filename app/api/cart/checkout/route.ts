@@ -47,6 +47,7 @@ import {
 } from "@/lib/productGift";
 import { sendProductGiftCodeEmail } from "@/lib/resend";
 import { MIN_CART_AZN_CENTS } from "@/lib/cartLimits";
+import { validateAccountPassword } from "@/lib/accountPasswordRules";
 
 export const runtime = "nodejs";
 
@@ -176,7 +177,8 @@ function parseAccountCreationBody(raw: unknown):
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { ok: false, error: "Etibarlı e-poçt ünvanı tələb olunur." };
   }
-  if (password.length < 8) return { ok: false, error: "Şifrə ən azı 8 simvol olmalıdır." };
+  const pwErr = validateAccountPassword(password, [email]);
+  if (pwErr) return { ok: false, error: pwErr };
   return { ok: true, value: { fullName, birthDate, email, password } };
 }
 

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { cdnImageUrl } from "@/lib/cdnImage";
 import type { Metadata } from "next";
 import {
   ArrowLeft,
@@ -296,7 +297,7 @@ export default async function GameDetailPage({
         {heroImage ? (
           <div className="absolute inset-0 -z-10 overflow-hidden">
             <Image
-              src={heroImage}
+              src={cdnImageUrl(heroImage)}
               alt={`${game.title} — ${platforms.join("/") || "PlayStation"} oyununun arxa fonu`}
               fill
               priority
@@ -324,7 +325,7 @@ export default async function GameDetailPage({
             <div className="relative overflow-hidden rounded-[28px] border border-zinc-200 bg-white/70 p-4 shadow-[0_28px_90px_-58px_rgba(88,28,135,0.45)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.045] dark:shadow-[0_28px_90px_-52px_rgba(124,58,237,0.75)] sm:p-6 lg:p-7">
               {heroImage && (
                 <Image
-                  src={heroImage}
+                  src={cdnImageUrl(heroImage)}
                   alt=""
                   fill
                   sizes="(max-width: 1024px) 100vw, 800px"
@@ -339,7 +340,7 @@ export default async function GameDetailPage({
                   {game.imageUrl ? (
                     <div className="relative overflow-hidden rounded-2xl border border-white bg-zinc-100 shadow-2xl shadow-violet-950/15 ring-1 ring-violet-200 dark:border-white/15 dark:bg-zinc-950 dark:shadow-black/50 dark:ring-violet-300/20">
                       <Image
-                        src={game.imageUrl}
+                        src={cdnImageUrl(game.imageUrl)}
                         alt={`${game.title} cover`}
                         width={520}
                         height={520}

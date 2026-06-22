@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { cdnImageUrl } from "@/lib/cdnImage";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -142,7 +143,7 @@ export default function GameCard({
       {game.imageUrl ? (
         <>
           <Image
-            src={game.imageUrl}
+            src={cdnImageUrl(game.imageUrl)}
             alt=""
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
@@ -151,7 +152,7 @@ export default function GameCard({
             aria-hidden
           />
           <Image
-            src={game.imageUrl}
+            src={cdnImageUrl(game.imageUrl)}
             alt={game.title}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"

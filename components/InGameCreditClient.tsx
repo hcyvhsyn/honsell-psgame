@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { cdnImageUrl } from "@/lib/cdnImage";
 import {
   Check,
   Coins,
@@ -181,7 +182,7 @@ export default function InGameCreditClient({
                 <div className="relative aspect-square w-full max-w-[390px] overflow-hidden rounded-[1.75rem] border border-white/10 bg-zinc-900 shadow-2xl shadow-black/35">
                   {heroImage ? (
                     <Image
-                      src={heroImage}
+                      src={cdnImageUrl(heroImage)}
                       alt={`${brand} ${currencyLabel}`}
                       fill
                       priority
@@ -206,7 +207,7 @@ export default function InGameCreditClient({
               <div className="relative aspect-[16/9] w-full md:aspect-auto md:min-h-[280px]">
                 {heroImage ? (
                   <Image
-                    src={heroImage}
+                    src={cdnImageUrl(heroImage)}
                     alt={`${brand} ${currencyLabel}`}
                     fill
                     priority
@@ -337,7 +338,7 @@ export default function InGameCreditClient({
                 >
                   {plan.imageUrl ? (
                     <Image
-                      src={plan.imageUrl}
+                      src={cdnImageUrl(plan.imageUrl)}
                       alt={plan.title}
                       fill
                       sizes={

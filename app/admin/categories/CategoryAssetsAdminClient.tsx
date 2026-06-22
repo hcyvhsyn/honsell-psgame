@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { uploadAdminImage } from "@/lib/uploadImageClient";
 import {
   CheckCircle2,
   Edit2,
@@ -15,7 +16,6 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { useDialog } from "@/lib/dialogs";
 import { PRODUCT_CATEGORY_KEYS } from "@/lib/categoryAssets";
 
@@ -176,35 +176,17 @@ export default function CategoryAssetsAdminClient() {
 
     setUploading(true);
     try {
-      const init = await fetch("/api/admin/categories/image-upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentType: file.type, key: form.key || "category" }),
-      });
-      const initData = await init.json();
-      if (!init.ok) {
+      const up = await uploadAdminImage("/api/admin/categories/image-upload", file, { key: form.key || "category" });
+      if (!up.ok) {
         await dialog.alert({
           title: "Upload hazırlanmadı",
-          message: String(initData.error ?? "Upload linki yaradıla bilmədi."),
+          message: String(up.error ?? "Upload linki yaradıla bilmədi."),
           tone: "danger",
         });
         return;
       }
 
-      const supabase = getSupabaseBrowser();
-      const { error: uploadError } = await supabase.storage
-        .from(initData.bucket)
-        .uploadToSignedUrl(initData.path, initData.token, file);
-      if (uploadError) {
-        await dialog.alert({
-          title: "Upload alınmadı",
-          message: uploadError.message,
-          tone: "danger",
-        });
-        return;
-      }
-
-      setForm((prev) => ({ ...prev, imageUrl: initData.publicUrl }));
+      setForm((prev) => ({ ...prev, imageUrl: up.url }));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

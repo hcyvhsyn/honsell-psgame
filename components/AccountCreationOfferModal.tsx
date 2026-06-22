@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 import type { HesabAcmaProduct } from "@/components/HesabAcmaHomeCategoryCard";
 import { useCart } from "@/lib/cart";
 import { validateAccountCreationDetails } from "@/lib/accountCreationCart";
+import { ACCOUNT_PASSWORD_RULES_AZ } from "@/lib/accountPasswordRules";
 
 export default function AccountCreationOfferModal({
   open,
@@ -188,6 +189,14 @@ export default function AccountCreationOfferModal({
             <span className="mt-1 block text-[11px] text-zinc-500">
               Eyni şifrə sifariş məlumatlarında admin tərəfindən görünür — PSN-də də bu şifrə təyin olunacaq.
             </span>
+            <ul className="mt-1.5 space-y-0.5 text-[11px] text-zinc-500">
+              {ACCOUNT_PASSWORD_RULES_AZ.map((rule) => (
+                <li key={rule} className="flex gap-1.5">
+                  <span className="text-zinc-400 dark:text-zinc-600">•</span>
+                  <span>{rule}</span>
+                </li>
+              ))}
+            </ul>
           </label>
 
           {err && (
