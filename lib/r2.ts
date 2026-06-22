@@ -36,6 +36,11 @@ function r2Client(): S3Client {
       region: "auto",
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
       credentials: { accessKeyId, secretAccessKey },
+      // AWS SDK v3-ün default checksum davranışı presigned URL-ə
+      // x-amz-checksum-crc32 / x-amz-sdk-checksum-algorithm əlavə edir; bu da
+      // brauzer PUT-unu (R2-də) pozur. Yalnız tələb olunanda hesabla.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
     });
   }
   return _client;
