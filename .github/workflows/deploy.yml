@@ -19,4 +19,9 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /root/honsell-psgame
+            # Serverdə yerli dəyişikliklər (məs. npm install-ın toxunduğu
+            # package-lock.json) git pull-u bloklayır. Pull-dan əvvəl origin/main-ə
+            # sərt sıfırla. .env untracked olduğu üçün toxunulmur.
+            git fetch origin main
+            git reset --hard origin/main
             ./deploy.sh
