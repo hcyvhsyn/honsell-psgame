@@ -11,6 +11,7 @@ import {
 } from "@/lib/rateLimit";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { normalizeHeardAboutSource } from "@/lib/heardAbout";
+import { normalizeFullName, MIN_NAME_LENGTH } from "@/lib/nameFormat";
 
 export const runtime = "nodejs";
 
@@ -19,7 +20,8 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const email = String(body.email ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
-    const name = body.name ? String(body.name).trim() : null;
+    // Ad-soyad: registr normallaşdırılır (tam böyük/kiçik → "Ad Soyad").
+    const name = normalizeFullName(body.name != null ? String(body.name) : "");
     const phone = body.phone ? String(body.phone).trim() : null;
     const captchaToken = typeof body.captchaToken === "string" ? body.captchaToken : "";
     const referralCode = body.referralCode
@@ -29,6 +31,12 @@ export async function POST(req: Request) {
 
     if (!name) {
       return NextResponse.json({ error: "Ad Soyad tələb olunur" }, { status: 400 });
+    }
+    if (name.length < MIN_NAME_LENGTH) {
+      return NextResponse.json(
+        { error: `Ad Soyad ən azı ${MIN_NAME_LENGTH} simvol olmalıdır` },
+        { status: 400 }
+      );
     }
     if (!phone) {
       return NextResponse.json({ error: "Telefon nömrəsi tələb olunur" }, { status: 400 });

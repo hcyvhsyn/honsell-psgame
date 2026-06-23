@@ -3,6 +3,9 @@
 import { type FormEvent, useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
+  AlertTriangle,
+  Ban,
+  Check,
   Globe2,
   Info,
   Minus,
@@ -110,6 +113,9 @@ export type PlanProduct = {
   availableStock: number;
 };
 
+type FeatureTone = "good" | "bad" | "warn" | "neutral";
+type VariantFeature = { text: string; tone: FeatureTone };
+
 type Meta = {
   service: string;
   durationMonths: number;
@@ -120,7 +126,30 @@ type Meta = {
   devices: string[];
   vpnRequired: boolean;
   platformImageUrl: string | null;
+  /** Paket variantı (tier) adı — məs. "Yanımda", "Evimdə", "Evimdə VIP". */
+  variant: string | null;
+  /** Variantların sıralanması üçün (kiçik əvvəl). */
+  variantRank: number;
+  /** Bu varianta xas fərqləndirici xüsusiyyətlər. */
+  variantFeatures: VariantFeature[];
+  /** Bütün variantlarda ortaq xüsusiyyətlər (eyni dəyər hər məhsulda saxlanılır). */
+  commonFeatures: VariantFeature[];
 };
+
+function parseFeatures(raw: unknown): VariantFeature[] {
+  if (!Array.isArray(raw)) return [];
+  const out: VariantFeature[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const text = String((item as Record<string, unknown>).text ?? "").trim();
+    if (!text) continue;
+    const toneRaw = String((item as Record<string, unknown>).tone ?? "neutral");
+    const tone: FeatureTone =
+      toneRaw === "good" || toneRaw === "bad" || toneRaw === "warn" ? toneRaw : "neutral";
+    out.push({ text, tone });
+  }
+  return out;
+}
 
 
 type ServiceDisplay = {
@@ -148,6 +177,11 @@ function readMeta(p: PlanProduct): Meta {
       typeof m.platformImageUrl === "string" && m.platformImageUrl.trim()
         ? String(m.platformImageUrl)
         : null,
+    variant:
+      typeof m.variant === "string" && m.variant.trim() ? String(m.variant).trim() : null,
+    variantRank: Number.isFinite(Number(m.variantRank)) ? Number(m.variantRank) : 0,
+    variantFeatures: parseFeatures(m.variantFeatures),
+    commonFeatures: parseFeatures(m.commonFeatures),
   };
 }
 
@@ -259,11 +293,42 @@ export default function StreamingPlanPicker({
   const [seatInfoOpen, setSeatInfoOpen] = useState<number | null>(null);
   const effectiveSeats = seatOptions.includes(selectedSeats) ? selectedSeats : seatOptions[0] ?? 1;
 
+  // Variant (tier) seçimi — yalnız metadata.variant təyin olunmuş paketlər üçün.
+  const variantOptions = useMemo(() => {
+    const map = new Map<
+      string,
+      { name: string; rank: number; fromPpm: number; features: VariantFeature[] }
+    >();
+    for (const x of enriched) {
+      if (!x.m.variant) continue;
+      const ppm = x.p.priceAznCents / x.m.durationMonths;
+      const existing = map.get(x.m.variant);
+      if (!existing) {
+        map.set(x.m.variant, {
+          name: x.m.variant,
+          rank: x.m.variantRank,
+          fromPpm: ppm,
+          features: x.m.variantFeatures,
+        });
+      } else if (ppm < existing.fromPpm) {
+        existing.fromPpm = ppm;
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.rank - b.rank || a.fromPpm - b.fromPpm);
+  }, [enriched]);
+
+  const hasVariants = variantOptions.length > 1;
+  const [selectedVariant, setSelectedVariant] = useState<string>(variantOptions[0]?.name ?? "");
+  const effectiveVariant = variantOptions.some((v) => v.name === selectedVariant)
+    ? selectedVariant
+    : variantOptions[0]?.name ?? "";
+
   const durationOptions = useMemo(() => {
     return enriched
       .filter((x) => x.m.seats === effectiveSeats)
+      .filter((x) => !hasVariants || x.m.variant === effectiveVariant)
       .sort((a, b) => a.m.durationMonths - b.m.durationMonths);
-  }, [effectiveSeats, enriched]);
+  }, [effectiveSeats, effectiveVariant, hasVariants, enriched]);
 
   const cheapestPerMonthId = useMemo(() => {
     if (durationOptions.length === 0) return null;
@@ -354,8 +419,65 @@ export default function StreamingPlanPicker({
         imageUrl={platformImage}
       />
 
+      {hasVariants && (
+        <section aria-label="Paket seç" className="space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-zinc-300">Paket seç</p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Paketlər arasındakı fərqi oxuyun — sizə uyğununu seçin.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {variantOptions.map((v) => {
+              const active = v.name === effectiveVariant;
+              const isVip = /vip/i.test(v.name);
+              return (
+                <button
+                  key={v.name}
+                  type="button"
+                  onClick={() => setSelectedVariant(v.name)}
+                  aria-pressed={active}
+                  className={`group relative flex flex-col rounded-[22px] border p-4 text-left transition duration-200 ${
+                    active
+                      ? theme.activeCard
+                      : "border-white/10 bg-zinc-950/80 hover:border-white/25 hover:bg-zinc-900/70"
+                  }`}
+                >
+                  <span
+                    className={`absolute right-3 top-3 grid h-6 w-6 place-items-center rounded-full transition ${
+                      active ? theme.checkGlow : "bg-white/5 text-transparent"
+                    }`}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+
+                  <div className="flex items-center gap-2 pr-8">
+                    {isVip && <Star className={`h-4 w-4 ${theme.accentText}`} />}
+                    <h4 className="text-lg font-black leading-tight text-white">{v.name}</h4>
+                  </div>
+                  <p className="mt-1 text-sm text-zinc-400">
+                    <span className="text-xl font-black text-white tabular-nums">
+                      {(v.fromPpm / 100).toFixed(2)}
+                    </span>{" "}
+                    ₼ / aydan
+                  </p>
+
+                  <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
+                    {v.features.map((f, i) => (
+                      <FeatureRow key={i} feature={f} />
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <section aria-label="Müddət" className="space-y-3">
-        <p className="text-sm font-semibold text-zinc-300">Müddət</p>
+        <p className="text-sm font-semibold text-zinc-300">
+          {hasVariants ? `${effectiveVariant} — müddət seç` : "Müddət"}
+        </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {durationOptions.map((x) => {
             const isBest = x.p.id === cheapestPerMonthId && durationOptions.length > 1;
@@ -563,6 +685,24 @@ function ServiceOverview({
         </div>
       </div>
     </section>
+  );
+}
+
+const FEATURE_TONE: Record<FeatureTone, { Icon: LucideIcon; iconClass: string; textClass: string }> = {
+  good: { Icon: Check, iconClass: "text-emerald-400", textClass: "text-zinc-200" },
+  bad: { Icon: Ban, iconClass: "text-rose-400", textClass: "text-zinc-300" },
+  warn: { Icon: AlertTriangle, iconClass: "text-amber-400", textClass: "text-zinc-300" },
+  neutral: { Icon: Check, iconClass: "text-zinc-400", textClass: "text-zinc-300" },
+};
+
+function FeatureRow({ feature }: { feature: VariantFeature }) {
+  const tone = FEATURE_TONE[feature.tone] ?? FEATURE_TONE.neutral;
+  const Icon = tone.Icon;
+  return (
+    <div className="flex items-start gap-2 text-sm leading-snug">
+      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone.iconClass}`} />
+      <span className={tone.textClass}>{feature.text}</span>
+    </div>
   );
 }
 

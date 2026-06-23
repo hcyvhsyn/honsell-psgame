@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { COUNTRY_CODES, type CountryCode } from "@/lib/countryCodes";
 import { HEARD_ABOUT_OPTIONS } from "@/lib/heardAbout";
+import { normalizeFullName, MIN_NAME_LENGTH } from "@/lib/nameFormat";
 import TurnstileWidget from "@/components/auth/TurnstileWidget";
 
 type Step = "details" | "otp";
@@ -97,6 +98,14 @@ export default function RegisterForm({
     setInfo(null);
     setAccountExists(null);
 
+    const cleanName = normalizeFullName(form.name);
+    if (cleanName.length < MIN_NAME_LENGTH) {
+      setBusy(false);
+      setError(`Ad Soyad ən azı ${MIN_NAME_LENGTH} simvol olmalıdır.`);
+      return;
+    }
+    if (cleanName !== form.name) setForm((f) => ({ ...f, name: cleanName }));
+
     if (!form.heardAboutSource) {
       setBusy(false);
       setError("Bizi haradan eşitdiyinizi seçin.");
@@ -115,6 +124,7 @@ export default function RegisterForm({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
+        name: cleanName,
         phone: fullPhoneNumber(),
         captchaToken,
       }),
@@ -239,8 +249,10 @@ export default function RegisterForm({
               placeholder="Ad Soyad"
               value={form.name}
               onChange={(v) => setForm({ ...form, name: v })}
+              onBlur={() => setForm((f) => ({ ...f, name: normalizeFullName(f.name) }))}
               autoComplete="name"
               required
+              minLength={MIN_NAME_LENGTH}
             />
             <PhoneField
               variant={variant}
@@ -447,6 +459,7 @@ function Field({
   placeholder: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   required?: boolean;
   minLength?: number;
   uppercase?: boolean;
@@ -474,6 +487,7 @@ function Field({
         placeholder={rest.placeholder}
         value={rest.value}
         onChange={(e) => rest.onChange(e.target.value)}
+        onBlur={() => rest.onBlur?.()}
         required={rest.required}
         minLength={rest.minLength}
         autoComplete={rest.autoComplete}

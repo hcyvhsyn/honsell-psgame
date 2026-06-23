@@ -51,7 +51,8 @@ type BadgeKey =
   | "pendingReviews"
   | "pendingTestimonials"
   | "pendingCommunity"
-  | "newWebsiteApplications";
+  | "newWebsiteApplications"
+  | "heldInviteBonuses";
 
 type IconName =
   | "LayoutDashboard"

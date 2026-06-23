@@ -90,6 +90,15 @@ export async function POST(req: Request) {
     body.epicPositionPct != null ? Number(body.epicPositionPct) : 50;
   const epicMinProfitPct =
     body.epicMinProfitPct != null ? Number(body.epicMinProfitPct) : 10;
+  // Sabit dəvət bonusu (qəpik). Köhnə client-lər göndərməsə default saxlanır.
+  const referralInviteBonusCents =
+    body.referralInviteBonusCents != null
+      ? Math.trunc(Number(body.referralInviteBonusCents))
+      : 30;
+  const sponsoredReferralInviteBonusCents =
+    body.sponsoredReferralInviteBonusCents != null
+      ? Math.trunc(Number(body.sponsoredReferralInviteBonusCents))
+      : 30;
 
   if (!Number.isFinite(tryToAznRate) || tryToAznRate <= 0) {
     return NextResponse.json({ error: "Invalid tryToAznRate" }, { status: 400 });
@@ -102,6 +111,18 @@ export async function POST(req: Request) {
   }
   if (!Number.isFinite(epicMinProfitPct) || epicMinProfitPct < 0) {
     return NextResponse.json({ error: "Invalid epicMinProfitPct" }, { status: 400 });
+  }
+  if (!Number.isFinite(referralInviteBonusCents) || referralInviteBonusCents < 0) {
+    return NextResponse.json({ error: "Invalid referralInviteBonusCents" }, { status: 400 });
+  }
+  if (
+    !Number.isFinite(sponsoredReferralInviteBonusCents) ||
+    sponsoredReferralInviteBonusCents < 0
+  ) {
+    return NextResponse.json(
+      { error: "Invalid sponsoredReferralInviteBonusCents" },
+      { status: 400 }
+    );
   }
   if (!Number.isFinite(profitMarginPct) || profitMarginPct < 0) {
     return NextResponse.json({ error: "Invalid profitMarginPct" }, { status: 400 });
@@ -135,6 +156,8 @@ export async function POST(req: Request) {
       usdToAznRate,
       epicPositionPct,
       epicMinProfitPct,
+      referralInviteBonusCents,
+      sponsoredReferralInviteBonusCents,
       depositCardNumber,
       depositCardHolder,
     };

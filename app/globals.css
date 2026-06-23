@@ -338,6 +338,77 @@ html.theme-soft-transition *::after {
 }
 
 /* ─── Custom honsell-* utilities ─────────────────────────────────────────── */
+:root.light .honsell-streaming-dark,
+:root.light .honsell-streaming-dark.bg-zinc-950,
+:root.light .honsell-streaming-dark .bg-zinc-950,
+:root.light .honsell-streaming-dark [class*="bg-zinc-950\/"] {
+  background-color: #05060a !important;
+}
+
+:root.light .honsell-streaming-dark .bg-zinc-900,
+:root.light .honsell-streaming-dark [class*="bg-zinc-900\/"] {
+  background-color: rgba(9, 11, 20, 0.92) !important;
+}
+
+:root.light .honsell-streaming-dark .bg-zinc-800,
+:root.light .honsell-streaming-dark [class*="bg-zinc-800\/"] {
+  background-color: rgba(24, 27, 40, 0.96) !important;
+}
+
+:root.light .honsell-streaming-dark .bg-black,
+:root.light .honsell-streaming-dark [class*="bg-black\/"] {
+  background-color: rgba(0, 0, 0, 0.82) !important;
+}
+
+:root.light .honsell-streaming-dark.text-zinc-100,
+:root.light .honsell-streaming-dark .text-white,
+:root.light .honsell-streaming-dark .text-zinc-100 {
+  color: #f8fbff !important;
+}
+
+:root.light .honsell-streaming-dark .text-zinc-200,
+:root.light .honsell-streaming-dark .text-zinc-300 {
+  color: #dbe3f3 !important;
+}
+
+:root.light .honsell-streaming-dark .text-zinc-400 {
+  color: #aeb8ce !important;
+}
+
+:root.light .honsell-streaming-dark .text-zinc-500,
+:root.light .honsell-streaming-dark .text-zinc-600 {
+  color: #7f8aa6 !important;
+}
+
+:root.light .honsell-streaming-dark .border-zinc-800,
+:root.light .honsell-streaming-dark [class*="border-zinc-800\/"],
+:root.light .honsell-streaming-dark .border-zinc-900,
+:root.light .honsell-streaming-dark [class*="border-zinc-900\/"] {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+:root.light .honsell-streaming-dark [class*="from-zinc-9"],
+:root.light .honsell-streaming-dark [class*="from-zinc-8"] {
+  --tw-gradient-from: rgba(24, 27, 40, 0.96) var(--tw-gradient-from-position) !important;
+  --tw-gradient-stops:
+    var(--tw-gradient-from),
+    var(--tw-gradient-via, var(--tw-gradient-to, rgba(24, 27, 40, 0))) !important;
+}
+
+:root.light .honsell-streaming-dark [class*="via-zinc-9"],
+:root.light .honsell-streaming-dark [class*="via-zinc-8"] {
+  --tw-gradient-via: rgba(12, 14, 24, 0.94) var(--tw-gradient-via-position) !important;
+  --tw-gradient-stops:
+    var(--tw-gradient-from),
+    var(--tw-gradient-via),
+    var(--tw-gradient-to, rgba(5, 6, 10, 0.98)) !important;
+}
+
+:root.light .honsell-streaming-dark [class*="to-zinc-9"],
+:root.light .honsell-streaming-dark [class*="to-zinc-8"] {
+  --tw-gradient-to: rgba(5, 6, 10, 0.98) var(--tw-gradient-to-position) !important;
+}
+
 :root.light .honsell-navbar-shell {
   border-color: rgba(124, 58, 237, 0.22);
   background:

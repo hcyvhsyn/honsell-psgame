@@ -6,6 +6,7 @@ import {
   DEFAULT_STREAMING_PLATFORMS,
   getStreamingPlatformByCode,
 } from "@/lib/streamingPlatforms";
+import { getServiceVariantConfig, getServiceVariantSlugs } from "@/lib/streamingVariants";
 import { Prisma } from "@/lib/generated/prisma/client";
 
 export const runtime = "nodejs";
@@ -199,8 +200,20 @@ export async function POST(req: Request) {
           ? null
           : Number(originalPriceAznRaw);
 
+      // Variant (tier) slug — yalnız config-i olan xidmətlər üçün (məs. Netflix).
+      const variantSlug = String(body.variantSlug ?? "").trim();
+      const variantCfg = getServiceVariantConfig(service);
       if (!service) {
         return NextResponse.json({ error: "Xidmət adı tələb olunur." }, { status: 400 });
+      }
+      if (variantSlug && !getServiceVariantSlugs(service).includes(variantSlug)) {
+        return NextResponse.json({ error: "Variant düzgün deyil." }, { status: 400 });
+      }
+      if (variantCfg && !variantSlug) {
+        return NextResponse.json(
+          { error: `${service} üçün variant (tier) seçilməlidir.` },
+          { status: 400 },
+        );
       }
       if (!VALID_DURATIONS.has(durationMonths)) {
         return NextResponse.json({ error: "Müddət 1/2/3/6/12 ay olmalıdır." }, { status: 400 });
@@ -261,6 +274,7 @@ export async function POST(req: Request) {
           deliveryMode: "CODE",
           devices: serviceAccess.devices,
           vpnRequired: serviceAccess.vpnRequired,
+          ...(variantSlug ? { variantSlug } : {}),
           ...(servicePlatformImage ? { platformImageUrl: servicePlatformImage } : {}),
           ...(serviceReferral.hasOverride
             ? {

@@ -101,6 +101,11 @@ model User {
   transactions Transaction[] @relation("UserTransactions")
   commissions  Transaction[] @relation("CommissionBeneficiary")
 
+  // Sabit dəvət bonusları — dəvət edən kimi qazandıqları (çox) və dəvət olunan
+  // kimi onlara görə yaradılan tək qeyd (bax: ReferralInviteBonus).
+  inviteBonusesEarned ReferralInviteBonus[] @relation("InviteBonusReferrer")
+  inviteBonusAsReferee ReferralInviteBonus? @relation("InviteBonusReferee")
+
   subscriptions Subscription[]
 
   favorites Favorite[]
@@ -934,6 +939,14 @@ model Settings {
   // cashback (cashbackBalance-a). Rəy təsdiqlənəndə verilir. Default 1%.
   reviewCashbackRatePct           Float  @default(1)
 
+  // Dəvət bonusu: dəvət olunan istifadəçi nömrəsini/OTP-ni təsdiqlədikdə dəvət
+  // edənə yazılan SABİT məbləğ (qəpik, AZN * 100). Faiz komissiyasından ayrıdır.
+  // `referralInviteBonusCents` — adi müştəri (default 30 = 0.30 AZN).
+  // `sponsoredReferralInviteBonusCents` — "sponsorlu" seqmentdəki dəvət edən üçün.
+  // 0 yazıldıqda həmin müştəri tipində dəvət bonusu bağlanır.
+  referralInviteBonusCents          Int  @default(30)
+  sponsoredReferralInviteBonusCents Int  @default(30)
+
   // Bank card the customer transfers funds to during manual deposit.
   depositCardNumber String?
   depositCardHolder String?
@@ -998,6 +1011,42 @@ model ReferralRate {
   @@unique([tierId, targetType, serviceProductId])
   @@index([tierId, targetType])
   @@index([serviceProductId])
+}
+
+// ─── Sabit dəvət bonusu (signup bonus) + anti-spam review növbəsi ─────────────
+//
+// Faiz komissiyasından (Transaction COMMISSION) ayrı mexanizm. Dəvət olunan
+// istifadəçi nömrəsini/OTP-ni təsdiqlədikdə dəvət edənə Settings-dəki sabit
+// məbləğ (müştəri tipinə görə) yazılır. Hər dəvət olunan üçün ən çoxu bir qeyd
+// olur (`refereeId @unique` → idempotentlik). Anti-spam şübhə yaranarsa bonus
+// dərhal ödənmir — `status = HELD` saxlanır, admin paneldə yoxlanır.
+model ReferralInviteBonus {
+  id         String @id @default(cuid())
+  referrerId String
+  referrer   User   @relation("InviteBonusReferrer", fields: [referrerId], references: [id])
+  // Dəvət olunan — hər kəs üçün ən çoxu bir bonus qeydi (idempotentlik açarı).
+  refereeId  String @unique
+  referee    User   @relation("InviteBonusReferee", fields: [refereeId], references: [id])
+
+  // Sabit məbləğ (qəpik). Yaranma anında Settings dəyərindən snapshot götürülür.
+  amountCents Int
+
+  // PAID = balansa keçib | HELD = şübhəli, admin yoxlamasını gözləyir | REJECTED = admin rədd etdi.
+  status      String  @default("PAID")
+  suspicious  Boolean @default(false)
+  // Şübhə səbəblərinin JSON massivi (admin paneldə göstərilir).
+  flagReasons String?
+  // PAID olduqda balansa yazılan COMMISSION tranzaksiyasının id-si (audit/idempotentlik).
+  transactionId String?
+
+  reviewedAt   DateTime?
+  reviewedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([referrerId])
 }
 
 // ─── Search Suggestions ──────────────────────────────────────────────────────

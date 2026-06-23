@@ -47,6 +47,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
       { href: "/admin/referral-tree", label: "Referral ağacı", iconName: "Network" },
       { href: "/admin/campaigns", label: "Reklam / Kampaniya", iconName: "Megaphone" },
       { href: "/admin/referrals", label: "Referal faizləri", iconName: "Percent" },
+      { href: "/admin/invite-bonuses", label: "Dəvət bonusları", iconName: "Gift", badgeKey: "heldInviteBonuses" },
     ],
   },
   {
@@ -198,6 +199,10 @@ export default async function AdminLayout({
     .count({ where: { status: "NEW" } })
     .catch(() => 0);
 
+  const heldInviteBonuses = await prisma.referralInviteBonus
+    .count({ where: { status: "HELD" } })
+    .catch(() => 0);
+
   const badges = {
     pendingDeposits,
     pendingGameOrders,
@@ -207,6 +212,7 @@ export default async function AdminLayout({
     pendingTestimonials,
     pendingCommunity,
     newWebsiteApplications,
+    heldInviteBonuses,
   } as const;
 
   return (

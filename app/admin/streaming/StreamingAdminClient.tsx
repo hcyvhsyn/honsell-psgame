@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { uploadAdminImage } from "@/lib/uploadImageClient";
 import { Loader2, Plus, Edit2, Upload, X, Trash2, Check, Pencil } from "lucide-react";
 import { useDialog } from "@/lib/dialogs";
+import { getServiceVariantConfig } from "@/lib/streamingVariants";
 
 type ServiceProduct = {
   id: string;
@@ -85,6 +86,7 @@ function readMeta(p: ServiceProduct) {
   const rawDevices = Array.isArray(m.devices) ? (m.devices as unknown[]) : [];
   return {
     service: String(m.service ?? ""),
+    variantSlug: typeof m.variantSlug === "string" ? m.variantSlug : "",
     durationMonths: Number(m.durationMonths ?? 0),
     seats: Number(m.seats ?? 1),
     originalPriceAznCents: Number.isFinite(opc) && opc > 0 ? opc : null,
@@ -133,7 +135,7 @@ export default function StreamingAdminClient() {
 
   // Platforma üzrə sürətli paket əlavəsi (modalsız).
   const [quickAdd, setQuickAdd] = useState<
-    Record<string, { durationMonths: number; seats: number; priceAzn: string }>
+    Record<string, { durationMonths: number; seats: number; priceAzn: string; variantSlug?: string }>
   >({});
   const [quickAddBusy, setQuickAddBusy] = useState<string | null>(null);
   const [quickAddError, setQuickAddError] = useState<{ service: string; msg: string } | null>(null);
@@ -224,6 +226,7 @@ export default function StreamingAdminClient() {
       isActive: p.isActive,
       sortOrder: p.sortOrder,
       service: m.service || "HBO_MAX",
+      variantSlug: m.variantSlug || "",
       durationMonths: m.durationMonths || 1,
       seats: m.seats || 1,
       priceAzn: (p.priceAznCents / 100).toFixed(2),
@@ -240,6 +243,7 @@ export default function StreamingAdminClient() {
       isActive: true,
       sortOrder: 0,
       service: services[0]?.value ?? "",
+      variantSlug: "",
       durationMonths: 1,
       seats: 1,
       priceAzn: "",
@@ -410,11 +414,18 @@ export default function StreamingAdminClient() {
         setSaveError("Xidmət adı tələb olunur!");
         return;
       }
+      const variantCfg = getServiceVariantConfig(service);
+      const variantSlug = String(editForm.variantSlug ?? "").trim();
+      if (variantCfg && !variantSlug) {
+        setSaveError("Variant (tier) seçilməlidir!");
+        return;
+      }
+      const variantName = variantCfg?.variants.find((v) => v.slug === variantSlug)?.name ?? "";
       const durationMonths = Number(editForm.durationMonths);
       const seats = Number(editForm.seats);
       const autoTitle =
         String(editForm.title).trim() ||
-        `${serviceLabel(service)} ${durationMonths} ay${seats > 1 ? ` · ${seats} nəfərlik` : ""}`;
+        `${serviceLabel(service)}${variantName ? ` ${variantName}` : ""} ${durationMonths} ay${seats > 1 ? ` · ${seats} nəfərlik` : ""}`;
 
       const originalPriceAznRaw = String(editForm.originalPriceAzn ?? "").trim();
       const originalPriceAzn = originalPriceAznRaw === "" ? null : Number(originalPriceAznRaw);
@@ -430,6 +441,7 @@ export default function StreamingAdminClient() {
           isActive: editForm.isActive,
           sortOrder: Number(editForm.sortOrder || 0),
           service,
+          variantSlug,
           durationMonths,
           seats,
           priceAzn,
@@ -686,7 +698,7 @@ export default function StreamingAdminClient() {
 
   function patchQuickAdd(
     service: string,
-    patch: Partial<{ durationMonths: number; seats: number; priceAzn: string }>,
+    patch: Partial<{ durationMonths: number; seats: number; priceAzn: string; variantSlug: string }>,
   ) {
     setQuickAddError(null);
     setQuickAdd((prev) => ({
@@ -702,12 +714,23 @@ export default function StreamingAdminClient() {
       setQuickAddError({ service, msg: "Qiymət düzgün deyil" });
       return;
     }
+    const variantCfg = getServiceVariantConfig(service);
+    const variantSlug = String(qa.variantSlug ?? "").trim();
+    if (variantCfg && !variantSlug) {
+      setQuickAddError({ service, msg: "Variant (tier) seçilməlidir" });
+      return;
+    }
     const duplicate = products.some((p) => {
       const m = readMeta(p);
-      return m.service === service && m.durationMonths === qa.durationMonths && m.seats === qa.seats;
+      return (
+        m.service === service &&
+        m.durationMonths === qa.durationMonths &&
+        m.seats === qa.seats &&
+        m.variantSlug === variantSlug
+      );
     });
     if (duplicate) {
-      setQuickAddError({ service, msg: "Bu müddət/nəfər kombinasiyası artıq var" });
+      setQuickAddError({ service, msg: "Bu variant/müddət/nəfər kombinasiyası artıq var" });
       return;
     }
     setQuickAddBusy(service);
@@ -723,6 +746,7 @@ export default function StreamingAdminClient() {
           isActive: true,
           sortOrder: 0,
           service,
+          variantSlug,
           durationMonths: qa.durationMonths,
           seats: qa.seats,
           priceAzn: value,
@@ -1170,6 +1194,25 @@ export default function StreamingAdminClient() {
 
               <div className="border-t border-admin-line bg-admin-card px-5 py-3">
                 <div className="flex flex-wrap items-end gap-2">
+                  {(() => {
+                    const cfg = getServiceVariantConfig(svc.value);
+                    if (!cfg) return null;
+                    return (
+                      <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                        Variant
+                        <select
+                          value={qa.variantSlug ?? ""}
+                          onChange={(e) => patchQuickAdd(svc.value, { variantSlug: e.target.value })}
+                          className="mt-1 block rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900"
+                        >
+                          <option value="">— Seç —</option>
+                          {cfg.variants.map((v) => (
+                            <option key={v.slug} value={v.slug}>{v.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                    );
+                  })()}
                   <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
                     Müddət
                     <select
@@ -1257,6 +1300,29 @@ export default function StreamingAdminClient() {
                   </select>
                 </label>
               </div>
+
+              {(() => {
+                const cfg = getServiceVariantConfig(String(editForm.service ?? ""));
+                if (!cfg) return null;
+                return (
+                  <label className="block text-sm">
+                    Variant (tier)
+                    <select
+                      className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
+                      value={String(editForm.variantSlug ?? "")}
+                      onChange={(e) => setEditForm({ ...editForm, variantSlug: e.target.value })}
+                    >
+                      <option value="">— Seç —</option>
+                      {cfg.variants.map((v) => (
+                        <option key={v.slug} value={v.slug}>{v.name}</option>
+                      ))}
+                    </select>
+                    <span className="mt-1 block text-xs text-zinc-500">
+                      Bu xidmətin alt-paketi. Fərqlər koddan idarə olunur (lib/streamingVariants).
+                    </span>
+                  </label>
+                );
+              })()}
 
               <label className="block text-sm">
                 Nəfər sayı

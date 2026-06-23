@@ -4,6 +4,8 @@ import { SESSION_COOKIE_NAME } from "@/lib/auth";
 import { sendAdminNewUserNotification, sendWelcomeEmail } from "@/lib/resend";
 import { rateLimitMessage } from "@/lib/rateLimit";
 import { heardAboutLabel } from "@/lib/heardAbout";
+import { awardInviteBonus } from "@/lib/inviteBonus";
+import { getClientIp } from "@/lib/clientInfo";
 
 export const runtime = "nodejs";
 
@@ -92,6 +94,17 @@ export async function POST(req: Request) {
       otpLockedUntil: null,
     },
   });
+
+  // Dəvətlə gələn istifadəçi indi təsdiqləndi — dəvət edənə sabit bonus yaz.
+  // Şübhəli olarsa awardInviteBonus bonusu HELD saxlayır (admin yoxlayır).
+  // Xəta təsdiqi bloklamamalıdır — welcome email kimi loglayıb davam edirik.
+  if (user.referredById) {
+    try {
+      await awardInviteBonus({ refereeId: user.id, requestIp: getClientIp(req) });
+    } catch (err) {
+      console.error("invite bonus award failed", err);
+    }
+  }
 
   try {
     await sendWelcomeEmail(email, user.name ?? email.split("@")[0], user.referralCode);

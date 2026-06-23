@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
@@ -8,6 +9,10 @@ import StreamingFeaturedBanner, { type FeaturedSlide } from "@/components/Stream
 import StreamingReviewsPreview from "@/components/StreamingReviewsPreview";
 import PlatformGuidesSection from "@/components/PlatformGuidesSection";
 import NewsSection from "@/components/NewsSection";
+import StreamingVariantLanding, {
+  type LandingVariant,
+} from "@/components/StreamingVariantLanding";
+import { getServiceVariantConfig } from "@/lib/streamingVariants";
 import type { StreamingServiceMeta } from "@/lib/streamingCart";
 
 type Props = {
@@ -16,12 +21,19 @@ type Props = {
   parent: { href: string; label: string };
   /** Detal səhifəsinin tam URL-i (canonical / breadcrumb üçün). */
   detailHref: string;
+  /**
+   * Seçilmiş variant (tier) slug-ı — məs. "evimde". Verildikdə yalnız həmin
+   * tier-in alış görünüşü göstərilir; verilmədikdə (və xidmətdə variantlar
+   * varsa) variant müqayisə (landing) görünüşü göstərilir.
+   */
+  variantSlug?: string;
 };
 
 export default async function StreamingServiceDetail({
   svc,
   parent,
   detailHref,
+  variantSlug,
 }: Props) {
   const isMusic = svc.category === "MUSIC";
 
@@ -59,6 +71,82 @@ export default async function StreamingServiceDetail({
     return String(meta?.service ?? "").toUpperCase() === svc.code;
   });
 
+  // ── Variant (tier) qruplaşması ──────────────────────────────────────────
+  // Variant display məlumatı koddakı config-dən gəlir (lib/streamingVariants);
+  // məhsul yalnız metadata.variantSlug saxlayır. Bir xidmətdə (məs. Netflix)
+  // variantlar varsa, /streaming/netflix müqayisə (landing) səhifəsinə çevrilir;
+  // hər tier öz alt səhifəsində (məs. /streaming/netflix/evimde) alınır.
+  const variantConfig = isMusic ? null : getServiceVariantConfig(svc.code);
+
+  const productVariantSlug = (p: (typeof filtered)[number]): string => {
+    const m = (p.metadata as Record<string, unknown> | null) ?? null;
+    return m && typeof m.variantSlug === "string" ? m.variantSlug.trim() : "";
+  };
+
+  // Config-dəki variantlar ∩ aktiv məhsulu olan variantlar.
+  const variantGroups = (variantConfig?.variants ?? [])
+    .map((v) => {
+      const prods = filtered.filter((p) => productVariantSlug(p) === v.slug);
+      if (prods.length === 0) return null;
+      const fromPpm = Math.min(
+        ...prods.map(
+          (p) => p.priceAznCents / (Number((p.metadata as Record<string, unknown>)?.durationMonths) || 1),
+        ),
+      );
+      const imageUrl =
+        prods.find((p) => p.imageUrl)?.imageUrl ??
+        (typeof (prods[0].metadata as Record<string, unknown>)?.platformImageUrl === "string"
+          ? String((prods[0].metadata as Record<string, unknown>).platformImageUrl)
+          : null);
+      return { variant: v, fromPpm, imageUrl };
+    })
+    .filter((g): g is { variant: NonNullable<typeof variantConfig>["variants"][number]; fromPpm: number; imageUrl: string | null } => g !== null);
+
+  const hasVariants = variantGroups.length > 1;
+  const activeGroup = variantSlug
+    ? variantGroups.find((g) => g.variant.slug === variantSlug) ?? null
+    : null;
+  const activeVariant = activeGroup?.variant ?? null;
+  // URL-də variant slug var, amma uyğun tier (config + aktiv məhsul) yoxdur → 404.
+  if (variantSlug && !activeVariant) {
+    notFound();
+  }
+  // Konkret tier seçilməyibsə və variantlar varsa → müqayisə (landing) görünüşü.
+  const showVariantLanding = hasVariants && !activeVariant;
+  const commonFeatures = variantConfig?.common ?? [];
+
+  const landingVariants: LandingVariant[] = variantGroups.map((g) => ({
+    slug: g.variant.slug,
+    name: g.variant.name,
+    fromPerMonthAzn: g.fromPpm / 100,
+    features: g.variant.features,
+    href: `${detailHref}/${g.variant.slug}`,
+    imageUrl: g.imageUrl,
+  }));
+
+  // Picker-ə ötürüləcək məhsullar: konkret tier seçilibsə yalnız onun paketləri.
+  const pickerProducts = activeVariant
+    ? filtered.filter((p) => productVariantSlug(p) === activeVariant.slug)
+    : filtered;
+
+  // Tier seçilibsə, config-dəki variant məlumatını (ad/fərqlər/cihazlar/ortaq)
+  // məhsul metadata-sına inject edirik ki, picker dəyişmədən göstərsin.
+  const pickerMetaFor = (p: (typeof filtered)[number]): Record<string, unknown> | null => {
+    const base = (p.metadata as Record<string, unknown> | null) ?? {};
+    if (activeVariant && variantConfig) {
+      return {
+        ...base,
+        variant: activeVariant.name,
+        variantSlug: activeVariant.slug,
+        variantRank: activeVariant.rank,
+        variantFeatures: activeVariant.features,
+        commonFeatures: variantConfig.common,
+        devices: activeVariant.devices,
+      };
+    }
+    return base;
+  };
+
   const slides: FeaturedSlide[] = featured.map((r) => ({
     id: r.id,
     titleId: r.titleId,
@@ -81,12 +169,22 @@ export default async function StreamingServiceDetail({
     itemListElement: [
       { "@type": "ListItem", position: 1, name: parent.label, item: parent.href },
       { "@type": "ListItem", position: 2, name: svc.label, item: detailHref },
+      ...(activeVariant
+        ? [
+            {
+              "@type": "ListItem",
+              position: 3,
+              name: `${svc.label} ${activeVariant.name}`,
+              item: `${detailHref}/${activeVariant.slug}`,
+            },
+          ]
+        : []),
     ],
   };
 
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="honsell-streaming-dark min-h-screen bg-zinc-950 text-zinc-100">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
@@ -110,7 +208,7 @@ export default async function StreamingServiceDetail({
           </div>
         )}
 
-        {!isMusic && slides.length > 0 && (
+        {!isMusic && !activeVariant && slides.length > 0 && (
           <div className="mt-4">
             <StreamingFeaturedBanner slides={slides} />
           </div>
@@ -118,17 +216,29 @@ export default async function StreamingServiceDetail({
       </section>
 
       <section id="plan-sec" className="mx-auto max-w-7xl px-4 pb-14 pt-8 sm:px-6 lg:px-8">
-        <header className="mb-6">
-          <h2 className="text-2xl font-black text-white sm:text-3xl">
-            {isMusic ? `${svc.label} paketləri` : "Plan seç"}
-          </h2>
-          <p className="mt-1 text-sm text-zinc-500">
-            {isMusic
-              ? "Müddətini seç, sifarişdən sonra hesab məlumatları emailinə göndəriləcək."
-              : "Müddətini seç, ödənişdən sonra giriş məlumatları sənə göndəriləcək."}
-          </p>
-        </header>
-        {isYoutube ? (
+        {!showVariantLanding && (
+          <header className="mb-6">
+            <h2 className="text-2xl font-black text-white sm:text-3xl">
+              {isMusic
+                ? `${svc.label} paketləri`
+                : activeVariant
+                  ? `${svc.label} ${activeVariant.name}`
+                  : "Plan seç"}
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              {isMusic
+                ? "Müddətini seç, sifarişdən sonra hesab məlumatları emailinə göndəriləcək."
+                : "Müddətini seç, ödənişdən sonra giriş məlumatları sənə göndəriləcək."}
+            </p>
+          </header>
+        )}
+        {showVariantLanding ? (
+          <StreamingVariantLanding
+            serviceLabel={svc.label}
+            variants={landingVariants}
+            commonFeatures={commonFeatures}
+          />
+        ) : isYoutube ? (
           <StreamingPlanPicker
             productType="PLATFORM"
             authMode="GMAIL_PASSWORD"
@@ -156,26 +266,26 @@ export default async function StreamingServiceDetail({
               metadata: (p.metadata as Record<string, unknown> | null) ?? null,
             }))}
           />
-        ) : filtered.length === 0 ? (
+        ) : pickerProducts.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-8 text-center text-sm text-zinc-400">
             {svc.label} üçün aktiv plan yoxdur.
           </div>
         ) : (
           <StreamingPlanPicker
-            products={filtered.map((p) => ({
+            products={pickerProducts.map((p) => ({
               id: p.id,
               title: p.title,
               description: p.description,
               imageUrl: p.imageUrl,
               priceAznCents: p.priceAznCents,
-              metadata: (p.metadata as Record<string, unknown> | null) ?? null,
+              metadata: pickerMetaFor(p),
               availableStock: p._count.codes,
             }))}
           />
         )}
       </section>
 
-      {!isMusic && (
+      {!isMusic && !showVariantLanding && !activeVariant && (
         <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
           <header className="mb-5">
             <h2 className="text-2xl font-black text-white sm:text-3xl">
