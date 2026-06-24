@@ -33,6 +33,17 @@ export default function ProfileSidebar({
 }: {
   profileIncomplete?: boolean;
 }) {
+
+
+
+
+
+
+
+
+
+
+  
   const pathname = usePathname();
 
   async function logout() {
