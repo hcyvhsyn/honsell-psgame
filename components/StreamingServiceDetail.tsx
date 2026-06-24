@@ -13,6 +13,7 @@ import StreamingVariantLanding, {
   type LandingVariant,
 } from "@/components/StreamingVariantLanding";
 import { getServiceVariantConfig } from "@/lib/streamingVariants";
+import { getStreamingGroup } from "@/lib/streamingGroups";
 import type { StreamingServiceMeta } from "@/lib/streamingCart";
 
 type Props = {
@@ -124,6 +125,60 @@ export default async function StreamingServiceDetail({
     imageUrl: g.imageUrl,
   }));
 
+  // ── Qrup (parent) seçim ekranı ──────────────────────────────────────────
+  // Bəzi xidmətlər (məs. Netflix) alt-paketlərə bölünmüş AYRICA platformalar
+  // kimi qurulub. Parent səhifə (/streaming/netflix) müqayisə ekranı göstərir,
+  // hər kart isə öz müstəqil platforma səhifəsinə yönləndirir.
+  const group = isMusic ? null : getStreamingGroup(svc.slug);
+  let groupLanding: LandingVariant[] = [];
+  let groupCommon = commonFeatures;
+  if (group) {
+    const childSlugs = group.children.map((c) => c.platformSlug);
+    const childRows = await prisma.streamingPlatform.findMany({
+      where: { slug: { in: childSlugs }, isActive: true },
+      select: { slug: true, code: true },
+    });
+    const codeBySlug = new Map(childRows.map((r) => [r.slug, r.code.toUpperCase()]));
+    groupCommon = getServiceVariantConfig(group.variantServiceCode)?.common ?? [];
+    groupLanding = group.children
+      .map((child): LandingVariant | null => {
+        const code = codeBySlug.get(child.platformSlug);
+        if (!code) return null; // platforma yoxdur/gizlidir → kartı göstərmə
+        const prods = products.filter(
+          (p) =>
+            String((p.metadata as Record<string, unknown> | null)?.service ?? "").toUpperCase() ===
+            code,
+        );
+        const fromPpm = prods.length
+          ? Math.min(
+              ...prods.map(
+                (p) =>
+                  p.priceAznCents /
+                  (Number((p.metadata as Record<string, unknown>)?.durationMonths) || 1),
+              ),
+            )
+          : null;
+        const imageUrl =
+          prods.find((p) => p.imageUrl)?.imageUrl ??
+          (typeof (prods[0]?.metadata as Record<string, unknown> | undefined)?.platformImageUrl ===
+          "string"
+            ? String((prods[0].metadata as Record<string, unknown>).platformImageUrl)
+            : null);
+        return {
+          slug: child.platformSlug,
+          name: child.name,
+          fromPerMonthAzn: fromPpm != null ? fromPpm / 100 : null,
+          features: child.features,
+          href: `/streaming/${child.platformSlug}`,
+          imageUrl,
+        };
+      })
+      .filter((x): x is LandingVariant => x !== null);
+  }
+  const showGroupLanding = groupLanding.length > 0 && !activeVariant;
+  // Header/icmal/featured bölmələrini gizlədən "landing" rejimi.
+  const landingMode = showVariantLanding || showGroupLanding;
+
   // Picker-ə ötürüləcək məhsullar: konkret tier seçilibsə yalnız onun paketləri.
   const pickerProducts = activeVariant
     ? filtered.filter((p) => productVariantSlug(p) === activeVariant.slug)
@@ -208,7 +263,7 @@ export default async function StreamingServiceDetail({
           </div>
         )}
 
-        {!isMusic && !activeVariant && slides.length > 0 && (
+        {!isMusic && !activeVariant && !showGroupLanding && slides.length > 0 && (
           <div className="mt-4">
             <StreamingFeaturedBanner slides={slides} />
           </div>
@@ -216,7 +271,7 @@ export default async function StreamingServiceDetail({
       </section>
 
       <section id="plan-sec" className="mx-auto max-w-7xl px-4 pb-14 pt-8 sm:px-6 lg:px-8">
-        {!showVariantLanding && (
+        {!landingMode && (
           <header className="mb-6">
             <h2 className="text-2xl font-black text-white sm:text-3xl">
               {isMusic
@@ -232,11 +287,11 @@ export default async function StreamingServiceDetail({
             </p>
           </header>
         )}
-        {showVariantLanding ? (
+        {landingMode ? (
           <StreamingVariantLanding
             serviceLabel={svc.label}
-            variants={landingVariants}
-            commonFeatures={commonFeatures}
+            variants={showGroupLanding ? groupLanding : landingVariants}
+            commonFeatures={showGroupLanding ? groupCommon : commonFeatures}
           />
         ) : isYoutube ? (
           <StreamingPlanPicker
@@ -285,7 +340,7 @@ export default async function StreamingServiceDetail({
         )}
       </section>
 
-      {!isMusic && !showVariantLanding && !activeVariant && (
+      {!isMusic && !landingMode && !activeVariant && (
         <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
           <header className="mb-5">
             <h2 className="text-2xl font-black text-white sm:text-3xl">

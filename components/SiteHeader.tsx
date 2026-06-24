@@ -41,7 +41,6 @@ import {
 import CartIndicator from "./CartIndicator";
 import Logo from "./Logo";
 import NavSearch from "./NavSearch";
-import { useModals } from "@/lib/modals";
 import {
   PRODUCT_CATEGORY_DEFINITIONS,
   type ProductCategoryNavAsset,
@@ -170,7 +169,6 @@ export default function SiteHeader({
   const [menuOpen, setMenuOpen] = useState(false);
   const [desktopCategoriesOpen, setDesktopCategoriesOpen] = useState(false);
   const pathname = usePathname();
-  const { open } = useModals();
   const productCategoryItems = buildProductCategoryItems(categoryAssets);
 
   // Prevent background scroll only for the mobile sheet; desktop categories stay in page flow.
@@ -233,21 +231,19 @@ export default function SiteHeader({
                 <UserAccountDropdown user={user} />
               ) : (
                 <div className="hidden items-center gap-2 sm:flex">
-	                  <button
-	                    type="button"
-	                    onClick={() => open("login")}
+	                  <Link
+	                    href="/login"
 	                    className="group honsell-nav-action inline-flex h-10 items-center gap-2 rounded-[18px] border border-zinc-200 bg-white/75 px-3 text-sm font-semibold text-zinc-900 transition hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-100 dark:hover:bg-white/[0.075]"
 	                  >
 		                    <LogIn className="honsell-nav-icon-motion h-4 w-4 text-cyan-500 dark:text-cyan-300" /> Daxil ol
-	                  </button>
-	                  <button
-	                    type="button"
-	                    onClick={() => open("register")}
+	                  </Link>
+	                  <Link
+	                    href="/register"
 	                    className="group honsell-nav-action inline-flex h-10 items-center gap-2 rounded-[18px] bg-gradient-to-r from-violet-700 to-fuchsia-700 px-3 text-sm font-bold text-white shadow-[0_0_30px_-14px_rgba(124,58,237,0.9)] transition hover:from-violet-600 hover:to-fuchsia-600"
 	                  >
 		                    <UserPlus className="honsell-nav-icon-motion honsell-nav-icon-idle h-4 w-4 text-white" />
 	                    Qeydiyyat
-	                  </button>
+	                  </Link>
                 </div>
               )}
 

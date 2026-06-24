@@ -28,7 +28,8 @@ export type LandingFeature = { text: string; tone: LandingFeatureTone };
 export type LandingVariant = {
   slug: string;
   name: string;
-  fromPerMonthAzn: number;
+  /** Aydan başlanğıc qiymət (AZN). Aktiv paket yoxdursa null → "Tezliklə". */
+  fromPerMonthAzn: number | null;
   features: LandingFeature[];
   href: string;
   imageUrl: string | null;
@@ -119,8 +120,11 @@ export default function StreamingVariantLanding({
   commonFeatures: LandingFeature[];
 }) {
   const [technicalModalOpen, setTechnicalModalOpen] = useState(false);
-  const sortedVariants = [...variants].sort((a, b) => a.fromPerMonthAzn - b.fromPerMonthAzn);
-  const cheapest = sortedVariants[0]?.slug ?? null;
+  const sortedVariants = [...variants].sort(
+    (a, b) => (a.fromPerMonthAzn ?? Infinity) - (b.fromPerMonthAzn ?? Infinity),
+  );
+  // "Ən sərfəli" rozetkası yalnız qiyməti olan ən ucuz paketdə.
+  const cheapest = sortedVariants[0]?.fromPerMonthAzn != null ? sortedVariants[0].slug : null;
 
   return (
     <>
@@ -215,12 +219,16 @@ export default function StreamingVariantLanding({
                     <p className="text-xs font-black uppercase tracking-[0.14em] text-[#707b98]">
                       Başlanğıc qiymət
                     </p>
-                    <p className="mt-1 text-sm font-semibold text-[#9ba5bd]">
-                      <span className="text-3xl font-black text-[#f8fbff] tabular-nums">
-                        {v.fromPerMonthAzn.toFixed(2)}
-                      </span>{" "}
-                      ₼ / aydan
-                    </p>
+                    {v.fromPerMonthAzn != null ? (
+                      <p className="mt-1 text-sm font-semibold text-[#9ba5bd]">
+                        <span className="text-3xl font-black text-[#f8fbff] tabular-nums">
+                          {v.fromPerMonthAzn.toFixed(2)}
+                        </span>{" "}
+                        ₼ / aydan
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-3xl font-black text-[#f8fbff]">Tezliklə</p>
+                    )}
                   </div>
 
                   <div className="mt-3 flex-1 space-y-2">

@@ -5,6 +5,7 @@ import {
   getStreamingPlatformBySlug,
   getStreamingPlatformsByCategory,
 } from "@/lib/streamingPlatforms";
+import { getStreamingGroupParentSlug } from "@/lib/streamingGroups";
 
 export const revalidate = 1800;
 
@@ -55,10 +56,19 @@ export default async function StreamingServicePage({
     redirect(`/music/${svc.slug}`);
   }
 
+  // Qrup alt-paketidirsə (məs. netflix-yanimda) geri keçid parent seçim
+  // ekranına (/streaming/netflix) yönəlsin.
+  const parentSlug = getStreamingGroupParentSlug(svc.slug);
+  let parent = { href: "/streaming", label: "Streaming xidmətləri" };
+  if (parentSlug) {
+    const parentSvc = await getStreamingPlatformBySlug(parentSlug);
+    if (parentSvc) parent = { href: `/streaming/${parentSvc.slug}`, label: parentSvc.label };
+  }
+
   return (
     <StreamingServiceDetail
       svc={svc}
-      parent={{ href: "/streaming", label: "Streaming xidmətləri" }}
+      parent={parent}
       detailHref={`/streaming/${svc.slug}`}
     />
   );
