@@ -23,6 +23,7 @@ import {
   recordSuccessfulInvite,
 } from "@/lib/referralCycle";
 import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
+import { streamingUsesCustomerEmail } from "@/lib/streamingCart";
 import {
   EPOINT_CART_PAYMENT_TYPE,
   type EpointCartLineSnapshot,
@@ -568,7 +569,13 @@ export async function POST(req: Request) {
       const deliveryMode = String(meta.deliveryMode ?? "CODE") === "GMAIL" ? "GMAIL" : "CODE";
       let gmail: string | undefined;
       if (deliveryMode === "GMAIL") {
-        const parsed = parseStreamingBody(p.streaming);
+        // Müştərinin öz hesabına qoşulan plan (Netflix VVIP, Evimdə VIP) —
+        // e-poçt hər provayder ola bilər (yalnız @gmail.com deyil).
+        const customerEmail = streamingUsesCustomerEmail(meta.service as string);
+        const parsed = parseStreamingBody(
+          p.streaming,
+          customerEmail ? { allowAnyEmail: true, emailLabel: "Netflix hesab e-poçtu" } : {},
+        );
         if (!parsed.ok) {
           return NextResponse.json({ error: parsed.error }, { status: 400 });
         }

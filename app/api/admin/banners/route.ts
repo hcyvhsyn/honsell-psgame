@@ -20,7 +20,7 @@ export async function GET(req: Request) {
       where,
       orderBy: [{ scope: "asc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
       include: {
-        game: { select: { id: true, title: true, imageUrl: true } },
+        game: { select: { id: true, title: true, imageUrl: true, heroImageUrl: true, screenshots: true } },
         serviceProduct: { select: { id: true, title: true, imageUrl: true } },
       },
     });

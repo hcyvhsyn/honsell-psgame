@@ -12,11 +12,28 @@ export const STREAMING_SERVICE_LABELS: Record<string, string> = {
   GAIN: "Gain",
   YOUTUBE_PREMIUM: "YouTube Premium",
   NETFLIX: "Netflix",
+  NETFLIX_VVIP: "Netflix Hesab",
   PRIME_VIDEO: "Prime Video",
 };
 
-export const STREAMING_SERVICES = ["HBO_MAX", "GAIN", "YOUTUBE_PREMIUM", "NETFLIX", "PRIME_VIDEO"] as const;
+export const STREAMING_SERVICES = ["HBO_MAX", "GAIN", "YOUTUBE_PREMIUM", "NETFLIX", "NETFLIX_VVIP", "PRIME_VIDEO"] as const;
 export type StreamingService = (typeof STREAMING_SERVICES)[number];
+
+/**
+ * Bu streaming xidmətləri müştərinin ÖZ Netflix hesabına aktivləşir:
+ * - alışda şəxsi e-poçt tələb olunur (hər provayder, yalnız @gmail.com deyil),
+ * - admin UPSERT məhsulu `deliveryMode: "GMAIL"` qoyur,
+ * - stok hovuzu (kabinet mail/şifrə/pin) YOXDUR.
+ * Kodlar metadata.service ilə uyğun gəlir (StreamingPlatform.code).
+ */
+export const CUSTOMER_EMAIL_STREAMING_SERVICES = new Set<string>([
+  "NETFLIX_VVIP",
+  "NETFLIX_EVIMD_VIP", // Netflix Evimdə VIP (/streaming/netflix-evimde-vip)
+]);
+
+export function streamingUsesCustomerEmail(code: string | null | undefined): boolean {
+  return CUSTOMER_EMAIL_STREAMING_SERVICES.has(String(code ?? "").toUpperCase());
+}
 
 export const STREAMING_DURATIONS = [1, 2, 3, 6, 12] as const;
 
@@ -78,6 +95,15 @@ export const STREAMING_SERVICE_META: Record<StreamingService, StreamingServiceMe
     tagline: "Dünyanın ən böyük streaming kataloqu",
     description:
       "Netflix — beynəlxalq orijinallar, filmlər və seriallar üçün dünyanın ən geniş streaming platforması. Aylıq və illik abunəlik paketləri ən sərfəli qiymətə.",
+  },
+  NETFLIX_VVIP: {
+    code: "NETFLIX_VVIP",
+    slug: "netflix-hesab",
+    label: "Netflix Hesab",
+    category: "STREAMING",
+    tagline: "Öz Netflix hesabına Basic / Standart / Premium plan",
+    description:
+      "Netflix Hesab — abunəlik birbaşa SƏNİN öz Netflix hesabına aktivləşdirilir. Basic, Standart və Premium planlardan birini seç, ödənişdən sonra şəxsi mail ünvanını qeyd et — admin hesabına planı qoşur.",
   },
   PRIME_VIDEO: {
     code: "PRIME_VIDEO",

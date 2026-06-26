@@ -5,7 +5,7 @@ import {
   getStreamingPlatformBySlug,
   getStreamingPlatformsByCategory,
 } from "@/lib/streamingPlatforms";
-import { getStreamingGroupParentSlug } from "@/lib/streamingGroups";
+import { getStreamingGroupParentSlug, isStreamingGroupChild } from "@/lib/streamingGroups";
 
 export const revalidate = 1800;
 
@@ -43,10 +43,19 @@ export async function generateMetadata({
 
 export default async function StreamingServicePage({
   params,
+  searchParams,
 }: {
   params: Promise<Params>;
+  searchParams: Promise<{ secim?: string | string[] }>;
 }) {
   const { slug } = await params;
+  const { secim } = await searchParams;
+  const groupSelection = Array.isArray(secim) ? secim[0] : secim;
+
+  if (slug === "netflix-vvip") {
+    redirect("/streaming/netflix-hesab");
+  }
+
   const svc = await getStreamingPlatformBySlug(slug);
   if (!svc) notFound();
 
@@ -56,13 +65,19 @@ export default async function StreamingServicePage({
     redirect(`/music/${svc.slug}`);
   }
 
-  // Qrup alt-paketidirsə (məs. netflix-yanimda) geri keçid parent seçim
-  // ekranına (/streaming/netflix) yönəlsin.
+  // Qrup alt-paketidirsə (məs. netflix-yanimda) geri keçid parent-ə yönəlsin.
+  // Kabinet uşaqları kabinet landing-inə (?secim=kabinet), digərləri (netflix-hesab)
+  // isə birbaşa chooser-ə qayıdır.
   const parentSlug = getStreamingGroupParentSlug(svc.slug);
   let parent = { href: "/streaming", label: "Streaming xidmətləri" };
   if (parentSlug) {
     const parentSvc = await getStreamingPlatformBySlug(parentSlug);
-    if (parentSvc) parent = { href: `/streaming/${parentSvc.slug}`, label: parentSvc.label };
+    if (parentSvc) {
+      const href = isStreamingGroupChild(svc.slug)
+        ? `/streaming/${parentSvc.slug}?secim=kabinet`
+        : `/streaming/${parentSvc.slug}`;
+      parent = { href, label: parentSvc.label };
+    }
   }
 
   return (
@@ -70,6 +85,7 @@ export default async function StreamingServicePage({
       svc={svc}
       parent={parent}
       detailHref={`/streaming/${svc.slug}`}
+      groupSelection={groupSelection}
     />
   );
 }

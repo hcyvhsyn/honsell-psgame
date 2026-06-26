@@ -34,6 +34,7 @@ export async function GET(req: Request) {
         title: true,
         imageUrl: true,
         heroImageUrl: true,
+        screenshots: true,
         store: true,
         priceTryCents: true,
         discountTryCents: true,
@@ -53,12 +54,18 @@ export async function GET(req: Request) {
 
   const gameResults = games.map((g) => {
     const price = computeDisplayPrice(g, settings);
+    // Banner üçün seçilə bilən bütün şəkillər: hero + cover + screenshot-lar (dedup).
+    const screenshots = Array.isArray(g.screenshots) ? (g.screenshots as string[]) : [];
+    const images = Array.from(
+      new Set([g.heroImageUrl, g.imageUrl, ...screenshots].filter((u): u is string => !!u)),
+    );
     return {
       id: g.id,
       kind: "GAME" as const,
       productType: "GAME",
       title: g.title,
       imageUrl: g.imageUrl ?? g.heroImageUrl,
+      images,
       finalAzn: price.finalAzn,
       originalAzn: price.originalAzn,
       discountPct: price.discountPct,
@@ -80,6 +87,7 @@ export async function GET(req: Request) {
       productType: s.type,
       title: serviceProductLabel(s.title, s.metadata),
       imageUrl: s.imageUrl,
+      images: s.imageUrl ? [s.imageUrl] : [],
       finalAzn,
       originalAzn,
       discountPct,

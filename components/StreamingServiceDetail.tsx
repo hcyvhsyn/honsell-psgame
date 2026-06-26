@@ -12,9 +12,17 @@ import NewsSection from "@/components/NewsSection";
 import StreamingVariantLanding, {
   type LandingVariant,
 } from "@/components/StreamingVariantLanding";
+import StreamingGroupChooser, {
+  type StreamingGroupChoicePricing,
+} from "@/components/StreamingGroupChooser";
 import { getServiceVariantConfig } from "@/lib/streamingVariants";
-import { getStreamingGroup } from "@/lib/streamingGroups";
-import type { StreamingServiceMeta } from "@/lib/streamingCart";
+import { getStreamingGroup, isStreamingGroupChild } from "@/lib/streamingGroups";
+import {
+  getStreamingServiceBySlug,
+  streamingUsesCustomerEmail,
+  type StreamingServiceMeta,
+} from "@/lib/streamingCart";
+import { getDbStreamingSlug, getPublicStreamingSlug } from "@/lib/streamingPlatforms";
 
 type Props = {
   svc: StreamingServiceMeta;
@@ -28,6 +36,11 @@ type Props = {
    * varsa) variant müqayisə (landing) görünüşü göstərilir.
    */
   variantSlug?: string;
+  /**
+   * Qrup parent səhifəsində (məs. netflix) seçilmiş addım — `?secim=` param-ı.
+   * "kabinet" → kabinet landing; əks halda 2-seçim chooser göstərilir.
+   */
+  groupSelection?: string;
 };
 
 export default async function StreamingServiceDetail({
@@ -35,6 +48,7 @@ export default async function StreamingServiceDetail({
   parent,
   detailHref,
   variantSlug,
+  groupSelection,
 }: Props) {
   const isMusic = svc.category === "MUSIC";
 
@@ -113,7 +127,10 @@ export default async function StreamingServiceDetail({
     notFound();
   }
   // Konkret tier seçilməyibsə və variantlar varsa → müqayisə (landing) görünüşü.
-  const showVariantLanding = hasVariants && !activeVariant;
+  // inlineVariantPicker konfiqurasiyalı xidmətlər (məs. Netflix Hesab) ayrıca
+  // landing GÖSTƏRMİR — tier-lər birbaşa picker-in içində tab kimi seçilir.
+  const showVariantLanding =
+    hasVariants && !activeVariant && !variantConfig?.inlineVariantPicker;
   const commonFeatures = variantConfig?.common ?? [];
 
   const landingVariants: LandingVariant[] = variantGroups.map((g) => ({
@@ -132,14 +149,102 @@ export default async function StreamingServiceDetail({
   const group = isMusic ? null : getStreamingGroup(svc.slug);
   let groupLanding: LandingVariant[] = [];
   let groupCommon = commonFeatures;
+  let groupChoicePricing: StreamingGroupChoicePricing[] = [];
   if (group) {
-    const childSlugs = group.children.map((c) => c.platformSlug);
+    const groupSlugs = Array.from(
+      new Set([
+        ...group.children.map((c) => c.platformSlug),
+        ...(group.chooser ?? []).flatMap((c) => (c.platformSlug ? [c.platformSlug] : [])),
+      ]),
+    );
+    const dbGroupSlugs = Array.from(new Set(groupSlugs.map(getDbStreamingSlug)));
     const childRows = await prisma.streamingPlatform.findMany({
-      where: { slug: { in: childSlugs }, isActive: true },
+      where: { slug: { in: dbGroupSlugs }, isActive: true },
       select: { slug: true, code: true },
     });
-    const codeBySlug = new Map(childRows.map((r) => [r.slug, r.code.toUpperCase()]));
+    const codeBySlug = new Map(childRows.map((r) => [getPublicStreamingSlug(r.slug), r.code.toUpperCase()]));
     groupCommon = getServiceVariantConfig(group.variantServiceCode)?.common ?? [];
+
+    const productMeta = (p: (typeof products)[number]): Record<string, unknown> =>
+      (p.metadata as Record<string, unknown> | null) ?? {};
+    const productDurationMonths = (p: (typeof products)[number]): number | null => {
+      const months = Number(productMeta(p).durationMonths);
+      return Number.isFinite(months) && months > 0 ? months : null;
+    };
+    const productServiceCode = (p: (typeof products)[number]): string =>
+      String(productMeta(p).service ?? "").toUpperCase();
+    const fromPerMonthAzn = (rows: Array<(typeof products)[number]>): number | null => {
+      let best = Infinity;
+      for (const p of rows) {
+        const months = productDurationMonths(p);
+        if (!months) continue;
+        best = Math.min(best, p.priceAznCents / months / 100);
+      }
+      return Number.isFinite(best) ? best : null;
+    };
+    const productsForCode = (code: string | null | undefined) =>
+      code ? products.filter((p) => productServiceCode(p) === code.toUpperCase()) : [];
+
+    groupChoicePricing = (group.chooser ?? []).map((choice) => {
+      const href = choice.platformSlug
+        ? `/streaming/${choice.platformSlug}`
+        : `${detailHref}?secim=${choice.selection ?? ""}`;
+
+      if (choice.platformSlug) {
+        const code =
+          codeBySlug.get(choice.platformSlug) ??
+          getStreamingServiceBySlug(choice.platformSlug)?.code;
+        const targetProducts = productsForCode(code);
+        const targetConfig = code ? getServiceVariantConfig(code) : null;
+        const plans =
+          targetConfig?.variants.map((variant) => {
+            const variantProducts = targetProducts.filter(
+              (p) => String(productMeta(p).variantSlug ?? "").trim() === variant.slug,
+            );
+            return {
+              name: variant.name,
+              fromPerMonthAzn: fromPerMonthAzn(variantProducts),
+              href,
+              note: variant.features[0]?.text ?? null,
+            };
+          }) ?? [];
+
+        return {
+          accent: choice.accent,
+          fromPerMonthAzn: fromPerMonthAzn(targetProducts),
+          plans: plans.length
+            ? plans
+            : [
+                {
+                  name: choice.title,
+                  fromPerMonthAzn: fromPerMonthAzn(targetProducts),
+                  href,
+                  note: choice.subtitle,
+                },
+              ],
+        };
+      }
+
+      const childPlans = group.children.map((child) => {
+        const code = codeBySlug.get(child.platformSlug);
+        const childProducts = productsForCode(code);
+        return {
+          name: child.name,
+          fromPerMonthAzn: fromPerMonthAzn(childProducts),
+          href: `/streaming/${child.platformSlug}`,
+          note: child.features[0]?.text ?? null,
+        };
+      });
+
+      return {
+        accent: choice.accent,
+        fromPerMonthAzn: fromPerMonthAzn(
+          group.children.flatMap((child) => productsForCode(codeBySlug.get(child.platformSlug))),
+        ),
+        plans: childPlans,
+      };
+    });
+
     groupLanding = group.children
       .map((child): LandingVariant | null => {
         const code = codeBySlug.get(child.platformSlug);
@@ -175,31 +280,40 @@ export default async function StreamingServiceDetail({
       })
       .filter((x): x is LandingVariant => x !== null);
   }
-  const showGroupLanding = groupLanding.length > 0 && !activeVariant;
+  // Parent chooser (məs. /streaming/netflix) — "secim" verilməyibsə 2 seçim
+  // göstərilir; "kabinet" verilibsə kabinet landing açılır.
+  const groupChooser = group?.chooser ?? null;
+  const showGroupChooser = !!groupChooser && !activeVariant && groupSelection !== "kabinet";
+  const showGroupLanding = groupLanding.length > 0 && !activeVariant && !showGroupChooser;
   // Header/icmal/featured bölmələrini gizlədən "landing" rejimi.
-  const landingMode = showVariantLanding || showGroupLanding;
+  const landingMode = showVariantLanding || showGroupLanding || showGroupChooser;
+  // Qrup alt-paket səhifəsidirsə (məs. netflix-yanimda) icmallar gizlənir —
+  // icmallar yalnız ümumi parent səhifədə (məs. /streaming/netflix) göstərilir.
+  const isGroupChild = !isMusic && isStreamingGroupChild(svc.slug);
 
   // Picker-ə ötürüləcək məhsullar: konkret tier seçilibsə yalnız onun paketləri.
   const pickerProducts = activeVariant
     ? filtered.filter((p) => productVariantSlug(p) === activeVariant.slug)
     : filtered;
 
-  // Tier seçilibsə, config-dəki variant məlumatını (ad/fərqlər/cihazlar/ortaq)
-  // məhsul metadata-sına inject edirik ki, picker dəyişmədən göstərsin.
+  // Config-dəki variant məlumatını (ad/fərqlər/cihazlar/ortaq) hər məhsulun öz
+  // variantSlug-ına görə metadata-ya inject edirik ki, picker dəyişmədən tier
+  // tab-larını qursun. Konkret tier seçilibsə də (activeVariant) eyni işləyir.
   const pickerMetaFor = (p: (typeof filtered)[number]): Record<string, unknown> | null => {
     const base = (p.metadata as Record<string, unknown> | null) ?? {};
-    if (activeVariant && variantConfig) {
-      return {
-        ...base,
-        variant: activeVariant.name,
-        variantSlug: activeVariant.slug,
-        variantRank: activeVariant.rank,
-        variantFeatures: activeVariant.features,
-        commonFeatures: variantConfig.common,
-        devices: activeVariant.devices,
-      };
-    }
-    return base;
+    if (!variantConfig) return base;
+    const slug = activeVariant?.slug ?? productVariantSlug(p);
+    const v = variantConfig.variants.find((x) => x.slug === slug);
+    if (!v) return base;
+    return {
+      ...base,
+      variant: v.name,
+      variantSlug: v.slug,
+      variantRank: v.rank,
+      variantFeatures: v.features,
+      commonFeatures: variantConfig.common,
+      devices: v.devices,
+    };
   };
 
   const slides: FeaturedSlide[] = featured.map((r) => ({
@@ -263,7 +377,7 @@ export default async function StreamingServiceDetail({
           </div>
         )}
 
-        {!isMusic && !activeVariant && !showGroupLanding && slides.length > 0 && (
+        {!isMusic && !activeVariant && !showGroupLanding && !showGroupChooser && slides.length > 0 && (
           <div className="mt-4">
             <StreamingFeaturedBanner slides={slides} />
           </div>
@@ -287,7 +401,14 @@ export default async function StreamingServiceDetail({
             </p>
           </header>
         )}
-        {landingMode ? (
+        {showGroupChooser ? (
+          <StreamingGroupChooser
+            serviceLabel={svc.label}
+            basePath={detailHref}
+            choices={groupChooser!}
+            pricing={groupChoicePricing}
+          />
+        ) : landingMode ? (
           <StreamingVariantLanding
             serviceLabel={svc.label}
             variants={showGroupLanding ? groupLanding : landingVariants}
@@ -327,6 +448,13 @@ export default async function StreamingServiceDetail({
           </div>
         ) : (
           <StreamingPlanPicker
+            allowAnyEmail={streamingUsesCustomerEmail(svc.code)}
+            serviceOverride={{
+              code: svc.code,
+              label: svc.label,
+              tagline: svc.tagline,
+              description: svc.description,
+            }}
             products={pickerProducts.map((p) => ({
               id: p.id,
               title: p.title,
@@ -340,7 +468,7 @@ export default async function StreamingServiceDetail({
         )}
       </section>
 
-      {!isMusic && !landingMode && !activeVariant && (
+      {!isMusic && !landingMode && !activeVariant && !isGroupChild && (
         <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
           <header className="mb-5">
             <h2 className="text-2xl font-black text-white sm:text-3xl">

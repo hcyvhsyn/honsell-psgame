@@ -698,6 +698,25 @@ model StreamingPlatform {
   @@index([isActive, sortOrder])
 }
 
+/// Streaming hesab stoku. Stok PLATFORMAYA görədir (müddətə/aya görə DEYİL) —
+/// müştəri 3 ay da, 12 ay da alsa eyni stok hovuzundan istifadə olunur. Admin
+/// stoku burada saxlayır, sifariş təsdiqi zamanı uyğun stoku götürüb CRM-də
+/// müddətlə qeyd edir. `platformCode` = StreamingPlatform.code (məs. NETFLIX_YANIMDA).
+model StreamingStock {
+  id           String    @id @default(cuid())
+  platformCode String
+  mail         String
+  password     String
+  cabinetName  String
+  pinCode      String
+  isUsed       Boolean   @default(false)
+  note         String?
+  createdAt    DateTime  @default(now())
+  usedAt       DateTime?
+
+  @@index([platformCode, isUsed])
+}
+
 // ─── Streaming Content (films & series available on streaming services) ───────
 
 /// Bir film və ya seriya. Streaming xidmətinin (HBO Max, Gain, YouTube Premium,

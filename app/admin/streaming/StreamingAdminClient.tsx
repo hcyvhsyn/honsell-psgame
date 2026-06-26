@@ -5,6 +5,7 @@ import { uploadAdminImage } from "@/lib/uploadImageClient";
 import { Loader2, Plus, Edit2, Upload, X, Trash2, Check, Pencil } from "lucide-react";
 import { useDialog } from "@/lib/dialogs";
 import { getServiceVariantConfig } from "@/lib/streamingVariants";
+import { streamingUsesCustomerEmail } from "@/lib/streamingCart";
 
 type ServiceProduct = {
   id: string;
@@ -39,6 +40,32 @@ type Platform = {
   sortOrder: number;
   isActive: boolean;
 };
+
+// Stok platformaya görədir (aya/müddətə görə deyil). Hər giriş bir hesab/kabinet.
+type StockEntry = {
+  id: string;
+  platformCode: string;
+  mail: string;
+  password: string;
+  cabinetName: string;
+  pinCode: string;
+  isUsed: boolean;
+  note: string | null;
+  createdAt: string;
+  usedAt: string | null;
+};
+
+type StockForm = {
+  mail: string;
+  password: string;
+  cabinetName: string;
+  pinCode: string;
+  note: string;
+};
+
+function emptyStockForm(): StockForm {
+  return { mail: "", password: "", cabinetName: "", pinCode: "", note: "" };
+}
 
 function slugifyPlatform(value: string): string {
   return value
@@ -103,7 +130,14 @@ export default function StreamingAdminClient() {
   const dialog = useDialog();
   const [products, setProducts] = useState<ServiceProduct[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [stock, setStock] = useState<StockEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Platforma üzrə stok əlavə formu + əməliyyat vəziyyəti.
+  const [stockForms, setStockForms] = useState<Record<string, StockForm>>({});
+  const [stockBusy, setStockBusy] = useState<string | null>(null); // əlavə edilən platformCode
+  const [stockError, setStockError] = useState<{ code: string; msg: string } | null>(null);
+  const [stockRowBusy, setStockRowBusy] = useState<string | null>(null); // entry id
 
   // Platforma yaratma/redaktə modalı.
   const [platformModal, setPlatformModal] = useState<
@@ -199,6 +233,16 @@ export default function StreamingAdminClient() {
     return map;
   }, [products]);
 
+  // Stoku platforma koduna görə qruplaşdır.
+  const stockByPlatform = useMemo(() => {
+    const map = new Map<string, StockEntry[]>();
+    for (const s of stock) {
+      if (!map.has(s.platformCode)) map.set(s.platformCode, []);
+      map.get(s.platformCode)!.push(s);
+    }
+    return map;
+  }, [stock]);
+
   useEffect(() => {
     load();
   }, []);
@@ -212,6 +256,7 @@ export default function StreamingAdminClient() {
       const data = await res.json();
       setProducts(Array.isArray(data?.products) ? data.products : []);
       setPlatforms(Array.isArray(data?.platforms) ? data.platforms : []);
+      setStock(Array.isArray(data?.stock) ? data.stock : []);
     }
     if (!silent) setLoading(false);
   }
@@ -765,6 +810,97 @@ export default function StreamingAdminClient() {
     }
   }
 
+  // ─── Stok idarəetməsi ───────────────────────────────────────────────────
+  function getStockForm(code: string): StockForm {
+    return stockForms[code] ?? emptyStockForm();
+  }
+
+  function patchStockForm(code: string, patch: Partial<StockForm>) {
+    setStockError(null);
+    setStockForms((prev) => ({ ...prev, [code]: { ...getStockForm(code), ...patch } }));
+  }
+
+  async function submitStock(code: string) {
+    const f = getStockForm(code);
+    if (!f.mail.trim() || !f.password.trim() || !f.cabinetName.trim() || !f.pinCode.trim()) {
+      setStockError({ code, msg: "Mail, şifrə, kabinet adı və pin kodu tələb olunur." });
+      return;
+    }
+    setStockBusy(code);
+    setStockError(null);
+    try {
+      const res = await fetch("/api/admin/streaming", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "ADD_STOCK",
+          platformCode: code,
+          mail: f.mail,
+          password: f.password,
+          cabinetName: f.cabinetName,
+          pinCode: f.pinCode,
+          note: f.note,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setStockError({ code, msg: String(data.error ?? res.status) });
+        return;
+      }
+      setStockForms((prev) => ({ ...prev, [code]: emptyStockForm() }));
+      await load(true);
+    } finally {
+      setStockBusy(null);
+    }
+  }
+
+  async function toggleStockUsed(entry: StockEntry) {
+    setStockRowBusy(entry.id);
+    try {
+      const res = await fetch("/api/admin/streaming", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "TOGGLE_STOCK_USED", id: entry.id, isUsed: !entry.isUsed }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        await dialog.alert({ title: "Dəyişmədi", message: String(data.error ?? res.status), tone: "danger" });
+        return;
+      }
+      await load(true);
+    } finally {
+      setStockRowBusy(null);
+    }
+  }
+
+  async function deleteStock(entry: StockEntry) {
+    if (
+      !(await dialog.confirm({
+        title: "Stoku sil?",
+        message: <p>«{entry.mail}» ({entry.cabinetName}) stoku silinsin?</p>,
+        confirmLabel: "Sil",
+        tone: "danger",
+      }))
+    )
+      return;
+    setStockRowBusy(entry.id);
+    try {
+      const res = await fetch("/api/admin/streaming", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "DELETE_STOCK", id: entry.id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        await dialog.alert({ title: "Silinmədi", message: String(data.error ?? res.status), tone: "danger" });
+        return;
+      }
+      await load(true);
+    } finally {
+      setStockRowBusy(null);
+    }
+  }
+
   if (loading) return <div className="py-20 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-violet-500" /></div>;
 
   const groupedByService = services.map((svc) => ({
@@ -823,6 +959,9 @@ export default function StreamingAdminClient() {
             const platformImage = platformImageMap.get(svc.value) ?? "";
             const platformImageBusy = uploadingPlatformImage === svc.value;
             const platformBusy = platformBusyCode === p.code;
+            // Hesab tipli platforma (məs. Netflix Hesab): müştərinin öz hesabına
+            // aktivləşir — cihaz/VPN/hero şəkil tələb olunmur, kart sadələşir.
+            const isAccount = !!getServiceVariantConfig(svc.value)?.inlineVariantPicker;
             return (
               <div
                 key={svc.value}
@@ -866,6 +1005,14 @@ export default function StreamingAdminClient() {
                   </button>
                 </div>
 
+                {isAccount ? (
+                  <p className="mt-3 rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-[11px] leading-relaxed text-zinc-500">
+                    Bu platforma müştərinin öz Netflix hesabına aktivləşir — cihaz, VPN və hero şəkil
+                    tələb olunmur. Planlar (Basic / Standart / Premium) və qiymətlər «Paketlər»
+                    bölməsində idarə olunur.
+                  </p>
+                ) : (
+                <>
                 <div className="mt-3 flex gap-3">
                   <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-admin-line bg-admin-card">
                     {platformImage ? (
@@ -974,6 +1121,8 @@ export default function StreamingAdminClient() {
                     </p>
                   )}
                 </div>
+                </>
+                )}
               </div>
             );
           })}
@@ -1076,7 +1225,19 @@ export default function StreamingAdminClient() {
                         <span className="rounded-md bg-admin-chip px-2 py-1 text-xs font-semibold text-zinc-900">
                           {m.durationMonths} ay
                         </span>
-                        <span className="text-xs text-zinc-500">{m.seats} nəfərlik</span>
+                        {(() => {
+                          const cfg = getServiceVariantConfig(m.service);
+                          const variantName = cfg?.variants.find((v) => v.slug === m.variantSlug)?.name;
+                          // Variantlı xidmətlərdə (məs. Netflix Hesab) plan adı göstərilir;
+                          // nəfər sayı isə plan tərəfindən təyin olunur (gizli).
+                          return variantName ? (
+                            <span className="rounded-md bg-violet-500/10 px-2 py-1 text-xs font-semibold text-violet-700">
+                              {variantName}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-zinc-500">{m.seats} nəfərlik</span>
+                          );
+                        })()}
                       </div>
 
                       <div className="flex min-w-[200px] items-center gap-2">
@@ -1225,18 +1386,22 @@ export default function StreamingAdminClient() {
                       ))}
                     </select>
                   </label>
-                  <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                    Nəfər
-                    <select
-                      value={qa.seats}
-                      onChange={(e) => patchQuickAdd(svc.value, { seats: Number(e.target.value) })}
-                      className="mt-1 block rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900"
-                    >
-                      {SEATS.map((s) => (
-                        <option key={s} value={s}>{s} nəfərlik</option>
-                      ))}
-                    </select>
-                  </label>
+                  {/* Hesab tipli xidmətlərdə (məs. Netflix Hesab) nəfər sayı plana
+                      görə Netflix tərəfindən təyin olunur — admin soruşulmur. */}
+                  {!getServiceVariantConfig(svc.value)?.inlineVariantPicker && (
+                    <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                      Nəfər
+                      <select
+                        value={qa.seats}
+                        onChange={(e) => patchQuickAdd(svc.value, { seats: Number(e.target.value) })}
+                        className="mt-1 block rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900"
+                      >
+                        {SEATS.map((s) => (
+                          <option key={s} value={s}>{s} nəfərlik</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
                     Qiymət (AZN)
                     <input
@@ -1263,6 +1428,178 @@ export default function StreamingAdminClient() {
                   <p className="mt-2 text-xs text-rose-600">{quickAddError.msg}</p>
                 )}
               </div>
+            </section>
+          );
+        })}
+      </div>
+
+      {/* ─── Stok (platformaya görə hesablar) ─────────────────────────────── */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-base font-bold text-zinc-900">Stok (hesablar)</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Stok platformaya görədir, müddətə (aya) görə deyil — müştəri 3 ay da, 12 ay da alsa
+            eyni stokdan istifadə olunur. Sifariş təsdiqi zamanı uyğun stoku götür, CRM-də müddətlə
+            qeyd et və burada «İstifadədə» kimi işarələ.
+          </p>
+        </div>
+
+        {/* Müştərinin öz maili ilə açılan xidmətlərin (VVIP, Evimdə VIP) stoku yoxdur. */}
+        {streamingPlatforms
+          .filter((p) => !streamingUsesCustomerEmail(p.code))
+          .map((p) => {
+          const entries = stockByPlatform.get(p.code) ?? [];
+          const free = entries.filter((e) => !e.isUsed).length;
+          const used = entries.length - free;
+          const sf = getStockForm(p.code);
+          const addBusy = stockBusy === p.code;
+          return (
+            <section key={p.code} className="overflow-hidden rounded-xl border border-admin-line bg-admin-card">
+              <div className="flex items-center justify-between gap-3 border-b border-admin-line px-5 py-3">
+                <div className="min-w-0">
+                  <h3 className="font-bold text-zinc-900">{p.label}</h3>
+                  <p className="text-xs text-zinc-500">
+                    <span className="font-mono">/streaming/{p.slug}</span>
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2 text-xs font-semibold">
+                  <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-emerald-700">{free} boşda</span>
+                  <span className="rounded bg-zinc-200 px-2 py-0.5 text-zinc-600">{used} istifadədə</span>
+                </div>
+              </div>
+
+              {/* Stok əlavə formu */}
+              <div className="border-b border-admin-line bg-admin-card px-5 py-3">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                    Mail
+                    <input
+                      type="text"
+                      value={sf.mail}
+                      onChange={(e) => patchStockForm(p.code, { mail: e.target.value })}
+                      placeholder="netflix@mail.com"
+                      className="mt-1 block w-full rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-violet-400"
+                    />
+                  </label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                    Şifrə
+                    <input
+                      type="text"
+                      value={sf.password}
+                      onChange={(e) => patchStockForm(p.code, { password: e.target.value })}
+                      className="mt-1 block w-full rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-violet-400"
+                    />
+                  </label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                    Kabinet adı
+                    <input
+                      type="text"
+                      value={sf.cabinetName}
+                      onChange={(e) => patchStockForm(p.code, { cabinetName: e.target.value })}
+                      className="mt-1 block w-full rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-violet-400"
+                    />
+                  </label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                    Pin kodu
+                    <input
+                      type="text"
+                      value={sf.pinCode}
+                      onChange={(e) => patchStockForm(p.code, { pinCode: e.target.value })}
+                      className="mt-1 block w-full rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-violet-400"
+                    />
+                  </label>
+                  <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                    Qeyd (ixtiyari)
+                    <input
+                      type="text"
+                      value={sf.note}
+                      onChange={(e) => patchStockForm(p.code, { note: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === "Enter") submitStock(p.code); }}
+                      className="mt-1 block w-full rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-violet-400"
+                    />
+                  </label>
+                </div>
+                <div className="mt-2 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => submitStock(p.code)}
+                    disabled={addBusy}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+                  >
+                    {addBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    Stok əlavə et
+                  </button>
+                  {stockError?.code === p.code && (
+                    <p className="text-xs text-rose-600">{stockError.msg}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Stok siyahısı */}
+              {entries.length === 0 ? (
+                <div className="px-5 py-6 text-center text-sm text-zinc-500">Hələ stok yoxdur.</div>
+              ) : (
+                <div className="divide-y divide-admin-line">
+                  {entries.map((e) => {
+                    const busy = stockRowBusy === e.id;
+                    return (
+                      <div
+                        key={e.id}
+                        className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 text-sm ${
+                          e.isUsed ? "opacity-60" : ""
+                        }`}
+                      >
+                        <div className="min-w-[180px]">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Mail</span>
+                          <p className="font-mono text-zinc-900">{e.mail}</p>
+                        </div>
+                        <div className="min-w-[120px]">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Şifrə</span>
+                          <p className="font-mono text-zinc-900">{e.password}</p>
+                        </div>
+                        <div className="min-w-[120px]">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Kabinet</span>
+                          <p className="text-zinc-900">{e.cabinetName}</p>
+                        </div>
+                        <div className="min-w-[80px]">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Pin</span>
+                          <p className="font-mono text-zinc-900">{e.pinCode}</p>
+                        </div>
+                        {e.note && (
+                          <div className="min-w-[120px]">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Qeyd</span>
+                            <p className="text-zinc-700">{e.note}</p>
+                          </div>
+                        )}
+                        <div className="ml-auto flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => toggleStockUsed(e)}
+                            disabled={busy}
+                            title="Status dəyiş"
+                            className={`rounded px-2 py-0.5 text-xs font-medium transition disabled:opacity-50 ${
+                              e.isUsed
+                                ? "bg-zinc-200 text-zinc-600 hover:bg-zinc-300"
+                                : "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25"
+                            }`}
+                          >
+                            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : e.isUsed ? "İstifadədə" : "Boşda"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteStock(e)}
+                            disabled={busy}
+                            title="Sil"
+                            className="p-2 text-zinc-500 hover:text-rose-600 disabled:opacity-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </section>
           );
         })}
@@ -1324,18 +1661,21 @@ export default function StreamingAdminClient() {
                 );
               })()}
 
-              <label className="block text-sm">
-                Nəfər sayı
-                <select
-                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                  value={Number(editForm.seats)}
-                  onChange={(e) => setEditForm({ ...editForm, seats: Number(e.target.value) })}
-                >
-                  {SEATS.map((s) => (
-                    <option key={s} value={s}>{s} nəfərlik</option>
-                  ))}
-                </select>
-              </label>
+              {/* Hesab tipli xidmətlərdə nəfər sayı plana görə Netflix təyin edir. */}
+              {!getServiceVariantConfig(String(editForm.service ?? ""))?.inlineVariantPicker && (
+                <label className="block text-sm">
+                  Nəfər sayı
+                  <select
+                    className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
+                    value={Number(editForm.seats)}
+                    onChange={(e) => setEditForm({ ...editForm, seats: Number(e.target.value) })}
+                  >
+                    {SEATS.map((s) => (
+                      <option key={s} value={s}>{s} nəfərlik</option>
+                    ))}
+                  </select>
+                </label>
+              )}
 
               <label className="block text-sm">
                 Başlıq (boşdursa avtomatik olar)

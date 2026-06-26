@@ -27,6 +27,12 @@ export type ServiceVariantConfig = {
   common: VariantFeature[];
   /** Tier-lər (rank sırası ilə). */
   variants: StreamingVariant[];
+  /**
+   * true olduqda /streaming/<svc> ayrıca müqayisə (landing) səhifəsi GÖSTƏRMİR;
+   * tier-lər birbaşa plan picker-in içində tab kimi seçilir (məs. Netflix Hesab —
+   * müştəri öz hesabına plan alır, kabinet/hane konsepti yoxdur).
+   */
+  inlineVariantPicker?: boolean;
 };
 
 export const STREAMING_VARIANTS: Record<string, ServiceVariantConfig> = {
@@ -70,6 +76,53 @@ export const STREAMING_VARIANTS: Record<string, ServiceVariantConfig> = {
             text: "Çox nadir — ümumi istifadə müddətində 1 dəfə texniki problem ola bilər",
             tone: "warn",
           },
+        ],
+      },
+    ],
+  },
+
+  // Netflix Hesab — plan birbaşa müştərinin ÖZ Netflix hesabına aktivləşdirilir.
+  // Funksiyalar Netflix-in rəsmi Basic/Standart/Premium planları ilə eynidir.
+  // Tier-lər plan picker-in içində tab kimi seçilir (ayrıca landing yoxdur).
+  NETFLIX_VVIP: {
+    common: [],
+    inlineVariantPicker: true,
+    variants: [
+      {
+        slug: "basic",
+        name: "Basic",
+        rank: 0,
+        devices: ["tv", "computer", "tablet", "phone"],
+        features: [
+          { text: "Görüntü və səs keyfiyyəti: Yaxşı", tone: "neutral" },
+          { text: "Çözünürlük: 720p (HD)", tone: "neutral" },
+          { text: "Eyni anda 1 cihazda izləmə", tone: "neutral" },
+          { text: "1 cihaza endirmə", tone: "neutral" },
+        ],
+      },
+      {
+        slug: "standart",
+        name: "Standart",
+        rank: 1,
+        devices: ["tv", "computer", "tablet", "phone"],
+        features: [
+          { text: "Görüntü və səs keyfiyyəti: Yüksək", tone: "good" },
+          { text: "Çözünürlük: 1080p (Tam HD)", tone: "good" },
+          { text: "Eyni anda 2 cihazda izləmə", tone: "good" },
+          { text: "2 cihaza endirmə", tone: "good" },
+        ],
+      },
+      {
+        slug: "premium",
+        name: "Premium",
+        rank: 2,
+        devices: ["tv", "computer", "tablet", "phone"],
+        features: [
+          { text: "Görüntü və səs keyfiyyəti: Ən yüksək", tone: "good" },
+          { text: "Çözünürlük: 4K (Ultra HD) + HDR", tone: "good" },
+          { text: "Məkan səsi (3 boyutlu səs) daxil", tone: "good" },
+          { text: "Eyni anda 4 cihazda izləmə", tone: "good" },
+          { text: "6 cihaza endirmə", tone: "good" },
         ],
       },
     ],

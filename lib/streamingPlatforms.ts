@@ -19,6 +19,22 @@ export const DEFAULT_STREAMING_PLATFORMS: StreamingServiceMeta[] = Object.values
   STREAMING_SERVICE_META,
 );
 
+const PUBLIC_SLUG_BY_DB_SLUG: Record<string, string> = {
+  "netflix-vvip": "netflix-hesab",
+};
+
+const DB_SLUG_BY_PUBLIC_SLUG: Record<string, string> = Object.fromEntries(
+  Object.entries(PUBLIC_SLUG_BY_DB_SLUG).map(([dbSlug, publicSlug]) => [publicSlug, dbSlug]),
+);
+
+export function getPublicStreamingSlug(slug: string): string {
+  return PUBLIC_SLUG_BY_DB_SLUG[slug] ?? slug;
+}
+
+export function getDbStreamingSlug(slug: string): string {
+  return DB_SLUG_BY_PUBLIC_SLUG[slug] ?? slug;
+}
+
 function isCategory(value: string): value is StreamingServiceCategory {
   return value === "STREAMING" || value === "MUSIC";
 }
@@ -34,7 +50,7 @@ function toMeta(row: {
 }): StreamingServiceMeta {
   return {
     code: row.code,
-    slug: row.slug,
+    slug: getPublicStreamingSlug(row.slug),
     label: row.label,
     category: isCategory(row.category) ? row.category : "STREAMING",
     tagline: row.tagline,
@@ -71,9 +87,10 @@ export async function getStreamingPlatformsByCategory(
 export async function getStreamingPlatformBySlug(
   slug: string,
 ): Promise<StreamingServiceMeta | null> {
+  const dbSlug = getDbStreamingSlug(slug);
   try {
     const row = await prisma.streamingPlatform.findFirst({
-      where: { slug, isActive: true },
+      where: { slug: dbSlug, isActive: true },
     });
     if (row) return toMeta(row);
   } catch {

@@ -82,6 +82,11 @@ export default async function StreamingVariantPage({
   params: Promise<Params>;
 }) {
   const { slug, variant } = await params;
+
+  if (slug === "netflix-vvip") {
+    redirect(`/streaming/netflix-hesab/${variant}`);
+  }
+
   const svc = await getStreamingPlatformBySlug(slug);
   if (!svc) notFound();
 

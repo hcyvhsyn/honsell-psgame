@@ -679,12 +679,34 @@ export async function GET(req: Request) {
 
   const encoder = new TextEncoder();
 
+  // Client (admin browser) bağlantısı kəsiləndə stream controller bağlanır.
+  // O zaman enqueue "Controller is already closed" atırdı və bu, bütün scrape-i
+  // (kateqoriya/seed/upsert fazasının ortasında) FAILED edib dayandırırdı.
+  // Bu flag ilə bağlantı gedəndən sonra emit səssizcə atlanılır — scrape isə
+  // server tərəfdə tam başa çatır (DB yazılır), admin tab-ı bağlasa belə.
+  let clientGone = false;
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       function emit(payload: Record<string, unknown>) {
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(payload)}\n\n`)
-        );
+        if (clientGone) return;
+        try {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(payload)}\n\n`)
+          );
+        } catch {
+          // Client bağlantısı kəsilib — emit-ləri dayandır, amma scrape davam etsin.
+          clientGone = true;
+        }
+      }
+
+      function safeClose() {
+        if (clientGone) return;
+        try {
+          controller.close();
+        } catch {
+          clientGone = true;
+        }
       }
 
       // Captured before any DB writes so the post-upsert cleanup can identify
@@ -699,7 +721,7 @@ export async function GET(req: Request) {
           const msg = dbErr instanceof Error ? dbErr.message : "DB error";
           console.error("scrape-ps-store: scrapeRun.create failed", dbErr);
           emit({ type: "error", error: `DB xətası: ${msg}` });
-          controller.close();
+          safeClose();
           return;
         }
 
@@ -808,7 +830,7 @@ export async function GET(req: Request) {
             },
           });
           emit({ type: "error", error: msg });
-          controller.close();
+          safeClose();
           return;
         }
 
@@ -1363,8 +1385,13 @@ export async function GET(req: Request) {
         }
         emit({ type: "error", error: msg });
       } finally {
-        controller.close();
+        safeClose();
       }
+    },
+    // Admin tab-ı bağlayanda/səhifədən çıxanda çağırılır — emit-ləri dayandırır,
+    // scrape isə server tərəfdə davam edib tam başa çatır.
+    cancel() {
+      clientGone = true;
     },
   });
 

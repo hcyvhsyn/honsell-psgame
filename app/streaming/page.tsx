@@ -9,7 +9,7 @@ import StreamingReviewsPreview from "@/components/StreamingReviewsPreview";
 import PlatformGuidesSection from "@/components/PlatformGuidesSection";
 import NewsSection from "@/components/NewsSection";
 import { getStreamingPlatformsByCategory } from "@/lib/streamingPlatforms";
-import { isStreamingGroupChild } from "@/lib/streamingGroups";
+import { isHiddenFromStreamingGrid } from "@/lib/streamingGroups";
 import { Music as MusicIcon } from "lucide-react";
 import { PlatformCard } from "@/components/MarketingUI";
 
@@ -51,10 +51,11 @@ function toSlideArr(rows: Array<{
 export default async function StreamingPage() {
   // Bu səhifə yalnız film/serial yönlü streaming xidmətlərini göstərir.
   // MUSIC kateqoriyalı xidmətlər (YouTube Premium) /music səhifəsində listlənir.
-  // Qrup alt-paketləri (məs. netflix-yanimda) ana siyahıda gizlənir — onlar
-  // yalnız parent seçim ekranı (/streaming/netflix) vasitəsilə açılır.
+  // Qrup alt-paketləri (netflix-yanimda/evimde/evimde-vip) və hesab platforması
+  // (netflix-hesab) ana siyahıda gizlənir — hamısı /streaming/netflix seçim
+  // ekranı vasitəsilə açılır.
   const streamingPlatforms = (await getStreamingPlatformsByCategory("STREAMING")).filter(
-    (p) => !isStreamingGroupChild(p.slug),
+    (p) => !isHiddenFromStreamingGrid(p.slug),
   );
 
   const [featuredOverview, allTitles] = await Promise.all([

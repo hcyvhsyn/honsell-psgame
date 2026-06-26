@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { uploadAdminImage } from "@/lib/uploadImageClient";
-import { Loader2, Plus, Edit2, Trash2, Upload, X, GripVertical, Eye, EyeOff } from "lucide-react";
+import { Loader2, Plus, Edit2, Trash2, Upload, X, GripVertical, Eye, EyeOff, Check } from "lucide-react";
 import { BANNER_SCOPES } from "@/lib/contentScopes";
 import { useDialog } from "@/lib/dialogs";
 import { BANNER_POSITIONS, bannerPreviewWrapClass, bannerPreviewGradient, bannerThemeClasses, type BannerPosition, type BannerTheme } from "@/components/bannerLayout";
@@ -18,7 +18,13 @@ type Banner = {
   linkUrl: string | null;
   actionType: "LINK" | "ADD_TO_CART";
   gameId: string | null;
-  game?: { id: string; title: string; imageUrl: string | null } | null;
+  game?: {
+    id: string;
+    title: string;
+    imageUrl: string | null;
+    heroImageUrl?: string | null;
+    screenshots?: string[] | null;
+  } | null;
   serviceProductId: string | null;
   serviceProduct?: { id: string; title: string; imageUrl: string | null } | null;
   contentPosition: string;
@@ -45,6 +51,8 @@ type EditForm = {
   serviceProductId: string;
   productLabel: string;
   productImageUrl: string | null;
+  // Seçilmiş məhsulun banner üçün uyğun bütün şəkilləri (hero/cover/screenshot).
+  productImages: string[];
   productFinalAzn: number | null;
   productOriginalAzn: number | null;
   productDiscountPct: number | null;
@@ -62,6 +70,7 @@ type ProductOption = {
   productType: string;
   title: string;
   imageUrl: string | null;
+  images?: string[];
   finalAzn?: number;
   originalAzn?: number | null;
   discountPct?: number | null;
@@ -117,7 +126,7 @@ export default function BannersAdminClient() {
   const [activeScope, setActiveScope] = useState<BannerScope>("HOME");
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | "NEW" | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "LINK", productKind: "", gameId: "", serviceProductId: "", productLabel: "", productImageUrl: null, productFinalAzn: null, productOriginalAzn: null, productDiscountPct: null, contentPosition: "BOTTOM_LEFT", contentPositionMobile: "BOTTOM_LEFT", contentTheme: "LIGHT", isActive: true, sortOrder: "0", scope: "HOME" });
+  const [editForm, setEditForm] = useState<EditForm>({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "LINK", productKind: "", gameId: "", serviceProductId: "", productLabel: "", productImageUrl: null, productImages: [], productFinalAzn: null, productOriginalAzn: null, productDiscountPct: null, contentPosition: "BOTTOM_LEFT", contentPositionMobile: "BOTTOM_LEFT", contentTheme: "LIGHT", isActive: true, sortOrder: "0", scope: "HOME" });
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -180,7 +189,7 @@ export default function BannersAdminClient() {
   function openNew() {
     setSaveError(null);
     setEditingId("NEW");
-    setEditForm({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "ADD_TO_CART", productKind: "", gameId: "", serviceProductId: "", productLabel: "", productImageUrl: null, productFinalAzn: null, productOriginalAzn: null, productDiscountPct: null, contentPosition: "BOTTOM_LEFT", contentPositionMobile: "BOTTOM_LEFT", contentTheme: "LIGHT", isActive: true, sortOrder: String(banners.length), scope: activeScope });
+    setEditForm({ title: "", subtitle: "", imageUrl: "", mobileImageUrl: "", linkUrl: "", actionType: "ADD_TO_CART", productKind: "", gameId: "", serviceProductId: "", productLabel: "", productImageUrl: null, productImages: [], productFinalAzn: null, productOriginalAzn: null, productDiscountPct: null, contentPosition: "BOTTOM_LEFT", contentPositionMobile: "BOTTOM_LEFT", contentTheme: "LIGHT", isActive: true, sortOrder: String(banners.length), scope: activeScope });
     setProductQuery("");
     setProductOptions([]);
   }
@@ -200,6 +209,17 @@ export default function BannersAdminClient() {
       serviceProductId: b.serviceProductId ?? "",
       productLabel: b.game?.title ?? b.serviceProduct?.title ?? "",
       productImageUrl: b.game?.imageUrl ?? b.serviceProduct?.imageUrl ?? null,
+      productImages: b.game
+        ? Array.from(
+            new Set(
+              [b.game.heroImageUrl, b.game.imageUrl, ...(b.game.screenshots ?? [])].filter(
+                (u): u is string => !!u,
+              ),
+            ),
+          )
+        : b.serviceProduct?.imageUrl
+          ? [b.serviceProduct.imageUrl]
+          : [],
       productFinalAzn: null,
       productOriginalAzn: null,
       productDiscountPct: null,
@@ -537,7 +557,7 @@ export default function BannersAdminClient() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setEditForm((p) => ({ ...p, productKind: "", gameId: "", serviceProductId: "", productLabel: "", productImageUrl: null, productFinalAzn: null, productOriginalAzn: null, productDiscountPct: null }))}
+                        onClick={() => setEditForm((p) => ({ ...p, productKind: "", gameId: "", serviceProductId: "", productLabel: "", productImageUrl: null, productImages: [], productFinalAzn: null, productOriginalAzn: null, productDiscountPct: null }))}
                         className="text-zinc-500 hover:text-rose-600"
                       >
                         <X className="h-4 w-4" />
@@ -566,6 +586,9 @@ export default function BannersAdminClient() {
                                   serviceProductId: g.kind === "SERVICE" ? g.id : "",
                                   productLabel: g.title,
                                   productImageUrl: g.imageUrl,
+                                  productImages: g.images ?? (g.imageUrl ? [g.imageUrl] : []),
+                                  // Şəkil seçilməyibsə, məhsulun ilk şəklini (hero) default seç.
+                                  imageUrl: p.imageUrl || g.images?.[0] || g.imageUrl || "",
                                   productFinalAzn: g.finalAzn ?? null,
                                   productOriginalAzn: g.originalAzn ?? null,
                                   productDiscountPct: g.discountPct ?? null,
@@ -597,6 +620,45 @@ export default function BannersAdminClient() {
                       )}
                     </>
                   )}
+                </div>
+              )}
+
+              {/* Banner şəkli seç — məhsulun mövcud şəkillərindən (hero/cover/screenshot) */}
+              {editForm.actionType === "ADD_TO_CART" && editForm.productImages.length > 1 && (
+                <div>
+                  <p className="mb-1 text-sm text-zinc-700">
+                    Banner şəkli seç
+                    <span className="ml-2 text-xs text-zinc-500">
+                      ({editForm.productImages.length} şəkil — bannerdə görünəcək şəkli seç)
+                    </span>
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {editForm.productImages.map((url) => {
+                      const active = editForm.imageUrl === url;
+                      return (
+                        <button
+                          key={url}
+                          type="button"
+                          onClick={() => setEditForm((p) => ({ ...p, imageUrl: url }))}
+                          className={`group relative overflow-hidden rounded-lg border-2 transition ${
+                            active ? "border-violet-500 ring-2 ring-violet-500/40" : "border-admin-line hover:border-violet-400"
+                          }`}
+                          title={active ? "Seçilmiş banner şəkli" : "Bu şəkli seç"}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt="" className="aspect-video w-full object-cover" />
+                          {active && (
+                            <span className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-violet-600 text-white">
+                              <Check className="h-3.5 w-3.5" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-zinc-500">
+                    Aşağıdan öz şəklini də yükləyə bilərsən — yüklədikdə seçim onunla əvəz olunur.
+                  </p>
                 </div>
               )}
 

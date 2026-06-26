@@ -7,6 +7,7 @@ import {
   getStreamingPlatformByCode,
 } from "@/lib/streamingPlatforms";
 import { getServiceVariantConfig, getServiceVariantSlugs } from "@/lib/streamingVariants";
+import { streamingUsesCustomerEmail } from "@/lib/streamingCart";
 import { Prisma } from "@/lib/generated/prisma/client";
 
 export const runtime = "nodejs";
@@ -167,7 +168,7 @@ export async function GET() {
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   await ensureDefaultStreamingPlatforms();
-  const [products, platforms] = await Promise.all([
+  const [products, platforms, stock] = await Promise.all([
     prisma.serviceProduct.findMany({
       where: { type: "STREAMING" },
       orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
@@ -175,9 +176,13 @@ export async function GET() {
     prisma.streamingPlatform.findMany({
       orderBy: [{ sortOrder: "asc" }, { label: "asc" }],
     }),
+    // Stok platformaya görədir (aya görə deyil). Boşda olanlar əvvəl.
+    prisma.streamingStock.findMany({
+      orderBy: [{ isUsed: "asc" }, { createdAt: "desc" }],
+    }),
   ]);
 
-  return NextResponse.json({ products, platforms });
+  return NextResponse.json({ products, platforms, stock });
 }
 
 export async function POST(req: Request) {
@@ -271,7 +276,9 @@ export async function POST(req: Request) {
           service,
           durationMonths,
           seats,
-          deliveryMode: "CODE",
+          // Müştərinin öz hesabına qoşulan xidmətlər (Netflix VVIP, Evimdə VIP)
+          // → alış zamanı şəxsi mail tələb olunur (GMAIL delivery). Qalan CODE.
+          deliveryMode: streamingUsesCustomerEmail(service) ? "GMAIL" : "CODE",
           devices: serviceAccess.devices,
           vpnRequired: serviceAccess.vpnRequired,
           ...(variantSlug ? { variantSlug } : {}),
@@ -542,6 +549,55 @@ export async function POST(req: Request) {
         prisma.serviceProduct.delete({ where: { id } }),
       ]);
       await revalidateStreaming(existingMeta.service);
+      return NextResponse.json({ ok: true });
+    }
+
+    // ─── Stok (platformaya görə Netflix hesab məlumatları) ──────────────────
+    if (action === "ADD_STOCK") {
+      const platformCode = String(body.platformCode ?? "").trim().toUpperCase();
+      const mail = String(body.mail ?? "").trim();
+      const password = String(body.password ?? "").trim();
+      const cabinetName = String(body.cabinetName ?? "").trim();
+      const pinCode = String(body.pinCode ?? "").trim();
+      const note = String(body.note ?? "").trim();
+
+      if (!platformCode) {
+        return NextResponse.json({ error: "Platforma seçilməlidir." }, { status: 400 });
+      }
+      const platform = await prisma.streamingPlatform.findUnique({ where: { code: platformCode } });
+      if (!platform) {
+        return NextResponse.json({ error: "Platforma tapılmadı." }, { status: 400 });
+      }
+      if (!mail || !password || !cabinetName || !pinCode) {
+        return NextResponse.json(
+          { error: "Mail, şifrə, kabinet adı və pin kodu tələb olunur." },
+          { status: 400 },
+        );
+      }
+
+      await prisma.streamingStock.create({
+        data: { platformCode, mail, password, cabinetName, pinCode, note: note || null },
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === "TOGGLE_STOCK_USED") {
+      const id = String(body.id ?? "").trim();
+      if (!id) return NextResponse.json({ error: "id tələb olunur" }, { status: 400 });
+      const existing = await prisma.streamingStock.findUnique({ where: { id } });
+      if (!existing) return NextResponse.json({ error: "Stok tapılmadı." }, { status: 404 });
+      const isUsed = body.isUsed === undefined ? !existing.isUsed : Boolean(body.isUsed);
+      await prisma.streamingStock.update({
+        where: { id },
+        data: { isUsed, usedAt: isUsed ? new Date() : null },
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === "DELETE_STOCK") {
+      const id = String(body.id ?? "").trim();
+      if (!id) return NextResponse.json({ error: "id tələb olunur" }, { status: 400 });
+      await prisma.streamingStock.delete({ where: { id } }).catch(() => null);
       return NextResponse.json({ ok: true });
     }
 

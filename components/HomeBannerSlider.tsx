@@ -108,7 +108,9 @@ function bannerThumb(b: BannerSlide): string {
 }
 
 function bannerHeroSrc(b: BannerSlide): string {
-  return b.game?.heroImageUrl || b.imageUrl || b.game?.imageUrl || b.service?.imageUrl || "";
+  // Admin tərəfindən seçilmiş/yüklənmiş banner şəkli (b.imageUrl) önə keçir;
+  // yoxdursa oyunun hero/cover şəklinə düşür.
+  return b.imageUrl || b.game?.heroImageUrl || b.game?.imageUrl || b.service?.imageUrl || "";
 }
 
 function bannerTitle(b: BannerSlide): string {
