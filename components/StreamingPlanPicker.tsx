@@ -272,16 +272,6 @@ function orderedDevices(devices: string[]) {
     .sort((a, b) => DEVICE_META[a].rank - DEVICE_META[b].rank);
 }
 
-function compactLogoText(label: string) {
-  if (label.length <= 9) return label;
-  const initials = label
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("");
-  return initials ? initials.toUpperCase().slice(0, 3) : label.slice(0, 3).toUpperCase();
-}
-
 const SEAT_INFO: Record<number, { title: string; body: string }> = {
   1: {
     title: "1 nəfərlik nə deməkdir?",
@@ -292,6 +282,59 @@ const SEAT_INFO: Record<number, { title: string; body: string }> = {
     body: "Abunəlik iki nəfər arasında paylaşılır. Eyni anda iki ayrı cihazda baxış mümkündür və ayrıca profil/slot ayrılır.",
   },
 };
+
+type ServiceTerms = {
+  rules: string[];
+  warning: string;
+};
+
+// İstifadə qaydaları paketə görə fərqlənir (məs. Yanımda-da TV qadağandır,
+// Evimdə-də icazəlidir). Yanımda həm müstəqil platforma (NETFLIX_YANIMDA), həm də
+// NETFLIX xidmətinin "Yanımda" variantı kimi açıla bilər — hər ikisini tuturuq.
+const NETFLIX_YANIMDA_TERMS: ServiceTerms = {
+  rules: [
+    "Televizor, Playstation və ya hər hansı sabit qurğu ilə hesaba daxil olmaq qadağandır.",
+    "1 kabinet yalnız 1 nəfərin istifadəsi üçündür. Məlumatlarınızı başqa şəxslə paylaşmaq olmaz.",
+    "Hesab şifrəsini dəyişmək qadağandır.",
+    "Digər kabinetlərin adlarını və PIN kodlarını dəyişmək qadağandır.",
+    "Hesabdan kabinet silmək olmaz.",
+    "Yalnız öz kabinetinizin adını və PIN kodunuzu dəyişə bilərsiniz.",
+  ],
+  warning:
+    "Yuxarıda qeyd olunan qaydalar pozulduğu halda, abunəliyiniz dərhal sonlandırılacaq və ödəniş geri qaytarılmayacaq.",
+};
+
+// Evimdə paketi — TV icazəli olduğu üçün TV qadağası qaydası yoxdur.
+const NETFLIX_EVIMD_TERMS: ServiceTerms = {
+  rules: [
+    "1 kabinet yalnız 1 nəfərin istifadəsi üçündür. Məlumatlarınızı başqa şəxslə paylaşmaq olmaz.",
+    "Hesab şifrəsini dəyişmək qadağandır.",
+    "Digər kabinetlərin adlarını və PIN kodlarını dəyişmək qadağandır.",
+    "Hesabdan kabinet silmək olmaz.",
+    "Yalnız öz kabinetinizin adını və PIN kodunuzu dəyişə bilərsiniz.",
+  ],
+  warning:
+    "Yuxarıda qeyd olunan qaydalar pozulduğu halda, abunəliyiniz dərhal sonlandırılacaq və ödəniş geri qaytarılmayacaq.",
+};
+
+// Yalnız bu paketlər üçün checkout-da təsdiq tələb olunur.
+const SERVICE_TERMS: Record<string, ServiceTerms> = {
+  NETFLIX_YANIMDA: NETFLIX_YANIMDA_TERMS,
+  NETFLIX_EVIMD: NETFLIX_EVIMD_TERMS,
+  NETFLIX_EVIMD_VIP: NETFLIX_EVIMD_TERMS,
+};
+const VARIANT_TERMS: Record<string, ServiceTerms> = {
+  Yanımda: NETFLIX_YANIMDA_TERMS,
+  Evimdə: NETFLIX_EVIMD_TERMS,
+  "Evimdə VIP": NETFLIX_EVIMD_TERMS,
+};
+
+function resolveTerms(
+  serviceCode: string,
+  variant: string | null | undefined,
+): ServiceTerms | null {
+  return SERVICE_TERMS[serviceCode] ?? (variant ? VARIANT_TERMS[variant] ?? null : null);
+}
 
 export default function StreamingPlanPicker({
   products,
@@ -512,6 +555,7 @@ export default function StreamingPlanPicker({
             deliveryLabel={deliveryLabel}
             devices={supportedDevices}
             imageUrl={platformImage}
+            terms={resolveTerms(serviceCode, effectiveVariant)}
           />
 
           {hasVariants && (
@@ -644,6 +688,8 @@ export default function StreamingPlanPicker({
                           authMode={authMode}
                           platformKind={platformKind}
                           allowAnyEmail={allowAnyEmail}
+                          terms={resolveTerms(serviceCode, x.m.variant)}
+                          serviceLabel={service.label}
                         />
                       </div>
                     </div>
@@ -878,6 +924,110 @@ function compactFeatureValue(text: string | null | undefined): string | null {
   return `${match[1]} cihaz`;
 }
 
+function TermsModal({
+  terms,
+  serviceLabel,
+  theme,
+  mode,
+  onClose,
+  onConfirm,
+}: {
+  terms: ServiceTerms;
+  serviceLabel: string;
+  theme: ServiceTheme;
+  mode: "view" | "confirm";
+  onClose: () => void;
+  onConfirm?: () => void;
+}) {
+  const [accepted, setAccepted] = useState(false);
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <h3 className="text-base font-black text-white">
+            {serviceLabel} Paketi – İstifadə Qaydaları
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-zinc-500 transition hover:text-white"
+            aria-label="Bağla"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <ul className="space-y-2.5">
+          {terms.rules.map((rule) => (
+            <li key={rule} className="flex items-start gap-2.5 text-sm leading-6 text-zinc-300">
+              <Ban className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
+              <span>{rule}</span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-3.5">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+          <p className="text-sm leading-6 text-amber-100">
+            <span className="font-black">Diqqət!</span> {terms.warning}
+          </p>
+        </div>
+
+        {mode === "confirm" ? (
+          <>
+            <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-violet-500"
+              />
+              <span className="text-sm font-semibold text-zinc-200">
+                Qaydaları oxudum və qəbul edirəm.
+              </span>
+            </label>
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl bg-zinc-800 px-4 py-2 text-sm text-zinc-300 transition hover:bg-zinc-700"
+              >
+                İmtina
+              </button>
+              <button
+                type="button"
+                disabled={!accepted}
+                onClick={() => accepted && onConfirm?.()}
+                className={`inline-flex items-center gap-2 rounded-xl bg-gradient-to-r ${theme.cta} px-4 py-2 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-40`}
+              >
+                <Check className="h-4 w-4" />
+                Təsdiq et və davam et
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="mt-5 flex justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className={`inline-flex items-center gap-2 rounded-xl bg-gradient-to-r ${theme.cta} px-4 py-2 text-sm font-bold text-white`}
+            >
+              Bağla
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ServiceOverview({
   service,
   theme,
@@ -886,6 +1036,7 @@ function ServiceOverview({
   deliveryLabel,
   devices,
   imageUrl,
+  terms,
 }: {
   service: ServiceDisplay;
   theme: ServiceTheme;
@@ -894,11 +1045,13 @@ function ServiceOverview({
   deliveryLabel: string;
   devices: string[];
   imageUrl: string | null;
+  terms: ServiceTerms | null;
 }) {
+  const [termsOpen, setTermsOpen] = useState(false);
   const overviewItems = [
     { Icon: Monitor, label: "HD keyfiyyət", detail: "Təmiz görüntü" },
     { Icon: Zap, label: deliveryLabel, detail: "Sürətli aktivləşmə" },
-    { Icon: Users, label: `${seats} nəfər`, detail: "Ayrılmış giriş" },
+    { Icon: Users, label: `${seats} nəfər`, detail: "Yalnız sizə aid kabinet" },
     { Icon: ShieldCheck, label: "Təhlükəsiz ödəniş", detail: "Qorunan checkout" },
   ];
   const serviceSummary =
@@ -936,9 +1089,6 @@ function ServiceOverview({
           <div className="relative">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div className="flex min-w-0 items-start gap-4 sm:gap-5">
-                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br ${theme.logoGradient} p-2 text-center text-xs font-black leading-none text-white shadow-[0_18px_44px_-26px_rgba(124,58,237,0.85)] sm:h-14 sm:w-14`}>
-                  {compactLogoText(service.label)}
-                </div>
                 <div className="min-w-0">
                   <p className={`text-xs font-black uppercase tracking-[0.22em] ${theme.accentText}`}>
                     Premium streaming
@@ -952,9 +1102,6 @@ function ServiceOverview({
                   <div className="mt-4 flex flex-wrap gap-2">
                     <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-xs font-bold text-zinc-300">
                       {serviceTagline}
-                    </span>
-                    <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-xs font-bold text-zinc-300">
-                      {devices.length > 0 ? `${devices.length} cihaz` : "Cihaz dəstəyi"}
                     </span>
                   </div>
                 </div>
@@ -978,6 +1125,14 @@ function ServiceOverview({
               ))}
             </div>
 
+            <p className="mt-4 flex items-start gap-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3 text-sm leading-6 text-zinc-200">
+              <Users className={`mt-0.5 h-4 w-4 shrink-0 ${theme.accentText}`} />
+              <span>
+                Sizə aid kabinet verilir və bu kabineti yalnız özünüz istifadə edə
+                bilərsiniz. Birdən çox nəfər istifadə edəcəksinizsə, ona uyğun sayda alış edin.
+              </span>
+            </p>
+
             {devices.length > 0 && (
               <div className="mt-6 rounded-[22px] border border-white/[0.08] bg-black/20 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -993,9 +1148,41 @@ function ServiceOverview({
                 </div>
               </div>
             )}
+
+            {terms && (
+              <button
+                type="button"
+                onClick={() => setTermsOpen(true)}
+                className="honsell-terms-btn group mt-6 inline-flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/[0.12] bg-black/20 px-4 py-3.5 text-left transition hover:border-white/30 hover:bg-white/[0.05]"
+              >
+                <span className="flex items-center gap-3">
+                  <Info className={`h-5 w-5 shrink-0 transition-transform duration-300 group-hover:scale-110 ${theme.accentText}`} />
+                  <span>
+                    <span className="block text-sm font-black text-white">İstifadə qaydaları</span>
+                    <span className="block text-xs text-zinc-400">
+                      Alışdan əvvəl oxuyun — sifariş zamanı təsdiq tələb olunur
+                    </span>
+                  </span>
+                </span>
+                <span className={`inline-flex items-center gap-1 text-xs font-bold ${theme.accentText}`}>
+                  Oxu
+                  <span className="honsell-terms-arrow inline-block">→</span>
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {terms && termsOpen && (
+        <TermsModal
+          terms={terms}
+          serviceLabel={service.label}
+          theme={theme}
+          mode="view"
+          onClose={() => setTermsOpen(false)}
+        />
+      )}
     </section>
   );
 }
@@ -1060,6 +1247,8 @@ function PlanAddButton({
   authMode,
   platformKind,
   allowAnyEmail = false,
+  terms = null,
+  serviceLabel = "",
 }: {
   product: PlanProduct;
   meta: Meta;
@@ -1068,6 +1257,8 @@ function PlanAddButton({
   authMode?: "GMAIL" | "GMAIL_PASSWORD";
   platformKind?: string;
   allowAnyEmail?: boolean;
+  terms?: ServiceTerms | null;
+  serviceLabel?: string;
 }) {
   const cart = useCart();
   const stock = inStock();
@@ -1078,6 +1269,8 @@ function PlanAddButton({
   const needsAuth = authMode === "GMAIL" || authMode === "GMAIL_PASSWORD" || meta.deliveryMode === "GMAIL";
   const needsPassword = authMode === "GMAIL_PASSWORD";
 
+  const [showTerms, setShowTerms] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [showGmail, setShowGmail] = useState(false);
   const [gmail, setGmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1106,13 +1299,27 @@ function PlanAddButton({
     setErr(null);
   }
 
-  function handleAdd() {
-    if (!stock) return;
+  function proceedAfterTerms() {
     if (needsAuth) {
       setShowGmail(true);
       return;
     }
     addToCart();
+  }
+
+  function handleAdd() {
+    if (!stock) return;
+    if (terms && !termsAccepted) {
+      setShowTerms(true);
+      return;
+    }
+    proceedAfterTerms();
+  }
+
+  function acceptTerms() {
+    setTermsAccepted(true);
+    setShowTerms(false);
+    proceedAfterTerms();
   }
 
   function increment() {
@@ -1146,6 +1353,17 @@ function PlanAddButton({
 
   return (
     <>
+      {showTerms && terms && (
+        <TermsModal
+          terms={terms}
+          serviceLabel={serviceLabel}
+          theme={theme}
+          mode="confirm"
+          onClose={() => setShowTerms(false)}
+          onConfirm={acceptTerms}
+        />
+      )}
+
       {!stock ? (
         <div className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-zinc-800 px-3 text-xs font-black text-zinc-500">
           Stokda yoxdur
