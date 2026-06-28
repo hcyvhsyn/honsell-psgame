@@ -36,13 +36,6 @@ export default function ProfileSidebar({
 
 
 
-
-
-
-
-
-
-
   
   const pathname = usePathname();
 
