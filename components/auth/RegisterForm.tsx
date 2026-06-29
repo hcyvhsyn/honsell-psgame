@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { COUNTRY_CODES, type CountryCode } from "@/lib/countryCodes";
 import { HEARD_ABOUT_OPTIONS } from "@/lib/heardAbout";
-import { normalizeFullName, MIN_NAME_LENGTH } from "@/lib/nameFormat";
+import { normalizeFullName, MIN_NAME_LENGTH, validateFullName } from "@/lib/nameFormat";
 import TurnstileWidget from "@/components/auth/TurnstileWidget";
 
 type Step = "details" | "otp";
@@ -43,7 +43,8 @@ export default function RegisterForm({
   const isPage = variant === "page";
   const [step, setStep] = useState<Step>("details");
   const [form, setForm] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     phone: "",
     email: "",
     password: "",
@@ -98,13 +99,28 @@ export default function RegisterForm({
     setInfo(null);
     setAccountExists(null);
 
-    const cleanName = normalizeFullName(form.name);
-    if (cleanName.length < MIN_NAME_LENGTH) {
+    const firstName = normalizeFullName(form.firstName);
+    const lastName = normalizeFullName(form.lastName);
+    if (firstName.length < MIN_NAME_LENGTH) {
       setBusy(false);
-      setError(`Ad Soyad ən azı ${MIN_NAME_LENGTH} simvol olmalıdır.`);
+      setError(`Ad ən azı ${MIN_NAME_LENGTH} simvol olmalıdır.`);
       return;
     }
-    if (cleanName !== form.name) setForm((f) => ({ ...f, name: cleanName }));
+    if (lastName.length < MIN_NAME_LENGTH) {
+      setBusy(false);
+      setError(`Soyad ən azı ${MIN_NAME_LENGTH} simvol olmalıdır.`);
+      return;
+    }
+    const cleanName = `${firstName} ${lastName}`;
+    const nameError = validateFullName(cleanName);
+    if (nameError) {
+      setBusy(false);
+      setError(`${nameError}.`);
+      return;
+    }
+    if (firstName !== form.firstName || lastName !== form.lastName) {
+      setForm((f) => ({ ...f, firstName, lastName }));
+    }
 
     if (!form.heardAboutSource) {
       setBusy(false);
@@ -242,18 +258,32 @@ export default function RegisterForm({
           )}
 
           <form onSubmit={submitDetails} className={isPage ? "space-y-3" : "space-y-2.5"}>
-            <Field
-              variant={variant}
-              icon={<User className="h-5 w-5" />}
-              type="text"
-              placeholder="Ad Soyad"
-              value={form.name}
-              onChange={(v) => setForm({ ...form, name: v })}
-              onBlur={() => setForm((f) => ({ ...f, name: normalizeFullName(f.name) }))}
-              autoComplete="name"
-              required
-              minLength={MIN_NAME_LENGTH}
-            />
+            <div className={isPage ? "grid grid-cols-2 gap-3" : "grid grid-cols-2 gap-2.5"}>
+              <Field
+                variant={variant}
+                icon={<User className="h-5 w-5" />}
+                type="text"
+                placeholder="Ad"
+                value={form.firstName}
+                onChange={(v) => setForm({ ...form, firstName: v })}
+                onBlur={() => setForm((f) => ({ ...f, firstName: normalizeFullName(f.firstName) }))}
+                autoComplete="given-name"
+                required
+                minLength={MIN_NAME_LENGTH}
+              />
+              <Field
+                variant={variant}
+                icon={<User className="h-5 w-5" />}
+                type="text"
+                placeholder="Soyad"
+                value={form.lastName}
+                onChange={(v) => setForm({ ...form, lastName: v })}
+                onBlur={() => setForm((f) => ({ ...f, lastName: normalizeFullName(f.lastName) }))}
+                autoComplete="family-name"
+                required
+                minLength={MIN_NAME_LENGTH}
+              />
+            </div>
             <PhoneField
               variant={variant}
               country={country}

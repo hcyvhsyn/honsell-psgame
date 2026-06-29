@@ -562,10 +562,10 @@ function MobileBottomNav({
 
   return (
     <nav
-      className="honsell-mobile-bottom-nav fixed inset-x-0 bottom-0 z-[70] px-2 pb-[calc(env(safe-area-inset-bottom)+0.45rem)] xl:hidden"
+      className="honsell-mobile-bottom-nav fixed inset-x-0 bottom-0 z-[70] px-2 xl:hidden"
       aria-label="Mobil naviqasiya"
     >
-      <div className="relative mx-auto grid h-[78px] max-w-[30rem] grid-cols-[1fr_1fr_1.12fr_1fr_1fr] items-end rounded-t-[28px] border border-b-0 border-white/10 bg-[#10172a]/95 px-2 pt-3 shadow-[0_-22px_70px_-36px_rgba(79,70,229,0.75),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-2xl">
+      <div className="honsell-mobile-bottom-bar relative mx-auto grid min-h-[78px] max-w-[30rem] grid-cols-[1fr_1fr_1.12fr_1fr_1fr] items-end rounded-t-[28px] border border-b-0 px-2 pt-3 pb-[env(safe-area-inset-bottom)] backdrop-blur-2xl">
         <MobileBottomNavItem
           href="/"
           label="Ana səhifə"
@@ -586,7 +586,7 @@ function MobileBottomNav({
 	          aria-current={profileActive ? "page" : undefined}
 	          className="group honsell-nav-action -mt-8 flex min-w-0 flex-col items-center justify-end gap-1 text-center"
 	        >
-	          <span className="grid h-[58px] w-[58px] place-items-center rounded-full border-[6px] border-[#10172a] bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-[0_18px_42px_-18px_rgba(124,58,237,1)] transition group-active:scale-95">
+	          <span className="grid h-[58px] w-[58px] place-items-center rounded-full border-[6px] border-[#0a0716] bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-[0_18px_42px_-18px_rgba(124,58,237,1)] transition group-active:scale-95">
 	            <User className="honsell-nav-icon-motion h-6 w-6" />
 	          </span>
           <span className="max-w-full truncate text-[11px] font-black leading-3 text-violet-100">
@@ -787,7 +787,7 @@ function MobileCategorySheetCard({
     <Link
       href={item.href}
       onClick={onNavigate}
-      className={`group flex min-h-[76px] min-w-0 items-center gap-3 rounded-[20px] border px-3 py-3 transition active:scale-[0.99] ${
+      className={`group flex min-h-[116px] min-w-0 flex-col gap-2.5 rounded-[20px] border p-3 transition active:scale-[0.99] ${
         active
           ? "border-violet-300/55 bg-violet-500/20"
           : "border-white/10 bg-white/[0.045] hover:border-violet-300/40 hover:bg-white/[0.065]"
@@ -813,16 +813,15 @@ function MobileCategorySheetCard({
         )}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-black text-white">
+        <span className="block text-sm font-black leading-snug text-white [overflow-wrap:anywhere] line-clamp-2">
           {item.label}
         </span>
         {item.description && (
-          <span className="mt-0.5 block truncate text-xs font-semibold text-slate-400">
+          <span className="mt-1 block text-xs font-semibold text-slate-400 line-clamp-1">
             {item.description}
           </span>
         )}
       </span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-slate-500 transition group-hover:translate-x-0.5 group-hover:text-slate-200" />
     </Link>
   );
 }

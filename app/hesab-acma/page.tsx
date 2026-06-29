@@ -3,6 +3,7 @@ import { UserPlus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import HesabAcmaPageClient from "./HesabAcmaPageClient";
+import ReferralBadge from "@/components/ReferralBadge";
 
 export const revalidate = 3600;
 
@@ -49,6 +50,9 @@ export default async function HesabAcmaPage() {
               <p className="text-2xl font-black text-fuchsia-700 dark:text-fuchsia-300">
                 {service ? (service.priceAznCents / 100).toFixed(2) : "3.00"} ₼
               </p>
+              <div className="mt-2">
+                <ReferralBadge category="accountCreation" productName="Türkiyə PSN hesabı" />
+              </div>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-white/75 p-4 dark:border-white/10 dark:bg-white/5">
               <p className="text-xs text-zinc-500 dark:text-zinc-500">İcra növü</p>

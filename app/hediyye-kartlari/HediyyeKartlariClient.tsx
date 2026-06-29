@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import Image from "next/image";
 import { Gift, Plus, Check, TrendingDown } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import ReferralBadge from "@/components/ReferralBadge";
 
 type Plan = {
   id: string;
@@ -105,6 +106,9 @@ export default function HediyyeKartlariClient({ cards }: { cards: Plan[] }) {
                 <span className="text-[2rem] font-bold leading-none tracking-tighter text-zinc-950 dark:text-white">
                   {azn.toFixed(2)} AZN
                 </span>
+              </div>
+              <div className="mt-2">
+                <ReferralBadge category="giftCards" productName={c.title} />
               </div>
               <div className="mt-2 h-[24px]">
                 {showSavings && (

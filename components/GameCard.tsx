@@ -16,6 +16,7 @@ import {
 import { useCart } from "@/lib/cart";
 import FavoriteButton from "./FavoriteButton";
 import PlatformInfoButton from "./PlatformInfoButton";
+import ReferralBadge from "./ReferralBadge";
 
 export type GameCardData = {
   id: string;
@@ -283,6 +284,10 @@ export default function GameCard({
           <span className="text-lg font-bold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
             {game.finalAzn.toFixed(2)}₼
           </span>
+        </div>
+
+        <div className="mt-1 flex justify-center">
+          <ReferralBadge category="games" productName={game.title} compact />
         </div>
 
         <div className="mt-1 min-h-[18px] text-[11px] sm:mt-2 sm:min-h-[20px] sm:text-sm">

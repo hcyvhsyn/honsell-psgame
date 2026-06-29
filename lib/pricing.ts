@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "./prisma";
 
 export type PricingSettings = {
@@ -32,6 +33,12 @@ export type PricingSettings = {
   reviewAffiliateRatePct: number;
   /** Aldığı məhsula rəy yazan müştəriyə verilən cashback faizi (qiymət üzərindən). */
   reviewCashbackRatePct: number;
+  /** Ödəniş sistemi (epoint) komissiyası — qiymətin %-i. Admin qazanc proqnozu üçün. */
+  epointFeePct: number;
+  /** Vergi — (qiymət − epoint) üzərindən %. Admin qazanc proqnozu üçün. */
+  taxPct: number;
+  /** Nağdlaşdırma komissiyası — (qiymət − epoint) üzərindən %. Admin qazanc proqnozu üçün. */
+  cashoutFeePct: number;
 };
 
 export type DisplayPrice = {
@@ -60,8 +67,15 @@ export function computeLegacyGameReferralRatePct(
   return roundPct((referralProfitSharePct * marginPct) / (100 + marginPct));
 }
 
-/** Fetch the singleton settings row, creating it on first access. */
-export async function getSettings(): Promise<PricingSettings> {
+/**
+ * Fetch the singleton settings row, creating it on first access.
+ *
+ * `cache()` ilə bürünüb: eyni render (request) ərzində neçə dəfə çağırılsa da
+ * DB-yə yalnız BİR dəfə gedir. Ana səhifə bunu 2 dəfə çağırırdı (page + header
+ * referral options) → hər biri Mumbai-yə ~1s yazma idi; indi tək gediş.
+ * Diqqət: bu yalnız per-request dedup-dur, cross-request köhnəlmə yaratmır.
+ */
+export const getSettings = cache(async function getSettings(): Promise<PricingSettings> {
   try {
     const s = await prisma.settings.upsert({
       where: { id: "global" },
@@ -91,6 +105,9 @@ export async function getSettings(): Promise<PricingSettings> {
       referralStreamingProfitSharePct: s.referralStreamingProfitSharePct ?? 10,
       reviewAffiliateRatePct: s.reviewAffiliateRatePct ?? 5,
       reviewCashbackRatePct: s.reviewCashbackRatePct ?? 1,
+      epointFeePct: s.epointFeePct ?? 3,
+      taxPct: s.taxPct ?? 2,
+      cashoutFeePct: s.cashoutFeePct ?? 1.5,
     };
   } catch (err) {
     // Prod DB might not be migrated yet (missing new Settings columns).
@@ -109,7 +126,10 @@ export async function getSettings(): Promise<PricingSettings> {
       msg.includes("referralAccountCreationPct") ||
       msg.includes("referralStreamingProfitSharePct") ||
       msg.includes("reviewAffiliateRatePct") ||
-      msg.includes("reviewCashbackRatePct");
+      msg.includes("reviewCashbackRatePct") ||
+      msg.includes("epointFeePct") ||
+      msg.includes("taxPct") ||
+      msg.includes("cashoutFeePct");
     if (!missingNewColumns) throw err;
 
     const rows = await prisma.$queryRaw<
@@ -153,9 +173,12 @@ export async function getSettings(): Promise<PricingSettings> {
       referralStreamingProfitSharePct: 10,
       reviewAffiliateRatePct: 5,
       reviewCashbackRatePct: 1,
+      epointFeePct: 3,
+      taxPct: 2,
+      cashoutFeePct: 1.5,
     };
   }
-}
+});
 
 /**
  * Convert TRY price (in kuruş) to the *cost* in AZN — i.e. FX-converted but

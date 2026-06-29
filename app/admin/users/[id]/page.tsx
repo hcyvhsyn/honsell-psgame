@@ -22,12 +22,11 @@ import {
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { fmtAzn, fmtDate } from "@/lib/format";
-import { getSettings } from "@/lib/pricing";
 import RoleToggle from "./RoleToggle";
 import UserAdminActions from "./UserAdminActions";
 import CancelPurchaseButton from "./CancelPurchaseButton";
 import DisableUserButton from "./DisableUserButton";
-import SponsorUserButton from "./SponsorUserButton";
+import TierSelect from "./TierSelect";
 import { Sparkles } from "lucide-react";
 import AdminNotesSection from "./AdminNotesSection";
 import QuickActionsBar from "./QuickActionsBar";
@@ -105,12 +104,16 @@ export default async function AdminUserDetailPage({
           actor: { select: { email: true, name: true } },
         },
       },
+      tier: { select: { id: true, name: true, slug: true } },
     },
   });
 
   if (!user) notFound();
 
-  const settings = await getSettings();
+  const tiers = await prisma.customerTier.findMany({
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, name: true, slug: true, isDefault: true },
+  });
 
   const purchases = user.transactions.filter((t) => t.type === "PURCHASE");
   const servicePurchases = user.transactions.filter(
@@ -315,9 +318,9 @@ export default async function AdminUserDetailPage({
             >
               {user.role}
             </span>
-            {user.isSponsored && (
+            {user.tier && !tiers.find((t) => t.id === user.tierId)?.isDefault && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-500/40">
-                <Sparkles className="h-3 w-3" /> SPONSORLU · {settings.sponsoredReferralGamesPct}%
+                <Sparkles className="h-3 w-3" /> {user.tier.name.toUpperCase()}
               </span>
             )}
           </div>
@@ -326,11 +329,7 @@ export default async function AdminUserDetailPage({
         <div className="flex flex-col items-end gap-2">
           <div className="flex flex-wrap items-center justify-end gap-2">
             <RoleToggle userId={user.id} role={user.role} />
-            <SponsorUserButton
-              userId={user.id}
-              isSponsored={user.isSponsored}
-              pct={settings.sponsoredReferralGamesPct}
-            />
+            <TierSelect userId={user.id} currentTierId={user.tierId} tiers={tiers} />
             <DisableUserButton
               userId={user.id}
               disabled={user.disabled}

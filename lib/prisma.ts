@@ -18,6 +18,15 @@ function createBasePrismaClient() {
     connectionString,
     max: 5,
     idleTimeoutMillis: 10_000,
+    // Tutuq bağlantı sonsuz gözləməsin — 10 saniyəyə alınmırsa sorğu rədd edilir.
+    connectionTimeoutMillis: 10_000,
+  });
+  // KRİTİK: idle bağlantı Supabase tərəfindən bağlananda `pg` Pool 'error'
+  // event-i yayır. Dinləyici olmasa Node bunu emal olunmamış xəta sayır və
+  // bütün prosesi çökdürür → saytda aralıq (bazən) "server-side exception".
+  // Burada onu udub loglayırıq; tutuq bağlantı növbəti sorğuda yenidən açılır.
+  pool.on("error", (err) => {
+    console.error("[pg pool idle client error]", err);
   });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({

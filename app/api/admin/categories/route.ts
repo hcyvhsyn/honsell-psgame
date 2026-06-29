@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import {
@@ -36,6 +36,9 @@ async function ensureDefaultCategoryAssets() {
 }
 
 function revalidateCategorySurfaces() {
+  // Header-in kateqoriya navigasiyası `unstable_cache` "site-header" tag-ı ilə
+  // keşlənir — onu yalnız revalidateTag təmizləyir.
+  revalidateTag("site-header");
   revalidatePath("/");
   revalidatePath("/oyunlar");
   revalidatePath("/ps-plus");

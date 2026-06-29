@@ -20,9 +20,6 @@ type Settings = {
   usdToAznRate: number;
   epicPositionPct: number;
   epicMinProfitPct: number;
-  // Sabit dəvət bonusu — admin AZN ilə daxil edir, API-yə qəpik göndərilir.
-  referralInviteBonusAzn: number;
-  sponsoredReferralInviteBonusAzn: number;
 };
 
 type ScrapeRun = {
@@ -140,8 +137,6 @@ export default function AdminSettingsPage() {
     usdToAznRate: 1.7,
     epicPositionPct: 50,
     epicMinProfitPct: 10,
-    referralInviteBonusAzn: 0.3,
-    sponsoredReferralInviteBonusAzn: 0.3,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -171,9 +166,6 @@ export default function AdminSettingsPage() {
           usdToAznRate: data.usdToAznRate ?? 1.7,
           epicPositionPct: data.epicPositionPct ?? 50,
           epicMinProfitPct: data.epicMinProfitPct ?? 10,
-          referralInviteBonusAzn: (data.referralInviteBonusCents ?? 30) / 100,
-          sponsoredReferralInviteBonusAzn:
-            (data.sponsoredReferralInviteBonusCents ?? 30) / 100,
         });
       })
       .finally(() => setLoading(false));
@@ -209,18 +201,10 @@ export default function AdminSettingsPage() {
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
 
     try {
-      const payload = {
-        ...form,
-        // AZN → qəpik çevrilməsi (sabit dəvət bonusu API-də qəpiklə saxlanır).
-        referralInviteBonusCents: Math.round(form.referralInviteBonusAzn * 100),
-        sponsoredReferralInviteBonusCents: Math.round(
-          form.sponsoredReferralInviteBonusAzn * 100
-        ),
-      };
       const res = await fetch("/api/admin/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(form),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
@@ -551,36 +535,15 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        <div className="space-y-4 rounded-lg border border-admin-line bg-admin-card p-4">
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-800">
-              Dəvət bonusu (sabit)
-            </h3>
-            <p className="text-xs text-zinc-500">
-              Dəvət olunan istifadəçi nömrəsini təsdiqlədikdə dəvət edənin referal
-              balansına yazılan sabit məbləğ. Faiz komissiyasından ayrıdır. 0 yazsanız
-              həmin müştəri tipində dəvət bonusu bağlanır. Şübhəli dəvətlər (təkrar/cəfəng
-              ad, eyni IP) avtomatik &ldquo;Dəvət bonusları&rdquo; bölməsində yoxlamaya düşür.
-            </p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Adi müştəri (AZN)"
-              hint="Standart dəvət edən üçün bonus (məs: 0.30)."
-              value={form.referralInviteBonusAzn}
-              step={0.05}
-              onChange={(v) => setForm({ ...form, referralInviteBonusAzn: v })}
-            />
-            <Field
-              label="Sponsorlu müştəri (AZN)"
-              hint="&ldquo;Sponsorlu&rdquo; seqmentdəki dəvət edən üçün bonus."
-              value={form.sponsoredReferralInviteBonusAzn}
-              step={0.05}
-              onChange={(v) =>
-                setForm({ ...form, sponsoredReferralInviteBonusAzn: v })
-              }
-            />
-          </div>
+        <div className="rounded-lg border border-admin-line bg-admin-card p-4">
+          <h3 className="text-sm font-semibold text-zinc-800">Dəvət bonusu</h3>
+          <p className="mt-1 text-xs text-zinc-500">
+            Dəvət bonusu məbləğləri artıq hər müştəri tipi (seqment) üçün ayrıca{" "}
+            <a href="/admin/referrals" className="font-semibold text-violet-700 underline">
+              Referal faizləri
+            </a>{" "}
+            səhifəsindən idarə olunur.
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

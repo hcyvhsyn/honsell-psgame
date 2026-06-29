@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { serviceProductLabel } from "@/lib/serviceProductLabel";
@@ -506,7 +507,15 @@ async function fetchDiscountedGames(
   return { cards, maxDiscount: enriched[0]?.price.discountPct ?? 0 };
 }
 
-export default async function HomePage() {
+/**
+ * Ana səhifənin user-ə aid OLMAYAN bütün datası + view-model hesablaması burada
+ * `unstable_cache` ilə 30 dəqiqəlik keşdə saxlanır. Səhifə header-dəki `cookies()`
+ * səbəbindən dinamik render olunsa belə (revalidate tək başına bunu keşləmir),
+ * bu funksiya keşdən gəlir → əksər açılışda ~13 Mumbai sorğusu yerinə 0 sorğu.
+ * Qaytarılan hər şey plain/serializable-dır (Date-lər ISO string-ə çevrilib).
+ */
+const getHomePageData = unstable_cache(
+  async () => {
   const settings = await getSettings();
   const [banners, landingProducts, bestSellers, totalsArr, streamingProducts, psPlusProducts, giftCardProducts, discounted, orderCount, testimonialAgg] = await Promise.all([
     prisma.banner
@@ -620,6 +629,40 @@ export default async function HomePage() {
     })
     .filter((b) => b.imageUrl);
 
+  const psPlusImage = psPlusProducts[0]?.imageUrl ?? null;
+  const giftCardImage = giftCardProducts[0]?.imageUrl ?? null;
+
+  return {
+    bannerSlides,
+    trustStats,
+    landingProducts,
+    discounted,
+    bestSellers,
+    totals,
+    netflixImage,
+    youtubeImage,
+    psPlusImage,
+    giftCardImage,
+  };
+  },
+  ["home-page-data"],
+  { revalidate: 1800, tags: ["home"] },
+);
+
+export default async function HomePage() {
+  const {
+    bannerSlides,
+    trustStats,
+    landingProducts,
+    discounted,
+    bestSellers,
+    totals,
+    netflixImage,
+    youtubeImage,
+    psPlusImage,
+    giftCardImage,
+  } = await getHomePageData();
+
   const websiteJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -727,7 +770,7 @@ export default async function HomePage() {
               icon={<Gamepad2 className="h-5 w-5 text-white" />}
               label="PlayStation"
               sub={`${totals.GAME.toLocaleString("az-AZ")}+ oyun · PS Plus · Hədiyyə kartları · Hesab açma`}
-              imageUrl={bannerSlides[0]?.imageUrl ?? psPlusProducts[0]?.imageUrl ?? giftCardProducts[0]?.imageUrl ?? null}
+              imageUrl={bannerSlides[0]?.imageUrl ?? psPlusImage ?? giftCardImage ?? null}
               accentClass="border-indigo-400/30 from-indigo-400/25 to-fuchsia-400/15"
             />
             <PlatformCard

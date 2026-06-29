@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { CartProvider } from "@/lib/cart";
+import { ReferralRatesProvider } from "@/components/ReferralRatesProvider";
+import { getReferralCategoryRatesCached } from "@/lib/publicReferralRates";
 import { ModalProvider } from "@/lib/modals";
 import { DialogProvider } from "@/lib/dialogs";
 import { ThemeProvider, THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme";
@@ -94,11 +96,12 @@ export const viewport: Viewport = {
   colorScheme: "light dark",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const referralCategoryRates = await getReferralCategoryRatesCached();
   return (
     <html lang="az" suppressHydrationWarning>
       <head>
@@ -120,19 +123,21 @@ export default function RootLayout({
         </Suspense>
 
         <ThemeProvider>
-          <DialogProvider>
-            <ModalProvider>
-              <FavoritesBootstrap>
-                <CartProvider>
-                  {children}
-                  <AppModals />
-                  <FavoriteIntroModal />
-                  <AskAiFloat />
-                  <ThemeToggle />
-                </CartProvider>
-              </FavoritesBootstrap>
-            </ModalProvider>
-          </DialogProvider>
+          <ReferralRatesProvider value={referralCategoryRates}>
+            <DialogProvider>
+              <ModalProvider>
+                <FavoritesBootstrap>
+                  <CartProvider>
+                    {children}
+                    <AppModals />
+                    <FavoriteIntroModal />
+                    <AskAiFloat />
+                    <ThemeToggle />
+                  </CartProvider>
+                </FavoritesBootstrap>
+              </ModalProvider>
+            </DialogProvider>
+          </ReferralRatesProvider>
         </ThemeProvider>
         <Analytics />
         <SpeedInsights />

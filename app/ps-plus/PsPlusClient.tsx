@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Crown, CheckCircle2, Plus, Sparkles, Check, Minus } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import ReferralBadge from "@/components/ReferralBadge";
 
 type Plan = {
   id: string;
@@ -259,6 +260,10 @@ export default function PsPlusClient({ plans, hideTierSelector = false, flatMode
                     ) : (
                       <div className="mt-2 h-[24px]" /> // Spacer to keep height consistent if no discount
                     )}
+
+                    <div className="mt-2">
+                      <ReferralBadge category="psPlus" productName={selected.title} />
+                    </div>
 
                     <div className="mt-6 flex-1 flex flex-col justify-end">
                       <button

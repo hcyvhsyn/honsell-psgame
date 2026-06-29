@@ -1,4 +1,5 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { prisma } from "./prisma";
 
@@ -29,11 +30,16 @@ export function generateReferralCode(): string {
  * Minimal session helper. Replace with NextAuth.js session retrieval once
  * NextAuth is wired up — the API surface (`getCurrentUser`) stays the same.
  */
-export async function getCurrentUser() {
+/**
+ * `cache()` ilə bürünüb: eyni request ərzində neçə komponent çağırsa da
+ * cookie + DB lookup yalnız bir dəfə icra olunur (header + səhifə daxilində
+ * təkrar çağırışlar üçün Mumbai-yə təkrar gediş olmur).
+ */
+export const getCurrentUser = cache(async function getCurrentUser() {
   const userId = cookies().get(SESSION_COOKIE)?.value;
   if (!userId) return null;
   return prisma.user.findUnique({ where: { id: userId } });
-}
+});
 
 export async function requireAdmin() {
   const user = await getCurrentUser();

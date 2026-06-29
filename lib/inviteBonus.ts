@@ -47,21 +47,36 @@ export async function awardInviteBonus(params: {
       id: true,
       isSponsored: true,
       lastLoginIp: true,
-      tier: { select: { slug: true } },
+      tier: { select: { slug: true, inviteBonusCents: true } },
     },
   });
   if (!referrer) return null;
 
-  const settings = await prisma.settings.upsert({
-    where: { id: "global" },
-    update: {},
-    create: { id: "global" },
-  });
-
-  const isSponsor = referrer.tier?.slug === "sponsorlu" || referrer.isSponsored;
-  const amountCents = isSponsor
-    ? settings.sponsoredReferralInviteBonusCents
-    : settings.referralInviteBonusCents;
+  // Dəvət bonusu məbləği dəvət EDƏNin müştəri seqmentindən (CustomerTier) gəlir.
+  //   - Seqmenti varsa → həmin seqmentin inviteBonusCents-i.
+  //   - Seqmenti yoxdursa (köhnə isSponsored) → "sponsorlu" seqment, yoxsa default.
+  // Settings.* yalnız seqment cədvəli olmadıqda son ehtiyat fallback-dir.
+  let amountCents: number;
+  if (referrer.tier) {
+    amountCents = referrer.tier.inviteBonusCents;
+  } else {
+    const fallbackTier = await prisma.customerTier.findFirst({
+      where: referrer.isSponsored ? { slug: "sponsorlu" } : { isDefault: true },
+      select: { inviteBonusCents: true },
+    });
+    if (fallbackTier) {
+      amountCents = fallbackTier.inviteBonusCents;
+    } else {
+      const settings = await prisma.settings.upsert({
+        where: { id: "global" },
+        update: {},
+        create: { id: "global" },
+      });
+      amountCents = referrer.isSponsored
+        ? settings.sponsoredReferralInviteBonusCents
+        : settings.referralInviteBonusCents;
+    }
+  }
 
   if (!amountCents || amountCents <= 0) return null; // bu müştəri tipində bonus bağlıdır
 

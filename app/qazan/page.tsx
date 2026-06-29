@@ -5,6 +5,7 @@ import {
   Check,
   Coins,
   Gift,
+  Percent,
   Sparkles,
   Trophy,
   UserPlus,
@@ -72,6 +73,15 @@ export default async function QazanPage() {
             dostunun oyun, streaming, musiqi, AI və iş platforması alışlarından
             platformaya görə dəyişən referal faizi ilə komissiya qazanırsan.
           </p>
+
+          <div className="mt-5">
+            <Link
+              href="/referal-faizleri"
+              className="inline-flex items-center gap-2 rounded-full border border-violet-300/60 bg-white/70 px-4 py-2 text-sm font-semibold text-violet-700 transition hover:bg-white dark:border-violet-500/40 dark:bg-white/[0.06] dark:text-violet-200 dark:hover:bg-white/10"
+            >
+              <Percent className="h-4 w-4" /> Bütün məhsulların referal faizləri
+            </Link>
+          </div>
 
           {user ? (
             <div className="mx-auto mt-8 max-w-2xl rounded-2xl border border-fuchsia-200 bg-white/80 p-5 shadow-[0_20px_60px_-44px_rgba(217,70,239,0.45)] backdrop-blur dark:border-fuchsia-500/30 dark:bg-zinc-950/40 dark:shadow-none sm:p-6">

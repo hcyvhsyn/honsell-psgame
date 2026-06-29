@@ -11,7 +11,7 @@ import {
 } from "@/lib/rateLimit";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { normalizeHeardAboutSource } from "@/lib/heardAbout";
-import { normalizeFullName, MIN_NAME_LENGTH } from "@/lib/nameFormat";
+import { normalizeFullName, validateFullName } from "@/lib/nameFormat";
 
 export const runtime = "nodejs";
 
@@ -32,11 +32,9 @@ export async function POST(req: Request) {
     if (!name) {
       return NextResponse.json({ error: "Ad Soyad tələb olunur" }, { status: 400 });
     }
-    if (name.length < MIN_NAME_LENGTH) {
-      return NextResponse.json(
-        { error: `Ad Soyad ən azı ${MIN_NAME_LENGTH} simvol olmalıdır` },
-        { status: 400 }
-      );
+    const nameError = validateFullName(name);
+    if (nameError) {
+      return NextResponse.json({ error: nameError }, { status: 400 });
     }
     if (!phone) {
       return NextResponse.json({ error: "Telefon nömrəsi tələb olunur" }, { status: 400 });

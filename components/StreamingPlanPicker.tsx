@@ -30,6 +30,7 @@ import {
   validateStreamingDetails,
 } from "@/lib/streamingCart";
 import { getServiceVariantConfig } from "@/lib/streamingVariants";
+import ReferralBadge from "./ReferralBadge";
 
 const DEVICE_META: Record<string, { label: string; Icon: LucideIcon; rank: number }> = {
   tv: { label: "Televizor", Icon: TvIcon, rank: 1 },
@@ -155,6 +156,8 @@ type Meta = {
   variantFeatures: VariantFeature[];
   /** Bütün variantlarda ortaq xüsusiyyətlər (eyni dəyər hər məhsulda saxlanılır). */
   commonFeatures: VariantFeature[];
+  /** Referal komissiya faizi (standart seqment) — 0 olduqda badge göstərilmir. */
+  referralPct: number;
 };
 
 type VariantOption = {
@@ -216,6 +219,8 @@ function readMeta(p: PlanProduct): Meta {
     variantRank: Number.isFinite(Number(m.variantRank)) ? Number(m.variantRank) : 0,
     variantFeatures: parseFeatures(m.variantFeatures),
     commonFeatures: parseFeatures(m.commonFeatures),
+    referralPct:
+      m.referralEnabled === false ? 0 : Math.max(0, Number(m.referralPct) || 0),
   };
 }
 
@@ -678,6 +683,11 @@ export default function StreamingPlanPicker({
                       <p className="mt-1 text-xs text-zinc-400">
                         Aylıq: <span className="font-semibold text-zinc-100 tabular-nums">{perMonth.toFixed(2)} ₼</span>
                       </p>
+                      {x.m.referralPct > 0 && (
+                        <div className="mt-2">
+                          <ReferralBadge pct={x.m.referralPct} productName={x.p.title} />
+                        </div>
+                      )}
 
                       <div className="mt-3 flex">
                         <PlanAddButton

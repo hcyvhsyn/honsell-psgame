@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CalendarDays, ShoppingBag, Check } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import ReferralBadge from "./ReferralBadge";
 
 type Product = {
   id: string;
@@ -29,6 +30,7 @@ function readMeta(p: Product) {
     originalPriceAznCents: Number.isFinite(opc) && opc > 0 ? opc : null,
     durationMonths:
       Number.isInteger(durationMonths) && durationMonths > 0 ? durationMonths : null,
+    referralPct: m.referralEnabled === false ? 0 : Math.max(0, Number(m.referralPct) || 0),
   };
 }
 
@@ -103,6 +105,11 @@ export default function PlatformsPublicSection({ products }: Props) {
                     <p className="text-xs text-zinc-500 line-through">{original} AZN</p>
                   )}
                   <p className="text-2xl font-black text-white">{final} AZN</p>
+                  {m.referralPct > 0 && (
+                    <div className="mt-1.5">
+                      <ReferralBadge pct={m.referralPct} productName={p.title} />
+                    </div>
+                  )}
                 </div>
                 <button
                   type="button"

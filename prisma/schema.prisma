@@ -353,6 +353,10 @@ model ServiceProduct {
   imageUrl      String?
   // Qiymət (AZN qəpiklə)
   priceAznCents Int
+  // Maya dəyəri (AZN qəpiklə) — yalnız admin görür. Referal qazanc proqnozu
+  // (xalis mənfəət = qiymət − maya − komissiya) burdan hesablanır. Komissiya
+  // ödənişinə TƏSİR ETMİR (komissiya hələ də qiymət × faiz-dir).
+  costAznCents  Int     @default(0)
 
   // Əlavə məlumatlar:
   // TRY_BALANCE üçün: neçə TRY-dir (məs: 250, 500)
@@ -970,6 +974,15 @@ model Settings {
   depositCardNumber String?
   depositCardHolder String?
 
+  // Hər satışdan tutulan ödəniş/vergi kəsintiləri (%) — yalnız admin qazanc
+  // proqnozu üçün. Komissiya ödənişinə təsir etmir.
+  //   epoint  → qiymətin %-i (ödəniş sistemi komissiyası)
+  //   vergi   → (qiymət − epoint) üzərindən %
+  //   nağd    → (qiymət − epoint) üzərindən % (nağdlaşdırma)
+  epointFeePct  Float @default(3)
+  taxPct        Float @default(2)
+  cashoutFeePct Float @default(1.5)
+
   updatedAt DateTime @updatedAt
 }
 
@@ -996,6 +1009,9 @@ model CustomerTier {
   sortOrder Int      @default(0)
   // Admin paneldə badge rəngi (opsional, məs: "#22c55e").
   color     String?
+  // Bu seqmentdəki dəvət edənə yazılan SABİT dəvət bonusu (qəpik, AZN * 100).
+  // 0 → bu seqmentdə dəvət bonusu bağlıdır. Referal faizləri səhifəsindən idarə olunur.
+  inviteBonusCents Int @default(30)
 
   users User[]
   rates ReferralRate[]

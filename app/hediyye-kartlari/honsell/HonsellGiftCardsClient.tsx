@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { Check, Gift, Plus } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import ReferralBadge from "@/components/ReferralBadge";
 
 type Card = {
   id: string;
@@ -76,6 +77,9 @@ export default function HonsellGiftCardsClient({ cards }: { cards: Card[] }) {
 
             <div className="relative mt-4 px-5 text-[11px] text-zinc-400">
               Alış üçün ödəniş: {(c.priceAznCents / 100).toFixed(2)} AZN
+            </div>
+            <div className="relative mt-2 px-5">
+              <ReferralBadge category="giftCards" productName={c.title} />
             </div>
 
             <div className="relative mt-5 px-5 pb-5">
