@@ -437,6 +437,10 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
       const orderB = LANDING_SERVICE_ORDER.get(b.type) ?? 999;
       return orderA - orderB || a.sortOrder - b.sortOrder || a.priceAznCents - b.priceAznCents;
     })
+    // Ana səhifə HTML-ini yüngül saxlamaq üçün maks. 12 kart server-render olunur
+    // (əvvəl bütün aktiv landing məhsulları gəlirdi → onlarla kart, böyük HTML).
+    // Tam siyahı /xidmetler və kateqoriya səhifələrindədir.
+    .slice(0, 12)
     .map((service) => ({
       id: service.id,
       title: service.title,
@@ -485,7 +489,7 @@ async function fetchDiscountedGames(
     .filter((row) => row.price.discountPct != null && row.price.discountPct > 0)
     .sort((a, b) => (b.price.discountPct ?? 0) - (a.price.discountPct ?? 0));
 
-  const cards: GameCardData[] = enriched.slice(0, 12).map(({ game, price }) => ({
+  const cards: GameCardData[] = enriched.slice(0, 10).map(({ game, price }) => ({
     id: game.id,
     productId: game.productId,
     title: game.title,

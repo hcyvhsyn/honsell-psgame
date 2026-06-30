@@ -3,7 +3,8 @@
 import { useRef } from "react";
 import Link from "next/link";
 import { Tag, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import GameCard, { type GameCardData } from "./GameCard";
+import CompactGameCard from "./CompactGameCard";
+import { type GameCardData } from "./GameCard";
 
 /**
  * Anasayfada endirimli oyunların üfüqi karuseli. Data `/endirimler`
@@ -78,10 +79,11 @@ export default function HomeDiscountCarousel({
           className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li]:w-[44%] [&>li]:min-w-[150px] [&>li]:shrink-0 [&>li]:snap-start sm:mx-0 sm:px-0 sm:[&>li]:w-[260px] sm:[&>li]:min-w-[240px]"
         >
           {games.map((game) => (
-            // Endirim karuseli hero-dan aşağıda (fold-altı) yerləşir — `priority`
-            // bu şəkilləri preload edib hero LCP şəkli ilə band uğrunda yarışdırırdı
-            // (mobil ən çox itki). Lazy yüklə; yalnız hero `priority` saxlayır.
-            <GameCard key={game.id} game={game} variant="compact" />
+            // Yüngül kart (1 şəkil, az ikon) — əvvəlki GameCard hər kartda 2 şəkil
+            // (blur+sharp), countdown, gift, referral badge, platform tooltip-ləri
+            // render edib HTML-i şişirdirdi. CompactGameCard image+ad+qiymət+badge+
+            // səbət düyməsini saxlayır, qalanını atır → xeyli kiçik HTML.
+            <CompactGameCard key={game.id} game={game} />
           ))}
         </ul>
       </div>
