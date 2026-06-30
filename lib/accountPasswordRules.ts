@@ -14,6 +14,12 @@ export const ACCOUNT_PASSWORD_RULES_AZ = [
   "Giriş kimliyinizi (e-poçt) və ya online ID-nizi ehtiva edə bilməz.",
 ];
 
+
+
+
+
+
+
 /**
  * Şifrəni yoxlayır. `identifiers` — şifrənin içində OLMAMALI olan dəyərlər:
  * giriş kimliyi (e-poçt) və online ID (Epic görünən ad). Boş və ya çox qısa
