@@ -30,6 +30,8 @@ export default function CompactGameCard({ game }: { game: GameCardData }) {
           alt={game.title}
           fill
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 200px"
+          // CDN keşli — self-hosted Next optimizer növbəsini bypass et.
+          unoptimized
           className="object-cover transition-transform duration-500 group-hover:scale-105"
         />
       ) : (

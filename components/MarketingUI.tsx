@@ -64,6 +64,7 @@ export function SubCategoryCard({
           alt=""
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 16vw"
+          unoptimized
           className="object-cover opacity-20 saturate-125 transition duration-500 group-hover:scale-105 group-hover:opacity-30 dark:opacity-25 dark:group-hover:opacity-35"
         />
       ) : (
@@ -116,6 +117,7 @@ export function PlatformCard({
           alt=""
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 16vw"
+          unoptimized
           className="object-cover opacity-15 saturate-125 transition duration-700 group-hover:scale-105 group-hover:opacity-20 dark:opacity-20 dark:group-hover:opacity-25"
         />
       ) : (
@@ -147,27 +149,24 @@ export function PlatformCard({
   );
 }
 
+/**
+ * Bölmə başlığı. Əvvəl bütün eni dolduran, sürətlə sürüşən və 15 dəfə təkrarlanan
+ * böyük hərfli marquee idi — agressiv və yorucu görünürdü. İndi premium, statik,
+ * mərkəzləşdirilmiş bir başlıq: hər iki yanda incə qradiyent xətt + bənövşəyi
+ * vurğu nöqtəsi. Eyni `text` API-si saxlanılıb, ona görə bütün istifadə yerləri
+ * avtomatik yenilənir.
+ */
 export function MarqueeHeader({ text }: { text: string }) {
-  const content = Array.from({ length: 15 }).map((_, i) => (
-    <span key={i} className="mx-4 text-2xl font-bold uppercase tracking-[0.2em] text-zinc-300 dark:text-white sm:text-4xl">
-      {text} <span className="mx-4 text-zinc-300/60 dark:text-white/30">•</span>
-    </span>
-  ));
-
-  const duration = Math.max(text.length * 4, 30);
-
   return (
-    <div className="relative flex w-full overflow-hidden border-y border-zinc-200 bg-white py-5 dark:border-white/10 dark:bg-[#12081C]">
-      <div className="flex whitespace-nowrap" style={{ animation: `marquee ${duration}s linear infinite` }}>
-        <style>{`
-          @keyframes marquee {
-            from { transform: translateX(0); }
-            to   { transform: translateX(-50%); }
-          }
-        `}</style>
-        {content}
-        {content}
-      </div>
+    <div className="mx-auto flex max-w-3xl items-center justify-center gap-3 px-4 sm:gap-4 sm:px-6">
+      <span className="h-px max-w-[5rem] flex-1 bg-gradient-to-r from-transparent to-violet-400/45 dark:to-violet-300/25" />
+      <span className="inline-flex items-center gap-2.5 whitespace-nowrap">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500 dark:bg-violet-400" />
+        <span className="text-xs font-black uppercase tracking-[0.32em] text-violet-700 dark:text-violet-200/90 sm:text-sm">
+          {text}
+        </span>
+      </span>
+      <span className="h-px max-w-[5rem] flex-1 bg-gradient-to-l from-transparent to-violet-400/45 dark:to-violet-300/25" />
     </div>
   );
 }

@@ -59,9 +59,9 @@ export default async function HomeTestimonials() {
   const showGrid = testimonials.length > 0;
 
   return (
-    <section id="reyler" className="py-16">
+    <section id="reyler" className="py-12 sm:py-16">
       <MarqueeHeader text="MÜŞTƏRİLƏR NƏ DEYİR" />
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
         {reviewName && (
           <div className="mb-8 flex justify-center">
             <HomeReviewModal defaultName={reviewName} />

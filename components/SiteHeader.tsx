@@ -228,7 +228,7 @@ export default function SiteHeader({
               <Logo href="/" height={28} priority className="h-6 w-auto xl:h-7" />
             </div>
 
-            <div className="hidden min-w-0 md:block">
+            <div className="hidden min-w-0 md:block md:max-w-md xl:max-w-xl">
               <NavSearch />
             </div>
 
@@ -517,6 +517,7 @@ function CategoryMenuItem({
             alt=""
             fill
             sizes="56px"
+            unoptimized
             className="object-cover"
           />
         ) : item.key === "PLAYSTATION_GAMES" ? (
@@ -812,6 +813,7 @@ function MobileCategorySheetCard({
             alt=""
             fill
             sizes="44px"
+            unoptimized
             className="object-cover"
           />
         ) : item.key === "PLAYSTATION_GAMES" ? (

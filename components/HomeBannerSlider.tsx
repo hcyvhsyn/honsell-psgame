@@ -199,6 +199,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                         sizes="100vw"
                         className="object-cover object-center"
                         priority={i === 0}
+                        unoptimized
                       />
                     )}
                   </div>
@@ -211,6 +212,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                         sizes="(min-width: 1024px) 1000px, 100vw"
                         className="object-cover object-center"
                         priority={i === 0}
+                        unoptimized
                       />
                     )}
                   </div>
@@ -227,6 +229,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                     sizes="(min-width: 1024px) 1000px, 100vw"
                     className="object-cover object-center"
                     priority={i === 0}
+                    unoptimized
                   />
                 )
               )}
@@ -450,6 +453,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                         alt={t || "Banner"}
                         fill
                         sizes="56px"
+                        unoptimized
                         className="object-cover"
                       />
                     )}

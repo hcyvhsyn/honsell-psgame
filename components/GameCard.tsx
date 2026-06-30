@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { cdnImageUrl } from "@/lib/cdnImage";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   Check,
@@ -121,6 +121,18 @@ export default function GameCard({
   const giftInCart = hydrated && hasGift(game.id);
   const countdown = useCountdown(game.discountEndAt);
   const compact = variant === "compact";
+  // Uzaq şəkil 404/şəbəkə xətası verəndə boş qutu yox, fallback ikon göstər.
+  const [imgFailed, setImgFailed] = useState(false);
+  // Yüklənənə qədər shimmer skeleton, hazır olanda yumşaq fade-in.
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const sharpImgRef = useRef<HTMLImageElement>(null);
+
+  // Keşli şəkildə onLoad işə düşməyə bilər → mount-da `complete` yoxla.
+  useEffect(() => {
+    if (sharpImgRef.current?.complete && sharpImgRef.current.naturalWidth > 0) {
+      setImgLoaded(true);
+    }
+  }, []);
 
   const isEpic = game.store === "EPIC" || game.platform === "PC";
   const cartPayload = {
@@ -141,24 +153,37 @@ export default function GameCard({
 
   const coverVisual = (
     <div className="relative aspect-square w-full overflow-hidden rounded-[18px] bg-zinc-100 dark:bg-zinc-900">
-      {game.imageUrl ? (
+      {game.imageUrl && !imgFailed ? (
         <>
+          {!imgLoaded && (
+            <span aria-hidden className="honsell-img-skeleton absolute inset-0" />
+          )}
           <Image
             src={cdnImageUrl(game.imageUrl)}
             alt=""
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="scale-110 object-cover opacity-45 blur-xl"
+            className={`scale-110 object-cover blur-xl transition-opacity duration-500 ease-out ${
+              imgLoaded ? "opacity-45" : "opacity-0"
+            }`}
             priority={priority}
+            unoptimized
             aria-hidden
           />
           <Image
+            ref={sharpImgRef}
             src={cdnImageUrl(game.imageUrl)}
             alt={game.title}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="object-contain transition-transform duration-700 group-hover:scale-[1.03]"
+            className={`object-contain transition duration-700 ease-out group-hover:scale-[1.03] ${
+              imgLoaded ? "opacity-100" : "opacity-0"
+            }`}
             priority={priority}
+            // CDN keşli — Node optimizer-ini bypass et (bax: yuxarıdakı blur şəkil).
+            unoptimized
+            onLoad={() => setImgLoaded(true)}
+            onError={() => setImgFailed(true)}
           />
         </>
       ) : (

@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
@@ -10,6 +9,7 @@ import {
   isHiddenFromLanding,
   landingServiceRequiresAccount,
 } from "@/lib/landingServices";
+import ProductImage from "@/components/ProductImage";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import SiteFooter from "@/components/SiteFooter";
 import HomeBannerSlider from "@/components/HomeBannerSlider";
@@ -38,7 +38,6 @@ import {
   ArrowRight,
   BadgeCheck,
   Flame,
-  ShoppingBag,
 } from "lucide-react";
 import FaqAccordion from "@/components/FaqAccordion";
 import HomeReferralCta from "@/components/HomeReferralCta";
@@ -115,12 +114,11 @@ const SERVICE_TYPE_BADGES: Record<string, string> = {
   HONSELL_GIFT_CARD: "Gift Card",
 };
 
-const BEST_SELLER_CARD_ACCENTS = [
-  "border-amber-300/35 bg-amber-50/70 dark:border-amber-300/15 dark:bg-amber-400/[0.06]",
-  "border-sky-300/35 bg-sky-50/70 dark:border-sky-300/15 dark:bg-sky-400/[0.06]",
-  "border-fuchsia-300/35 bg-fuchsia-50/70 dark:border-fuchsia-300/15 dark:bg-fuchsia-400/[0.06]",
-  "border-emerald-300/35 bg-emerald-50/70 dark:border-emerald-300/15 dark:bg-emerald-400/[0.06]",
-];
+// Vahid premium kart səthi — əvvəlki rəngarəng (amber/sky/fuchsia/emerald)
+// border-lər "gaming dashboard" hissi yaradırdı. Brend-bənövşəyi neytral səth
+// daha təmiz, satış yönümlü görünür və bütün kartlar eyni dildə danışır.
+const BEST_SELLER_CARD_SURFACE =
+  "border-zinc-200 bg-white hover:border-violet-300/60 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-violet-400/40";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -761,9 +759,9 @@ export default async function HomePage() {
       <BestSellersSection items={bestSellers} />
 
       {/* Top-level platform navigator */}
-      <section id="platformalar" className="py-16">
+      <section id="platformalar" className="py-12 sm:py-16">
         <MarqueeHeader text="PLATFORMALAR" />
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <PlatformCard
               href="/playstation"
@@ -815,9 +813,9 @@ export default async function HomePage() {
       </section>
 
       {/* Niyə biz */}
-      <section id="niye-biz" className="py-16">
+      <section id="niye-biz" className="py-12 sm:py-16">
         <MarqueeHeader text="NİYƏ BİZ" />
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             {[
               { icon: <Zap className="h-6 w-6 !text-white" />, title: "Anında çatdırılma", desc: "Gift card və bir çox sifarişdə nəticə saniyələr içində." },
@@ -843,7 +841,7 @@ export default async function HomePage() {
       {/* General FAQ */}
       <section className="py-12 sm:py-14">
         <MarqueeHeader text="TEZ VERİLƏN SUALLAR" />
-        <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-3xl px-4 pt-8 sm:px-6">
           <FaqAccordion items={HOME_FAQS} />
           <div className="mt-8 flex justify-center">
             <Link
@@ -871,7 +869,7 @@ function BestSellersSection({ items }: { items: BestSellerItem[] }) {
   return (
     <section id="cox-satanlar" className="border-y border-zinc-200 bg-white py-14 dark:border-white/10 dark:bg-[#07070C] sm:py-16">
       <MarqueeHeader text="ÇOX SATANLAR" />
-      <div className="mx-auto max-w-7xl px-4 py-9 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 pt-7 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-100 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-amber-800 dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-200">
@@ -895,35 +893,20 @@ function BestSellersSection({ items }: { items: BestSellerItem[] }) {
         </div>
 
         <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-3 sm:gap-4 lg:grid-cols-4">
-          {items.map((item, index) => (
+          {items.map((item) => (
             <Link
               key={item.id}
               href={item.href}
-              className={`group flex min-h-[270px] min-w-0 flex-col overflow-hidden rounded-[22px] border p-2.5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-zinc-900/10 dark:hover:shadow-black/30 sm:min-h-[320px] sm:p-3 ${
-                BEST_SELLER_CARD_ACCENTS[index % BEST_SELLER_CARD_ACCENTS.length]
-              }`}
+              className={`group flex min-h-[270px] min-w-0 flex-col overflow-hidden rounded-[22px] border p-2.5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-violet-900/10 dark:hover:shadow-black/40 sm:min-h-[320px] sm:p-3 ${BEST_SELLER_CARD_SURFACE}`}
             >
-              <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[18px] bg-zinc-100 dark:bg-zinc-950">
-                {item.imageUrl ? (
-                  <Image
-                    src={item.imageUrl}
-                    alt={item.title}
-                    fill
-                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    className="object-contain p-3 transition duration-500 group-hover:scale-[1.04]"
-                  />
-                ) : (
-                  <div className="grid h-full place-items-center bg-[linear-gradient(135deg,rgba(250,204,21,0.18),rgba(14,165,233,0.12),rgba(217,70,239,0.14))] text-zinc-700 dark:text-zinc-200">
-                    <div className="flex flex-col items-center gap-2 text-center">
-                      <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/40 bg-white/70 shadow-sm dark:border-white/10 dark:bg-white/10">
-                        <ShoppingBag className="h-6 w-6" />
-                      </span>
-                      <span className="max-w-[9rem] truncate text-xs font-black uppercase tracking-[0.14em]">
-                        {item.badge}
-                      </span>
-                    </div>
-                  </div>
-                )}
+              <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[18px] bg-gradient-to-br from-zinc-100 to-zinc-200/60 dark:from-zinc-900 dark:to-zinc-950">
+                <ProductImage
+                  src={item.imageUrl}
+                  alt={item.title}
+                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  className="object-contain p-3 transition duration-500 group-hover:scale-[1.04]"
+                  badge={item.badge}
+                />
                 <div className="absolute left-2 top-2 rounded-full border border-white/60 bg-white/90 px-2 py-1 text-[10px] font-black text-zinc-900 shadow-sm backdrop-blur dark:border-white/10 dark:bg-zinc-950/85 dark:text-zinc-100 sm:left-3 sm:top-3 sm:px-2.5">
                   {item.badge}
                 </div>

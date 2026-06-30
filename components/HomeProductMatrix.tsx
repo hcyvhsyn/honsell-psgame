@@ -1,9 +1,8 @@
 "use client";
 
-import Image from "next/image";
-import { cdnImageUrl } from "@/lib/cdnImage";
 import Link from "next/link";
-import { ArrowRight, Check, PackageSearch, ShoppingCart } from "lucide-react";
+import { ArrowRight, Check, ShoppingCart } from "lucide-react";
+import ProductImage from "./ProductImage";
 import { useCart } from "@/lib/cart";
 
 export type HomeProductMatrixItem = {
@@ -85,19 +84,13 @@ export default function HomeProductMatrix({
                   aria-label={`${product.title} səhifəsinə keç`}
                 >
                   <div className="relative aspect-square overflow-hidden rounded-xl bg-zinc-900">
-                    {product.imageUrl ? (
-                      <Image
-                        src={cdnImageUrl(product.imageUrl)}
-                        alt={product.title}
-                        fill
-                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
-                        className="object-cover transition duration-500 group-hover:scale-[1.04]"
-                      />
-                    ) : (
-                      <div className="grid h-full place-items-center bg-[linear-gradient(135deg,rgba(124,58,237,0.22),rgba(14,165,233,0.14),rgba(16,185,129,0.12))] text-zinc-300">
-                        <PackageSearch className="h-8 w-8" />
-                      </div>
-                    )}
+                    <ProductImage
+                      src={product.imageUrl}
+                      alt={product.title}
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
+                      className="object-cover transition duration-500 group-hover:scale-[1.04]"
+                      badge={product.badge}
+                    />
                     <div className="absolute left-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full border border-white/10 bg-zinc-950/80 px-2 py-1 text-[10px] font-black text-white backdrop-blur">
                       {product.badge}
                     </div>

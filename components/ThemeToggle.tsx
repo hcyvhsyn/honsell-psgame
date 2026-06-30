@@ -37,15 +37,16 @@ export default function ThemeToggle() {
       id="theme-toggle"
       role="radiogroup"
       aria-label="Mövzu rejimi"
-      className={`group fixed right-4 top-1/2 z-[120] -translate-y-1/2
+      className={`group fixed left-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[110]
         inline-flex h-24 w-12 flex-col items-center justify-between
-        rounded-full border p-1 shadow-2xl backdrop-blur-xl
+        rounded-full border p-1 shadow-lg backdrop-blur-xl
         transition-[background-color,border-color,box-shadow] duration-300
-        sm:right-6 sm:h-[104px] sm:w-[52px]
+        sm:h-[104px] sm:w-[52px]
+        xl:bottom-6 xl:left-5
         ${
           isDark
-            ? "border-white/[0.15] bg-zinc-950/80 text-zinc-200 shadow-[0_18px_48px_-24px_rgba(0,0,0,0.9)] hover:border-indigo-300/50"
-            : "border-zinc-200/80 bg-white/[0.85] text-zinc-600 shadow-[0_18px_48px_-28px_rgba(15,23,42,0.45)] hover:border-amber-300/70"
+            ? "border-white/[0.12] bg-zinc-950/70 text-zinc-200 shadow-[0_14px_40px_-26px_rgba(0,0,0,0.9)] hover:border-indigo-300/45"
+            : "border-zinc-200/80 bg-white/80 text-zinc-600 shadow-[0_14px_40px_-30px_rgba(15,23,42,0.4)] hover:border-amber-300/70"
         }`}
     >
       {/* Sliding indicator — purely decorative, clicks pass through */}
