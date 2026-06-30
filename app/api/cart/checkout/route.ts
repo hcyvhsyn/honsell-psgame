@@ -8,7 +8,7 @@ import {
   getSettings,
   tryCentsToCostAzn,
 } from "@/lib/pricing";
-import { getLoyaltyTier } from "@/lib/loyalty";
+import { getEffectiveTier } from "@/lib/customerTier";
 import {
   applyCashbackToBalance,
   getLifetimeSpendAznForLoyalty,
@@ -772,7 +772,11 @@ export async function POST(req: Request) {
   const topUpCents = chargeCents - totalCents;
 
   const spentAzn = await getLifetimeSpendAznForLoyalty(prisma, user.id);
-  const loyalty = getLoyaltyTier(spentAzn);
+  const effTier = await getEffectiveTier(user.id, spentAzn);
+  const loyalty = {
+    label: effTier?.displayName ?? effTier?.name ?? "",
+    cashbackPct: effTier?.cashbackPct ?? 0,
+  };
 
   if (body.paymentMethod === "epoint" || body.paymentMethod === "epoint-widget") {
     const useWidget = body.paymentMethod === "epoint-widget";

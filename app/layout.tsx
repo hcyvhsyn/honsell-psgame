@@ -11,10 +11,10 @@ import ThemeToggle from "@/components/ThemeToggle";
 import AppModals from "@/components/AppModals";
 import FavoritesBootstrap from "@/components/FavoritesBootstrap";
 import FavoriteIntroModal from "@/components/FavoriteIntroModal";
-import AskAiFloat from "@/components/AskAiFloat";
+import AskAiFloat from "@/components/AskAiFloatLazy";
 import TopLoader from "@/components/TopLoader";
 import { Suspense } from "react";
-import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
+import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "@/lib/site";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -22,17 +22,27 @@ const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
   weight: "100 900",
+  // FOIT əvəzinə dərhal fallback göstər, Geist gələndə dəyişdir — mətn şriftin
+  // yüklənməsini gözləmir (FCP/LCP üçün yaxşıdır).
+  display: "swap",
+  preload: true,
+  fallback: ["system-ui", "arial"],
 });
 const geistMono = localFont({
   src: "./fonts/GeistMonoVF.woff",
   variable: "--font-geist-mono",
   weight: "100 900",
+  display: "swap",
+  // Mono yalnız admin/kod-bloku/referral kodu kimi nadir yerlərdə işlənir —
+  // homepage-də heç işlənmir; hər səhifədə kritik preload etmə, lazım olanda yüklə.
+  preload: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
 });
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} — Azərbaycanda PlayStation oyunları`,
+    default: SITE_TITLE,
     template: `%s | ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,
@@ -57,7 +67,7 @@ export const metadata: Metadata = {
     locale: "az_AZ",
     siteName: SITE_NAME,
     url: SITE_URL,
-    title: `${SITE_NAME} — Azərbaycanda PlayStation oyunları`,
+    title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     images: [
       {
@@ -70,7 +80,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} — Azərbaycanda PlayStation oyunları`,
+    title: SITE_TITLE,
     description: SITE_DESCRIPTION,
     images: ["/icon.png"],
   },

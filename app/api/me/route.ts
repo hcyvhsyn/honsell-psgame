@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getLoyaltyTier } from "@/lib/loyalty";
+import { getEffectiveTier } from "@/lib/customerTier";
 import { getOrCreateEpicAccountProduct } from "@/lib/epicAccount";
 
 export const runtime = "nodejs";
@@ -50,13 +50,17 @@ export async function GET() {
       },
     }),
     prisma.transaction.aggregate({
-      where: { userId: user.id, type: "PURCHASE" },
+      where: { userId: user.id, type: { in: ["PURCHASE", "SERVICE_PURCHASE"] } },
       _sum: { amountAznCents: true },
     }),
   ]);
 
   const spentAzn = Math.abs(spentAgg._sum.amountAznCents ?? 0) / 100;
-  const loyalty = getLoyaltyTier(spentAzn);
+  const effTier = await getEffectiveTier(user.id, spentAzn);
+  const loyalty = {
+    cashbackPct: effTier?.cashbackPct ?? 0,
+    label: effTier?.displayName ?? effTier?.name ?? "",
+  };
 
   return NextResponse.json({
     user: {

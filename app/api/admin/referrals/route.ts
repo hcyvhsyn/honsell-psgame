@@ -153,7 +153,12 @@ export async function GET(req: Request) {
       select: {
         id: true,
         name: true,
+        displayName: true,
         slug: true,
+        kind: true,
+        minSpendCents: true,
+        icon: true,
+        cashbackPct: true,
         isDefault: true,
         sortOrder: true,
         color: true,
@@ -288,7 +293,12 @@ export async function GET(req: Request) {
     tiers: tiers.map((t) => ({
       id: t.id,
       name: t.name,
+      displayName: t.displayName,
       slug: t.slug,
+      kind: t.kind,
+      minSpendCents: t.minSpendCents,
+      icon: t.icon,
+      cashbackPct: t.cashbackPct,
       isDefault: t.isDefault,
       color: t.color,
       userCount: t._count.users,
@@ -297,6 +307,17 @@ export async function GET(req: Request) {
     tierId: selectedTierId,
     isDefaultSelected,
     inviteBonusCents: selectedTier?.inviteBonusCents ?? 0,
+    cashbackPct: selectedTier?.cashbackPct ?? 0,
+    selectedTier: selectedTier
+      ? {
+          id: selectedTier.id,
+          name: selectedTier.name,
+          displayName: selectedTier.displayName,
+          kind: selectedTier.kind,
+          minSpendCents: selectedTier.minSpendCents,
+          icon: selectedTier.icon,
+        }
+      : null,
     psStore: {
       games: effective(selected.byCategory, fallback.byCategory, "PS_GAMES", settings.referralGamesPct),
       psPlus: effective(selected.byCategory, fallback.byCategory, "PS_PLUS", settings.referralPsPlusPct),
@@ -390,11 +411,20 @@ export async function POST(req: Request) {
       update: settingsData,
     });
 
-    // Seçilmiş seqmentin dəvət bonusu.
+    // Seçilmiş seqmentin tier-səviyyə sahələri: dəvət bonusu, cashback, ad/ikon.
     const inviteBonusCents = parseBonusCents(body.inviteBonusAzn, "Dəvət bonusu");
-    rateWrites.push(
-      prisma.customerTier.update({ where: { id: tierId }, data: { inviteBonusCents } }),
-    );
+    const tierData: {
+      inviteBonusCents: number;
+      cashbackPct?: number;
+      displayName?: string;
+      icon?: string | null;
+    } = { inviteBonusCents };
+    if (body.cashbackPct != null) {
+      tierData.cashbackPct = parseRate(body.cashbackPct, "Cashback faizi");
+    }
+    if (typeof body.displayName === "string") tierData.displayName = body.displayName.trim();
+    if (typeof body.icon === "string") tierData.icon = body.icon.trim() || null;
+    rateWrites.push(prisma.customerTier.update({ where: { id: tierId }, data: tierData }));
 
     // Məhsul faizləri (hər variant × müddət) + maya (qlobal).
     const productIds = products
@@ -455,6 +485,9 @@ export async function POST(req: Request) {
     }
 
     if (rateWrites.length > 0) await runChunked(rateWrites);
+
+    // Tier sahələri (cashback/bonus) dəyişdi → tier keşini sıfırla.
+    revalidateTag("customer-tiers");
 
     // Yalnız default seqment dəyişəndə public görünüş/kalkulyator yenilənir.
     if (isDefault) {

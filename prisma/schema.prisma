@@ -1000,11 +1000,25 @@ model Settings {
 
 model CustomerTier {
   id        String   @id @default(cuid())
-  // UI etiketi (AZ): "Adi", "Sponsorlu", ...
+  // Qısa UI etiketi (AZ): "Bronze", "Silver", "Sponsorlu", ...
   name      String
+  // Tam görünən ad: "Honsell Bronze", "Honsell Gaming Ambassador".
+  displayName String @default("")
   // Seed/miqrasiya üçün stabil açar: "adi", "sponsorlu", ...
   slug      String   @unique
-  // Dəqiq bir sətir true olmalıdır — `tierId = null` olan istifadəçilərə tətbiq edilir.
+  // AUTO = xərcə görə avtomatik təyin olunan loyallıq tier-i (Bronze..Diamond).
+  // MANUAL = admin tərəfindən əl ilə verilən xüsusi status (Sponsorlu, Ambassador).
+  // Manual status istifadəçiyə təyin olunubsa avtomatik xərc tier-ini ƏVƏZ EDİR.
+  kind      String   @default("MANUAL")
+  // AUTO tier üçün minimal ömürlük xərc həddi (qəpik). Effektiv tier = minSpendCents
+  // ≤ xərc olan ən yüksək AUTO tier. MANUAL tier-lərdə istifadə olunmur.
+  minSpendCents Int  @default(0)
+  // public/-dakı SVG ikon açarı (məs: "bronze" → /tiers/bronze.svg). Opsional.
+  icon      String?
+  // Bu tier-dəki müştəriyə hər alışdan verilən cashback faizi (öz alışına, cashback
+  // balansına). Loyallıq sistemi ilə birləşdirilib — referal səhifəsindən idarə olunur.
+  cashbackPct Float @default(0)
+  // Dəqiq bir sətir true olmalıdır — heç bir tier uyğun gəlməyəndə fallback.
   isDefault Boolean  @default(false)
   sortOrder Int      @default(0)
   // Admin paneldə badge rəngi (opsional, məs: "#22c55e").

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Download, ShieldAlert } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { fmtAzn, fmtDate } from "@/lib/format";
+import { getEffectiveTiersForUsers } from "@/lib/customerTier";
+import TierBadge from "@/components/TierBadge";
 import { CopyPhoneButton, UserRowActions } from "./UserRowActions";
 import CreateUserButton from "./CreateUserButton";
 import UsersFiltersBar from "./UsersFiltersBar";
@@ -182,6 +184,7 @@ export default async function AdminUsersPage({
     disabled: boolean;
     walletBalance: number;
     referralCode: string;
+    tierId: string | null;
     createdAt: Date;
     _count: { referrals: number };
   }> = [];
@@ -287,6 +290,11 @@ export default async function AdminUsersPage({
       lastActivity: r._max.createdAt,
     });
   }
+
+  // Hər istifadəçinin effektiv müştəri tier-i (manual override ya da xərcə görə AUTO).
+  const tierByUser = await getEffectiveTiersForUsers(
+    users.map((u) => ({ id: u.id, tierId: u.tierId })),
+  );
 
   // ── Suspicious indicator: duplicate phones in the visible page ──────────────
   const phoneDupGrouped = ids.length
@@ -398,6 +406,7 @@ export default async function AdminUsersPage({
                           <span className="truncate text-zinc-900">
                             {u.name ?? <span className="text-zinc-500">—</span>}
                           </span>
+                          <TierBadge tier={tierByUser.get(u.id)} />
                           {isDupPhone && (
                             <span
                               title="Bu telefon nömrəsi birdən çox hesabda istifadə olunub"

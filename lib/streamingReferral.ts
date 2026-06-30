@@ -1,5 +1,6 @@
 import type { prisma } from "@/lib/prisma";
 import { resolveReferralRatePct, type ReferralRateDb, type ReferralTarget } from "@/lib/referralRates";
+import { resolveEffectiveTierId } from "@/lib/customerTier";
 
 /**
  * Transaction-client tipi: `prisma` genişləndirilmiş ($extends) client olduğu
@@ -51,12 +52,8 @@ export async function awardStreamingReferralCommission(
   });
   if (existing) return null;
 
-  // Referrer-in seqmentinə görə faizi resolve et.
-  const referrer = await ptx.user.findUnique({
-    where: { id: referredById },
-    select: { tierId: true },
-  });
-  const referrerTierId = referrer?.tierId ?? null;
+  // Referrer-in EFFEKTİV tier-inə (manual override ya da xərcə görə AUTO) faizi resolve et.
+  const referrerTierId = await resolveEffectiveTierId(referredById);
   const ratePct = await resolveReferralRatePct({
     tierId: referrerTierId,
     target,

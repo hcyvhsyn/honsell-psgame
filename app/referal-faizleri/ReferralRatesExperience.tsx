@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -11,11 +12,14 @@ import {
   Check,
   ChevronDown,
   CircleDollarSign,
+  Clapperboard,
   Coins,
   Copy,
+  Film,
   Flame,
   Gamepad2,
   Layers3,
+  type LucideIcon,
   MessageCircleMore,
   MousePointerClick,
   Music2,
@@ -26,7 +30,9 @@ import {
   Share2,
   ShieldCheck,
   Sparkles,
+  Target,
   TrendingUp,
+  Trophy,
   UserPlus,
   Users,
   WalletCards,
@@ -37,10 +43,83 @@ import { buildReferralRegisterUrl } from "@/lib/referralPromotion";
 import type { PublicRateGroup, PublicRateItem } from "@/lib/publicReferralRates";
 import styles from "./referral-rates.module.css";
 
-type Props = {
+type TierView = {
+  key: string;
+  label: string;
+  icon: string | null;
   groups: PublicRateGroup[];
+};
+
+type Props = {
+  tierViews: TierView[];
+  activeTierKey: string;
   referralCode: string | null;
 };
+
+type AmbassadorCard = {
+  title: string;
+  text: string;
+  metric: string;
+  Icon: LucideIcon;
+};
+
+type AmbassadorStep = {
+  number: string;
+  title: string;
+  text: string;
+  Icon: LucideIcon;
+};
+
+type AmbassadorVariant = {
+  kind: "gaming" | "cinema";
+  eyebrow: string;
+  title: string;
+  titleAccent: string;
+  lead: string;
+  trust: string;
+  heroStatLabels: [string, string, string];
+  deckKicker: string;
+  deckText: string;
+  deckChips: string[];
+  cards: AmbassadorCard[];
+  ticker: string[];
+  processKicker: string;
+  processTitle: string;
+  processSteps: AmbassadorStep[];
+  quote: string;
+  quoteFooter: string;
+  showcaseLabel: string;
+  showcaseHeading: string;
+  showcaseText: string;
+  finalKickerLoggedIn: string;
+  finalKickerGuest: string;
+  finalTitleLoggedIn: string;
+  finalTitleGuest: string;
+  finalTextLoggedIn: string;
+  finalTextGuest: string;
+  disclaimer: string;
+};
+
+type GroupBrandAsset = {
+  brandKey: "NETFLIX" | "PRIME_VIDEO" | "HBO_MAX" | "GAIN" | "SPOTIFY";
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+};
+
+function tierHref(key: string) {
+  return key === "default" ? "/referal-faizleri" : `/referal-faizleri/${key}`;
+}
+
+function tierViewIcon(view: TierView): LucideIcon {
+  const source = `${view.key} ${view.label} ${view.icon ?? ""}`.toLocaleLowerCase("az-AZ");
+  if (source.includes("gaming")) return Gamepad2;
+  if (source.includes("cinema")) return Clapperboard;
+  if (source.includes("film")) return Clapperboard;
+  if (source.includes("default") || source.includes("standart")) return Percent;
+  return Sparkles;
+}
 
 type FlatRate = PublicRateItem & { groupKey: string; groupLabel: string };
 
@@ -54,6 +133,62 @@ function formatMoney(value: number) {
 
 function fmtPct(value: number) {
   return Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1);
+}
+
+function normalizeBrandSource(value: string) {
+  return value.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+}
+
+function getGroupBrandAsset(groupKey: string, groupLabel: string): GroupBrandAsset | null {
+  const source = `${normalizeBrandSource(groupKey)} ${normalizeBrandSource(groupLabel)}`;
+
+  if (source.includes("NETFLIX")) {
+    return {
+      brandKey: "NETFLIX",
+      src: "/netflix-honsell.png",
+      alt: "Netflix",
+      width: 72,
+      height: 20,
+    };
+  }
+  if (source.includes("PRIME_VIDEO") || source.includes("PRIME")) {
+    return {
+      brandKey: "PRIME_VIDEO",
+      src: "/prime-honsell.png",
+      alt: "Prime Video",
+      width: 72,
+      height: 20,
+    };
+  }
+  if (source.includes("HBO_MAX") || source.includes("HBOMAX")) {
+    return {
+      brandKey: "HBO_MAX",
+      src: "/hbomax-honsell.png",
+      alt: "HBO Max",
+      width: 72,
+      height: 20,
+    };
+  }
+  if (source.includes("GAIN")) {
+    return {
+      brandKey: "GAIN",
+      src: "/gain-honsell.png",
+      alt: "Gain",
+      width: 58,
+      height: 22,
+    };
+  }
+  if (source.includes("SPOTIFY")) {
+    return {
+      brandKey: "SPOTIFY",
+      src: "/spotify-honsell.png",
+      alt: "Spotify",
+      width: 68,
+      height: 22,
+    };
+  }
+
+  return null;
 }
 
 function useAnimatedNumber(value: number) {
@@ -86,6 +221,192 @@ function useAnimatedNumber(value: number) {
 
 const CARD_ACCENTS = ["Green", "Gold", "Mint", "Lime"] as const;
 
+const DEFAULT_TICKER = [
+  "Bir link paylaş",
+  "Dost çevrən qazanc şəbəkəndir",
+  "Bu gün dəvət et, sabah balansını böyüt",
+];
+
+const DEFAULT_PROCESS_STEPS: AmbassadorStep[] = [
+  {
+    number: "01",
+    Icon: Share2,
+    title: "Linkini paylaş",
+    text: "Şəxsi referal linkini WhatsApp, Telegram və ya sosial mediada dostlarına göndər.",
+  },
+  {
+    number: "02",
+    Icon: MousePointerClick,
+    title: "Dostun qoşulsun",
+    text: "Dostun sənin linkinlə qeydiyyatdan keçsin və bəyəndiyi məhsulu alsın.",
+  },
+  {
+    number: "03",
+    Icon: Coins,
+    title: "Balansın artsın",
+    text: "Uyğun alış təsdiqlənən kimi komissiya avtomatik referal balansına əlavə olunsun.",
+  },
+];
+
+const AMBASSADOR_VARIANTS: Record<string, AmbassadorVariant> = {
+  "gaming-ambassador": {
+    kind: "gaming",
+    eyebrow: "Gaming Ambassador əməkdaşlıq təqdimatı",
+    title: "İcmanı oyuna çağır,",
+    titleAccent: "satışa çevirən kampaniya səhifəsi qur.",
+    lead:
+      "Bu səhifə oyun kontenti yaradıcısı, icma lideri və ya e-idman tərəfdaşı üçün hazırlanıb. Məqsəd yalnız faiz göstərmək deyil, canlı kampaniyanın enerjisini, paylaşım ritmini və qazanc potensialını bir baxışda hiss etdirməkdir.",
+    trust: "Oyun tərəfdaşlığı üçün hazırlanmış, yaradıcılara hazır təqdimat səhifəsi.",
+    heroStatLabels: ["yaradıcı artımı", "aktiv qazanc ssenarisi", "yayımdan satışa axın"],
+    deckKicker: "Niyə bu səhifə işləyir",
+    deckText:
+      "Neon arena estetikası, qısa çağırış axını və kampaniyaya hazır bloklar səhifəni yaradıcı təqdimatı kimi göstərir.",
+    deckChips: ["Discord aktivliyi", "TikTok-a hazır", "Hədiyyə aksiyaları", "Canlı kampaniya enerjisi"],
+    cards: [
+      {
+        title: "Yaradıcı odaqlı satış axını",
+        text: "Yayım, hekayə və profil linkindən gələn trafiki bir baxışda satış məntiqinə bağlayır.",
+        metric: "kampaniyadan satışa hazır",
+        Icon: Rocket,
+      },
+      {
+        title: "İcma fəaliyyəti",
+        text: "Hədiyyə aksiyası, komanda kampaniyaları və referal missiyaları üçün təbii kampaniya dili qurur.",
+        metric: "paylaşıma uyğun mesajlar",
+        Icon: Trophy,
+      },
+      {
+        title: "Oyun etibarı",
+        text: "PlayStation və rəqəmsal məhsul ritmini yaradıcı əməkdaşlığına uyğun təqdim edir.",
+        metric: "oyunçu auditoriyasına yaxın",
+        Icon: Gamepad2,
+      },
+    ],
+    ticker: [
+      "Birgə kampaniya ritmi",
+      "Yayımdan səbətə daha qısa yol",
+      "İcma marağı satışa işləsin",
+    ],
+    processKicker: "Oyun əməkdaşlığı axını",
+    processTitle: "Yaradıcı trafiki necə referal qazanca çevrilir?",
+    processSteps: [
+      {
+        number: "01",
+        Icon: Rocket,
+        title: "Kampaniyanı elan et",
+        text: "Hekayə, canlı yayım və ya Discord elanı ilə kampaniyanı güclü başlat.",
+      },
+      {
+        number: "02",
+        Icon: Target,
+        title: "Uyğun təklifə yönləndir",
+        text: "Auditoriyanı oyun, PS Plus və ya rəqəmsal hədiyyə kartı kimi uyğun məhsula apar.",
+      },
+      {
+        number: "03",
+        Icon: Trophy,
+        title: "İcmanı yenidən cəlb et",
+        text: "Qazancı yeni kampaniyalar, komanda çağırışları və yaradıcı təkrar paylaşımları ilə böyüt.",
+      },
+    ],
+    quote:
+      "“Yaxşı oyun əməkdaşlığı sadəcə afişa deyil, icmanı hərəkətə keçirən canlı kampaniya hissidir.”",
+    quoteFooter: "Bu səhifə həmin hissi ilk baxışdan ötürmək üçün qurulub.",
+    showcaseLabel: "Ən güclü əməkdaşlıq bucağı",
+    showcaseHeading: "Yaradıcı auditoriyasına uyğun hansı məhsullar daha yaxşı işləyir?",
+    showcaseText:
+      "Oyun yaradıcısı üçün sürətli qərar verdirən tərəf odur ki, burada həm kampaniya hissi, həm də konkret qazanc faizi eyni anda görünür.",
+    finalKickerLoggedIn: "Yaradıcı linkin artıq hazırdır",
+    finalKickerGuest: "Oyun tərəfdaşlığı axınına başla",
+    finalTitleLoggedIn: "İndi paylaş və icmanı ilk kampaniyaya gətir.",
+    finalTitleGuest: "Gaming Ambassador kimi qoşul və ilk yaradıcı səhifəni aktivləşdir.",
+    finalTextLoggedIn:
+      "Referal linkin artıq hazırdır. Onu yaradıcı təqdimatında, profil linkində və ya icma elanlarında istifadə edib ilk trafik dalğasını başlada bilərsən.",
+    finalTextGuest:
+      "Qeydiyyatdan keç, öz referal kodunu al və oyun yönümlü əməkdaşlıq səhifənlə tərəfdaşlıqları daha güclü təqdim et.",
+    disclaimer:
+      "Faizlər Gaming Ambassador seqmenti üçün canlı sistem məlumatlarıdır; nümunə hesablamalar təqdimat məqsədlidir.",
+  },
+  "cinema-ambassador": {
+    kind: "cinema",
+    eyebrow: "Cinema Ambassador əməkdaşlıq təqdimatı",
+    title: "Premyera ab-havası yarat,",
+    titleAccent: "hekayəni satışa bağlayan səhifə aç.",
+    lead:
+      "Bu səhifə film, serial və kino yönümlü yaradıcı əməkdaşlıqları üçün xüsusi hazırlanıb. Məqsəd statistikadan çox atmosfer qurmaq, kontent tərəfdaşına kampaniyanın vizual və kommersiya gücünü eyni anda göstərməkdir.",
+    trust: "Kino tərəfdaşlığı üçün hazırlanmış, ovqat öncəlikli təqdimat səhifəsi.",
+    heroStatLabels: ["hekayə əsaslı qazanc", "kontent bucağı", "izləyicidən satışa axın"],
+    deckKicker: "Ovqat lövhəsi kimi işləyən səhifə",
+    deckText:
+      "İşıq, səhnə və film kadrı detalları səhifəni sırf referal cədvəlindən çıxarıb təqdimat səhnəsinə çevirir.",
+    deckChips: ["Premyera enerjisi", "Rəy öncəlikli təqdimat", "Treyler ovqatı", "İzləmə siyahısı cəlbi"],
+    cards: [
+      {
+        title: "Hekayə əsaslı təqdimat",
+        text: "Filmi danışan yaradıcı üçün səhifə quru satış dili yox, əhval və ritm verir.",
+        metric: "ovqat təsiri",
+        Icon: Film,
+      },
+      {
+        title: "Premyera təqdimatı",
+        text: "Əməkdaşlıq linkini sadə çağırış yox, təqdimat anı kimi göstərmək üçün vizual səhnə yaradır.",
+        metric: "səhnə hissi",
+        Icon: Clapperboard,
+      },
+      {
+        title: "Rəydən satışa körpü",
+        text: "Treyler, rəy və tövsiyə kontentindən gələn marağı daha təbii axınla təklifə keçirir.",
+        metric: "izləmədən təklifə axın",
+        Icon: Sparkles,
+      },
+    ],
+    ticker: [
+      "Premyera enerjisi ilə təqdim et",
+      "Hekayə qur, marağı təklifə yönəlt",
+      "İzləmə siyahısı hissi referal satışına işləsin",
+    ],
+    processKicker: "Kino əməkdaşlığı axını",
+    processTitle: "Kino auditoriyası üçün referal təcrübəsi necə işləyir?",
+    processSteps: [
+      {
+        number: "01",
+        Icon: Clapperboard,
+        title: "Maraq oyat",
+        text: "Treyler kəsimi, rəy cəlbi və ya ovqat paylaşımı ilə kampaniyanın tonunu qur.",
+      },
+      {
+        number: "02",
+        Icon: Film,
+        title: "Uyğun platformaya apar",
+        text: "Auditoriyanı yayım seçimləri və uyğun paketlərlə birbaşa uyğun təklifə yönləndir.",
+      },
+      {
+        number: "03",
+        Icon: Sparkles,
+        title: "Təəssüratı qazanca çevir",
+        text: "Hekayəçilik gücünü referal axını ilə birləşdirib daha yadda qalan əməkdaşlıq hissi yarat.",
+      },
+    ],
+    quote:
+      "“Güclü kino əməkdaşlığı məhsulu göstərmir, əvvəlcə səhnəni qurur və insanı həmin səhnəyə daxil edir.”",
+    quoteFooter: "Bu səhifə əvvəlcə hiss, sonra təklif prinsipiylə qurulub.",
+    showcaseLabel: "Ən güclü hekayəçilik bucağı",
+    showcaseHeading: "Kino yaradıcısı üçün hansı təkliflər daha təbii görünür?",
+    showcaseText:
+      "Film və serial auditoriyası üçün ən böyük üstünlük odur ki, burada məhsullar sərt satış dili ilə yox, tövsiyə estetikası ilə təqdim olunur.",
+    finalKickerLoggedIn: "Sənin kino təqdimat linkin hazırdır",
+    finalKickerGuest: "Kino tərəfdaşlığı axınına başla",
+    finalTitleLoggedIn: "İndi paylaş və əməkdaşlığı premyera kimi təqdim et.",
+    finalTitleGuest: "Cinema Ambassador kimi qoşul və ovqat öncəlikli referal səhifəni aç.",
+    finalTextLoggedIn:
+      "Linkini yaradıcı təqdimatı, rəy paylaşımı və ya serial/film tövsiyə kontenti ilə birlikdə istifadə edib daha yüksək səviyyəli ilk təəssürat yarada bilərsən.",
+    finalTextGuest:
+      "Qeydiyyatdan keç, referal kodunu al və kino yönümlü əməkdaşlıq səhifənlə tərəfdaşlarına daha güclü təqdimat göstər.",
+    disclaimer:
+      "Faizlər Cinema Ambassador seqmenti üçün canlı sistem məlumatlarıdır; nümunə hesablamalar təqdimat məqsədlidir.",
+  },
+};
+
 function groupArtwork(groupKey: string) {
   if (groupKey === "PS_STORE") return <Gamepad2 />;
   if (groupKey.includes("MUSIC")) return <Music2 />;
@@ -107,6 +428,7 @@ const RateCard = memo(function RateCard({
   const maxRate = Math.max(0, ...group.items.map((item) => item.pct));
   const accent = CARD_ACCENTS[index % CARD_ACCENTS.length];
   const progress = globalMaxRate > 0 ? (maxRate / globalMaxRate) * 100 : 0;
+  const brandAsset = getGroupBrandAsset(group.key, group.label);
 
   return (
     <article className={`${styles.rateCard} ${styles[`accent${accent}`]}`}>
@@ -117,8 +439,18 @@ const RateCard = memo(function RateCard({
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
       >
-        <span className={styles.groupIcon} aria-hidden>
-          {groupArtwork(group.key)}
+        <span className={`${styles.groupIcon} ${brandAsset ? styles.groupIconBrand : ""}`} aria-hidden>
+          {brandAsset ? (
+            <Image
+              src={brandAsset.src}
+              alt=""
+              width={brandAsset.width}
+              height={brandAsset.height}
+              className={styles.groupBrandImage}
+            />
+          ) : (
+            groupArtwork(group.key)
+          )}
         </span>
         <span className={styles.groupTitleWrap}>
           <span className={styles.groupTitle}>{group.label}</span>
@@ -166,7 +498,81 @@ const RateCard = memo(function RateCard({
   );
 });
 
-export default function ReferralRatesExperience({ groups, referralCode }: Props) {
+function QuoteVisual({
+  ambassador,
+  maxRate,
+  positiveRateCount,
+}: {
+  ambassador: AmbassadorVariant | null;
+  maxRate: number;
+  positiveRateCount: number;
+}) {
+  if (ambassador?.kind === "gaming") {
+    return (
+      <div className={styles.gamingQuoteVisual}>
+        <span className={styles.gamingArenaRing} />
+        <span className={styles.gamingArenaRingSmall} />
+        <div className={styles.gamingArenaCore}>
+          <Gamepad2 />
+          <strong>CANLI KAMPANİYA</strong>
+          <span>{fmtPct(maxRate)}%-dək yaradıcı üstünlüyü</span>
+        </div>
+        {["Yayıma hazır", "Komanda çağırışı", `${positiveRateCount}+ təklif`].map((label) => (
+          <span className={styles.gamingArenaChip} key={label}>
+            {label}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  if (ambassador?.kind === "cinema") {
+    return (
+      <div className={styles.cinemaQuoteVisual}>
+        <span className={styles.cinemaSpotlight} />
+        <div className={styles.cinemaReel}>
+          <Clapperboard />
+          <span>PREMYERA REJİMİ</span>
+        </div>
+        <div className={styles.cinemaFrames}>
+          <article>
+            <small>Səhnə 01</small>
+            <strong>Əvvəlcə ovqat</strong>
+          </article>
+          <article>
+            <small>Səhnə 02</small>
+            <strong>Təklifin açılışı</strong>
+          </article>
+          <article>
+            <small>Səhnə 03</small>
+            <strong>{fmtPct(maxRate)}%-dək təqdimat</strong>
+          </article>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {[30, 46, 61, 82, 100].map((height, index) => (
+        <span
+          key={height}
+          style={{ "--bar-height": `${height}%`, "--bar-delay": `${index * 120}ms` } as React.CSSProperties}
+        >
+          <i>₼</i>
+        </span>
+      ))}
+      <TrendingUp />
+    </>
+  );
+}
+
+export default function ReferralRatesExperience({ tierViews, activeTierKey, referralCode }: Props) {
+  const activeView = tierViews.find((v) => v.key === activeTierKey) ?? tierViews[0];
+  const ambassador = activeView ? AMBASSADOR_VARIANTS[activeView.key] ?? null : null;
+  const groups = useMemo(() => activeView?.groups ?? [], [activeView]);
+  const hasTierSwitch = tierViews.length > 1;
+
   const rates = useMemo<FlatRate[]>(
     () =>
       groups.flatMap((group) =>
@@ -227,6 +633,17 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
       }))
       .filter((group) => group.items.length > 0);
   }, [activeGroup, groups, search]);
+  const logoFilters = useMemo(() => {
+    const seen = new Set<string>();
+    return groups
+      .map((group) => {
+        const asset = getGroupBrandAsset(group.key, group.label);
+        if (!asset || seen.has(asset.brandKey)) return null;
+        seen.add(asset.brandKey);
+        return { groupKey: group.key, groupLabel: group.label, asset };
+      })
+      .filter((entry): entry is { groupKey: string; groupLabel: string; asset: GroupBrandAsset } => Boolean(entry));
+  }, [groups]);
 
   const whatsAppLink = useMemo(() => {
     if (!referralCode) return "#";
@@ -234,6 +651,60 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
     const message = `Honsell-də mənim dəvət linkimlə qeydiyyatdan keç. Məhsuldan asılı olaraq referal qazancı ${fmtPct(maxRate)}%-dəkdir:\n${inviteUrl}\n\nKod: ${referralCode}`;
     return `https://wa.me/?text=${encodeURIComponent(message)}`;
   }, [maxRate, referralCode]);
+
+  const heroStats = ambassador
+    ? [
+        { value: maxRate > 0 ? `${fmtPct(maxRate)}%-dək` : "Canlı", label: ambassador.heroStatLabels[0] },
+        { value: `${positiveRates.length}+`, label: ambassador.heroStatLabels[1] },
+        { value: ambassador.kind === "gaming" ? "yaradıcıya hazır" : "təqdimata hazır", label: ambassador.heroStatLabels[2] },
+      ]
+    : [
+        { value: maxRate > 0 ? `${fmtPct(maxRate)}%-dək` : "Real", label: "məhsul üzrə qazanc" },
+        { value: `${positiveRates.length}+`, label: "qazanc imkanı" },
+        { value: "1 link", label: "başlamaq üçün kifayətdir" },
+      ];
+  const tickerMessages = ambassador?.ticker ?? DEFAULT_TICKER;
+  const processSteps = ambassador?.processSteps ?? DEFAULT_PROCESS_STEPS;
+  const showcaseHeading = ambassador?.showcaseHeading ?? "Hansı məhsul nə qədər qazandırır?";
+  const showcaseLabel = ambassador?.showcaseLabel ?? "Bu günün qazanc fürsəti";
+  const showcaseText =
+    ambassador?.showcaseText ??
+    "Faizi seç, potensialını hesabla, ən uyğun auditoriyanı dəvət et.";
+  const disclaimer =
+    ambassador?.disclaimer ??
+    "Faizlər standart müştəri seqmenti üçündür və zamanla dəyişə bilər. 100 AZN nümunəsi alış məbləği üzərindən sadə izahdır.";
+  const tierSwitchBlock = hasTierSwitch ? (
+    <div className={`${styles.tierSwitch} ${styles.heroTierSwitch}`} role="tablist" aria-label="Müştəri statusu üzrə faizlər">
+      <span className={styles.tierSwitchLabel}>Statusa görə faizlər:</span>
+      <div className={styles.tierSwitchButtons}>
+        {tierViews.map((view) => {
+          const active = view.key === activeTierKey;
+          const Icon = tierViewIcon(view);
+          return (
+            <Link
+              key={view.key}
+              href={tierHref(view.key)}
+              role="tab"
+              aria-selected={active}
+              aria-current={active ? "page" : undefined}
+              className={`${styles.tierSwitchButton} ${active ? styles.tierSwitchActive : ""}`}
+            >
+              <span className={styles.tierSwitchIcon} aria-hidden>
+                <Icon />
+              </span>
+              {view.label}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  ) : null;
+
+  useEffect(() => {
+    if (!rates.some((rate) => rate.id === selectedId)) {
+      setSelectedId(firstRate?.id ?? "");
+    }
+  }, [firstRate?.id, rates, selectedId]);
 
   useEffect(() => {
     if (!productOpen) return;
@@ -279,11 +750,27 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
   }
 
   return (
-    <div className={styles.page}>
+    <div
+      className={[
+        styles.page,
+        ambassador ? styles.pageAmbassador : "",
+        ambassador?.kind === "gaming" ? styles.pageGaming : "",
+        ambassador?.kind === "cinema" ? styles.pageCinema : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <section className={styles.hero}>
         <div className={styles.heroGrid} aria-hidden />
         <div className={styles.auroraOne} aria-hidden />
         <div className={styles.auroraTwo} aria-hidden />
+        {ambassador && (
+          <div className={styles.heroAmbience} aria-hidden>
+            <span />
+            <span />
+            <span />
+          </div>
+        )}
 
         <div className={styles.moneyCloud} aria-hidden>
           <span className={`${styles.floatingCoin} ${styles.coinOne}`}>₼</span>
@@ -297,32 +784,55 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
           <div className={styles.heroCopy}>
             <Link href="/qazan" className={styles.eyebrow}>
               <span><Sparkles /></span>
-              Honsell referal proqramı
+              {ambassador?.eyebrow ?? "Honsell referal proqramı"}
               <ArrowRight />
             </Link>
 
             <h1>
-              Dostların alış edir.
-              <span>Sənin qazancın böyüyür.</span>
+              {ambassador?.title ?? "Dostların alış edir."}
+              <span>{ambassador?.titleAccent ?? "Sənin qazancın böyüyür."}</span>
             </h1>
             <p className={styles.heroLead}>
-              Bir dəfə dəvət et, dostlarının uyğun Honsell alışlarından davamlı referal
-              qazancı əldə et. Çevrən böyüdükcə potensial qazancın da böyüyür.
+              {ambassador?.lead ??
+                "Bir dəfə dəvət et, dostlarının uyğun Honsell alışlarından davamlı referal qazancı əldə et. Çevrən böyüdükcə potensial qazancın da böyüyür."}
             </p>
 
+            {tierSwitchBlock}
+
+            {ambassador && (
+              <div className={styles.ambassadorDeck}>
+                <div className={styles.ambassadorDeckHead}>
+                  <span>{ambassador.deckKicker}</span>
+                  <p>{ambassador.deckText}</p>
+                </div>
+                <div className={styles.ambassadorChipRow}>
+                  {ambassador.deckChips.map((chip) => (
+                    <span key={chip}>{chip}</span>
+                  ))}
+                  {topRate ? <span className={styles.ambassadorChipAccent}>{topRate.groupLabel}</span> : null}
+                </div>
+                <div className={styles.ambassadorCardGrid}>
+                  {ambassador.cards.map(({ title, text, metric, Icon }) => (
+                    <article className={styles.ambassadorCard} key={title}>
+                      <span className={styles.ambassadorCardIcon}>
+                        <Icon />
+                      </span>
+                      <strong>{title}</strong>
+                      <p>{text}</p>
+                      <small>{metric}</small>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className={styles.heroStats}>
-              <div>
-                <strong>{maxRate > 0 ? `${fmtPct(maxRate)}%-dək` : "Real"}</strong>
-                <span>məhsul üzrə qazanc</span>
-              </div>
-              <div>
-                <strong>{positiveRates.length}+</strong>
-                <span>qazanc imkanı</span>
-              </div>
-              <div>
-                <strong>1 link</strong>
-                <span>başlamaq üçün kifayətdir</span>
-              </div>
+              {heroStats.map((stat) => (
+                <div key={stat.label}>
+                  <strong>{stat.value}</strong>
+                  <span>{stat.label}</span>
+                </div>
+              ))}
             </div>
 
             <div className={styles.heroActions}>
@@ -335,7 +845,7 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
             </div>
 
             <p className={styles.trustLine}>
-              <ShieldCheck /> Faizlər canlı sistem məlumatlarıdır — gizli hesab yoxdur.
+              <ShieldCheck /> {ambassador?.trust ?? "Faizlər canlı sistem məlumatlarıdır — gizli hesab yoxdur."}
             </p>
           </div>
 
@@ -343,7 +853,7 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
             <div className={styles.calculatorGlow} aria-hidden />
             <div className={styles.calculatorCard}>
               <div className={styles.calculatorTopline}>
-                <span><BadgeDollarSign /> Canlı qazanc simulyatoru</span>
+                <span><BadgeDollarSign /> {activeView.label} üçün canlı qazanc simulyatoru</span>
                 <span className={styles.live}><i /> CANLI</span>
               </div>
 
@@ -373,7 +883,25 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
                   }}
                 >
                   <span className={styles.productTriggerIcon} aria-hidden>
-                    {selected ? groupArtwork(selected.groupKey) : <Layers3 />}
+                    {selected ? (
+                      (() => {
+                        const asset = getGroupBrandAsset(selected.groupKey, selected.groupLabel);
+                        if (asset) {
+                          return (
+                            <Image
+                              src={asset.src}
+                              alt=""
+                              width={asset.width}
+                              height={asset.height}
+                              className={styles.selectBrandImage}
+                            />
+                          );
+                        }
+                        return groupArtwork(selected.groupKey);
+                      })()
+                    ) : (
+                      <Layers3 />
+                    )}
                   </span>
                   <span className={styles.productTriggerCopy} id="rate-product-value">
                     <small>{selected?.groupLabel ?? "Məhsul seç"}</small>
@@ -413,7 +941,23 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
                         onClick={() => chooseProduct(rate.id)}
                         key={`${rate.groupKey}:${rate.id}`}
                       >
-                        <span className={styles.productOptionIcon} aria-hidden>{groupArtwork(rate.groupKey)}</span>
+                        <span className={styles.productOptionIcon} aria-hidden>
+                          {(() => {
+                            const asset = getGroupBrandAsset(rate.groupKey, rate.groupLabel);
+                            if (asset) {
+                              return (
+                                <Image
+                                  src={asset.src}
+                                  alt=""
+                                  width={asset.width}
+                                  height={asset.height}
+                                  className={styles.optionBrandImage}
+                                />
+                              );
+                            }
+                            return groupArtwork(rate.groupKey);
+                          })()}
+                        </span>
                         <span className={styles.productOptionCopy}>
                           <small>{rate.groupLabel}</small>
                           <strong>{rate.label}</strong>
@@ -486,9 +1030,9 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
         <div className={styles.tickerTrack}>
           {[0, 1].map((copy) => (
             <div key={copy} aria-hidden={copy === 1}>
-              <span>Bir link paylaş</span><Sparkles />
-              <span>Dost çevrən qazanc şəbəkəndir</span><CircleDollarSign />
-              <span>Bu gün dəvət et, sabah balansını böyüt</span><Rocket />
+              <span>{tickerMessages[0]}</span><Sparkles />
+              <span>{tickerMessages[1]}</span><CircleDollarSign />
+              <span>{tickerMessages[2]}</span><Rocket />
             </div>
           ))}
         </div>
@@ -496,18 +1040,14 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
 
       <section className={styles.processSection}>
         <div className={styles.sectionIntro}>
-          <span className={styles.sectionKicker}>Sadə mexanika, real qazanc</span>
-          <h2>Paylaşdığın hər link<br />yeni qazanc qapısıdır.</h2>
+          <span className={styles.sectionKicker}>{ambassador?.processKicker ?? "Sadə mexanika, real qazanc"}</span>
+          <h2>{ambassador?.processTitle ?? <>Paylaşdığın hər link<br />yeni qazanc qapısıdır.</>}</h2>
         </div>
         <div className={styles.steps}>
-          {[
-            { number: "01", icon: <Share2 />, title: "Linkini paylaş", text: "Şəxsi referal linkini WhatsApp, Telegram və ya sosial mediada dostlarına göndər." },
-            { number: "02", icon: <MousePointerClick />, title: "Dostun qoşulsun", text: "Dostun sənin linkinlə qeydiyyatdan keçsin və bəyəndiyi məhsulu alsın." },
-            { number: "03", icon: <Coins />, title: "Balansın artsın", text: "Uyğun alış təsdiqlənən kimi komissiya avtomatik referal balansına əlavə olunsun." },
-          ].map((step) => (
+          {processSteps.map((step) => (
             <article className={styles.stepCard} key={step.number}>
               <span className={styles.stepNumber}>{step.number}</span>
-              <span className={styles.stepIcon}>{step.icon}</span>
+              <span className={styles.stepIcon}><step.Icon /></span>
               <h3>{step.title}</h3>
               <p>{step.text}</p>
             </article>
@@ -517,17 +1057,12 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
 
       <section className={styles.quoteSection}>
         <div className={styles.quoteVisual} aria-hidden>
-          {[30, 46, 61, 82, 100].map((height, index) => (
-            <span key={height} style={{ "--bar-height": `${height}%`, "--bar-delay": `${index * 120}ms` } as React.CSSProperties}>
-              <i>₼</i>
-            </span>
-          ))}
-          <TrendingUp />
+          <QuoteVisual ambassador={ambassador} maxRate={maxRate} positiveRateCount={positiveRates.length} />
         </div>
         <blockquote>
           <Sparkles />
-          <p>“Qazanc böyük addımla deyil, paylaşdığın ilk linklə başlayır.”</p>
-          <footer>Bu gün 3 dostuna göndər. Qalanını sistem işləsin.</footer>
+          <p>{ambassador?.quote ?? "“Qazanc böyük addımla deyil, paylaşdığın ilk linklə başlayır.”"}</p>
+          <footer>{ambassador?.quoteFooter ?? "Bu gün 3 dostuna göndər. Qalanını sistem işləsin."}</footer>
         </blockquote>
       </section>
 
@@ -538,8 +1073,8 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
         <div className={styles.ratesHeading}>
           <div>
             <span className={styles.sectionKicker}>Canlı referal faizləri</span>
-            <h2>Hansı məhsul nə qədər qazandırır?</h2>
-            <p>Faizi seç, potensialını hesabla, ən uyğun auditoriyanı dəvət et.</p>
+            <h2>{showcaseHeading}</h2>
+            <p>{showcaseText}</p>
           </div>
         </div>
 
@@ -558,11 +1093,17 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
           </div>
 
           <div className={styles.showcaseContent}>
-            <span className={styles.showcaseLabel}><Flame /> Bu günün qazanc fürsəti</span>
+            <span className={styles.showcaseLabel}><Flame /> {showcaseLabel}</span>
             <h3>{topRate ? `${topRate.groupLabel} · ${topRate.label}` : "Yeni fürsətlər tezliklə"}</h3>
             <p>
-              10 dost ayda 100 AZN-lik uyğun alış etsə, bu faizlə aylıq təxmini
-              <strong> {formatMoney(maxRate * 10)} AZN</strong> referal qazancı yarana bilər.
+              {ambassador?.showcaseText ?? "10 dost ayda 100 AZN-lik uyğun alış etsə, bu faizlə aylıq təxmini"}
+              {!ambassador && <strong> {formatMoney(maxRate * 10)} AZN</strong>}
+              {ambassador && (
+                <>
+                  {" "}
+                  Ən güclü ssenari isə <strong>{formatMoney(maxRate * 10)} AZN</strong> aylıq təxmini qazanc potensialını bir baxışda göstərməsidir.
+                </>
+              )}
             </p>
             <div className={styles.showcaseStats}>
               <span><Layers3 /><b>{groups.length}</b> kateqoriya</span>
@@ -605,6 +1146,29 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
           ))}
         </div>
 
+        {logoFilters.length > 0 && (
+          <div className={styles.logoFilters} aria-label="Logo ilə platforma seçimi">
+            {logoFilters.map(({ groupKey, groupLabel, asset }) => (
+              <button
+                type="button"
+                key={groupKey}
+                className={`${styles.logoFilterButton} ${activeGroup === groupKey ? styles.logoFilterActive : ""}`}
+                onClick={() => setActiveGroup((current) => (current === groupKey ? "ALL" : groupKey))}
+                aria-pressed={activeGroup === groupKey}
+                title={groupLabel}
+              >
+                <Image
+                  src={asset.src}
+                  alt={asset.alt}
+                  width={asset.width}
+                  height={asset.height}
+                  className={styles.logoFilterImage}
+                />
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className={styles.rateGrid}>
           {visibleGroups.map((group, index) => (
             <RateCard group={group} index={index} globalMaxRate={maxRate} key={group.key} />
@@ -618,8 +1182,7 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
           </div>
         )}
         <p className={styles.ratesDisclaimer}>
-          <ShieldCheck /> Faizlər standart müştəri seqmenti üçündür və zamanla dəyişə bilər.
-          100 AZN nümunəsi alış məbləği üzərindən sadə izahdır.
+          <ShieldCheck /> {disclaimer}
         </p>
       </section>
 
@@ -627,12 +1190,22 @@ export default function ReferralRatesExperience({ groups, referralCode }: Props)
         <div className={styles.ctaCoinOne} aria-hidden>₼</div>
         <div className={styles.ctaCoinTwo} aria-hidden>%</div>
         <div className={styles.ctaCopy}>
-          <span className={styles.sectionKicker}>{referralCode ? "Sənin linkin hazırdır" : "İlk qazancına bir addım"}</span>
-          <h2>{referralCode ? "İndi paylaş. Qazanc şəbəkəni böyüt." : "Dostlarını dəvət et. Balansını böyüt."}</h2>
+          <span className={styles.sectionKicker}>
+            {referralCode
+              ? ambassador?.finalKickerLoggedIn ?? "Sənin linkin hazırdır"
+              : ambassador?.finalKickerGuest ?? "İlk qazancına bir addım"}
+          </span>
+          <h2>
+            {referralCode
+              ? ambassador?.finalTitleLoggedIn ?? "İndi paylaş. Qazanc şəbəkəni böyüt."
+              : ambassador?.finalTitleGuest ?? "Dostlarını dəvət et. Balansını böyüt."}
+          </h2>
           <p>
             {referralCode
-              ? "Kodun səndədir. Onu dostlarına göndər və uyğun alışlardan referal qazancı toplamağa başla."
-              : "Pulsuz qeydiyyatdan keç, şəxsi referal kodunu al və bu gün paylaşmağa başla."}
+              ? ambassador?.finalTextLoggedIn ??
+                "Kodun səndədir. Onu dostlarına göndər və uyğun alışlardan referal qazancı toplamağa başla."
+              : ambassador?.finalTextGuest ??
+                "Pulsuz qeydiyyatdan keç, şəxsi referal kodunu al və bu gün paylaşmağa başla."}
           </p>
         </div>
 

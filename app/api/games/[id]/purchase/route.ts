@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
-import { getLoyaltyTier } from "@/lib/loyalty";
+import { getEffectiveTier } from "@/lib/customerTier";
 import {
   applyCashbackToBalance,
   getLifetimeSpendAznForLoyalty,
@@ -68,7 +68,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const orderCode = `HON-${randomBytes(3).toString("hex").toUpperCase()}`;
 
   const spentAzn = await getLifetimeSpendAznForLoyalty(prisma, user.id);
-  const loyalty = getLoyaltyTier(spentAzn);
+  const effTier = await getEffectiveTier(user.id, spentAzn);
+  const loyalty = {
+    label: effTier?.displayName ?? effTier?.name ?? "",
+    cashbackPct: effTier?.cashbackPct ?? 0,
+  };
   const loyaltyCashbackCents =
     loyalty.cashbackPct > 0 ? Math.round((priceCents * loyalty.cashbackPct) / 100) : 0;
 

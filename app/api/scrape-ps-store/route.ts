@@ -1,7 +1,6 @@
 import * as cheerio from "cheerio";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { revalidateGames } from "@/lib/revalidate";
 import { sendFavoriteOnSaleEmail } from "@/lib/resend";
 import { sendFavoriteOnSaleWhatsApp } from "@/lib/orderNotifications";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
@@ -1361,10 +1360,28 @@ export async function GET(req: Request) {
           },
         });
 
+        // Keşi BURADA `revalidateGames()` ilə təmizləmək olmaz: biz request
+        // scope-undan sonra yaşayan detached ReadableStream içindəyik, ona görə
+        // Next `revalidateTag`/`revalidatePath`-i no-op kimi atır və bitmiş
+        // endirimlər kataloq/ana səhifə kartlarında TTL bitənə qədər qalır.
+        // Gerçək invalidasiyanı normal request kontekstli route üzərindən
+        // (HTTP) tetikliyoruz.
         try {
-          revalidateGames();
+          const origin = new URL(req.url).origin;
+          const secret = process.env.CRON_SECRET;
+          const res = await fetch(`${origin}/api/internal/revalidate-games`, {
+            method: "POST",
+            headers: secret ? { authorization: `Bearer ${secret}` } : {},
+            cache: "no-store",
+          });
+          if (!res.ok) {
+            console.error(
+              "scrape-ps-store: revalidate trigger returned",
+              res.status
+            );
+          }
         } catch (e) {
-          console.error("scrape-ps-store: revalidate failed", e);
+          console.error("scrape-ps-store: revalidate trigger failed", e);
         }
 
         emit({ type: "done", scraped: total, upserts });

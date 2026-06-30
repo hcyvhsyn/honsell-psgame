@@ -3,10 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowRight,
   Clapperboard,
+  CircleHelp,
   Coins,
   Gift,
   Crown,
+  Flame,
+  Gamepad2,
   Loader2,
   MessageCircle,
   MessagesSquare,
@@ -17,6 +21,7 @@ import {
   Sparkles,
   ThumbsDown,
   ThumbsUp,
+  TicketPercent,
   Trophy,
   Trash2,
   TrendingUp,
@@ -116,6 +121,14 @@ const TAB_STYLES: Record<TabKey, { active: string; icon: string }> = {
   },
 };
 
+const CATEGORY_ICONS: Record<CommunityCategory, LucideIcon> = {
+  GENERAL: Sparkles,
+  SERIAL: Clapperboard,
+  OYUN: Gamepad2,
+  ENDIRIM: TicketPercent,
+  SUAL: CircleHelp,
+};
+
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const sec = Math.floor(diff / 1000);
@@ -188,6 +201,27 @@ export default function IcmaClient({
 }) {
   const [tab, setTab] = useState<TabKey>("fikirler");
 
+  const postCount = useMemo(
+    () => new Set([...initialFeed, ...myPosts].map((post) => post.id)).size,
+    [initialFeed, myPosts],
+  );
+  const reviewCount = useMemo(
+    () => new Set([...streaming.feed, ...streaming.mine].map((review) => review.id)).size,
+    [streaming.feed, streaming.mine],
+  );
+  const interactionCount = useMemo(
+    () =>
+      initialFeed.reduce(
+        (total, post) => total + post.likes + post.dislikes + post.commentCount,
+        0,
+      ) +
+      [...streaming.feed, ...streaming.mine].reduce(
+        (total, review) => total + review.likes + review.dislikes,
+        0,
+      ),
+    [initialFeed, streaming.feed, streaming.mine],
+  );
+
   // Köhnə /streaming/icmallar linkləri (?tab=icmallar və #r-<id> paylaşımları)
   // birbaşa icmallar tabını açsın.
   useEffect(() => {
@@ -197,60 +231,114 @@ export default function IcmaClient({
     else if (t === "referal") setTab("referal");
   }, []);
 
-  const tabs: { key: TabKey; label: string; Icon: LucideIcon }[] = [
-    { key: "fikirler", label: "Söhbət", Icon: MessagesSquare },
-    { key: "icmallar", label: "İcmallar", Icon: Clapperboard },
-    { key: "referal", label: "Referal", Icon: Coins },
+  const tabs: { key: TabKey; label: string; hint: string; count?: number; Icon: LucideIcon }[] = [
+    { key: "fikirler", label: "Söhbət", hint: "Fikir və suallar", count: postCount, Icon: MessagesSquare },
+    { key: "icmallar", label: "İcmallar", hint: "Film və seriallar", count: reviewCount, Icon: Clapperboard },
+    { key: "referal", label: "Referal", hint: "Paylaş və qazan", Icon: Coins },
   ];
 
-  return (
-    <section className="mx-auto w-full max-w-7xl px-4 pb-24 pt-6 sm:px-6 lg:pt-8">
-      <header className="mb-6 overflow-hidden rounded-[28px] border border-zinc-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_42%,#fff7ed_100%)] shadow-[0_28px_80px_-62px_rgba(15,23,42,0.65)] dark:border-white/10 dark:bg-[linear-gradient(135deg,#121522_0%,#09131f_50%,#1a1119_100%)]">
-        <div className="relative grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_26rem] lg:p-6">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-amber-300 to-rose-400" />
+  function selectTab(nextTab: TabKey) {
+    setTab(nextTab);
+    const url = new URL(window.location.href);
+    if (nextTab === "fikirler") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", nextTab);
+    if (nextTab !== "icmallar") url.hash = "";
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
 
-          <div className="min-w-0">
-            <span className="inline-flex h-9 items-center gap-2 rounded-2xl border border-cyan-200 bg-cyan-50 px-3 text-[11px] font-black uppercase tracking-[0.18em] text-cyan-800 dark:border-cyan-300/25 dark:bg-cyan-400/[0.12] dark:text-cyan-100">
-              <Radio className="h-3.5 w-3.5" /> Honsell İcması
+  return (
+    <section className="relative mx-auto w-full max-w-[1360px] px-4 pb-24 pt-5 sm:px-6 lg:pt-8">
+      <header className="relative mb-5 overflow-hidden rounded-[30px] border border-zinc-200/90 bg-white shadow-[0_35px_100px_-65px_rgba(2,8,23,0.72)] dark:border-white/10 dark:bg-[#0b0f18]">
+        <div aria-hidden className="pointer-events-none absolute -left-20 -top-28 h-80 w-80 rounded-full bg-cyan-400/20 blur-[90px]" />
+        <div aria-hidden className="pointer-events-none absolute -right-20 top-0 h-80 w-80 rounded-full bg-violet-500/20 blur-[90px]" />
+        <div aria-hidden className="pointer-events-none absolute bottom-[-45%] left-[38%] h-72 w-72 rounded-full bg-amber-300/15 blur-[85px]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-violet-500 to-amber-300" />
+
+        <div className="relative grid gap-7 p-5 sm:p-7 lg:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)] lg:gap-10 lg:p-10 xl:p-12">
+          <div className="flex min-w-0 flex-col justify-center">
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50/90 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-cyan-900 dark:border-cyan-300/20 dark:bg-cyan-300/10 dark:text-cyan-100">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+              Honsell İcması · açıq efir
             </span>
-            <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-6xl">
-              Söhbət canlıdır.
+            <h1 className="mt-5 max-w-3xl text-balance text-[2.7rem] font-black leading-[0.94] tracking-[-0.055em] text-zinc-950 dark:text-white sm:text-6xl lg:text-7xl">
+              Oyun bitər. <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 via-violet-500 to-fuchsia-500 dark:from-cyan-300 dark:via-violet-300 dark:to-fuchsia-300">Söhbət qalır.</span>
             </h1>
-            <div className="mt-5 grid gap-2 sm:grid-cols-3">
-              <MiniMetric tone="cyan" label="Paylaşım" value={initialFeed.length + myPosts.length} />
-              <MiniMetric tone="rose" label="İcmal" value={streaming.feed.length + streaming.mine.length} />
-              <MiniMetric tone="amber" label="Top bal" value={leaderboard[0]?.points ?? 0} />
+            <p className="mt-5 max-w-2xl text-[15px] font-medium leading-7 text-zinc-600 dark:text-zinc-300 sm:text-base">
+              Oynadığını, izlədiyini və tapdığın fürsəti paylaş. Burada fikir yalnız oxunmur — cavab, reaksiya və yeni söhbətə çevrilir.
+            </p>
+
+            <div className="mt-7 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => selectTab("fikirler")}
+                className="inline-flex h-12 items-center gap-2 rounded-2xl bg-zinc-950 px-5 text-sm font-black text-white shadow-[0_20px_45px_-24px_rgba(6,182,212,0.85)] transition hover:-translate-y-0.5 hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-cyan-100"
+              >
+                Söhbətə qoşul <ArrowRight className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => selectTab("icmallar")}
+                className="inline-flex h-12 items-center gap-2 rounded-2xl border border-zinc-200 bg-white/70 px-5 text-sm font-black text-zinc-800 backdrop-blur transition hover:-translate-y-0.5 hover:border-violet-300 dark:border-white/10 dark:bg-white/[0.06] dark:text-white dark:hover:border-violet-300/40"
+              >
+                <Clapperboard className="h-4 w-4 text-violet-500 dark:text-violet-300" /> İcmalları kəşf et
+              </button>
+            </div>
+
+            <div className="mt-8 grid grid-cols-3 gap-2 border-t border-zinc-200/80 pt-5 dark:border-white/10 sm:max-w-xl sm:gap-5">
+              <HeroMetric value={postCount} label="söhbət" />
+              <HeroMetric value={reviewCount} label="icmal" />
+              <HeroMetric value={interactionCount} label="reaksiya" />
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <SignalTile Icon={MessagesSquare} label="Söhbət" value="Açıq" tone="cyan" />
-            <SignalTile Icon={Sparkles} label="AI düzəliş" value="Aktiv" tone="violet" />
-            <SignalTile Icon={Trophy} label="Aylıq yarış" value={leaderboard[0] ? `#1 ${leaderboard[0].points}` : "Start"} tone="amber" />
-          </div>
+          <ActivityDeck
+            latestPost={initialFeed[0] ?? myPosts[0] ?? null}
+            latestReview={streaming.mine[0] ?? streaming.feed[0] ?? null}
+            onSelectTab={selectTab}
+          />
         </div>
       </header>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_23rem] xl:grid-cols-[minmax(0,1fr)_25rem]">
-        <div className="min-w-0 space-y-5">
-          <div className="flex gap-2 overflow-x-auto rounded-[22px] border border-zinc-200 bg-white/85 p-1.5 shadow-[0_18px_55px_-46px_rgba(24,24,27,0.35)] backdrop-blur dark:border-white/10 dark:bg-white/[0.045]">
-            {tabs.map(({ key, label, Icon }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTab(key)}
-                className={`inline-flex min-h-12 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border px-3 text-sm font-black transition ${
-                  tab === key
-                    ? TAB_STYLES[key].active
-                    : "border-transparent text-zinc-500 hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-950 dark:text-zinc-300 dark:hover:border-white/10 dark:hover:bg-white/[0.065] dark:hover:text-white"
-                }`}
-              >
-                <Icon className={`h-4 w-4 ${tab === key ? TAB_STYLES[key].icon : ""}`} />
+      <nav
+        aria-label="İcma bölmələri"
+        className="mb-5 grid gap-2 rounded-[24px] border border-zinc-200 bg-white/90 p-2 shadow-[0_22px_60px_-50px_rgba(15,23,42,0.65)] backdrop-blur dark:border-white/10 dark:bg-[#0d111b]/90 sm:grid-cols-3"
+      >
+        {tabs.map(({ key, label, hint, count, Icon }) => (
+          <button
+            key={key}
+            type="button"
+            aria-current={tab === key ? "page" : undefined}
+            onClick={() => selectTab(key)}
+            className={`group flex min-h-[68px] items-center gap-3 rounded-[18px] border px-4 text-left transition duration-200 ${
+              tab === key
+                ? TAB_STYLES[key].active
+                : "border-transparent text-zinc-500 hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-950 dark:text-zinc-400 dark:hover:border-white/10 dark:hover:bg-white/[0.05] dark:hover:text-white"
+            }`}
+          >
+            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white shadow-sm dark:bg-white/10 ${tab === key ? TAB_STYLES[key].icon : ""}`}>
+              <Icon className="h-[18px] w-[18px]" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2 text-sm font-black">
                 {label}
-              </button>
-            ))}
-          </div>
+                {typeof count === "number" && (
+                  <span className="rounded-full bg-zinc-950/8 px-2 py-0.5 text-[10px] tabular-nums dark:bg-white/10">
+                    {count}
+                  </span>
+                )}
+              </span>
+              <span className="mt-0.5 block truncate text-[11px] font-semibold opacity-70">{hint}</span>
+            </span>
+            <ArrowRight className={`h-4 w-4 transition ${tab === key ? "opacity-100" : "opacity-0 group-hover:opacity-70"}`} />
+          </button>
+        ))}
+      </nav>
 
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_23rem]">
+        <div className="min-w-0 space-y-5">
           {tab === "fikirler" && (
             <CommunityWall
               viewer={viewer}
@@ -260,15 +348,27 @@ export default function IcmaClient({
             />
           )}
           {tab === "icmallar" && (
-            <div className="overflow-hidden rounded-[26px] border border-rose-200 bg-[linear-gradient(135deg,#fff1f2_0%,#ffffff_48%,#eef2ff_100%)] p-4 text-zinc-950 shadow-[0_24px_70px_-56px_rgba(190,18,60,0.45)] dark:border-rose-300/20 dark:bg-[linear-gradient(135deg,rgba(159,18,57,0.20),rgba(15,23,42,0.86)_52%,rgba(49,46,129,0.24)_100%)] dark:text-zinc-100 sm:p-5">
+            <div className="overflow-hidden rounded-[28px] border border-violet-200 bg-[linear-gradient(145deg,#ffffff_0%,#faf5ff_50%,#fff7ed_100%)] p-4 text-zinc-950 shadow-[0_30px_90px_-65px_rgba(109,40,217,0.55)] dark:border-violet-300/20 dark:bg-[linear-gradient(145deg,#10131d_0%,#141020_52%,#17120d_100%)] dark:text-zinc-100 sm:p-5">
+              <div className="mb-5 flex flex-col gap-3 border-b border-zinc-200/80 pb-5 dark:border-white/10 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-violet-600 dark:text-violet-300">
+                    <Clapperboard className="h-3.5 w-3.5" /> Ekran sonrası
+                  </span>
+                  <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Baxdıq, indi danışaq.</h2>
+                  <p className="mt-1 text-sm font-medium text-zinc-500 dark:text-zinc-400">Spoilersiz fikir, dürüst bal və növbəti izləmə seçimin.</p>
+                </div>
+                <Link href="/streaming/katalog" className="inline-flex items-center gap-2 text-xs font-black text-violet-600 hover:text-violet-500 dark:text-violet-300">
+                  Kataloqa bax <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
               <StreamingReviewsClient {...streaming} />
             </div>
           )}
           {tab === "referal" && <ReferralTab viewer={viewer} />}
         </div>
 
-        <aside className="space-y-5 lg:sticky lg:top-32 lg:self-start">
-          <CommunityPulse viewer={viewer} />
+        <aside className="space-y-5 lg:sticky lg:top-28 lg:self-start">
+          <CommunityPulse viewer={viewer} onSelectTab={selectTab} />
           <LeaderboardPanel entries={leaderboard} viewer={viewer} />
         </aside>
       </div>
@@ -276,75 +376,112 @@ export default function IcmaClient({
   );
 }
 
-function MiniMetric({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string | number;
-  tone: "cyan" | "rose" | "amber";
-}) {
-  const toneClass = {
-    cyan: "border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan-300/20 dark:bg-cyan-400/[0.10] dark:text-cyan-100",
-    rose: "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-300/20 dark:bg-rose-400/[0.10] dark:text-rose-100",
-    amber: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-300/20 dark:bg-amber-400/[0.10] dark:text-amber-100",
-  }[tone];
-
+function HeroMetric({ value, label }: { value: number; label: string }) {
   return (
-    <div className={`rounded-2xl border px-3 py-3 ${toneClass}`}>
-      <p className="text-xl font-black tabular-nums">{value}</p>
-      <p className="text-[11px] font-black">{label}</p>
+    <div>
+      <p className="text-xl font-black tabular-nums text-zinc-950 dark:text-white sm:text-2xl">{value}</p>
+      <p className="mt-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-400">{label}</p>
     </div>
   );
 }
 
-function SignalTile({
-  Icon,
-  label,
-  value,
-  tone,
+function ActivityDeck({
+  latestPost,
+  latestReview,
+  onSelectTab,
 }: {
-  Icon: LucideIcon;
-  label: string;
-  value: string;
-  tone: "cyan" | "violet" | "amber";
+  latestPost: CommunityPostItem | null;
+  latestReview: ReviewItem | null;
+  onSelectTab: (tab: TabKey) => void;
 }) {
-  const toneClass = {
-    cyan: "border-cyan-200 bg-white/75 text-cyan-700 dark:border-cyan-300/20 dark:bg-cyan-300/[0.08] dark:text-cyan-100",
-    violet: "border-violet-200 bg-white/75 text-violet-700 dark:border-violet-300/20 dark:bg-violet-300/[0.08] dark:text-violet-100",
-    amber: "border-amber-200 bg-white/75 text-amber-700 dark:border-amber-300/20 dark:bg-amber-300/[0.08] dark:text-amber-100",
-  }[tone];
-
   return (
-    <div className={`flex items-center gap-3 rounded-2xl border px-4 py-3 backdrop-blur ${toneClass}`}>
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/80 shadow-sm dark:bg-white/10">
-        <Icon className="h-5 w-5" />
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-black text-zinc-950 dark:text-white">{value}</p>
-        <p className="text-[11px] font-black opacity-80">{label}</p>
+    <div className="relative min-h-[360px] rounded-[28px] border border-zinc-200 bg-zinc-950 p-4 text-white shadow-[0_30px_80px_-40px_rgba(76,29,149,0.6)] dark:border-white/10 sm:p-5">
+      <div className="absolute inset-0 overflow-hidden rounded-[inherit]">
+        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-500/30 blur-3xl" />
+        <div className="absolute -bottom-20 -left-14 h-52 w-52 rounded-full bg-cyan-400/20 blur-3xl" />
       </div>
+      <div className="relative flex items-center justify-between">
+        <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+          <Radio className="h-3.5 w-3.5 text-emerald-400" /> İndi icmada
+        </span>
+        <Flame className="h-5 w-5 text-orange-300" />
+      </div>
+
+      <div className="relative mt-5 space-y-3">
+        <button
+          type="button"
+          onClick={() => onSelectTab("fikirler")}
+          className="group block w-[94%] rounded-[22px] border border-white/10 bg-white/[0.07] p-4 text-left backdrop-blur transition hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-white/[0.10]"
+        >
+          <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] text-cyan-300">
+            <MessagesSquare className="h-3.5 w-3.5" /> Son söhbət
+          </span>
+          <p className="mt-3 line-clamp-1 text-base font-black text-white">
+            {latestPost?.title || latestPost?.body || "İlk mövzunu sən aç"}
+          </p>
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-400">
+            {latestPost ? `${latestPost.author.name} · ${timeAgo(latestPost.createdAt)}` : "Sualını, tapdığın oyunu və ya fikrini paylaş."}
+          </p>
+          <ArrowRight className="ml-auto mt-3 h-4 w-4 text-zinc-500 transition group-hover:translate-x-1 group-hover:text-cyan-300" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onSelectTab("icmallar")}
+          className="group ml-auto block w-[94%] rounded-[22px] border border-violet-300/15 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/10 p-4 text-left backdrop-blur transition hover:-translate-y-0.5 hover:border-violet-300/35"
+        >
+          <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] text-violet-300">
+            <Clapperboard className="h-3.5 w-3.5" /> Son icmal
+          </span>
+          <div className="mt-3 flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="line-clamp-1 text-base font-black text-white">{latestReview?.titleSnap ?? "Nə izləməyə dəyər?"}</p>
+              <p className="mt-1 text-xs text-zinc-400">
+                {latestReview ? `${latestReview.author.name} · ${latestReview.rating}/10` : "İzlədiyini qiymətləndir, icmaya yol göstər."}
+              </p>
+            </div>
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-amber-300 text-sm font-black text-amber-950">
+              {latestReview ? latestReview.rating : "?"}
+            </span>
+          </div>
+        </button>
+      </div>
+
+      <p className="relative mt-5 flex items-center gap-2 text-[11px] font-semibold text-zinc-500">
+        <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" /> AI dəstəyi ilə təmiz və təhlükəsiz söhbət
+      </p>
     </div>
   );
 }
 
-function CommunityPulse({ viewer }: { viewer: Viewer | null }) {
+function CommunityPulse({ viewer, onSelectTab }: { viewer: Viewer | null; onSelectTab: (tab: TabKey) => void }) {
   return (
-    <div className="overflow-hidden rounded-[26px] border border-cyan-200 bg-[linear-gradient(145deg,#ecfeff_0%,#ffffff_46%,#fff7ed_100%)] shadow-[0_24px_70px_-56px_rgba(8,47,73,0.75)] dark:border-cyan-300/20 dark:bg-[linear-gradient(145deg,rgba(8,47,73,0.36),rgba(15,23,42,0.82)_48%,rgba(120,53,15,0.24)_100%)]">
-      <div className="border-b border-cyan-200/70 px-5 py-4 dark:border-white/10">
-        <p className="text-base font-black text-zinc-950 dark:text-white">
-          {viewer ? `Salam, ${viewer.name.split(" ")[0]}` : "İcmaya qoşul"}
+    <div className="overflow-hidden rounded-[26px] border border-cyan-200 bg-white shadow-[0_24px_70px_-56px_rgba(8,47,73,0.75)] dark:border-cyan-300/15 dark:bg-[#0e141d]">
+      <div className="relative overflow-hidden border-b border-cyan-200/70 px-5 py-5 dark:border-white/10">
+        <div className="absolute -right-10 -top-12 h-32 w-32 rounded-full bg-cyan-300/20 blur-3xl" />
+        <p className="relative text-[10px] font-black uppercase tracking-[0.18em] text-cyan-700 dark:text-cyan-300">Sənin icman</p>
+        <p className="relative mt-2 text-xl font-black tracking-tight text-zinc-950 dark:text-white">
+          {viewer ? `Salam, ${viewer.name.split(" ")[0]} 👋` : "Bir yerin hazırdır."}
         </p>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/70 ring-1 ring-cyan-200 dark:bg-white/10 dark:ring-white/10">
-          <div className="h-full w-2/3 bg-gradient-to-r from-cyan-400 via-emerald-400 to-amber-300" />
-        </div>
+        <p className="relative mt-1 text-xs font-medium leading-5 text-zinc-500 dark:text-zinc-400">
+          {viewer ? "Söhbətə fikir əlavə et, icmanın ritmini dəyiş." : "Hesabını aç, ilk reaksiyanı və fikrini paylaş."}
+        </p>
+        <button
+          type="button"
+          onClick={() => onSelectTab("fikirler")}
+          className="relative mt-4 inline-flex items-center gap-2 text-xs font-black text-cyan-700 hover:text-cyan-600 dark:text-cyan-300"
+        >
+          {viewer ? "Yeni fikir paylaş" : "İcmaya göz at"} <ArrowRight className="h-3.5 w-3.5" />
+        </button>
       </div>
       <div className="grid grid-cols-3 divide-x divide-cyan-200/70 dark:divide-white/10">
         <PulseItem Icon={MessagesSquare} label="Söhbət" />
-        <PulseItem Icon={ShieldCheck} label="Etik" />
-        <PulseItem Icon={TrendingUp} label="Rəqabət" />
+        <PulseItem Icon={ShieldCheck} label="Təhlükəsiz" />
+        <PulseItem Icon={TrendingUp} label="Aktiv" />
       </div>
+      <Link href="/referal-faizleri" className="flex items-center justify-between border-t border-cyan-200/70 px-5 py-4 text-xs font-black text-zinc-700 transition hover:bg-cyan-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/[0.04]">
+        Referal faizlərini öyrən <ArrowRight className="h-3.5 w-3.5 text-amber-500" />
+      </Link>
     </div>
   );
 }
@@ -472,6 +609,15 @@ function CommunityWall({
     () => (filter === "ALL" ? feed : feed.filter((p) => p.category === filter)),
     [feed, filter],
   );
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<CommunityCategory, number>();
+    for (const category of COMMUNITY_CATEGORIES) counts.set(category.key, 0);
+    for (const post of feed) {
+      const key = post.category as CommunityCategory;
+      if (counts.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return counts;
+  }, [feed]);
 
   const loadMore = useCallback(async () => {
     setLoadingMore(true);
@@ -536,16 +682,27 @@ function CommunityWall({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 rounded-[24px] border border-zinc-200 bg-white/80 p-2 shadow-[0_16px_44px_-42px_rgba(15,23,42,0.55)] backdrop-blur dark:border-white/10 dark:bg-white/[0.04]">
-        <FilterPill active={filter === "ALL"} onClick={() => setFilter("ALL")} label="Hamısı" />
-        {COMMUNITY_CATEGORIES.map((c) => (
-          <FilterPill
-            key={c.key}
-            active={filter === c.key}
-            onClick={() => setFilter(c.key)}
-            label={c.label}
-          />
-        ))}
+      <div className="rounded-[26px] border border-zinc-200 bg-white/85 p-3 shadow-[0_16px_44px_-42px_rgba(15,23,42,0.55)] backdrop-blur dark:border-white/10 dark:bg-[#0d111a]/85 sm:p-4">
+        <div className="mb-3 flex items-end justify-between gap-4 px-1">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.17em] text-cyan-700 dark:text-cyan-300">Kəşf et</p>
+            <h2 className="mt-1 text-lg font-black tracking-tight text-zinc-950 dark:text-white">İcma lenti</h2>
+          </div>
+          <p className="text-[11px] font-semibold text-zinc-400">{visibleFeed.length} mövzu</p>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <FilterPill active={filter === "ALL"} onClick={() => setFilter("ALL")} label="Hamısı" count={feed.length} Icon={Flame} />
+          {COMMUNITY_CATEGORIES.map((c) => (
+            <FilterPill
+              key={c.key}
+              active={filter === c.key}
+              onClick={() => setFilter(c.key)}
+              label={c.label}
+              count={categoryCounts.get(c.key) ?? 0}
+              Icon={CATEGORY_ICONS[c.key]}
+            />
+          ))}
+        </div>
       </div>
 
       {visibleFeed.length === 0 ? (
@@ -586,18 +743,34 @@ function CommunityWall({
   );
 }
 
-function FilterPill({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+function FilterPill({
+  active,
+  onClick,
+  label,
+  count,
+  Icon,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+  Icon: LucideIcon;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl border px-3.5 py-2 text-xs font-black transition ${
+      className={`inline-flex shrink-0 items-center gap-2 rounded-2xl border px-3.5 py-2.5 text-xs font-black transition ${
         active
           ? "border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950"
           : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-white hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.07] dark:hover:text-white"
       }`}
     >
+      <Icon className="h-3.5 w-3.5" />
       {label}
+      <span className={`rounded-full px-1.5 py-0.5 text-[9px] tabular-nums ${active ? "bg-white/15 dark:bg-zinc-950/10" : "bg-zinc-200/70 dark:bg-white/10"}`}>
+        {count}
+      </span>
     </button>
   );
 }
@@ -671,44 +844,52 @@ function Composer({
   }
 
   return (
-    <div className="overflow-hidden rounded-[26px] border border-cyan-200 bg-[linear-gradient(180deg,#ffffff_0%,#f0fdfa_100%)] shadow-[0_24px_70px_-54px_rgba(15,118,110,0.55)] dark:border-cyan-300/20 dark:bg-[linear-gradient(180deg,rgba(14,116,144,0.14),rgba(15,23,42,0.70))] sm:p-0">
-      <div className="h-1 bg-gradient-to-r from-cyan-400 via-emerald-400 to-amber-300" />
-      <div className="p-4 sm:p-5">
+    <div className="relative overflow-hidden rounded-[28px] border border-cyan-200 bg-white shadow-[0_28px_80px_-58px_rgba(8,145,178,0.7)] dark:border-cyan-300/20 dark:bg-[#0c131c] sm:p-0">
+      <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-cyan-300/15 blur-3xl" />
+      <div className="h-1 bg-gradient-to-r from-cyan-400 via-violet-500 to-fuchsia-400" />
+      <div className="relative p-4 sm:p-5">
       <div className="flex items-center gap-3">
-        <Avatar name={viewer.name} url={viewer.avatarUrl} size={38} />
+        <Avatar name={viewer.name} url={viewer.avatarUrl} size={42} />
         <div className="min-w-0">
           <p className="truncate text-sm font-black text-zinc-950 dark:text-white">
             {viewer.name}
           </p>
           <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-            Söhbətə qoşul
+            Nə haqqında danışmaq istəyirsən?
           </p>
         </div>
+        <span className="ml-auto hidden items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-200 sm:inline-flex">
+          <ShieldCheck className="h-3 w-3" /> İcma qaydaları aktivdir
+        </span>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {COMMUNITY_CATEGORIES.map((c) => (
-          <button
-            key={c.key}
-            type="button"
-            onClick={() => setCategory(c.key)}
-            className={`rounded-2xl border px-3 py-2 text-xs font-black transition ${
-              category === c.key
-                ? ACCENT_BADGE[c.accent]
-                : "border-white/70 bg-white/65 text-zinc-500 hover:bg-white hover:text-zinc-900 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400 dark:hover:bg-white/[0.07] dark:hover:text-white"
-            }`}
-          >
-            {c.label}
-          </button>
-        ))}
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+        {COMMUNITY_CATEGORIES.map((c) => {
+          const Icon = CATEGORY_ICONS[c.key];
+          return (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => setCategory(c.key)}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-2xl border px-3 py-2 text-xs font-black transition ${
+                category === c.key
+                  ? ACCENT_BADGE[c.accent]
+                  : "border-white/70 bg-white/65 text-zinc-500 hover:bg-white hover:text-zinc-900 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400 dark:hover:bg-white/[0.07] dark:hover:text-white"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {c.label}
+            </button>
+          );
+        })}
       </div>
 
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         maxLength={COMMUNITY_POST_TITLE_MAX}
-        placeholder="Başlıq (opsional)"
-        className="mt-3 h-12 w-full rounded-2xl border border-white/80 bg-white/75 px-4 text-sm font-bold outline-none placeholder:text-zinc-400 focus:border-cyan-300 focus:bg-white dark:border-white/10 dark:bg-white/[0.05] dark:text-white dark:focus:border-cyan-300/40 dark:focus:bg-white/[0.08]"
+        placeholder="Mövzuya qısa başlıq ver (istəyə bağlı)"
+        className="mt-3 h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50/80 px-4 text-sm font-bold outline-none placeholder:text-zinc-400 focus:border-cyan-300 focus:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-white dark:focus:border-cyan-300/40 dark:focus:bg-white/[0.08]"
       />
 
       <textarea
@@ -716,8 +897,8 @@ function Composer({
         onChange={(e) => setBody(e.target.value)}
         maxLength={COMMUNITY_POST_BODY_MAX}
         rows={4}
-        placeholder="Fikrini yaz..."
-        className="mt-2 w-full resize-y rounded-2xl border border-white/80 bg-white/75 px-4 py-3 text-sm leading-6 outline-none placeholder:text-zinc-400 focus:border-cyan-300 focus:bg-white dark:border-white/10 dark:bg-white/[0.05] dark:text-white dark:focus:border-cyan-300/40 dark:focus:bg-white/[0.08]"
+        placeholder="Son oynadığın oyun, izlədiyin film və ya icmaya vermək istədiyin sual..."
+        className="mt-2 w-full resize-y rounded-2xl border border-zinc-200 bg-zinc-50/80 px-4 py-3 text-sm leading-6 outline-none placeholder:text-zinc-400 focus:border-cyan-300 focus:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-white dark:focus:border-cyan-300/40 dark:focus:bg-white/[0.08]"
       />
 
       {error && <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-300">{error}</p>}
@@ -735,15 +916,15 @@ function Composer({
         )
       )}
 
-      <div className="mt-3 flex items-center justify-between">
-        <span className="text-xs text-zinc-400">
-          {body.trim().length}/{COMMUNITY_POST_BODY_MAX}
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <span className="text-xs font-semibold text-zinc-400">
+          {tooShort ? `Ən az ${COMMUNITY_POST_BODY_MIN} simvol` : `${body.trim().length}/${COMMUNITY_POST_BODY_MAX}`}
         </span>
         <button
           type="button"
           onClick={submit}
           disabled={tooShort || submitting}
-          className="inline-flex h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-600 to-emerald-600 px-5 text-sm font-black text-white shadow-[0_18px_38px_-26px_rgba(5,150,105,0.95)] transition hover:from-cyan-500 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-violet-500 to-fuchsia-500 px-5 text-sm font-black text-white shadow-[0_18px_38px_-24px_rgba(124,58,237,0.72)] transition hover:-translate-y-0.5 hover:saturate-125 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
         >
           {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           Paylaş
@@ -768,6 +949,7 @@ function PostCard({
   const { open } = useModals();
   const dialog = useDialog();
   const cat = communityCategoryDef(post.category);
+  const CategoryIcon = CATEGORY_ICONS[cat.key];
   const [reacting, setReacting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -839,21 +1021,25 @@ function PostCard({
   }
 
   return (
-    <article className={`relative overflow-hidden rounded-[26px] border p-4 shadow-[0_18px_50px_-46px_rgba(24,24,27,0.45)] dark:shadow-none sm:p-5 ${ACCENT_PANEL[cat.accent] ?? ACCENT_PANEL.violet}`}>
-      <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${ACCENT_BAR[cat.accent] ?? ACCENT_BAR.violet}`} />
-      <div className="flex items-start gap-3.5">
-        <Avatar name={post.author.name} url={post.author.avatarUrl} size={40} />
+    <article className={`group relative overflow-hidden rounded-[28px] border p-4 shadow-[0_22px_60px_-52px_rgba(24,24,27,0.55)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_30px_70px_-50px_rgba(76,29,149,0.35)] dark:shadow-none sm:p-5 ${ACCENT_PANEL[cat.accent] ?? ACCENT_PANEL.violet}`}>
+      <div className={`absolute inset-y-0 left-0 w-1 bg-gradient-to-b ${ACCENT_BAR[cat.accent] ?? ACCENT_BAR.violet}`} />
+      <div className="flex items-start gap-3.5 pl-1">
+        <div className="relative shrink-0">
+          <Avatar name={post.author.name} url={post.author.avatarUrl} size={44} />
+          <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-400 dark:border-[#11151f]" />
+        </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-black text-zinc-950 dark:text-white">{post.author.name}</span>
-            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${ACCENT_BADGE[cat.accent]}`}>
+            <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black ${ACCENT_BADGE[cat.accent]}`}>
+              <CategoryIcon className="h-3 w-3" />
               {cat.label}
             </span>
             <StatusBadge status={post.status} />
             <span className="text-xs text-zinc-400">· {timeAgo(post.createdAt)}</span>
           </div>
-          {post.title && <h3 className="mt-2 text-lg font-black tracking-tight text-zinc-950 dark:text-white">{post.title}</h3>}
-          <p className="mt-1.5 whitespace-pre-line text-[15px] leading-7 text-zinc-700 dark:text-zinc-100">
+          {post.title && <h3 className="mt-3 text-xl font-black tracking-tight text-zinc-950 dark:text-white">{post.title}</h3>}
+          <p className="mt-2 whitespace-pre-line text-[15px] font-medium leading-7 text-zinc-700 dark:text-zinc-200">
             {post.body}
           </p>
         </div>
@@ -864,6 +1050,7 @@ function PostCard({
           active={post.myReaction === 1}
           count={post.likes}
           Icon={ThumbsUp}
+          label="Bəyəndim"
           onClick={() => react(1)}
           disabled={reacting || post.status !== "APPROVED"}
         />
@@ -871,6 +1058,7 @@ function PostCard({
           active={post.myReaction === -1}
           count={post.dislikes}
           Icon={ThumbsDown}
+          label="Bəyənmədim"
           onClick={() => react(-1)}
           disabled={reacting || post.status !== "APPROVED"}
         />
@@ -914,12 +1102,14 @@ function ReactionButton({
   active,
   count,
   Icon,
+  label,
   onClick,
   disabled,
 }: {
   active: boolean;
   count: number;
   Icon: LucideIcon;
+  label: string;
   onClick: () => void;
   disabled?: boolean;
 }) {
@@ -928,6 +1118,7 @@ function ReactionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={`${label}${count > 0 ? `, ${count}` : ""}`}
       className={`inline-flex items-center gap-1.5 rounded-2xl px-3 py-2 text-xs font-black transition disabled:opacity-50 ${
         active
           ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"
@@ -935,7 +1126,8 @@ function ReactionButton({
       }`}
     >
       <Icon className="h-4 w-4" />
-      {count > 0 ? count : ""}
+      <span className="hidden sm:inline">{label}</span>
+      {count > 0 ? <span className="tabular-nums">{count}</span> : ""}
     </button>
   );
 }
@@ -1135,15 +1327,29 @@ function CommentThread({
 
 function GuestPrompt({ onLogin, text }: { onLogin: () => void; text: string }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-[26px] border border-amber-200 bg-[linear-gradient(135deg,#fff7ed,#ffffff)] px-6 py-8 text-center shadow-[0_20px_60px_-50px_rgba(146,64,14,0.55)] dark:border-amber-300/20 dark:bg-[linear-gradient(135deg,rgba(120,53,15,0.20),rgba(15,23,42,0.70))]">
-      <p className="text-sm font-black text-amber-950 dark:text-amber-100">{text}</p>
-      <button
-        type="button"
-        onClick={onLogin}
-        className="inline-flex h-11 items-center gap-2 rounded-2xl bg-amber-500 px-5 text-sm font-black text-amber-950 transition hover:bg-amber-400"
-      >
-        Daxil ol
-      </button>
+    <div className="relative overflow-hidden rounded-[28px] border border-violet-200 bg-white px-5 py-6 shadow-[0_26px_70px_-56px_rgba(109,40,217,0.7)] dark:border-violet-300/20 dark:bg-[#10121b] sm:px-6">
+      <div className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-violet-300/20 blur-3xl" />
+      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-cyan-400 via-violet-500 to-fuchsia-500 text-white shadow-[0_15px_35px_-20px_rgba(124,58,237,0.9)]">
+          <MessagesSquare className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-black text-zinc-950 dark:text-white">Sənin səsin də çatmır.</p>
+          <p className="mt-1 text-sm font-medium text-zinc-500 dark:text-zinc-400">{text}</p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onLogin}
+            className="inline-flex h-11 items-center gap-2 rounded-2xl bg-zinc-950 px-4 text-sm font-black text-white transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-cyan-100"
+          >
+            Daxil ol
+          </button>
+          <Link href="/register?next=/icma" className="inline-flex h-11 items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-black text-zinc-700 transition hover:border-violet-300 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-200">
+            Qoşul <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1167,12 +1373,18 @@ function ReferralTab({ viewer }: { viewer: Viewer | null }) {
 
   return (
     <div className="space-y-5">
-      <div className="relative overflow-hidden rounded-[26px] border border-amber-300 bg-[linear-gradient(135deg,#111827_0%,#164e63_48%,#92400e_100%)] p-6 text-white shadow-[0_30px_80px_-54px_rgba(14,116,144,0.9)] dark:border-amber-300/20">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-emerald-400 to-amber-300" />
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-white/70">Referal kodun</p>
-        <p className="mt-2 font-mono text-4xl font-black tracking-[0.2em]">{viewer.referralCode}</p>
-        <div className="mt-4">
-          <ReferralShareButtons code={viewer.referralCode} />
+      <div className="relative overflow-hidden rounded-[28px] border border-amber-300/70 bg-[linear-gradient(135deg,#09131e_0%,#132d38_42%,#503313_100%)] p-6 text-white shadow-[0_30px_80px_-54px_rgba(14,116,144,0.9)] dark:border-amber-300/20 sm:p-8">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-amber-300/20 blur-3xl" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-violet-400 to-amber-300" />
+        <div className="relative grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200/75">Sənin dəvət keçidin</p>
+            <p className="mt-2 font-mono text-3xl font-black tracking-[0.18em] sm:text-5xl">{viewer.referralCode}</p>
+            <p className="mt-3 max-w-xl text-sm font-medium leading-6 text-white/60">Kodu paylaş, dostun Honsell-ə qoşulsun, siz birlikdə qazanın.</p>
+          </div>
+          <div>
+            <ReferralShareButtons code={viewer.referralCode} />
+          </div>
         </div>
       </div>
 
@@ -1182,18 +1394,30 @@ function ReferralTab({ viewer }: { viewer: Viewer | null }) {
         <StatCard Icon={Gift} label="Referal balansı" value={`${balance} ₼`} accent="amber" />
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Link
+          href="/referal-faizleri"
+          className="group flex min-h-[86px] items-center gap-3 rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-amber-950 transition hover:-translate-y-0.5 hover:border-amber-300 dark:border-amber-300/20 dark:bg-amber-300/[0.08] dark:text-amber-100"
+        >
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-amber-300 text-amber-950"><TicketPercent className="h-4 w-4" /></span>
+          <span className="min-w-0 flex-1 text-sm font-black">Referal faizləri</span>
+          <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+        </Link>
         <Link
           href="/qazan"
-          className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-5 py-2.5 text-sm font-bold text-zinc-800 transition hover:border-violet-300 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-100 dark:hover:bg-white/[0.07]"
+          className="group flex min-h-[86px] items-center gap-3 rounded-[22px] border border-zinc-200 bg-white p-4 text-zinc-800 transition hover:-translate-y-0.5 hover:border-cyan-300 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-100 dark:hover:bg-white/[0.07]"
         >
-          <Coins className="h-4 w-4" /> Qazanc hesablayıcısı
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-cyan-100 text-cyan-700 dark:bg-cyan-300/10 dark:text-cyan-200"><Coins className="h-4 w-4" /></span>
+          <span className="min-w-0 flex-1 text-sm font-black">Qazanc hesablayıcısı</span>
+          <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
         </Link>
         <Link
           href="/profile/referrals"
-          className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-5 py-2.5 text-sm font-bold text-zinc-800 transition hover:border-violet-300 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-100 dark:hover:bg-white/[0.07]"
+          className="group flex min-h-[86px] items-center gap-3 rounded-[22px] border border-zinc-200 bg-white p-4 text-zinc-800 transition hover:-translate-y-0.5 hover:border-violet-300 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-100 dark:hover:bg-white/[0.07]"
         >
-          <Users className="h-4 w-4" /> Dəvətlərimin detalı
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-violet-100 text-violet-700 dark:bg-violet-300/10 dark:text-violet-200"><Users className="h-4 w-4" /></span>
+          <span className="min-w-0 flex-1 text-sm font-black">Dəvətlərimin detalı</span>
+          <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
         </Link>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import { getCurrentUser } from "@/lib/auth";
-import { getPublicReferralRates } from "@/lib/publicReferralRates";
+import { getPublicTierViews } from "@/lib/publicReferralRates";
 import ReferralRatesExperience from "./ReferralRatesExperience";
 
 export const dynamic = "force-dynamic";
@@ -14,16 +14,14 @@ export const metadata: Metadata = {
 };
 
 export default async function ReferralRatesPublicPage() {
-  const [groups, user] = await Promise.all([
-    getPublicReferralRates(),
-    getCurrentUser(),
-  ]);
+  const [tierViews, user] = await Promise.all([getPublicTierViews(), getCurrentUser()]);
 
   return (
     <main className="min-h-screen">
       <SiteHeaderServer />
       <ReferralRatesExperience
-        groups={groups}
+        tierViews={tierViews}
+        activeTierKey="default"
         referralCode={user?.referralCode ?? null}
       />
     </main>

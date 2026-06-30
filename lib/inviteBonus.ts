@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { assessInviteFraud } from "@/lib/inviteFraud";
+import { getEffectiveTier } from "@/lib/customerTier";
 
 /**
  * Sabit dəvət bonusu (signup bonus).
@@ -43,41 +44,14 @@ export async function awardInviteBonus(params: {
 
   const referrer = await prisma.user.findUnique({
     where: { id: referrerId },
-    select: {
-      id: true,
-      isSponsored: true,
-      lastLoginIp: true,
-      tier: { select: { slug: true, inviteBonusCents: true } },
-    },
+    select: { id: true, lastLoginIp: true },
   });
   if (!referrer) return null;
 
-  // Dəvət bonusu məbləği dəvət EDƏNin müştəri seqmentindən (CustomerTier) gəlir.
-  //   - Seqmenti varsa → həmin seqmentin inviteBonusCents-i.
-  //   - Seqmenti yoxdursa (köhnə isSponsored) → "sponsorlu" seqment, yoxsa default.
-  // Settings.* yalnız seqment cədvəli olmadıqda son ehtiyat fallback-dir.
-  let amountCents: number;
-  if (referrer.tier) {
-    amountCents = referrer.tier.inviteBonusCents;
-  } else {
-    const fallbackTier = await prisma.customerTier.findFirst({
-      where: referrer.isSponsored ? { slug: "sponsorlu" } : { isDefault: true },
-      select: { inviteBonusCents: true },
-    });
-    if (fallbackTier) {
-      amountCents = fallbackTier.inviteBonusCents;
-    } else {
-      const settings = await prisma.settings.upsert({
-        where: { id: "global" },
-        update: {},
-        create: { id: "global" },
-      });
-      amountCents = referrer.isSponsored
-        ? settings.sponsoredReferralInviteBonusCents
-        : settings.referralInviteBonusCents;
-    }
-  }
-
+  // Dəvət bonusu məbləği dəvət EDƏNin EFFEKTİV tier-indən (manual override ya da
+  // xərcə görə AUTO) gəlir.
+  const effectiveTier = await getEffectiveTier(referrerId);
+  const amountCents = effectiveTier?.inviteBonusCents ?? 0;
   if (!amountCents || amountCents <= 0) return null; // bu müştəri tipində bonus bağlıdır
 
   // Anti-spam qiymətləndirməsi.

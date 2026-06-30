@@ -77,8 +77,11 @@ export default function HomeDiscountCarousel({
           ref={scrollRef}
           className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li]:w-[44%] [&>li]:min-w-[150px] [&>li]:shrink-0 [&>li]:snap-start sm:mx-0 sm:px-0 sm:[&>li]:w-[260px] sm:[&>li]:min-w-[240px]"
         >
-          {games.map((game, i) => (
-            <GameCard key={game.id} game={game} priority={i < 4} variant="compact" />
+          {games.map((game) => (
+            // Endirim karuseli hero-dan aşağıda (fold-altı) yerləşir — `priority`
+            // bu şəkilləri preload edib hero LCP şəkli ilə band uğrunda yarışdırırdı
+            // (mobil ən çox itki). Lazy yüklə; yalnız hero `priority` saxlayır.
+            <GameCard key={game.id} game={game} variant="compact" />
           ))}
         </ul>
       </div>

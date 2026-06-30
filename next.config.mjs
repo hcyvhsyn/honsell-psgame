@@ -19,6 +19,22 @@ const r2PublicHost = (() => {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // `x-powered-by: Next.js` başlığını sil (kiçik təhlükəsizlik + bayt qənaəti).
+  poweredByHeader: false,
+  // İstehsalda client bundle-a source map yaratma (daha kiçik, daha sürətli build).
+  productionBrowserSourceMaps: false,
+  compiler: {
+    // İstehsal client bundle-ından console.* çağırışlarını sil (error/warn qalır)
+    // → daha kiçik JS, daha az main-thread işi (TBT).
+    removeConsole:
+      process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,
+  },
+  experimental: {
+    // lucide-react 209 faylda import olunur. Bu, hər ikonu ayrıca modul kimi
+    // import edib barrel-i tree-shake edir → ilkin JS həcmi və TBT əhəmiyyətli
+    // azalır. (Eyni şey digər iri barrel paketlər üçün də.)
+    optimizePackageImports: ["lucide-react"],
+  },
   images: {
     // Optimizasiya AÇIQ — Next şəkilləri cihaza görə ölçüləndirir, AVIF/WebP-ə
     // çevirir və uzun müddət keşləyir. (Əvvəl `unoptimized: true` idi — bütün

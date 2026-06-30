@@ -197,8 +197,12 @@ export default async function IcmaPage() {
   const feedReviewItems = approvedReviews.filter((r) => !myReviewIds.has(r.id)).map(toReview);
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#ecfeff_34%,#fff7ed_72%,#f8fafc_100%)] text-zinc-900 dark:bg-[linear-gradient(180deg,#050712_0%,#07131d_36%,#17111a_74%,#050712_100%)] dark:text-zinc-100">
+    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(180deg,#f7f8fc_0%,#eef8fb_32%,#f7f2fb_68%,#f7f8fc_100%)] text-zinc-900 dark:bg-[linear-gradient(180deg,#05070c_0%,#071019_35%,#0e0a14_68%,#05070c_100%)] dark:text-zinc-100">
       <SiteHeaderServer />
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-44 h-[720px] overflow-hidden">
+        <div className="absolute -left-48 top-16 h-96 w-96 rounded-full bg-cyan-300/10 blur-[110px] dark:bg-cyan-400/10" />
+        <div className="absolute -right-48 top-72 h-96 w-96 rounded-full bg-violet-400/10 blur-[110px] dark:bg-violet-500/10" />
+      </div>
       <IcmaClient
         viewer={
           user

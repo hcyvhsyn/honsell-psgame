@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -57,15 +58,24 @@ export async function POST(req: Request) {
     prisma.customerTier.findFirst({ where: { isDefault: true }, select: { inviteBonusCents: true } }),
   ]);
 
+  const displayName =
+    typeof body.displayName === "string" && body.displayName.trim() ? body.displayName.trim() : name;
+  const icon = typeof body.icon === "string" && body.icon.trim() ? body.icon.trim() : null;
+
+  // Admin tərəfindən yaradılan tier MANUAL-dır (əl ilə verilən xüsusi status).
   const tier = await prisma.customerTier.create({
     data: {
       name,
+      displayName,
+      icon,
       slug,
+      kind: "MANUAL",
       isDefault: false,
       sortOrder: (maxOrder._max.sortOrder ?? 0) + 1,
       inviteBonusCents: defaultTier?.inviteBonusCents ?? 30,
     },
     select: { id: true, name: true, slug: true, isDefault: true, sortOrder: true, inviteBonusCents: true },
   });
+  revalidateTag("customer-tiers");
   return NextResponse.json({ tier });
 }

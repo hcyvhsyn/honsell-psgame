@@ -2,7 +2,7 @@ import SiteHeader from "@/components/SiteHeaderServer";
 import CartView, { type PsnOption, type EpicOption } from "@/components/CartView";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { getLoyaltyTier } from "@/lib/loyalty";
+import { getEffectiveTier } from "@/lib/customerTier";
 import { getLifetimeSpendAznForLoyalty } from "@/lib/loyaltyCashback";
 import { getOrCreateEpicAccountProduct } from "@/lib/epicAccount";
 
@@ -51,8 +51,8 @@ export default async function CartPage() {
     ]);
     psnAccounts = accounts.map((a) => ({ ...a }));
     epicAccounts = epics.map((a) => ({ ...a }));
-    const tier = getLoyaltyTier(spentAzn);
-    loyaltyCashbackPct = tier.cashbackPct;
+    const tier = await getEffectiveTier(user.id, spentAzn);
+    loyaltyCashbackPct = tier?.cashbackPct ?? 0;
   }
 
   return (

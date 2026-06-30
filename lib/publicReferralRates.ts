@@ -72,10 +72,74 @@ function variantLabel(service: string, variantSlug: string): string {
   return cfg?.variants.find((v) => v.slug === variantSlug)?.name ?? variantSlug;
 }
 
-export async function getPublicReferralRates(): Promise<PublicRateGroup[]> {
+export type PublicTierOption = {
+  id: string;
+  slug: string;
+  name: string;
+  displayName: string;
+  icon: string | null;
+};
+
+/**
+ * Public referal səhifəsində faizlərinə baxıla bilən xüsusi (MANUAL) seqmentlər —
+ * Ambassador kimi. Daxili "sponsorlu" statusu kənarda saxlanılır.
+ */
+export type PublicTierView = {
+  key: string;
+  label: string;
+  icon: string | null;
+  groups: PublicRateGroup[];
+};
+
+/**
+ * Public referal səhifəsi üçün bütün görünüşlər: Standart (default seqment) +
+ * hər Ambassador seqmenti. Hər biri öz effektiv faizləri ilə.
+ */
+export async function getPublicTierViews(): Promise<PublicTierView[]> {
+  const [groups, ambassadors] = await Promise.all([
+    getPublicReferralRates(),
+    getPublicAmbassadorTiers(),
+  ]);
+  const extra = await Promise.all(
+    ambassadors.map(async (t) => ({
+      key: t.slug,
+      label: t.displayName,
+      icon: t.icon,
+      groups: await getPublicReferralRates(t.id),
+    })),
+  );
+  return [{ key: "default", label: "Standart", icon: null, groups }, ...extra];
+}
+
+export async function getPublicAmbassadorTiers(): Promise<PublicTierOption[]> {
+  const rows = await prisma.customerTier
+    .findMany({
+      where: { kind: "MANUAL", slug: { not: "sponsorlu" } },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, slug: true, name: true, displayName: true, icon: true },
+    })
+    .catch(() => [] as PublicTierOption[]);
+  return rows.map((t) => ({
+    id: t.id,
+    slug: t.slug,
+    name: t.name,
+    displayName: t.displayName || t.name,
+    icon: t.icon,
+  }));
+}
+
+/**
+ * Müştəriyə görünən faiz siyahısı. `tierId` verilməzsə default (Bronze/standart)
+ * seqment; verilərsə həmin seqmentin effektiv faizləri (öz sətiri → default sətiri
+ * → metadata fallback) — Ambassador kimi seqmentlərin faizlərinə baxmaq üçün.
+ */
+export async function getPublicReferralRates(tierId?: string): Promise<PublicRateGroup[]> {
   const defaultTier = await prisma.customerTier
     .findFirst({ where: { isDefault: true }, select: { id: true } })
     .catch(() => null);
+
+  const targetTierId = tierId ?? defaultTier?.id ?? null;
+  const tierIds = Array.from(new Set([targetTierId, defaultTier?.id].filter(Boolean) as string[]));
 
   const [settings, products, rateRows, platformLabels] = await Promise.all([
     getSettings(),
@@ -84,28 +148,39 @@ export async function getPublicReferralRates(): Promise<PublicRateGroup[]> {
       select: { id: true, type: true, title: true, metadata: true },
       orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
     }),
-    defaultTier
+    tierIds.length
       ? prisma.referralRate.findMany({
-          where: { tierId: defaultTier.id },
-          select: { targetType: true, serviceProductId: true, ratePct: true, enabled: true },
+          where: { tierId: { in: tierIds } },
+          select: { tierId: true, targetType: true, serviceProductId: true, ratePct: true, enabled: true },
         })
       : Promise.resolve([]),
     getStreamingPlatformLabelMap(),
   ]);
 
-  const byCategory = new Map<string, { ratePct: number; enabled: boolean }>();
-  const byProduct = new Map<string, { ratePct: number; enabled: boolean }>();
+  // Seçilmiş seqment + default seqment xəritələri (default = fallback).
+  const mk = () => ({
+    cat: new Map<string, { ratePct: number; enabled: boolean }>(),
+    prod: new Map<string, { ratePct: number; enabled: boolean }>(),
+  });
+  const target = mk();
+  const fallback = mk();
   for (const r of rateRows) {
-    if (r.targetType === "SERVICE_PRODUCT") byProduct.set(r.serviceProductId, r);
-    else byCategory.set(r.targetType, r);
+    const dest = r.tierId === targetTierId ? target : fallback;
+    if (r.targetType === "SERVICE_PRODUCT") dest.prod.set(r.serviceProductId, r);
+    else dest.cat.set(r.targetType, r);
+    // default sətirləri fallback-ə də yazılır (targetTierId === default olduqda eyni map).
+    if (r.tierId === defaultTier?.id && dest !== fallback) {
+      if (r.targetType === "SERVICE_PRODUCT") fallback.prod.set(r.serviceProductId, r);
+      else fallback.cat.set(r.targetType, r);
+    }
   }
-  const catRate = (targetType: string, fallback: number) => {
-    const row = byCategory.get(targetType);
-    if (!row) return roundPct(fallback);
+  const catRate = (targetType: string, fb: number) => {
+    const row = target.cat.get(targetType) ?? fallback.cat.get(targetType);
+    if (!row) return roundPct(fb);
     return row.enabled ? roundPct(Math.min(100, row.ratePct)) : 0;
   };
   const productRate = (id: string, meta: Record<string, unknown>) => {
-    const row = byProduct.get(id);
+    const row = target.prod.get(id) ?? fallback.prod.get(id);
     if (row) return row.enabled ? roundPct(Math.min(100, row.ratePct)) : 0;
     if (meta.referralEnabled === false) return 0;
     return roundPct(Number(meta.referralPct) || 0);

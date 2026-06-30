@@ -189,8 +189,8 @@ export default function StreamingReviewsClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-        <p className="text-sm text-zinc-300">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-violet-200 bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
+        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
           {isLoggedIn
             ? isTrusted
               ? "Etibarlı icmalçısan — yazdıqların dərhal yayımlanır."
@@ -201,14 +201,14 @@ export default function StreamingReviewsClient({
           <button
             type="button"
             onClick={() => setFormOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 text-sm font-bold text-zinc-900 hover:bg-zinc-100"
+            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-950 px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-violet-100"
           >
             <Plus className="h-4 w-4" /> Yeni icmal yaz
           </button>
         ) : (
           <Link
             href="/login?next=/icma"
-            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 text-sm font-bold text-zinc-900 hover:bg-zinc-100"
+            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-950 px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-violet-100"
           >
             Daxil ol
           </Link>
@@ -216,8 +216,8 @@ export default function StreamingReviewsClient({
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-12 text-center text-sm text-zinc-400">
-          Hələ heç bir icmal yoxdur. İlk yazan sən ol!
+        <div className="rounded-[24px] border border-dashed border-violet-300 bg-violet-50/70 p-12 text-center text-sm font-semibold text-violet-800 dark:border-violet-300/20 dark:bg-violet-400/[0.06] dark:text-violet-200">
+          Hələ heç bir icmal yoxdur. İlk izləmə tövsiyəsini sən paylaş!
         </div>
       ) : (
         <ul className="space-y-6">

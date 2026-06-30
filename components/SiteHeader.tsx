@@ -27,6 +27,7 @@ import {
   Monitor,
   Music2,
   Home,
+  Percent,
   Search,
   ShoppingBag,
   Sparkles,
@@ -122,6 +123,13 @@ const utilityLinks: NavLinkItem[] = [
     description: "Referal qazancı və hesablayıcı",
     Icon: Coins,
     iconClassName: "text-amber-500 dark:text-amber-300",
+  },
+  {
+    href: "/referal-faizleri",
+    label: "Referal faizləri",
+    description: "Məhsul üzrə referal faizləri",
+    Icon: Percent,
+    iconClassName: "text-fuchsia-500 dark:text-fuchsia-300",
   },
   {
     href: "/bilmeli-olduglarin",

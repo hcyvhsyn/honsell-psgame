@@ -214,6 +214,7 @@
 .productTrigger:focus-visible, .productTriggerOpen { border-color: rgba(158,255,101,0.62); box-shadow: 0 0 0 3px rgba(158,255,101,0.09), 0 12px 28px -20px rgba(126,240,68,0.8); }
 .productTriggerIcon { display: grid; place-items: center; width: 39px; height: 39px; border: 1px solid rgba(174,255,135,0.16); border-radius: 11px; color: #b3ff83; background: rgba(158,255,101,0.09); }
 .productTriggerIcon svg { width: 18px; height: 18px; }
+.selectBrandImage { width: auto; max-width: 100%; height: 15px; object-fit: contain; }
 .productTriggerCopy { min-width: 0; }
 .productTriggerCopy small, .productTriggerCopy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .productTriggerCopy small { color: #718378; font-size: 8px; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; }
@@ -239,6 +240,7 @@
 .productOptions .productOptionSelected { background: linear-gradient(90deg, rgba(150,255,93,0.13), rgba(150,255,93,0.035)); }
 .productOptionIcon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; color: #9df36e; background: rgba(158,255,101,0.075); }
 .productOptionIcon svg { width: 15px; height: 15px; }
+.optionBrandImage { width: auto; max-width: 24px; height: 11px; object-fit: contain; }
 .productOptionCopy { min-width: 0; }
 .productOptionCopy small, .productOptionCopy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .productOptionCopy small { color: #607168; font-size: 7px; font-weight: 750; text-transform: uppercase; }
@@ -359,6 +361,28 @@
 .groupFilters button:hover { color: #cfddd3; background: rgba(255,255,255,0.035); }
 .groupFilters .filterActive { border-color: rgba(158,255,101,0.24); color: #c8ffab; background: linear-gradient(135deg, rgba(158,255,101,0.13), rgba(158,255,101,0.055)); box-shadow: 0 7px 20px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.04); }
 
+.logoFilters { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 22px; }
+.logoFilterButton { display: inline-flex; align-items: center; justify-content: center; min-width: 102px; height: 60px; padding: 0 16px; border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; background: linear-gradient(145deg, rgba(255,255,255,0.055), rgba(255,255,255,0.02)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); cursor: pointer; transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease; }
+.logoFilterButton:hover { transform: translateY(-2px); border-color: rgba(158,255,101,0.2); background: linear-gradient(145deg, rgba(158,255,101,0.08), rgba(255,255,255,0.02)); }
+.logoFilterActive { border-color: rgba(158,255,101,0.28); background: linear-gradient(145deg, rgba(158,255,101,0.12), rgba(255,255,255,0.03)); box-shadow: 0 14px 30px -24px rgba(120, 242, 62, 0.52), inset 0 1px 0 rgba(255,255,255,0.06); }
+.logoFilterImage { width: auto; max-width: 100%; height: 24px; object-fit: contain; }
+
+/* Müştəri statusu (tier) üzrə faiz seçici */
+.tierSwitch { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 4px 0 18px; }
+.heroTierSwitch { margin-top: 24px; padding: 14px 16px; border: 1px solid rgba(255,255,255,0.08); border-radius: 22px; background: linear-gradient(145deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.045); }
+.tierSwitchLabel { color: #9af268; font-size: 11px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
+.tierSwitchButtons { display: flex; flex-wrap: wrap; gap: 8px; }
+.tierSwitchButton { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; color: #cfddd3; background: rgba(1,10,5,0.4); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; transition: all 180ms ease; }
+.tierSwitchIcon { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 999px; color: currentColor; background: rgba(255,255,255,0.07); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
+.tierSwitchIcon svg { width: 14px; height: 14px; }
+.tierSwitchButton:hover { color: #eafff0; border-color: rgba(158,255,101,0.3); }
+.tierSwitchActive { border-color: rgba(158,255,101,0.45); color: #06120a; background: linear-gradient(135deg, #bff39a, #8fe06a); box-shadow: 0 10px 26px rgba(120,220,90,0.25); }
+:global(html.light) .heroTierSwitch { border-color: rgba(37,73,42,0.1); background: linear-gradient(145deg, rgba(255,255,255,0.88), rgba(241,247,243,0.82)); box-shadow: 0 20px 40px -34px rgba(31, 67, 38, 0.18), inset 0 1px 0 #fff; }
+:global(html.light) .tierSwitchLabel { color: #409c20; }
+:global(html.light) .tierSwitchButton { color: #2c4a33; background: rgba(255,255,255,0.66); border-color: rgba(37,73,42,0.12); }
+:global(html.light) .tierSwitchIcon { background: rgba(33,67,38,0.06); }
+:global(html.light) .tierSwitchActive { color: #06120a; background: linear-gradient(135deg, #bff39a, #8fe06a); }
+
 .rateGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
 .rateCard { --card-accent: 158,255,101; position: relative; overflow: hidden; border: 1px solid rgba(var(--card-accent),0.12); border-radius: 20px; background: linear-gradient(145deg, rgba(var(--card-accent),0.045), rgba(5,15,9,0.78)); box-shadow: 0 18px 45px -40px rgba(var(--card-accent),0.45), inset 0 1px 0 rgba(255,255,255,0.025); transition: border-color 220ms ease, transform 220ms ease, box-shadow 220ms ease; }
 .accentGold { --card-accent: 244,204,99; }
@@ -370,7 +394,9 @@
 .rateCard:hover .cardAmbient { transform: scale(1.3); opacity: 1.3; }
 .rateCardHeader { position: relative; display: flex; align-items: center; width: 100%; padding: 17px; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; }
 .groupIcon { display: grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; border: 1px solid rgba(var(--card-accent),0.12); border-radius: 13px; color: rgb(var(--card-accent)); background: rgba(var(--card-accent),0.085); box-shadow: inset 0 1px 0 rgba(255,255,255,0.045); }
+.groupIconBrand { width: 58px; height: 58px; border-radius: 18px; }
 .groupIcon svg { width: 18px; height: 18px; }
+.groupBrandImage { width: 38px; height: 38px; object-fit: contain; }
 .groupTitleWrap { min-width: 0; flex: 1; margin-left: 12px; }
 .groupTitle { display: block; overflow: hidden; color: #edf7ef; font-size: 13px; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
 .groupMeta { display: block; margin-top: 3px; color: #64736a; font-size: 9px; }
@@ -479,6 +505,9 @@
   .showcaseContent { padding: 28px 22px 30px; }
   .searchBox { width: 100%; max-width: none; }
   .groupFilters { border-radius: 13px; }
+  .logoFilters { gap: 10px; }
+  .logoFilterButton { min-width: 92px; height: 54px; padding: 0 14px; border-radius: 16px; }
+  .logoFilterImage { height: 21px; }
   .rateExample { display: none; }
   .rateRow { grid-template-columns: minmax(0, 1fr) auto; }
   .finalCta { margin-bottom: 75px; padding: 30px 22px; border-radius: 24px; text-align: center; }
@@ -504,6 +533,8 @@
   .tickerTrack > div { gap: 24px; }
   .quoteVisual { gap: 8px; }
   .quoteVisual > span { width: 31px; }
+  .logoFilters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .logoFilterButton { min-width: 0; width: 100%; }
 }
 
 /* ─── Light theme ──────────────────────────────────────────────────────────
@@ -665,6 +696,9 @@
 :global(html.light) .groupFilters button { color: #63736a; }
 :global(html.light) .groupFilters button:hover { color: #24372b; background: rgba(45,85,48,0.05); }
 :global(html.light) .groupFilters .filterActive { border-color: rgba(67,149,36,0.2); color: #368b19; background: linear-gradient(135deg, rgba(103,195,59,0.17), rgba(103,195,59,0.07)); box-shadow: 0 7px 20px rgba(46,89,43,0.08), inset 0 1px 0 #fff; }
+:global(html.light) .logoFilterButton { border-color: rgba(37,73,42,0.08); background: linear-gradient(145deg, rgba(255,255,255,0.95), rgba(241,247,237,0.92)); box-shadow: 0 14px 30px -24px rgba(46,89,43,0.1), inset 0 1px 0 #fff; }
+:global(html.light) .logoFilterButton:hover { border-color: rgba(67,149,36,0.16); background: linear-gradient(145deg, #fff, rgba(235,246,228,0.94)); }
+:global(html.light) .logoFilterActive { border-color: rgba(67,149,36,0.22); background: linear-gradient(145deg, rgba(103,195,59,0.14), rgba(255,255,255,0.9)); box-shadow: 0 16px 32px -24px rgba(46,89,43,0.16), inset 0 1px 0 #fff; }
 :global(html.light) .rateCard { border-color: rgba(var(--card-accent),0.2); background: linear-gradient(145deg, rgba(255,255,255,0.96), rgba(var(--card-accent),0.055)); box-shadow: 0 22px 48px -40px rgba(39,77,38,0.35), inset 0 1px 0 #fff; }
 :global(html.light) .accentGreen { --card-accent: 55,145,25; }
 :global(html.light) .accentGold { --card-accent: 174,123,10; }
@@ -703,6 +737,1781 @@
 :global(:root.light #faizler) .searchBox input {
   border-color: transparent !important;
   background-color: transparent !important;
+}
+
+.pageAmbassador {
+  position: relative;
+}
+
+.pageAmbassador .hero {
+  isolation: isolate;
+  margin-top: -22px;
+  padding-top: 22px;
+}
+
+.pageAmbassador .hero::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 170px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.pageGaming .hero::before {
+  background:
+    radial-gradient(circle at 50% -12%, rgba(116, 86, 255, 0.34), transparent 42%),
+    linear-gradient(180deg, rgba(24, 10, 46, 0.96) 0%, rgba(14, 20, 42, 0.84) 34%, rgba(8, 30, 38, 0.24) 78%, transparent 100%);
+}
+
+.pageCinema .hero::before {
+  background:
+    radial-gradient(circle at 50% -10%, rgba(126, 76, 214, 0.3), transparent 40%),
+    linear-gradient(180deg, rgba(27, 11, 32, 0.95) 0%, rgba(28, 18, 34, 0.82) 34%, rgba(37, 23, 18, 0.22) 78%, transparent 100%);
+}
+
+:global(html.light) .pageGaming .hero::before {
+  background:
+    radial-gradient(circle at 50% -12%, rgba(188, 144, 255, 0.2), transparent 44%),
+    linear-gradient(180deg, rgba(241, 232, 255, 0.96) 0%, rgba(230, 238, 252, 0.84) 34%, rgba(232, 249, 252, 0.18) 80%, transparent 100%);
+}
+
+:global(html.light) .pageCinema .hero::before {
+  background:
+    radial-gradient(circle at 50% -10%, rgba(208, 170, 255, 0.2), transparent 42%),
+    linear-gradient(180deg, rgba(247, 236, 250, 0.96) 0%, rgba(248, 236, 235, 0.84) 34%, rgba(252, 244, 238, 0.16) 80%, transparent 100%);
+}
+
+.heroAmbience {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.heroAmbience span {
+  position: absolute;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 22px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 22px 45px rgba(0,0,0,0.26);
+  animation: ambientFloat 9s ease-in-out infinite;
+}
+
+.ambassadorDeck {
+  margin-top: 28px;
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24px;
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.ambassadorDeckHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.ambassadorDeckHead span {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ambassadorDeckHead p {
+  max-width: 470px;
+  margin: 0;
+  color: #8fa096;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.ambassadorChipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.ambassadorChipRow span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 33px;
+  padding: 0 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.04);
+  color: #dfeaf0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.ambassadorChipAccent {
+  color: #07141a !important;
+  font-weight: 900 !important;
+}
+
+.ambassadorCardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.ambassadorCard {
+  position: relative;
+  overflow: hidden;
+  min-height: 185px;
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025));
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.ambassadorCard::after {
+  content: "";
+  position: absolute;
+  right: -18px;
+  bottom: -30px;
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  filter: blur(10px);
+}
+
+.ambassadorCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 24px 45px -34px rgba(0,0,0,0.7);
+}
+
+.ambassadorCardIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+
+.ambassadorCardIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ambassadorCard strong {
+  display: block;
+  margin-top: 18px;
+  color: #f3f8fb;
+  font-size: 15px;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+}
+
+.ambassadorCard p {
+  margin: 8px 0 0;
+  color: #94a3aa;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.ambassadorCard small {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 14px;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gamingQuoteVisual,
+.cinemaQuoteVisual {
+  position: relative;
+  width: 100%;
+  min-height: 330px;
+}
+
+.gamingQuoteVisual {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.gamingArenaRing,
+.gamingArenaRingSmall {
+  position: absolute;
+  border: 1px solid rgba(120,255,244,0.18);
+  border-radius: 50%;
+}
+
+.gamingArenaRing {
+  width: 280px;
+  height: 280px;
+  animation: radarBreathe 3.6s ease-in-out infinite;
+}
+
+.gamingArenaRingSmall {
+  width: 180px;
+  height: 180px;
+  border-style: dashed;
+  animation: radarSpin 16s linear infinite;
+}
+
+.gamingArenaCore {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.18), transparent 34%), rgba(10,28,36,0.92);
+  box-shadow: 0 0 0 14px rgba(98,243,255,0.04), 0 0 60px rgba(56,218,232,0.16);
+  text-align: center;
+}
+
+.gamingArenaCore svg {
+  width: 28px;
+  height: 28px;
+}
+
+.gamingArenaCore strong {
+  margin-top: 10px;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.gamingArenaCore span {
+  display: block;
+  margin-top: 6px;
+  max-width: 110px;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.gamingArenaChip {
+  position: absolute;
+  z-index: 2;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  animation: chipOrbit 5.5s ease-in-out infinite;
+}
+
+.gamingArenaChip:nth-of-type(3) {
+  top: 18%;
+  right: 16%;
+}
+
+.gamingArenaChip:nth-of-type(4) {
+  bottom: 20%;
+  left: 14%;
+  animation-delay: -1.6s;
+}
+
+.gamingArenaChip:nth-of-type(5) {
+  right: 22%;
+  bottom: 10%;
+  animation-delay: -3.2s;
+}
+
+.cinemaQuoteVisual {
+  overflow: hidden;
+}
+
+.cinemaSpotlight {
+  position: absolute;
+  inset: -8% 20% 4%;
+  background: linear-gradient(180deg, rgba(255,214,143,0.52), rgba(255,214,143,0.08) 58%, transparent 100%);
+  clip-path: polygon(50% 0, 79% 100%, 21% 100%);
+  filter: blur(10px);
+  animation: spotlightShift 5.5s ease-in-out infinite;
+}
+
+.cinemaReel {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 178px;
+  height: 178px;
+  margin: 34px auto 0;
+  border: 1px solid rgba(255,218,150,0.24);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.16), transparent 32%), rgba(29,18,19,0.88);
+  box-shadow: 0 0 0 14px rgba(255,215,132,0.04), 0 0 50px rgba(212,129,56,0.16);
+}
+
+.cinemaReel svg {
+  width: 34px;
+  height: 34px;
+}
+
+.cinemaReel span {
+  display: block;
+  margin-top: 10px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.cinemaFrames {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 16%;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cinemaFrames article {
+  position: relative;
+  overflow: hidden;
+  min-height: 92px;
+  padding: 16px;
+  border: 1px solid rgba(255,238,204,0.12);
+  border-radius: 18px;
+  background: rgba(12,8,9,0.72);
+}
+
+.cinemaFrames article::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.23;
+  background-image: linear-gradient(90deg, rgba(255,255,255,0.2) 0 8px, transparent 8px calc(100% - 8px), rgba(255,255,255,0.2) calc(100% - 8px));
+}
+
+.cinemaFrames small,
+.cinemaFrames strong {
+  position: relative;
+  z-index: 1;
+  display: block;
+}
+
+.cinemaFrames small {
+  color: #bea892;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cinemaFrames strong {
+  margin-top: 8px;
+  color: #fff7ef;
+  font-size: 16px;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+}
+
+.pageGaming,
+:global(html.light) .pageGaming {
+  --ink: #ecfdff;
+  --muted: #8aa5af;
+  --green: #64f3ff;
+  --green-strong: #22d7e8;
+  --gold: #7dffcb;
+  --line: rgba(100, 243, 255, 0.15);
+  background: #061219;
+  color: #ecfdff;
+}
+
+.pageGaming .hero,
+:global(html.light) .pageGaming .hero {
+  background:
+    radial-gradient(circle at 83% 16%, rgba(103, 240, 255, 0.18), transparent 24%),
+    radial-gradient(circle at 16% 22%, rgba(129, 255, 203, 0.13), transparent 26%),
+    linear-gradient(135deg, #061219 0%, #081a24 48%, #071219 100%);
+}
+
+.pageGaming .heroGrid,
+:global(html.light) .pageGaming .heroGrid {
+  opacity: 0.3;
+  background-image:
+    linear-gradient(rgba(108, 240, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(108, 240, 255, 0.07) 1px, transparent 1px);
+}
+
+.pageGaming .auroraOne,
+:global(html.light) .pageGaming .auroraOne {
+  background: #44effa;
+}
+
+.pageGaming .auroraTwo,
+:global(html.light) .pageGaming .auroraTwo {
+  background: #5effc0;
+}
+
+.pageGaming .heroAmbience span:nth-child(1),
+:global(html.light) .pageGaming .heroAmbience span:nth-child(1) {
+  top: 14%;
+  left: 50%;
+  width: 148px;
+  height: 78px;
+  background: linear-gradient(135deg, rgba(100,243,255,0.18), rgba(100,243,255,0.04));
+}
+
+.pageGaming .heroAmbience span:nth-child(2),
+:global(html.light) .pageGaming .heroAmbience span:nth-child(2) {
+  right: 8%;
+  top: 27%;
+  width: 130px;
+  height: 130px;
+  border-radius: 28px;
+  background: radial-gradient(circle at 50% 50%, rgba(126,255,208,0.18), rgba(11,26,34,0.04));
+  animation-delay: -2s;
+}
+
+.pageGaming .heroAmbience span:nth-child(3),
+:global(html.light) .pageGaming .heroAmbience span:nth-child(3) {
+  left: 7%;
+  bottom: 14%;
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, rgba(100,243,255,0.22), rgba(9,18,24,0.03));
+  animation-delay: -4s;
+}
+
+.pageGaming .eyebrow,
+:global(html.light) .pageGaming .eyebrow {
+  border-color: rgba(100,243,255,0.24);
+  color: #d0fdff;
+  background: rgba(100,243,255,0.08);
+}
+
+.pageGaming .eyebrow span,
+:global(html.light) .pageGaming .eyebrow span {
+  color: #04141a;
+  background: #64f3ff;
+}
+
+.pageGaming .eyebrow > svg:last-child,
+.pageGaming .trustLine svg,
+.pageGaming .calculatorTopline svg,
+.pageGaming .formula svg,
+:global(html.light) .pageGaming .eyebrow > svg:last-child,
+:global(html.light) .pageGaming .trustLine svg,
+:global(html.light) .pageGaming .calculatorTopline svg,
+:global(html.light) .pageGaming .formula svg {
+  color: #64f3ff;
+}
+
+.pageGaming .hero h1 span,
+:global(html.light) .pageGaming .hero h1 span {
+  background-image: linear-gradient(102deg, #c8fff6 0%, #66f4ff 48%, #5dffc0 100%);
+}
+
+.pageGaming .primaryButton,
+:global(html.light) .pageGaming .primaryButton {
+  color: #04141a;
+  background: linear-gradient(135deg, #67f5ff, #28d6e6);
+  box-shadow: 0 18px 42px -20px rgba(42,214,230,0.85), inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+.pageGaming .secondaryButton,
+:global(html.light) .pageGaming .secondaryButton {
+  border-color: rgba(100,243,255,0.16);
+  background: rgba(9,31,38,0.52);
+}
+
+.pageGaming .ambassadorDeck,
+:global(html.light) .pageGaming .ambassadorDeck,
+.pageGaming .calculatorCard,
+:global(html.light) .pageGaming .calculatorCard,
+.pageGaming .finalCta,
+:global(html.light) .pageGaming .finalCta {
+  border-color: rgba(100,243,255,0.18);
+}
+
+.pageGaming .ambassadorDeck,
+:global(html.light) .pageGaming .ambassadorDeck {
+  background: linear-gradient(145deg, rgba(15,45,54,0.72), rgba(10,20,28,0.84));
+}
+
+.pageGaming .ambassadorDeckHead span,
+.pageGaming .ambassadorChipAccent,
+:global(html.light) .pageGaming .ambassadorDeckHead span,
+:global(html.light) .pageGaming .ambassadorChipAccent {
+  background: linear-gradient(135deg, #74f5ff, #7dffca);
+}
+
+.pageGaming .ambassadorCard,
+:global(html.light) .pageGaming .ambassadorCard {
+  border-color: rgba(100,243,255,0.12);
+  background: linear-gradient(155deg, rgba(13,45,52,0.85), rgba(8,24,31,0.9));
+}
+
+.pageGaming .ambassadorCard:hover,
+:global(html.light) .pageGaming .ambassadorCard:hover {
+  border-color: rgba(100,243,255,0.24);
+}
+
+.pageGaming .ambassadorCardIcon,
+:global(html.light) .pageGaming .ambassadorCardIcon {
+  border: 1px solid rgba(100,243,255,0.18);
+  color: #64f3ff;
+  background: rgba(100,243,255,0.08);
+}
+
+.pageGaming .ambassadorCard small,
+.pageGaming .gamingArenaCore strong,
+.pageGaming .gamingArenaChip,
+:global(html.light) .pageGaming .ambassadorCard small,
+:global(html.light) .pageGaming .gamingArenaCore strong,
+:global(html.light) .pageGaming .gamingArenaChip {
+  color: #74fff5;
+}
+
+.pageGaming .gamingArenaCore,
+:global(html.light) .pageGaming .gamingArenaCore {
+  border: 1px solid rgba(100,243,255,0.18);
+}
+
+.pageGaming .gamingArenaChip,
+:global(html.light) .pageGaming .gamingArenaChip {
+  border: 1px solid rgba(100,243,255,0.15);
+  background: rgba(9,26,33,0.82);
+}
+
+.pageGaming .ticker,
+:global(html.light) .pageGaming .ticker {
+  border-color: rgba(100,243,255,0.16);
+  background: linear-gradient(90deg, #67f4ff, #84ffcf);
+  color: #07151a;
+}
+
+.pageGaming .sectionKicker,
+:global(html.light) .pageGaming .sectionKicker,
+.pageGaming .showcaseStats svg,
+:global(html.light) .pageGaming .showcaseStats svg {
+  color: #71f6ff;
+}
+
+.pageGaming .stepCard,
+:global(html.light) .pageGaming .stepCard {
+  border-color: rgba(100,243,255,0.12);
+  background: linear-gradient(145deg, rgba(14,34,44,0.72), rgba(10,18,26,0.34));
+}
+
+.pageGaming .stepCard:hover,
+:global(html.light) .pageGaming .stepCard:hover {
+  border-color: rgba(100,243,255,0.22);
+  background: linear-gradient(145deg, rgba(24,54,65,0.78), rgba(11,20,29,0.36));
+}
+
+.pageGaming .stepIcon,
+:global(html.light) .pageGaming .stepIcon {
+  border-color: rgba(100,243,255,0.18);
+  color: #64f3ff;
+  background: rgba(100,243,255,0.08);
+}
+
+.pageGaming .quoteSection,
+:global(html.light) .pageGaming .quoteSection {
+  background: #07161c;
+  border-color: rgba(100,243,255,0.09);
+}
+
+.pageGaming .showcaseLabel,
+:global(html.light) .pageGaming .showcaseLabel {
+  border-color: rgba(100,243,255,0.2);
+  color: #d2ffff;
+  background: rgba(100,243,255,0.08);
+}
+
+.pageGaming .finalCta,
+:global(html.light) .pageGaming .finalCta {
+  background: radial-gradient(circle at 84% 22%, rgba(110,255,212,0.16), transparent 30%), linear-gradient(135deg, rgba(11,34,43,0.92), rgba(8,21,27,0.96));
+}
+
+.pageGaming .ctaCoinOne,
+.pageGaming .ctaCoinTwo,
+:global(html.light) .pageGaming .ctaCoinOne,
+:global(html.light) .pageGaming .ctaCoinTwo {
+  color: rgba(4,20,26,0.7);
+  background: rgba(100,243,255,0.72);
+}
+
+.pageCinema,
+:global(html.light) .pageCinema {
+  --ink: #fff5ea;
+  --muted: #b8a291;
+  --green: #ffce77;
+  --green-strong: #f2aa48;
+  --gold: #ff8e6b;
+  --line: rgba(255, 207, 119, 0.14);
+  background: #140d10;
+  color: #fff5ea;
+}
+
+.pageCinema .hero,
+:global(html.light) .pageCinema .hero {
+  background:
+    radial-gradient(circle at 78% 16%, rgba(255, 182, 92, 0.18), transparent 26%),
+    radial-gradient(circle at 18% 22%, rgba(202, 76, 59, 0.12), transparent 28%),
+    linear-gradient(135deg, #120b0f 0%, #191015 46%, #140d10 100%);
+}
+
+.pageCinema .heroGrid,
+:global(html.light) .pageCinema .heroGrid {
+  opacity: 0.2;
+  background-image:
+    linear-gradient(rgba(255,211,138,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,211,138,0.06) 1px, transparent 1px);
+}
+
+.pageCinema .auroraOne,
+:global(html.light) .pageCinema .auroraOne {
+  background: #ffb765;
+}
+
+.pageCinema .auroraTwo,
+:global(html.light) .pageCinema .auroraTwo {
+  background: #d45b47;
+}
+
+.pageCinema .heroAmbience span:nth-child(1),
+:global(html.light) .pageCinema .heroAmbience span:nth-child(1) {
+  top: 15%;
+  left: 52%;
+  width: 156px;
+  height: 86px;
+  background: linear-gradient(135deg, rgba(255,207,119,0.18), rgba(255,207,119,0.04));
+}
+
+.pageCinema .heroAmbience span:nth-child(2),
+:global(html.light) .pageCinema .heroAmbience span:nth-child(2) {
+  right: 9%;
+  top: 31%;
+  width: 120px;
+  height: 154px;
+  border-radius: 18px;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.14) 0 10px, transparent 10px calc(100% - 10px), rgba(255,255,255,0.14) calc(100% - 10px)),
+    linear-gradient(180deg, rgba(255,207,119,0.14), rgba(23,14,17,0.08));
+  animation-delay: -2s;
+}
+
+.pageCinema .heroAmbience span:nth-child(3),
+:global(html.light) .pageCinema .heroAmbience span:nth-child(3) {
+  left: 6%;
+  bottom: 14%;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, rgba(255,164,111,0.22), rgba(24,14,16,0.04));
+  animation-delay: -4.3s;
+}
+
+.pageCinema .eyebrow,
+:global(html.light) .pageCinema .eyebrow {
+  border-color: rgba(255,207,119,0.22);
+  color: #ffe8c3;
+  background: rgba(255,207,119,0.08);
+}
+
+.pageCinema .eyebrow span,
+:global(html.light) .pageCinema .eyebrow span {
+  color: #25130d;
+  background: #ffce77;
+}
+
+.pageCinema .eyebrow > svg:last-child,
+.pageCinema .trustLine svg,
+.pageCinema .calculatorTopline svg,
+.pageCinema .formula svg,
+:global(html.light) .pageCinema .eyebrow > svg:last-child,
+:global(html.light) .pageCinema .trustLine svg,
+:global(html.light) .pageCinema .calculatorTopline svg,
+:global(html.light) .pageCinema .formula svg {
+  color: #ffce77;
+}
+
+.pageCinema .hero h1 span,
+:global(html.light) .pageCinema .hero h1 span {
+  background-image: linear-gradient(102deg, #ffe6bd 0%, #ffcf76 44%, #ff8c67 100%);
+}
+
+.pageCinema .primaryButton,
+:global(html.light) .pageCinema .primaryButton {
+  color: #24130d;
+  background: linear-gradient(135deg, #ffd17c, #f1a24c);
+  box-shadow: 0 18px 42px -20px rgba(241,162,76,0.8), inset 0 1px 0 rgba(255,255,255,0.58);
+}
+
+.pageCinema .secondaryButton,
+:global(html.light) .pageCinema .secondaryButton {
+  border-color: rgba(255,207,119,0.16);
+  background: rgba(31,18,21,0.56);
+}
+
+.pageCinema .ambassadorDeck,
+:global(html.light) .pageCinema .ambassadorDeck,
+.pageCinema .calculatorCard,
+:global(html.light) .pageCinema .calculatorCard,
+.pageCinema .finalCta,
+:global(html.light) .pageCinema .finalCta {
+  border-color: rgba(255,207,119,0.18);
+}
+
+.pageCinema .ambassadorDeck,
+:global(html.light) .pageCinema .ambassadorDeck {
+  background: linear-gradient(145deg, rgba(51,31,29,0.7), rgba(22,14,16,0.86));
+}
+
+.pageCinema .ambassadorDeckHead span,
+.pageCinema .ambassadorChipAccent,
+:global(html.light) .pageCinema .ambassadorDeckHead span,
+:global(html.light) .pageCinema .ambassadorChipAccent {
+  background: linear-gradient(135deg, #ffd782, #ff9e72);
+}
+
+.pageCinema .ambassadorCard,
+:global(html.light) .pageCinema .ambassadorCard {
+  border-color: rgba(255,207,119,0.12);
+  background: linear-gradient(155deg, rgba(53,32,29,0.8), rgba(21,13,15,0.92));
+}
+
+.pageCinema .ambassadorCard:hover,
+:global(html.light) .pageCinema .ambassadorCard:hover {
+  border-color: rgba(255,207,119,0.24);
+}
+
+.pageCinema .ambassadorCardIcon,
+:global(html.light) .pageCinema .ambassadorCardIcon {
+  border: 1px solid rgba(255,207,119,0.16);
+  color: #ffcf76;
+  background: rgba(255,207,119,0.08);
+}
+
+.pageCinema .ambassadorCard small,
+.pageCinema .cinemaReel span,
+:global(html.light) .pageCinema .ambassadorCard small,
+:global(html.light) .pageCinema .cinemaReel span {
+  color: #ffd68d;
+}
+
+.pageCinema .ticker,
+:global(html.light) .pageCinema .ticker {
+  border-color: rgba(255,207,119,0.16);
+  background: linear-gradient(90deg, #ffd17c, #ff9f73);
+  color: #28130d;
+}
+
+.pageCinema .sectionKicker,
+:global(html.light) .pageCinema .sectionKicker,
+.pageCinema .showcaseStats svg,
+:global(html.light) .pageCinema .showcaseStats svg {
+  color: #ffd17c;
+}
+
+.pageCinema .stepCard,
+:global(html.light) .pageCinema .stepCard {
+  border-color: rgba(255,207,119,0.12);
+  background: linear-gradient(145deg, rgba(47,30,29,0.72), rgba(22,13,16,0.34));
+}
+
+.pageCinema .stepCard:hover,
+:global(html.light) .pageCinema .stepCard:hover {
+  border-color: rgba(255,207,119,0.22);
+  background: linear-gradient(145deg, rgba(72,41,34,0.76), rgba(22,14,18,0.38));
+}
+
+.pageCinema .stepIcon,
+:global(html.light) .pageCinema .stepIcon {
+  border-color: rgba(255,207,119,0.16);
+  color: #ffd17c;
+  background: rgba(255,207,119,0.08);
+}
+
+.pageCinema .quoteSection,
+:global(html.light) .pageCinema .quoteSection {
+  background: #170f13;
+  border-color: rgba(255,207,119,0.08);
+}
+
+.pageCinema .showcaseLabel,
+:global(html.light) .pageCinema .showcaseLabel {
+  border-color: rgba(255,207,119,0.18);
+  color: #fff1d6;
+  background: rgba(255,207,119,0.08);
+}
+
+.pageCinema .cinemaFrames article,
+:global(html.light) .pageCinema .cinemaFrames article {
+  background: rgba(18,11,13,0.74);
+}
+
+.pageCinema .finalCta,
+:global(html.light) .pageCinema .finalCta {
+  background: radial-gradient(circle at 84% 22%, rgba(255,173,110,0.16), transparent 30%), linear-gradient(135deg, rgba(46,29,28,0.88), rgba(21,14,16,0.96));
+}
+
+.pageCinema .ctaCoinOne,
+.pageCinema .ctaCoinTwo,
+:global(html.light) .pageCinema .ctaCoinOne,
+:global(html.light) .pageCinema .ctaCoinTwo {
+  color: rgba(40,19,13,0.62);
+  background: rgba(255,207,119,0.72);
+}
+
+/* Dedicated light-mode overrides for ambassador variants.
+   The variant sections define strong custom art direction, so we restate the
+   main surfaces here instead of relying on the generic page light palette. */
+:global(html.light) .pageGaming {
+  --ink: #10212a;
+  --muted: #5f7682;
+  --green: #19a9c8;
+  --green-strong: #0f8eac;
+  --gold: #11ba9b;
+  --line: rgba(24, 122, 146, 0.15);
+  background: #f2fbfe;
+  color: #10212a;
+}
+
+:global(html.light) .pageGaming .hero {
+  background:
+    radial-gradient(circle at 82% 17%, rgba(103, 240, 255, 0.22), transparent 24%),
+    radial-gradient(circle at 18% 18%, rgba(108, 255, 214, 0.18), transparent 28%),
+    linear-gradient(135deg, #f7feff 0%, #e8f7fb 48%, #f1fbfd 100%);
+}
+
+:global(html.light) .pageGaming .heroGrid {
+  opacity: 0.4;
+  background-image:
+    linear-gradient(rgba(37, 145, 165, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 145, 165, 0.08) 1px, transparent 1px);
+}
+
+:global(html.light) .pageGaming .heroAmbience span {
+  border-color: rgba(32, 128, 150, 0.12);
+  box-shadow: 0 22px 45px rgba(42, 101, 116, 0.12);
+}
+
+:global(html.light) .pageGaming .eyebrow {
+  color: #11637a;
+  background: rgba(58, 186, 210, 0.11);
+}
+
+:global(html.light) .pageGaming .hero h1,
+:global(html.light) .pageGaming .sectionIntro h2,
+:global(html.light) .pageGaming .ratesHeading h2,
+:global(html.light) .pageGaming .finalCta h2,
+:global(html.light) .pageGaming .showcaseContent h3,
+:global(html.light) .pageGaming .quoteSection blockquote p,
+:global(html.light) .pageGaming .ambassadorCard strong {
+  color: #11232b;
+}
+
+:global(html.light) .pageGaming .heroLead,
+:global(html.light) .pageGaming .ambassadorDeckHead p,
+:global(html.light) .pageGaming .ambassadorCard p,
+:global(html.light) .pageGaming .showcaseContent > p,
+:global(html.light) .pageGaming .stepCard p,
+:global(html.light) .pageGaming .finalCta p,
+:global(html.light) .pageGaming .quoteSection footer {
+  color: #617783;
+}
+
+:global(html.light) .pageGaming .secondaryButton {
+  color: #17323b;
+  border-color: rgba(29, 118, 140, 0.14);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+:global(html.light) .pageGaming .ambassadorDeck,
+:global(html.light) .pageGaming .calculatorCard,
+:global(html.light) .pageGaming .rateShowcase,
+:global(html.light) .pageGaming .stepCard,
+:global(html.light) .pageGaming .finalCta,
+:global(html.light) .pageGaming .sharePanel,
+:global(html.light) .pageGaming .quoteSection {
+  background: linear-gradient(145deg, rgba(255,255,255,0.96), rgba(227,247,250,0.94));
+  box-shadow: 0 28px 70px -46px rgba(40, 100, 116, 0.28), inset 0 1px 0 #fff;
+}
+
+:global(html.light) .pageGaming .ambassadorDeck,
+:global(html.light) .pageGaming .calculatorCard,
+:global(html.light) .pageGaming .stepCard,
+:global(html.light) .pageGaming .finalCta,
+:global(html.light) .pageGaming .sharePanel {
+  border-color: rgba(36, 132, 156, 0.16);
+}
+
+:global(html.light) .pageGaming .ambassadorChipRow span,
+:global(html.light) .pageGaming .gamingArenaChip,
+:global(html.light) .pageGaming .showcaseLabel,
+:global(html.light) .pageGaming .showcaseStats span {
+  color: #21515f;
+  border-color: rgba(36, 132, 156, 0.12);
+  background: rgba(58, 186, 210, 0.08);
+}
+
+:global(html.light) .pageGaming .ambassadorCardIcon,
+:global(html.light) .pageGaming .stepIcon,
+:global(html.light) .pageGaming .groupIcon,
+:global(html.light) .pageGaming .productTriggerIcon {
+  border-color: rgba(29, 127, 150, 0.16);
+  color: #179cba;
+  background: rgba(58, 186, 210, 0.09);
+}
+
+:global(html.light) .pageGaming .quoteSection {
+  border-color: rgba(28, 121, 142, 0.1);
+}
+
+:global(html.light) .pageGaming .gamingArenaCore {
+  border-color: rgba(33, 134, 157, 0.18);
+  background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.7), transparent 34%), #e7f7fb;
+  box-shadow: 0 0 0 14px rgba(58,186,210,0.04), 0 0 52px rgba(58,186,210,0.12);
+}
+
+:global(html.light) .pageGaming .gamingArenaCore strong,
+:global(html.light) .pageGaming .gamingArenaCore span,
+:global(html.light) .pageGaming .gamingArenaChip,
+:global(html.light) .pageGaming .ambassadorCard small,
+:global(html.light) .pageGaming .sectionKicker,
+:global(html.light) .pageGaming .showcaseStats svg {
+  color: #159bb9;
+}
+
+:global(html.light) .pageGaming .ratesSection::before {
+  border-color: rgba(31, 125, 147, 0.08);
+  background:
+    radial-gradient(circle at 82% 22%, rgba(86, 222, 215, 0.12), transparent 24%),
+    radial-gradient(circle at 14% 60%, rgba(78, 191, 234, 0.13), transparent 28%),
+    linear-gradient(180deg, rgba(248,253,254,0.5), rgba(230,246,249,0.85), rgba(248,253,254,0.45));
+}
+
+:global(html.light) .pageGaming .ticker {
+  color: #0f2027;
+}
+
+:global(html.light) .pageGaming .codeBox {
+  border-color: rgba(35, 128, 151, 0.16);
+  background: rgba(58, 186, 210, 0.08);
+}
+
+:global(html.light) .pageCinema {
+  --ink: #2b1714;
+  --muted: #856961;
+  --green: #d39235;
+  --green-strong: #bb7a21;
+  --gold: #d56c52;
+  --line: rgba(178, 108, 43, 0.14);
+  background: #fdf5ef;
+  color: #2b1714;
+}
+
+:global(html.light) .pageCinema .hero {
+  background:
+    radial-gradient(circle at 79% 18%, rgba(255, 197, 108, 0.23), transparent 26%),
+    radial-gradient(circle at 18% 20%, rgba(220, 110, 85, 0.16), transparent 28%),
+    linear-gradient(135deg, #fff9f5 0%, #faeee6 48%, #fdf4ee 100%);
+}
+
+:global(html.light) .pageCinema .heroGrid {
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(176, 111, 59, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(176, 111, 59, 0.08) 1px, transparent 1px);
+}
+
+:global(html.light) .pageCinema .heroAmbience span {
+  border-color: rgba(170, 104, 51, 0.12);
+  box-shadow: 0 22px 45px rgba(122, 78, 49, 0.12);
+}
+
+:global(html.light) .pageCinema .eyebrow {
+  color: #9c5b24;
+  background: rgba(255, 201, 111, 0.12);
+}
+
+:global(html.light) .pageCinema .hero h1,
+:global(html.light) .pageCinema .sectionIntro h2,
+:global(html.light) .pageCinema .ratesHeading h2,
+:global(html.light) .pageCinema .finalCta h2,
+:global(html.light) .pageCinema .showcaseContent h3,
+:global(html.light) .pageCinema .quoteSection blockquote p,
+:global(html.light) .pageCinema .ambassadorCard strong {
+  color: #2b1714;
+}
+
+:global(html.light) .pageCinema .heroLead,
+:global(html.light) .pageCinema .ambassadorDeckHead p,
+:global(html.light) .pageCinema .ambassadorCard p,
+:global(html.light) .pageCinema .showcaseContent > p,
+:global(html.light) .pageCinema .stepCard p,
+:global(html.light) .pageCinema .finalCta p,
+:global(html.light) .pageCinema .quoteSection footer {
+  color: #7d665d;
+}
+
+:global(html.light) .pageCinema .secondaryButton {
+  color: #412522;
+  border-color: rgba(160, 94, 49, 0.14);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+:global(html.light) .pageCinema .ambassadorDeck,
+:global(html.light) .pageCinema .calculatorCard,
+:global(html.light) .pageCinema .rateShowcase,
+:global(html.light) .pageCinema .stepCard,
+:global(html.light) .pageCinema .finalCta,
+:global(html.light) .pageCinema .sharePanel,
+:global(html.light) .pageCinema .quoteSection {
+  background: linear-gradient(145deg, rgba(255,255,255,0.97), rgba(250,238,229,0.94));
+  box-shadow: 0 28px 70px -46px rgba(134, 86, 55, 0.28), inset 0 1px 0 #fff;
+}
+
+:global(html.light) .pageCinema .ambassadorDeck,
+:global(html.light) .pageCinema .calculatorCard,
+:global(html.light) .pageCinema .stepCard,
+:global(html.light) .pageCinema .finalCta,
+:global(html.light) .pageCinema .sharePanel {
+  border-color: rgba(172, 104, 53, 0.16);
+}
+
+:global(html.light) .pageCinema .ambassadorChipRow span,
+:global(html.light) .pageCinema .showcaseLabel,
+:global(html.light) .pageCinema .showcaseStats span {
+  color: #67412c;
+  border-color: rgba(172, 104, 53, 0.12);
+  background: rgba(255, 207, 119, 0.11);
+}
+
+:global(html.light) .pageCinema .ambassadorCardIcon,
+:global(html.light) .pageCinema .stepIcon,
+:global(html.light) .pageCinema .groupIcon,
+:global(html.light) .pageCinema .productTriggerIcon {
+  border-color: rgba(167, 101, 52, 0.16);
+  color: #c68527;
+  background: rgba(255, 207, 119, 0.11);
+}
+
+:global(html.light) .pageCinema .quoteSection {
+  border-color: rgba(163, 96, 47, 0.1);
+}
+
+:global(html.light) .pageCinema .cinemaReel {
+  border-color: rgba(181, 110, 58, 0.18);
+  background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.7), transparent 34%), #fbebe1;
+  box-shadow: 0 0 0 14px rgba(255,207,119,0.04), 0 0 52px rgba(213,108,82,0.12);
+}
+
+:global(html.light) .pageCinema .cinemaFrames article {
+  border-color: rgba(171, 103, 52, 0.12);
+  background: rgba(255, 249, 244, 0.9);
+}
+
+:global(html.light) .pageCinema .cinemaFrames small {
+  color: #a17c63;
+}
+
+:global(html.light) .pageCinema .cinemaFrames strong,
+:global(html.light) .pageCinema .ambassadorCard small,
+:global(html.light) .pageCinema .cinemaReel span,
+:global(html.light) .pageCinema .sectionKicker,
+:global(html.light) .pageCinema .showcaseStats svg {
+  color: #cb8424;
+}
+
+:global(html.light) .pageCinema .ratesSection::before {
+  border-color: rgba(165, 97, 49, 0.08);
+  background:
+    radial-gradient(circle at 82% 22%, rgba(255, 192, 102, 0.13), transparent 24%),
+    radial-gradient(circle at 14% 60%, rgba(220, 110, 85, 0.11), transparent 28%),
+    linear-gradient(180deg, rgba(255,250,247,0.5), rgba(248,238,230,0.88), rgba(255,250,247,0.45));
+}
+
+:global(html.light) .pageCinema .ticker {
+  color: #291611;
+}
+
+:global(html.light) .pageCinema .codeBox {
+  border-color: rgba(172, 104, 53, 0.16);
+  background: rgba(255, 207, 119, 0.1);
+}
+
+/* Gaming ambassador palette harmonization:
+   keep the whole page in one light-blue/cyan family from hero to footer. */
+.pageGaming {
+  --gaming-sky: #72f4ff;
+  --gaming-sky-strong: #36dff1;
+  --gaming-sky-soft: rgba(114, 244, 255, 0.12);
+  --gaming-sky-line: rgba(114, 244, 255, 0.2);
+  --gaming-panel: rgba(10, 28, 36, 0.84);
+}
+
+.pageGaming .auroraTwo,
+.pageGaming .heroAmbience span:nth-child(2),
+.pageGaming .hero h1 span,
+.pageGaming .ambassadorDeckHead span,
+.pageGaming .ambassadorChipAccent,
+.pageGaming .primaryButton,
+.pageGaming .ticker {
+  background-image: linear-gradient(135deg, #c8f8ff, var(--gaming-sky) 48%, var(--gaming-sky-strong) 100%);
+}
+
+.pageGaming .moneyCloud { opacity: 0.82; }
+
+.pageGaming .floatingCoin {
+  border-color: rgba(150, 248, 255, 0.42);
+  color: #07303a;
+  background: linear-gradient(145deg, #dcfbff, #73f1ff);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35), inset 0 2px 2px rgba(255,255,255,0.72);
+}
+
+.pageGaming .floatingCoin::after {
+  border-color: rgba(7, 67, 82, 0.34);
+}
+
+.pageGaming .floatingBill {
+  border-color: rgba(114, 244, 255, 0.24);
+  color: var(--gaming-sky);
+  background: rgba(63, 177, 201, 0.16);
+}
+
+.pageGaming .secondaryButton,
+.pageGaming .ambassadorDeck,
+.pageGaming .calculatorCard,
+.pageGaming .quoteSection,
+.pageGaming .rateShowcase,
+.pageGaming .groupFilters,
+.pageGaming .logoFilterButton,
+.pageGaming .finalCta,
+.pageGaming .sharePanel,
+.pageGaming .codeBox {
+  border-color: var(--gaming-sky-line);
+}
+
+.pageGaming .calculatorGlow {
+  background: rgba(114, 244, 255, 0.28);
+}
+
+.pageGaming .earningsDisplay,
+.pageGaming .productTrigger,
+.pageGaming .searchBox,
+.pageGaming .groupFilters,
+.pageGaming .codeBox {
+  background: linear-gradient(145deg, rgba(114, 244, 255, 0.09), rgba(8, 22, 29, 0.84));
+}
+
+.pageGaming .productTriggerRate,
+.pageGaming .sliderHeading output,
+.pageGaming .showcaseLabel,
+.pageGaming .showcaseStats span,
+.pageGaming .gamingArenaChip,
+.pageGaming .logoFilterButton:hover,
+.pageGaming .logoFilterActive {
+  border-color: var(--gaming-sky-line);
+  color: #bdfaff;
+  background: rgba(114, 244, 255, 0.1);
+}
+
+.pageGaming .productTriggerIcon,
+.pageGaming .productOptionIcon,
+.pageGaming .groupIcon,
+.pageGaming .stepIcon,
+.pageGaming .ambassadorCardIcon {
+  border-color: rgba(114, 244, 255, 0.22);
+  color: var(--gaming-sky);
+  background: rgba(114, 244, 255, 0.1);
+}
+
+.pageGaming .live,
+.pageGaming .sectionKicker,
+.pageGaming .showcaseStats svg,
+.pageGaming .formula svg,
+.pageGaming .trustLine svg,
+.pageGaming .calculatorTopline svg,
+.pageGaming .ratesDisclaimer svg {
+  color: var(--gaming-sky);
+}
+
+.pageGaming .live i {
+  background: var(--gaming-sky);
+  box-shadow: 0 0 0 5px rgba(114, 244, 255, 0.12);
+}
+
+.pageGaming .ticker {
+  border-color: rgba(114, 244, 255, 0.2);
+  color: #062029;
+}
+
+.pageGaming .ticker svg {
+  fill: #07303a;
+}
+
+.pageGaming .ratesAtmosphere i,
+.pageGaming .ctaCoinOne,
+.pageGaming .ctaCoinTwo {
+  border-color: rgba(114, 244, 255, 0.24);
+  color: rgba(6, 39, 48, 0.7);
+  background: rgba(114, 244, 255, 0.2);
+}
+
+.pageGaming .ratesAtmosphere i::after {
+  color: rgba(171, 250, 255, 0.76);
+}
+
+.pageGaming .radarRingOne,
+.pageGaming .radarRingTwo {
+  border-color: rgba(114, 244, 255, 0.16);
+}
+
+.pageGaming .radarSweep {
+  background: conic-gradient(from 0deg, transparent 0 72%, rgba(114, 244, 255, 0.2) 90%, transparent 100%);
+}
+
+.pageGaming .radarCore {
+  border-color: rgba(114, 244, 255, 0.28);
+  background: radial-gradient(circle at 35% 28%, rgba(201,250,255,0.18), transparent 35%), #0c2530;
+  box-shadow: 0 0 0 12px rgba(114,244,255,0.035), 0 0 55px rgba(114,244,255,0.16), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.pageGaming .radarCore strong,
+.pageGaming .ratePill,
+.pageGaming .codeBox strong,
+.pageGaming .showcaseContent > p strong {
+  color: #9ff8ff;
+}
+
+.pageGaming .radarCore small,
+.pageGaming .radarCore span,
+.pageGaming .groupMeta,
+.pageGaming .rateExample span,
+.pageGaming .calculatorNote,
+.pageGaming .ratesDisclaimer,
+.pageGaming .codeBox span,
+.pageGaming .rangeEnds {
+  color: #6c8d98;
+}
+
+.pageGaming .radarChipOne,
+.pageGaming .radarChipTwo,
+.pageGaming .showcaseLabel,
+.pageGaming .rateExample strong,
+.pageGaming .copyButton,
+.pageGaming .whatsappButton {
+  color: #062029;
+  background: linear-gradient(135deg, #d9fbff, var(--gaming-sky));
+}
+
+.pageGaming .rateCard {
+  background: linear-gradient(145deg, rgba(114,244,255,0.06), rgba(5,15,22,0.82));
+}
+
+.pageGaming .groupFilters {
+  scrollbar-color: rgba(114, 244, 255, 0.25) transparent;
+}
+
+.pageGaming .groupFilters button:hover {
+  color: #ddfbff;
+  background: rgba(114, 244, 255, 0.05);
+}
+
+.pageGaming .groupFilters .filterActive {
+  border-color: rgba(114, 244, 255, 0.24);
+  color: #c8fbff;
+  background: linear-gradient(135deg, rgba(114,244,255,0.16), rgba(114,244,255,0.06));
+}
+
+.pageGaming .copyButton:hover,
+.pageGaming .whatsappButton:hover {
+  box-shadow: 0 14px 28px -16px rgba(54, 223, 241, 0.8);
+}
+
+:global(html.light) .pageGaming {
+  --gaming-sky: #4fd9ef;
+  --gaming-sky-strong: #1fb7d4;
+  --gaming-sky-soft: rgba(79, 217, 239, 0.1);
+  --gaming-sky-line: rgba(48, 158, 180, 0.16);
+  background: #effbfe;
+  color: #10212a;
+}
+
+:global(html.light) .pageGaming .hero,
+:global(html.light) .pageGaming .ratesSection::before {
+  background:
+    radial-gradient(circle at 82% 20%, rgba(132, 236, 255, 0.22), transparent 24%),
+    radial-gradient(circle at 18% 18%, rgba(145, 241, 255, 0.16), transparent 28%),
+    linear-gradient(135deg, #f7feff 0%, #eaf8fc 48%, #f2fbfe 100%);
+}
+
+:global(html.light) .pageGaming .secondaryButton,
+:global(html.light) .pageGaming .ambassadorDeck,
+:global(html.light) .pageGaming .calculatorCard,
+:global(html.light) .pageGaming .quoteSection,
+:global(html.light) .pageGaming .rateShowcase,
+:global(html.light) .pageGaming .stepCard,
+:global(html.light) .pageGaming .finalCta,
+:global(html.light) .pageGaming .sharePanel,
+:global(html.light) .pageGaming .groupFilters,
+:global(html.light) .pageGaming .logoFilterButton,
+:global(html.light) .pageGaming .codeBox,
+:global(html.light) .pageGaming .earningsDisplay,
+:global(html.light) .pageGaming .productTrigger,
+:global(html.light) .pageGaming .searchBox {
+  border-color: var(--gaming-sky-line);
+  background: linear-gradient(145deg, rgba(255,255,255,0.97), rgba(227,247,250,0.94));
+}
+
+:global(html.light) .pageGaming .productTriggerRate,
+:global(html.light) .pageGaming .sliderHeading output,
+:global(html.light) .pageGaming .showcaseLabel,
+:global(html.light) .pageGaming .showcaseStats span,
+:global(html.light) .pageGaming .gamingArenaChip,
+:global(html.light) .pageGaming .groupFilters .filterActive,
+:global(html.light) .pageGaming .logoFilterActive {
+  border-color: rgba(48, 158, 180, 0.16);
+  color: #117f97;
+  background: rgba(79, 217, 239, 0.1);
+}
+
+:global(html.light) .pageGaming .floatingCoin,
+:global(html.light) .pageGaming .radarChipOne,
+:global(html.light) .pageGaming .radarChipTwo,
+:global(html.light) .pageGaming .copyButton,
+:global(html.light) .pageGaming .whatsappButton,
+:global(html.light) .pageGaming .ratesAtmosphere i,
+:global(html.light) .pageGaming .ctaCoinOne,
+:global(html.light) .pageGaming .ctaCoinTwo {
+  color: #0c3d49;
+  background: linear-gradient(135deg, #f0fdff, #91efff);
+}
+
+:global(html.light) .pageGaming .radarCore {
+  border-color: rgba(48, 158, 180, 0.2);
+  background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.72), transparent 34%), #e8f8fc;
+  box-shadow: 0 0 0 12px rgba(79,217,239,0.04), 0 0 55px rgba(79,217,239,0.14), inset 0 1px 0 #fff;
+}
+
+:global(html.light) .pageGaming .radarCore strong,
+:global(html.light) .pageGaming .ratePill,
+:global(html.light) .pageGaming .codeBox strong,
+:global(html.light) .pageGaming .showcaseContent > p strong,
+:global(html.light) .pageGaming .sectionKicker,
+:global(html.light) .pageGaming .showcaseStats svg,
+:global(html.light) .pageGaming .live,
+:global(html.light) .pageGaming .trustLine svg,
+:global(html.light) .pageGaming .calculatorTopline svg {
+  color: #15a0bc;
+}
+
+.pageGaming .quoteSection {
+  background: #071722;
+  border-color: rgba(114, 244, 255, 0.1);
+}
+
+.pageGaming .quoteVisual {
+  background: radial-gradient(circle at 50% 100%, rgba(114, 244, 255, 0.2), transparent 60%);
+}
+
+.pageGaming .quoteSection blockquote {
+  border-color: rgba(114, 244, 255, 0.1);
+}
+
+.pageGaming .ratesSection::before {
+  border-color: rgba(114, 244, 255, 0.08);
+  background:
+    radial-gradient(circle at 82% 22%, rgba(114, 244, 255, 0.12), transparent 24%),
+    radial-gradient(circle at 14% 60%, rgba(94, 224, 241, 0.11), transparent 28%),
+    linear-gradient(180deg, rgba(4,13,18,0.36), rgba(8,24,32,0.78), rgba(4,13,18,0.36));
+}
+
+.pageGaming .ratesSection::after {
+  background-image:
+    linear-gradient(rgba(114, 244, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(114, 244, 255, 0.08) 1px, transparent 1px);
+}
+
+.pageGaming .ratesHeading p,
+.pageGaming .showcaseContent > p,
+.pageGaming .showcaseStats span,
+.pageGaming .groupFilters button,
+.pageGaming .rateName span,
+.pageGaming .quoteSection footer,
+.pageGaming .finalCta p,
+.pageGaming .ctaLogin {
+  color: #7ea1ac;
+}
+
+.pageGaming .rateShowcase {
+  background: radial-gradient(circle at 20% 45%, rgba(114, 244, 255, 0.12), transparent 27%), linear-gradient(135deg, rgba(13,35,43,0.88), rgba(7,18,25,0.97));
+  box-shadow: 0 35px 90px -55px rgba(76,223,240,0.34), inset 0 1px 0 rgba(255,255,255,0.045);
+}
+
+.pageGaming .rateRadar {
+  border-color: rgba(114, 244, 255, 0.1);
+  background: radial-gradient(circle, rgba(114, 244, 255, 0.09), transparent 56%);
+}
+
+.pageGaming .finalCta {
+  background: radial-gradient(circle at 82% 20%, rgba(114,244,255,0.14), transparent 31%), linear-gradient(135deg, rgba(14,37,45,0.88), rgba(8,22,29,0.96));
+  box-shadow: 0 34px 90px -50px rgba(76,223,240,0.28);
+}
+
+.pageGaming .finalCta::before {
+  background-image:
+    linear-gradient(rgba(114,244,255,0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(114,244,255,0.16) 1px, transparent 1px);
+}
+
+.pageGaming .sharePanel {
+  background: rgba(6, 19, 26, 0.58);
+}
+
+:global(html.light) .pageGaming .quoteSection {
+  background: linear-gradient(145deg, rgba(255,255,255,0.97), rgba(233,248,252,0.95));
+  border-color: rgba(48, 158, 180, 0.1);
+}
+
+:global(html.light) .pageGaming .quoteVisual {
+  background: radial-gradient(circle at 50% 100%, rgba(126, 235, 252, 0.24), transparent 60%);
+}
+
+:global(html.light) .pageGaming .quoteSection blockquote {
+  border-color: rgba(48, 158, 180, 0.1);
+}
+
+:global(html.light) .pageGaming .ratesSection::after {
+  background-image:
+    linear-gradient(rgba(79, 217, 239, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79, 217, 239, 0.08) 1px, transparent 1px);
+}
+
+:global(html.light) .pageGaming .ratesHeading p,
+:global(html.light) .pageGaming .showcaseContent > p,
+:global(html.light) .pageGaming .showcaseStats span,
+:global(html.light) .pageGaming .groupFilters button,
+:global(html.light) .pageGaming .rateName span,
+:global(html.light) .pageGaming .quoteSection footer,
+:global(html.light) .pageGaming .finalCta p,
+:global(html.light) .pageGaming .ctaLogin {
+  color: #6d8791;
+}
+
+:global(html.light) .pageGaming .rateShowcase {
+  background: radial-gradient(circle at 20% 45%, rgba(126, 235, 252, 0.18), transparent 27%), linear-gradient(135deg, rgba(250,254,255,0.98), rgba(231,247,251,0.96));
+  box-shadow: 0 35px 90px -55px rgba(79,217,239,0.2), inset 0 1px 0 #fff;
+}
+
+:global(html.light) .pageGaming .rateRadar {
+  border-color: rgba(48, 158, 180, 0.1);
+  background: radial-gradient(circle, rgba(126, 235, 252, 0.18), transparent 57%);
+}
+
+:global(html.light) .pageGaming .finalCta {
+  background: radial-gradient(circle at 82% 20%, rgba(126,235,252,0.18), transparent 31%), linear-gradient(135deg, rgba(237,249,252,0.97), rgba(247,252,254,0.98));
+  box-shadow: 0 35px 85px -52px rgba(79,217,239,0.18), inset 0 1px 0 #fff;
+}
+
+:global(html.light) .pageGaming .finalCta::before {
+  background-image:
+    linear-gradient(rgba(79,217,239,0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79,217,239,0.14) 1px, transparent 1px);
+}
+
+:global(html.light) .pageGaming .sharePanel {
+  background: rgba(255,255,255,0.74);
+}
+
+/* Final light-mode contrast pass for the gaming ambassador page.
+   Keeps the cyan direction, but restores readable ink and gentler hover states. */
+:global(html.light) .pageGaming .hero h1 span {
+  background-image: linear-gradient(102deg, #0d6076 0%, #0e88a6 46%, #16abc2 100%);
+  filter: drop-shadow(0 10px 22px rgba(17, 140, 164, 0.14));
+}
+
+:global(html.light) .pageGaming .heroLead,
+:global(html.light) .pageGaming .ambassadorDeckHead p,
+:global(html.light) .pageGaming .ambassadorCard p,
+:global(html.light) .pageGaming .stepCard p,
+:global(html.light) .pageGaming .showcaseContent > p,
+:global(html.light) .pageGaming .ratesHeading p,
+:global(html.light) .pageGaming .quoteSection footer,
+:global(html.light) .pageGaming .finalCta p,
+:global(html.light) .pageGaming .rateName span,
+:global(html.light) .pageGaming .codeBox span,
+:global(html.light) .pageGaming .calculatorNote,
+:global(html.light) .pageGaming .rangeEnds,
+:global(html.light) .pageGaming .productTriggerCopy small,
+:global(html.light) .pageGaming .productOptionCopy small,
+:global(html.light) .pageGaming .productMenuHead > span,
+:global(html.light) .pageGaming .fieldLabel,
+:global(html.light) .pageGaming .sliderHeading,
+:global(html.light) .pageGaming .formula,
+:global(html.light) .pageGaming .heroStats span,
+:global(html.light) .pageGaming .trustLine,
+:global(html.light) .pageGaming .groupMeta {
+  color: #58717d;
+}
+
+:global(html.light) .pageGaming .heroStats strong,
+:global(html.light) .pageGaming .calculatorTopline,
+:global(html.light) .pageGaming .productTriggerCopy strong,
+:global(html.light) .pageGaming .productOptionCopy strong,
+:global(html.light) .pageGaming .groupTitle,
+:global(html.light) .pageGaming .rateName strong,
+:global(html.light) .pageGaming .codeBox strong,
+:global(html.light) .pageGaming .quoteSection blockquote p,
+:global(html.light) .pageGaming .finalCta h2,
+:global(html.light) .pageGaming .sectionIntro h2,
+:global(html.light) .pageGaming .ratesHeading h2,
+:global(html.light) .pageGaming .showcaseContent h3 {
+  color: #102630;
+}
+
+:global(html.light) .pageGaming .eyebrow,
+:global(html.light) .pageGaming .ambassadorChipRow span,
+:global(html.light) .pageGaming .gamingArenaChip,
+:global(html.light) .pageGaming .showcaseLabel,
+:global(html.light) .pageGaming .showcaseStats span,
+:global(html.light) .pageGaming .productTriggerRate,
+:global(html.light) .pageGaming .sliderHeading output,
+:global(html.light) .pageGaming .groupFilters .filterActive,
+:global(html.light) .pageGaming .logoFilterActive,
+:global(html.light) .pageGaming .ratePill {
+  color: #0f6b83;
+  border-color: rgba(37, 146, 168, 0.22);
+  background: rgba(79, 217, 239, 0.14);
+}
+
+:global(html.light) .pageGaming .eyebrow:hover,
+:global(html.light) .pageGaming .secondaryButton:hover,
+:global(html.light) .pageGaming .groupFilters button:hover,
+:global(html.light) .pageGaming .logoFilterButton:hover,
+:global(html.light) .pageGaming .productTrigger:hover,
+:global(html.light) .pageGaming .productOptions > button:hover,
+:global(html.light) .pageGaming .productOptions > button:focus-visible,
+:global(html.light) .pageGaming .ctaLogin:hover {
+  color: #0f3040;
+  border-color: rgba(37, 146, 168, 0.24);
+  background: linear-gradient(145deg, rgba(255,255,255,0.99), rgba(228,247,252,0.96));
+  box-shadow: 0 14px 32px -26px rgba(42, 128, 148, 0.22), inset 0 1px 0 #fff;
+}
+
+:global(html.light) .pageGaming .stepCard:hover,
+:global(html.light) .pageGaming .ambassadorCard:hover {
+  border-color: rgba(37, 146, 168, 0.22);
+  background: linear-gradient(145deg, rgba(255,255,255,0.99), rgba(232,248,252,0.97));
+  box-shadow: 0 24px 54px -38px rgba(42, 128, 148, 0.2), inset 0 1px 0 #fff;
+}
+
+:global(html.light) .pageGaming .searchBox:focus-within,
+:global(html.light) .pageGaming .productTrigger:focus-visible,
+:global(html.light) .pageGaming .productTriggerOpen {
+  border-color: rgba(27, 132, 153, 0.38);
+  box-shadow: 0 0 0 3px rgba(79, 217, 239, 0.11), 0 16px 34px -28px rgba(27, 132, 153, 0.28);
+}
+
+:global(html.light) .pageGaming .productMenu {
+  border-color: rgba(37, 146, 168, 0.18);
+  background: rgba(252, 255, 255, 0.98);
+  box-shadow: 0 30px 65px -26px rgba(42, 128, 148, 0.2), inset 0 1px 0 #fff;
+}
+
+:global(html.light) .pageGaming .productMenuSearch {
+  border-color: rgba(37, 146, 168, 0.12);
+  background: rgba(233, 248, 252, 0.82);
+}
+
+:global(html.light) .pageGaming .productMenuSearch > svg,
+:global(html.light) .pageGaming .searchBox svg,
+:global(html.light) .pageGaming .searchBox button,
+:global(html.light) .pageGaming .formula b {
+  color: #5c7480;
+}
+
+:global(html.light) .pageGaming .productMenuSearch input,
+:global(html.light) .pageGaming .searchBox input {
+  color: #102630 !important;
+}
+
+:global(html.light) .pageGaming .productMenuSearch input::placeholder,
+:global(html.light) .pageGaming .searchBox input::placeholder {
+  color: #7d95a0;
+}
+
+:global(html.light) .pageGaming .sectionKicker,
+:global(html.light) .pageGaming .showcaseStats svg,
+:global(html.light) .pageGaming .live,
+:global(html.light) .pageGaming .trustLine svg,
+:global(html.light) .pageGaming .calculatorTopline svg,
+:global(html.light) .pageGaming .ratesDisclaimer svg,
+:global(html.light) .pageGaming .productTriggerIcon,
+:global(html.light) .pageGaming .productOptionIcon,
+:global(html.light) .pageGaming .groupIcon,
+:global(html.light) .pageGaming .stepIcon,
+:global(html.light) .pageGaming .ambassadorCardIcon {
+  color: #1290ab;
+}
+
+:global(html.light) .pageGaming .copyButton,
+:global(html.light) .pageGaming .whatsappButton {
+  color: #0f3040;
+}
+
+:global(html.light) .pageGaming .copyButton:hover,
+:global(html.light) .pageGaming .whatsappButton:hover {
+  box-shadow: 0 16px 30px -18px rgba(31, 168, 190, 0.32);
+}
+
+/* Extra cleanup for the gaming ambassador light mode:
+   soften the navbar-to-hero bridge and switch dark feature cards to light glass. */
+:global(html.light) .pageAmbassador .hero {
+  margin-top: -10px;
+  padding-top: 10px;
+}
+
+:global(html.light) .pageAmbassador .hero::before {
+  height: 118px;
+  opacity: 0.78;
+}
+
+:global(html.light) .pageGaming .hero::before {
+  background:
+    radial-gradient(circle at 50% -16%, rgba(162, 229, 255, 0.2), transparent 46%),
+    linear-gradient(180deg, rgba(244, 239, 252, 0.88) 0%, rgba(236, 243, 251, 0.64) 34%, rgba(232, 249, 252, 0.1) 78%, transparent 100%);
+}
+
+:global(html.light) .pageGaming .heroInner {
+  padding-top: 56px;
+}
+
+:global(html.light) .pageGaming .heroGrid {
+  opacity: 0.26;
+}
+
+:global(html.light) .pageGaming .ambassadorDeck {
+  background: linear-gradient(145deg, rgba(255,255,255,0.985), rgba(232,248,252,0.96));
+  border-color: rgba(37, 146, 168, 0.16);
+  box-shadow: 0 28px 64px -48px rgba(42, 128, 148, 0.2), inset 0 1px 0 #fff;
+}
+
+:global(html.light) .pageGaming .ambassadorCard {
+  border-color: rgba(37, 146, 168, 0.16);
+  background: linear-gradient(155deg, rgba(244,252,254,0.98), rgba(228,244,249,0.95));
+  box-shadow: 0 20px 48px -42px rgba(42, 128, 148, 0.14), inset 0 1px 0 #fff;
+}
+
+:global(html.light) .pageGaming .ambassadorCard strong {
+  color: #153441;
+}
+
+:global(html.light) .pageGaming .ambassadorCard p {
+  color: #5d7681;
+}
+
+:global(html.light) .pageGaming .ambassadorCard small {
+  color: #1190aa;
+}
+
+:global(html.light) .pageGaming .ambassadorCardIcon {
+  border-color: rgba(37, 146, 168, 0.18);
+  color: #1190aa;
+  background: rgba(79, 217, 239, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+@keyframes ambientFloat {
+  0%,100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0, -12px, 0) rotate(2deg); }
+}
+
+@keyframes spotlightShift {
+  0%,100% { transform: translateX(0) scaleX(1); opacity: 0.62; }
+  50% { transform: translateX(14px) scaleX(1.04); opacity: 0.86; }
+}
+
+@media (max-width: 1000px) {
+  .ambassadorCardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .heroAmbience {
+    opacity: 0.7;
+  }
+}
+
+@media (max-width: 720px) {
+  .ambassadorDeck {
+    padding: 15px;
+    border-radius: 20px;
+  }
+
+  .ambassadorDeckHead {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ambassadorCardGrid,
+  .cinemaFrames {
+    grid-template-columns: 1fr;
+  }
+
+  .gamingQuoteVisual,
+  .cinemaQuoteVisual {
+    min-height: 360px;
+  }
+
+  .cinemaFrames {
+    left: 14%;
+    right: 14%;
+    bottom: 10%;
+  }
+}
+
+@media (max-width: 430px) {
+  .ambassadorChipRow {
+    gap: 8px;
+  }
+
+  .ambassadorChipRow span {
+    min-height: 31px;
+    padding-inline: 10px;
+    font-size: 9px;
+  }
+
+  .gamingArenaRing {
+    width: 230px;
+    height: 230px;
+  }
+
+  .gamingArenaRingSmall {
+    width: 150px;
+    height: 150px;
+  }
+
+  .gamingArenaCore,
+  .cinemaReel {
+    width: 146px;
+    height: 146px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

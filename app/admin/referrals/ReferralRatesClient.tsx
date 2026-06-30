@@ -53,7 +53,12 @@ type Fees = {
 type Tier = {
   id: string;
   name: string;
+  displayName: string;
   slug: string;
+  kind: string;
+  minSpendCents: number;
+  icon: string | null;
+  cashbackPct: number;
   isDefault: boolean;
   color: string | null;
   userCount: number;
@@ -65,6 +70,7 @@ type ReferralData = {
   tierId: string;
   isDefaultSelected: boolean;
   inviteBonusCents: number;
+  cashbackPct: number;
   psStore: PsStoreRates;
   other: { reviewAffiliateRatePct: number; reviewCashbackRatePct: number };
   fees: Fees;
@@ -76,6 +82,7 @@ const emptyData: ReferralData = {
   tierId: "",
   isDefaultSelected: true,
   inviteBonusCents: 30,
+  cashbackPct: 0,
   psStore: { games: 0, psPlus: 0, giftCards: 0, accountCreation: 0 },
   other: { reviewAffiliateRatePct: 0, reviewCashbackRatePct: 0 },
   fees: { epointFeePct: 3, taxPct: 2, cashoutFeePct: 1.5 },
@@ -110,6 +117,9 @@ export default function ReferralRatesClient() {
   const [data, setData] = useState<ReferralData>(emptyData);
   const [costAzn, setCostAzn] = useState<Record<string, string>>({});
   const [inviteBonusAzn, setInviteBonusAzn] = useState("0.30");
+  const [cashbackPct, setCashbackPct] = useState("0");
+  const [displayName, setDisplayName] = useState("");
+  const [icon, setIcon] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -138,6 +148,10 @@ export default function ReferralRatesClient() {
       }
       setCostAzn(nextCost);
       setInviteBonusAzn(((payload.inviteBonusCents ?? 0) / 100).toFixed(2));
+      setCashbackPct(String(payload.cashbackPct ?? 0));
+      const active = (payload.tiers ?? []).find((t) => t.id === payload.tierId);
+      setDisplayName(active?.displayName ?? "");
+      setIcon(active?.icon ?? "");
       setDirty(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Referal faizləri yüklənmədi.");
@@ -168,6 +182,9 @@ export default function ReferralRatesClient() {
           other: data.other,
           fees: data.fees,
           inviteBonusAzn: Number(inviteBonusAzn) || 0,
+          cashbackPct: Number(cashbackPct) || 0,
+          displayName,
+          icon,
           products: productsPayload,
         }),
       });
@@ -411,21 +428,75 @@ export default function ReferralRatesClient() {
         )}
       </section>
 
-      {/* Dəvət bonusu (per tier) */}
+      {/* Tier parametrləri (per tier): ad, ikon, cashback, dəvət bonusu */}
       <section className="rounded-xl border border-admin-line bg-admin-card p-5">
-        <div className="mb-1 flex items-center gap-2">
+        <div className="mb-1 flex flex-wrap items-center gap-2">
           <Gift className="h-5 w-5 text-emerald-700" />
-          <h2 className="text-base font-semibold text-zinc-900">Dəvət bonusu</h2>
+          <h2 className="text-base font-semibold text-zinc-900">
+            “{activeTier?.name ?? "—"}” tipinin parametrləri
+          </h2>
+          {activeTier && (
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+              {activeTier.kind === "AUTO"
+                ? `Avtomatik · ${
+                    activeTier.minSpendCents > 0
+                      ? `${(activeTier.minSpendCents / 100).toFixed(0)}+ AZN xərc`
+                      : "başlanğıc"
+                  }`
+                : "Manual status"}
+            </span>
+          )}
         </div>
         <p className="mb-4 text-xs text-zinc-500">
-          “{activeTier?.name ?? "—"}” tipindəki dəvət edənə, dəvət olunan qeydiyyatı təsdiqlədikdə
-          yazılan sabit məbləğ. 0 → bu tipdə dəvət bonusu bağlıdır.
+          Cashback və dəvət bonusu bu tipdəki müştəriyə tətbiq olunur. Görünən ad və ikon
+          müştəriyə status nişanı kimi göstərilir (ikon: <code>/tiers/&lt;açar&gt;.svg</code>).
         </p>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-lg border border-admin-line bg-admin-card p-3">
-            <p className="text-sm font-semibold text-zinc-900">Bonus məbləği</p>
-            <p className="mt-0.5 text-xs text-zinc-500">Hər uğurlu dəvətə görə</p>
-            <div className="mt-3 flex items-center gap-2">
+          <LabeledInput label="Görünən ad" hint="Status nişanında">
+            <input
+              type="text"
+              value={displayName}
+              placeholder="Honsell Bronze"
+              onChange={(e) => {
+                setDirty(true);
+                setDisplayName(e.target.value);
+              }}
+              className="w-full rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-500"
+            />
+          </LabeledInput>
+          <LabeledInput label="İkon açarı" hint="/tiers/<açar>.svg">
+            <input
+              type="text"
+              value={icon}
+              placeholder="bronze"
+              onChange={(e) => {
+                setDirty(true);
+                setIcon(e.target.value);
+              }}
+              className="w-full rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-500"
+            />
+          </LabeledInput>
+          <LabeledInput label="Cashback %" hint="Öz alışından (cashback balansı)">
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={cashbackPct}
+                onChange={(e) => {
+                  setDirty(true);
+                  setCashbackPct(e.target.value);
+                }}
+                className="w-full rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-500"
+              />
+              <span className="rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-600">
+                %
+              </span>
+            </div>
+          </LabeledInput>
+          <LabeledInput label="Dəvət bonusu" hint="Hər uğurlu dəvətə (0 = bağlı)">
+            <div className="flex items-center gap-2">
               <input
                 type="number"
                 min="0"
@@ -435,13 +506,13 @@ export default function ReferralRatesClient() {
                   setDirty(true);
                   setInviteBonusAzn(e.target.value);
                 }}
-                className="w-full rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-violet-500"
+                className="w-full rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-500"
               />
               <span className="rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-600">
                 AZN
               </span>
             </div>
-          </div>
+          </LabeledInput>
         </div>
       </section>
 
@@ -669,6 +740,24 @@ function ProductGroupTable({
         </table>
       </div>
     </section>
+  );
+}
+
+function LabeledInput({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-admin-line bg-admin-card p-3">
+      <p className="truncate text-sm font-semibold text-zinc-900">{label}</p>
+      <p className="mt-0.5 text-xs text-zinc-500">{hint}</p>
+      <div className="mt-3">{children}</div>
+    </div>
   );
 }
 

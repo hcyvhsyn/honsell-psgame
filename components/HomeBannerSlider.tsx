@@ -185,30 +185,51 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
               key={b.id}
               className={`absolute inset-0 transition-opacity duration-700 motion-reduce:transition-none ${i === current ? "opacity-100" : "opacity-0 pointer-events-none"}`}
             >
-              <div className="absolute inset-0 sm:hidden">
-                {bMobile && (
-                  <Image
-                    src={cdnImageUrl(bMobile)}
-                    alt={bTitle || "Banner"}
-                    fill
-                    sizes="100vw"
-                    className="object-cover object-center"
-                    priority={i === 0}
-                  />
-                )}
-              </div>
-              <div className="absolute inset-0 hidden sm:block">
-                {bDesktop && (
+              {b.mobileImageUrl && b.mobileImageUrl !== bDesktop ? (
+                // Admin AYRICA mobil banner yükləyib (art-direction) — iki şəkil
+                // saxlanır, hər biri öz viewport-unda; gizli olan `display:none`
+                // olduğu üçün digər viewport-da yüklənmir.
+                <>
+                  <div className="absolute inset-0 sm:hidden">
+                    {bMobile && (
+                      <Image
+                        src={cdnImageUrl(bMobile)}
+                        alt={bTitle || "Banner"}
+                        fill
+                        sizes="100vw"
+                        className="object-cover object-center"
+                        priority={i === 0}
+                      />
+                    )}
+                  </div>
+                  <div className="absolute inset-0 hidden sm:block">
+                    {bDesktop && (
+                      <Image
+                        src={cdnImageUrl(bDesktop)}
+                        alt={bTitle || "Banner"}
+                        fill
+                        sizes="(min-width: 1024px) 1000px, 100vw"
+                        className="object-cover object-center"
+                        priority={i === 0}
+                      />
+                    )}
+                  </div>
+                </>
+              ) : (
+                // Ümumi hal: ayrıca mobil şəkil yoxdur → TƏK responsive Image.
+                // Tək preload, srcset hər iki viewport ölçüsünü əhatə edir →
+                // mobil/desktop ikiqat yükləmə olmur (əvvəlki LCP itkisi).
+                bDesktop && (
                   <Image
                     src={cdnImageUrl(bDesktop)}
                     alt={bTitle || "Banner"}
                     fill
-                    sizes="(max-width: 1280px) 100vw, 1000px"
+                    sizes="(min-width: 1024px) 1000px, 100vw"
                     className="object-cover object-center"
                     priority={i === 0}
                   />
-                )}
-              </div>
+                )
+              )}
               <div className={`media-hero-overlay absolute inset-0 ${bannerThemeClasses(b.contentTheme).gradient}`} />
               {bProduct?.discountPct != null && (
                 <div className="absolute right-4 top-4 sm:right-5 sm:top-5">

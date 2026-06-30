@@ -27,6 +27,8 @@ import UserAdminActions from "./UserAdminActions";
 import CancelPurchaseButton from "./CancelPurchaseButton";
 import DisableUserButton from "./DisableUserButton";
 import TierSelect from "./TierSelect";
+import TierBadge from "@/components/TierBadge";
+import { getEffectiveTier } from "@/lib/customerTier";
 import { Sparkles } from "lucide-react";
 import AdminNotesSection from "./AdminNotesSection";
 import QuickActionsBar from "./QuickActionsBar";
@@ -110,10 +112,13 @@ export default async function AdminUserDetailPage({
 
   if (!user) notFound();
 
-  const tiers = await prisma.customerTier.findMany({
-    orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true, slug: true, isDefault: true },
-  });
+  const [tiers, effectiveTier] = await Promise.all([
+    prisma.customerTier.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true, displayName: true, slug: true, kind: true, isDefault: true },
+    }),
+    getEffectiveTier(user.id),
+  ]);
 
   const purchases = user.transactions.filter((t) => t.type === "PURCHASE");
   const servicePurchases = user.transactions.filter(
@@ -318,9 +323,10 @@ export default async function AdminUserDetailPage({
             >
               {user.role}
             </span>
-            {user.tier && !tiers.find((t) => t.id === user.tierId)?.isDefault && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-500/40">
-                <Sparkles className="h-3 w-3" /> {user.tier.name.toUpperCase()}
+            <TierBadge tier={effectiveTier} full />
+            {effectiveTier?.isManual && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-500/30">
+                <Sparkles className="h-3 w-3" /> əl ilə
               </span>
             )}
           </div>

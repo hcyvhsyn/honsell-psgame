@@ -14,6 +14,7 @@ import {
 } from "@/lib/referralCycle";
 import { awardReviewAffiliateCommission } from "@/lib/reviewAffiliate";
 import { resolveReferralRatePct, type ReferralRateDb } from "@/lib/referralRates";
+import { resolveEffectiveTierId } from "@/lib/customerTier";
 import { sendOrderApprovedWhatsApp } from "@/lib/orderNotifications";
 
 export const runtime = "nodejs";
@@ -86,17 +87,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       const buyer = row.user ?? (await ptx.user.findUnique({ where: { id: row.userId } }));
       const referredById = buyer?.referredById ?? null;
 
-      // Referans verənin müştəri seqmentinə (CustomerTier) görə oyun faizi resolve
-      // olunur — köhnə isSponsored boolean əvəzinə mərkəzi resolver-dən.
-      const referrer = referredById
-        ? await ptx.user.findUnique({
-            where: { id: referredById },
-            select: { tierId: true },
-          })
-        : null;
+      // Referans verənin EFFEKTİV tier-inə (manual override ya da xərcə görə AUTO)
+      // görə oyun faizi resolve olunur.
+      const referrerTierId = referredById ? await resolveEffectiveTierId(referredById) : null;
       const referralRatePct = referredById
         ? await resolveReferralRatePct({
-            tierId: referrer?.tierId ?? null,
+            tierId: referrerTierId,
             target: { type: "PS_GAMES" },
             db: ptx as unknown as ReferralRateDb,
           })
@@ -136,7 +132,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
                 lineCents: unitListCents,
                 profitCents,
                 shareRate: referralRatePct,
-                tierId: referrer?.tierId ?? null,
+                tierId: referrerTierId,
               }),
             },
           });
