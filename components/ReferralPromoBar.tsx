@@ -7,21 +7,21 @@ import {
   buildReferralRegisterUrl,
   buildReferralShareMessage,
 } from "@/lib/referralPromotion";
+import { useSession } from "./SessionProvider";
 
 const STORAGE_KEY = "honsell.refbar.dismissed.v1";
 const DISMISS_DAYS = 3;
 
 export default function ReferralPromoBar({
-  code,
   sharePct,
-  earnedAzn,
 }: {
-  /** İstifadəçi loginli deyilsə bu null gəlir, generic CTA göstərilir. */
-  code: string | null;
   sharePct: number;
-  /** Toplam qazanılmış komissiya (loyalty üçün motivasiya). */
-  earnedAzn?: number;
 }) {
+  // User-ə aid kod + qazanc artıq client-də gəlir (səhifə statik qalsın deyə).
+  const { user } = useSession();
+  const code = user?.referralCode ?? null;
+  const earnedAzn = user ? (user.earnedAznCents ?? 0) / 100 : undefined;
+
   const [hidden, setHidden] = useState(true);
   const [shared, setShared] = useState(false);
 

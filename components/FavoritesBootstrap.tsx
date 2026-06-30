@@ -1,24 +1,16 @@
-import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import FavoritesClient from "./FavoritesClient";
 
-export default async function FavoritesBootstrap({
+/**
+ * Əvvəl burada `getCurrentUser()` (cookies) çağırılırdı → ROOT LAYOUT dinamik
+ * olub BÜTÜN səhifələri `no-store` edirdi (saytın ən böyük yavaşlıq səbəbi).
+ * İndi favorit vəziyyəti tamamilə client-dədir: auth `useSession()`-dan, id-lər
+ * isə FavoritesProvider-in mount-da etdiyi `/api/favorites` fetch-indən gəlir.
+ * Beləcə layout (və bütün səhifələr) statik/edge-keşlənən qala bilir.
+ */
+export default function FavoritesBootstrap({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
-  let ids: string[] = [];
-  if (user) {
-    const rows = await prisma.favorite.findMany({
-      where: { userId: user.id },
-      select: { gameId: true },
-    });
-    ids = rows.map((r) => r.gameId);
-  }
-  return (
-    <FavoritesClient isAuthed={Boolean(user)} initialIds={ids}>
-      {children}
-    </FavoritesClient>
-  );
+  return <FavoritesClient>{children}</FavoritesClient>;
 }

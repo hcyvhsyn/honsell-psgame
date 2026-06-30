@@ -7,6 +7,7 @@ import { getReferralCategoryRatesCached } from "@/lib/publicReferralRates";
 import { ModalProvider } from "@/lib/modals";
 import { DialogProvider } from "@/lib/dialogs";
 import { ThemeProvider, THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme";
+import { SessionProvider } from "@/components/SessionProvider";
 import ThemeToggle from "@/components/ThemeToggle";
 import AppModals from "@/components/AppModals";
 import FavoritesBootstrap from "@/components/FavoritesBootstrap";
@@ -122,10 +123,13 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-[var(--background)] text-[var(--foreground)] antialiased relative`}
       >
-        {/* Global deep purple ambient glow */}
+        {/* Global deep purple ambient glow.
+            Qeyd: radial-gradient onsuz da transparent-ə yumşaq keçir, ona görə
+            əlavə blur radiusu kiçik saxlanılır (blur-[100px] paint-də çox bahalı
+            idi, xüsusən zəif cihazlarda scroll-da). 40px görünüşü qoruyur, ucuzdur. */}
         <div className="pointer-events-none fixed inset-0 z-[-1] overflow-hidden">
-          <div className="absolute -right-[20%] top-[20%] h-[800px] w-[800px] rounded-full bg-[radial-gradient(circle_at_center,var(--ambient-1)_0%,transparent_60%)] blur-[100px]" />
-          <div className="absolute -bottom-[20%] -left-[10%] h-[600px] w-[600px] rounded-full bg-[radial-gradient(circle_at_center,var(--ambient-2)_0%,transparent_60%)] blur-[100px]" />
+          <div className="absolute -right-[20%] top-[20%] h-[800px] w-[800px] rounded-full bg-[radial-gradient(circle_at_center,var(--ambient-1)_0%,transparent_60%)] blur-[40px]" />
+          <div className="absolute -bottom-[20%] -left-[10%] h-[600px] w-[600px] rounded-full bg-[radial-gradient(circle_at_center,var(--ambient-2)_0%,transparent_60%)] blur-[40px]" />
         </div>
 
         <Suspense fallback={null}>
@@ -136,15 +140,17 @@ export default async function RootLayout({
           <ReferralRatesProvider value={referralCategoryRates}>
             <DialogProvider>
               <ModalProvider>
-                <FavoritesBootstrap>
-                  <CartProvider>
-                    {children}
-                    <AppModals />
-                    <FavoriteIntroModal />
-                    <AskAiFloat />
-                    <ThemeToggle />
-                  </CartProvider>
-                </FavoritesBootstrap>
+                <SessionProvider>
+                  <FavoritesBootstrap>
+                    <CartProvider>
+                      {children}
+                      <AppModals />
+                      <FavoriteIntroModal />
+                      <AskAiFloat />
+                      <ThemeToggle />
+                    </CartProvider>
+                  </FavoritesBootstrap>
+                </SessionProvider>
               </ModalProvider>
             </DialogProvider>
           </ReferralRatesProvider>

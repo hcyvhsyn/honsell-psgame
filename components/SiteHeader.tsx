@@ -42,6 +42,7 @@ import {
 import CartIndicator from "./CartIndicator";
 import Logo from "./Logo";
 import NavSearch from "./NavSearch";
+import { useSession } from "./SessionProvider";
 import {
   PRODUCT_CATEGORY_DEFINITIONS,
   type ProductCategoryNavAsset,
@@ -164,16 +165,20 @@ const honsellGiftCardLink: NavLinkItem = {
 };
 
 export default function SiteHeader({
-  user,
   categoryAssets,
 }: {
-  user?: {
-    name?: string | null;
-    walletBalance?: number;
-    cashbackBalanceCents?: number;
-  } | null;
   categoryAssets?: ProductCategoryNavAsset[] | null;
 }) {
+  // User-vəziyyəti client-də gəlir (səhifə statik/edge-keşlənən qalsın deyə).
+  const { user: sessionUser, loading: sessionLoading } = useSession();
+  const user = sessionUser
+    ? {
+        name: sessionUser.name,
+        walletBalance: sessionUser.walletBalanceCents,
+        cashbackBalanceCents: sessionUser.cashbackBalanceCents,
+      }
+    : null;
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [desktopCategoriesOpen, setDesktopCategoriesOpen] = useState(false);
   const pathname = usePathname();
@@ -235,7 +240,14 @@ export default function SiteHeader({
             <div className="flex min-w-0 items-center justify-end gap-2 xl:gap-3">
               <CartIndicator />
 
-              {user ? (
+              {sessionLoading ? (
+                // Sessiya client-də yüklənənə qədər neytral skeleton — login-li
+                // istifadəçi "Daxil ol"u görüb hesaba sıçramasın deyə.
+                <div
+                  aria-hidden
+                  className="hidden h-10 w-[120px] animate-pulse rounded-[18px] border border-zinc-200 bg-zinc-100/70 dark:border-white/10 dark:bg-white/[0.04] sm:block"
+                />
+              ) : user ? (
                 <UserAccountDropdown user={user} />
               ) : (
                 <div className="hidden items-center gap-2 sm:flex">

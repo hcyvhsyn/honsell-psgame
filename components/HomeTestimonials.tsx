@@ -1,8 +1,7 @@
 import { Star, Quote, BadgeCheck } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
 import { MarqueeHeader } from "@/components/MarketingUI";
-import HomeReviewModal from "@/components/HomeReviewModal";
+import HomeReviewCta from "@/components/HomeReviewCta";
 
 /**
  * Anasayfa müştəri rəyləri. `Testimonial` modeli post-purchase email
@@ -36,25 +35,9 @@ export default async function HomeTestimonials() {
     })
     .catch(() => []);
 
-  // Yalnız ən azı bir uğurlu sifarişi olan müştəriyə "Rəy yaz" düyməsi göstərilir.
-  const user = await getCurrentUser();
-  let reviewName: string | null = null;
-  if (user) {
-    const purchases = await prisma.transaction
-      .count({
-        where: {
-          userId: user.id,
-          status: "SUCCESS",
-          type: { in: ["PURCHASE", "SERVICE_PURCHASE"] },
-        },
-      })
-      .catch(() => 0);
-    if (purchases > 0) reviewName = user.name ?? user.email.split("@")[0];
-  }
-
-  // Heç təsdiqlənmiş rəy yoxdursa və yazmağa uyğun müştəri də yoxdursa — gizlət.
-  // Ən azı bir təsdiqlənmiş rəy varsa, onu göstəririk (3 şərti yoxdur).
-  if (testimonials.length === 0 && !reviewName) return null;
+  // Təsdiqlənmiş rəy yoxdursa bölməni gizlət. "Rəy yaz" düyməsi (HomeReviewCta)
+  // user-ə bağlı olduğu üçün client-də gəlir → bu komponent server/statik qalır.
+  if (testimonials.length === 0) return null;
 
   const showGrid = testimonials.length > 0;
 
@@ -62,11 +45,7 @@ export default async function HomeTestimonials() {
     <section id="reyler" className="py-12 sm:py-16">
       <MarqueeHeader text="MÜŞTƏRİLƏR NƏ DEYİR" />
       <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
-        {reviewName && (
-          <div className="mb-8 flex justify-center">
-            <HomeReviewModal defaultName={reviewName} />
-          </div>
-        )}
+        <HomeReviewCta />
         {showGrid && (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {testimonials.map((t) => {

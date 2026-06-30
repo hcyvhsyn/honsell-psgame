@@ -1,12 +1,17 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, Gift, Coins, UserPlus } from "lucide-react";
-import { getCurrentUser } from "@/lib/auth";
 import ReferralShareButtons from "./ReferralShareButtons";
+import { useSession } from "./SessionProvider";
 
 /**
  * Ana səhifədəki referal CTA bölməsi. Login olmuş istifadəçiyə birbaşa öz
  * kodunu və kopyalama/paylaşma düymələrini göstərir ki, kodu axtarmasın.
  * Login deyilsə ümumi CTA göstərilir.
+ *
+ * User-vəziyyəti `useSession()` (client) ilə gəlir ki, ana səhifə statik/ISR
+ * qala bilsin — əvvəl `getCurrentUser()` (cookies) səhifəni dinamik edirdi.
  */
 const BENEFITS = [
   { icon: UserPlus, label: "Pulsuz qoşul" },
@@ -14,8 +19,8 @@ const BENEFITS = [
   { icon: Gift, label: "Dostuna da sərfəli" },
 ];
 
-export default async function HomeReferralCta() {
-  const user = await getCurrentUser();
+export default function HomeReferralCta() {
+  const { user } = useSession();
 
   return (
     <section className="py-12 sm:py-16">

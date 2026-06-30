@@ -1,5 +1,4 @@
 import { unstable_cache } from "next/cache";
-import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getReferralCalculatorOptions } from "@/lib/referralCalculatorOptions";
 import type { ProductCategoryNavAsset } from "@/lib/categoryAssets";
@@ -64,42 +63,19 @@ const getCachedCategoryAssets = unstable_cache(
 );
 
 export default async function SiteHeaderServer() {
-  // User-ə aid olmayan keşlənmiş sorğular user lookup ilə PARALEL gedir —
-  // əvvəl 4 sorğu ardıcıl idi (~3.7s), indi user lookup + (keş hit ~0ms).
-  const [user, categoryAssets, promoPct] = await Promise.all([
-    getCurrentUser(),
+  // ARTIQ user-ə aid sorğu YOXDUR → bu komponent (və onu render edən səhifələr)
+  // statik/ISR ola bilir, edge-də keşlənir. User-vəziyyəti (login/hesab, cüzdan,
+  // referral kod) client-də `useSession()` ilə `/api/session`-dən gəlir.
+  // Yalnız hamı üçün eyni olan keşlənmiş data qalır.
+  const [categoryAssets, promoPct] = await Promise.all([
     getCachedCategoryAssets(),
     getCachedPromoPct(),
   ]);
 
-  let earnedAzn = 0;
-  if (user) {
-    const agg = await prisma.transaction.aggregate({
-      where: { beneficiaryId: user.id, type: "COMMISSION" },
-      _sum: { amountAznCents: true },
-    });
-    earnedAzn = (agg._sum.amountAznCents ?? 0) / 100;
-  }
-
   return (
     <>
-      <ReferralPromoBar
-        code={user?.referralCode ?? null}
-        sharePct={promoPct > 0 ? promoPct : 5}
-        earnedAzn={user ? earnedAzn : undefined}
-      />
-      <SiteHeader
-        categoryAssets={categoryAssets}
-        user={
-          user
-            ? {
-                name: user.name,
-                walletBalance: user.walletBalance,
-                cashbackBalanceCents: user.cashbackBalanceCents ?? 0,
-              }
-            : null
-        }
-      />
+      <ReferralPromoBar sharePct={promoPct > 0 ? promoPct : 5} />
+      <SiteHeader categoryAssets={categoryAssets} />
     </>
   );
 }
