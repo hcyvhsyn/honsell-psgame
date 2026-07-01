@@ -4,6 +4,7 @@ import { MessageCircle } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
+import { getTierBadgesForUsers } from "@/lib/customerTier";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import ReviewCard, {
   type ReviewCardData,
@@ -92,6 +93,10 @@ export default async function ReviewsPage({
   }
   const myMap = new Map(myReactions.map((r) => [r.reviewId, r.value]));
 
+  const tierBadges = await getTierBadgesForUsers(
+    reviews.map((r) => r.user.id),
+  ).catch(() => new Map());
+
   // "Discussed" sıralamasını JS-də post-sort ilə tətbiq edirik (yorum sayına görə).
   let ordered = reviews;
   if (sort === "discussed") {
@@ -177,6 +182,7 @@ export default async function ReviewsPage({
                   id: r.user.id,
                   name: r.user.name ?? r.user.email.split("@")[0],
                   avatarUrl: null,
+                  tier: tierBadges.get(r.user.id) ?? null,
                 },
                 likes: counts.get(r.id)?.likes ?? 0,
                 dislikes: counts.get(r.id)?.dislikes ?? 0,

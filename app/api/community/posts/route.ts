@@ -12,6 +12,7 @@ import {
   normalizeCommunityCategory,
 } from "@/lib/community";
 import { cleanupCommunityText } from "@/lib/communityModeration";
+import { getTierBadgesForUsers } from "@/lib/customerTier";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,6 +80,10 @@ export async function GET(req: Request) {
   }
   const myMap = new Map(myReactions.map((r) => [r.postId, r.value]));
 
+  const tierBadges = await getTierBadgesForUsers(
+    posts.map((p) => p.user.id),
+  ).catch(() => new Map());
+
   return NextResponse.json({
     total,
     viewer: { isAuthenticated: !!me, userId: me?.id ?? null },
@@ -92,6 +97,7 @@ export async function GET(req: Request) {
         id: p.user.id,
         name: p.user.name ?? p.user.email.split("@")[0],
         avatarUrl: p.user.avatarUrl,
+        tier: tierBadges.get(p.user.id) ?? null,
       },
       likes: counts.get(p.id)?.likes ?? 0,
       dislikes: counts.get(p.id)?.dislikes ?? 0,

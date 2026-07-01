@@ -5,7 +5,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 export function CategoryGroup({
   label,
@@ -167,6 +167,61 @@ export function MarqueeHeader({ text }: { text: string }) {
         </span>
       </span>
       <span className="h-px max-w-[5rem] flex-1 bg-gradient-to-l from-transparent to-violet-400/45 dark:to-violet-300/25" />
+    </div>
+  );
+}
+
+const FLOW_DIVIDER_TONES = {
+  violet: "from-violet-500 via-violet-400 to-indigo-500",
+  rose: "from-fuchsia-500 via-violet-400 to-rose-400",
+  amber: "from-violet-500 via-fuchsia-400 to-amber-300",
+  indigo: "from-indigo-500 via-violet-400 to-indigo-400",
+  emerald: "from-violet-500 via-indigo-400 to-cyan-400",
+} as const;
+
+export function SectionFlowDivider({
+  text,
+  tone = "violet",
+  flip = false,
+  className = "",
+}: {
+  text: string;
+  tone?: keyof typeof FLOW_DIVIDER_TONES;
+  flip?: boolean;
+  className?: string;
+}) {
+  const label = text.toLocaleUpperCase("az");
+  const gradient = FLOW_DIVIDER_TONES[tone];
+  const items = Array.from({ length: 8 });
+
+  return (
+    <div aria-hidden="true" className={`relative overflow-hidden py-8 sm:py-10 ${className}`}>
+      <div
+        className={`relative left-1/2 flex h-[58px] w-[106vw] -translate-x-1/2 items-center overflow-hidden border-y border-zinc-950/25 bg-gradient-to-r shadow-[0_14px_34px_-18px_rgba(109,40,217,0.75)] ${gradient} ${
+          flip ? "rotate-[0.65deg]" : "-rotate-[0.65deg]"
+        }`}
+      >
+        <div className="honsell-flow-track flex w-max items-center text-zinc-950">
+          {[0, 1].map((group) => (
+            <div key={group} className="flex shrink-0 items-center" aria-hidden={group === 1}>
+              {items.map((_, index) => (
+                <span key={index} className="flex shrink-0 items-center">
+                  <span className="whitespace-nowrap px-5 text-[12px] font-black uppercase tracking-[0.12em] sm:px-8 sm:text-[15px] sm:tracking-[0.14em]">
+                    {label}
+                  </span>
+                  {index % 3 === 0 ? (
+                    <span className="mx-1 h-4 w-4 shrink-0 rounded-full bg-zinc-950 sm:h-5 sm:w-5" />
+                  ) : index % 3 === 1 ? (
+                    <Sparkles className="mx-1 h-5 w-5 shrink-0 fill-zinc-950 stroke-[2.5] sm:h-6 sm:w-6" />
+                  ) : (
+                    <span className="mx-2 h-3.5 w-3.5 shrink-0 rotate-45 bg-zinc-950 sm:h-4 sm:w-4" />
+                  )}
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

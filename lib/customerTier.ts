@@ -138,6 +138,51 @@ export async function resolveEffectiveTierId(userId: string): Promise<string | n
   return t?.id ?? null;
 }
 
+/** İctimai səthlərdə (rəylər, icma) ad yanında göstərilən status nişanı. */
+export type UserTierBadge = {
+  name: string;
+  displayName: string;
+  icon: string | null;
+  color: string | null;
+};
+
+function toBadge(t: EffectiveTier): UserTierBadge {
+  return {
+    name: t.name,
+    displayName: t.displayName,
+    icon: t.icon,
+    color: t.color,
+  };
+}
+
+/**
+ * Verilmiş istifadəçi id-lərinin effektiv status nişanlarını TOPLU qaytarır
+ * (rəy/icma feed-ləri üçün — hər müəllif üçün ayrı sorğudan qaçmaq). Manual
+ * override-lar tier cədvəlindən, qalanları ömürlük xərcə görə AUTO tier-dən.
+ */
+export async function getTierBadgesForUsers(
+  userIds: (string | null | undefined)[],
+): Promise<Map<string, UserTierBadge>> {
+  const ids = Array.from(new Set(userIds.filter((x): x is string => !!x)));
+  const out = new Map<string, UserTierBadge>();
+  if (ids.length === 0) return out;
+  const users = await prisma.user.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, tierId: true },
+  });
+  const eff = await getEffectiveTiersForUsers(users);
+  for (const [uid, t] of eff) out.set(uid, toBadge(t));
+  return out;
+}
+
+/** Tək istifadəçinin status nişanı (öz optimistik post/şərhi üçün). */
+export async function getTierBadgeForUser(
+  userId: string,
+): Promise<UserTierBadge | null> {
+  const t = await getEffectiveTier(userId);
+  return t ? toBadge(t) : null;
+}
+
 /**
  * Bir siyahıdakı istifadəçilərin effektiv tier-lərini TOPLU hesablayır (admin
  * istifadəçilər siyahısı üçün — N sorğudan qaçmaq). Manual override-ları tier

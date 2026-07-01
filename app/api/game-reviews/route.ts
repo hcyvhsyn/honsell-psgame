@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getTierBadgesForUsers } from "@/lib/customerTier";
 import {
   REVIEW_BODY_MAX,
   REVIEW_BODY_MIN,
@@ -138,6 +139,10 @@ export async function GET(req: Request) {
   }
   const myMap = new Map(myReactions.map((r) => [r.reviewId, r.value]));
 
+  const tierBadges = await getTierBadgesForUsers(
+    reviews.map((r) => r.user.id),
+  ).catch(() => new Map());
+
   // Cari istifadəçinin bu oyun üçün öz rəyi var mı (status fərqi olsa belə) —
   // composer-i göstərib-göstərməmək üçün UI tərəfdə istifadə olunur.
   const myReview =
@@ -166,6 +171,7 @@ export async function GET(req: Request) {
         id: r.user.id,
         name: r.user.name ?? r.user.email.split("@")[0],
         avatarUrl: null,
+        tier: tierBadges.get(r.user.id) ?? null,
       },
       likes: counts.get(r.id)?.likes ?? 0,
       dislikes: counts.get(r.id)?.dislikes ?? 0,

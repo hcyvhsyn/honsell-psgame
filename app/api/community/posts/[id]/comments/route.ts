@@ -9,6 +9,7 @@ import {
   formatWait,
 } from "@/lib/community";
 import { cleanupCommunityText } from "@/lib/communityModeration";
+import { getTierBadgesForUsers, getTierBadgeForUser } from "@/lib/customerTier";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     },
   });
 
+  const tierBadges = await getTierBadgesForUsers(
+    comments.map((c) => c.user.id),
+  ).catch(() => new Map());
+
   return NextResponse.json({
     comments: comments.map((c) => ({
       id: c.id,
@@ -41,6 +46,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         id: c.user.id,
         name: c.user.name ?? c.user.email.split("@")[0],
         avatarUrl: c.user.avatarUrl,
+        tier: tierBadges.get(c.user.id) ?? null,
       },
       isMine: me?.id === c.userId,
     })),
@@ -127,6 +133,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     },
   });
 
+  const tier = await getTierBadgeForUser(created.user.id).catch(() => null);
+
   return NextResponse.json({
     ok: true,
     comment: {
@@ -137,6 +145,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         id: created.user.id,
         name: created.user.name ?? created.user.email.split("@")[0],
         avatarUrl: created.user.avatarUrl,
+        tier,
       },
       isMine: true,
     },

@@ -22,6 +22,11 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
+import { getEffectiveTierView, getAllTiers } from "@/lib/customerTier";
+import ProfileStatusBadge, {
+  type StatusTierView,
+  type StatusTierInfo,
+} from "@/components/ProfileStatusBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -184,6 +189,41 @@ export default async function ProfileOverviewPage() {
   const initial = (user.name ?? user.email)[0]?.toUpperCase() ?? "?";
   const displayName = user.name ?? user.email.split("@")[0];
 
+  let statusTier: StatusTierView | null = null;
+  let statusAllTiers: StatusTierInfo[] = [];
+  try {
+    const [view, all] = await Promise.all([
+      getEffectiveTierView(user.id),
+      getAllTiers(),
+    ]);
+    if (view) {
+      statusTier = {
+        name: view.name,
+        displayName: view.displayName,
+        icon: view.icon,
+        color: view.color,
+        cashbackPct: view.cashbackPct,
+        isManual: view.isManual,
+        spentAzn: view.spentAzn,
+        toNextAzn: view.toNextAzn,
+        nextName: view.nextDisplayName ?? view.nextName,
+        nextCashbackPct: view.nextCashbackPct,
+        progressPct: view.progressPct,
+      };
+      statusAllTiers = all.map((t) => ({
+        name: t.name,
+        displayName: t.displayName || t.name,
+        icon: t.icon,
+        color: t.color,
+        cashbackPct: t.cashbackPct,
+        kind: t.kind === "AUTO" ? "AUTO" : "MANUAL",
+        minSpendCents: t.minSpendCents,
+      }));
+    }
+  } catch {
+    statusTier = null;
+  }
+
   return (
     <div className="space-y-3">
       {user.role === "ADMIN" && (
@@ -216,6 +256,8 @@ export default async function ProfileOverviewPage() {
           initial={initial}
           memberSince={memberSince}
           orderCount={orderCount}
+          statusTier={statusTier}
+          statusAllTiers={statusAllTiers}
         />
 
         <BalanceCard
@@ -327,11 +369,15 @@ function WelcomeCard({
   initial,
   memberSince,
   orderCount,
+  statusTier,
+  statusAllTiers,
 }: {
   displayName: string;
   initial: string;
   memberSince: string | null;
   orderCount: number;
+  statusTier: StatusTierView | null;
+  statusAllTiers: StatusTierInfo[];
 }) {
   return (
     <div className="relative overflow-hidden rounded-[14px] border border-violet-300/30 dark:border-violet-300/20 bg-gradient-to-br from-white via-violet-50 to-violet-100 dark:bg-[linear-gradient(135deg,rgba(30,17,59,0.98),rgba(14,13,29,0.96)_48%,rgba(8,9,20,0.98))] p-5 shadow-[0_24px_70px_-52px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[0_24px_70px_-52px_rgba(124,58,237,0.9),inset_0_1px_0_rgba(255,255,255,0.08)]">
@@ -353,6 +399,11 @@ function WelcomeCard({
           <p className="mt-1 truncate text-xs text-zinc-700/80 dark:text-zinc-300/80">
             Honsell icmasının dəyərli üzvüsən.
           </p>
+          {statusTier && (
+            <div className="mt-2">
+              <ProfileStatusBadge tier={statusTier} allTiers={statusAllTiers} />
+            </div>
+          )}
         </div>
       </div>
 

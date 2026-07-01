@@ -71,7 +71,7 @@ export default function HomeTrustBar({ orders, games, avgRating, reviewCount }: 
   return (
     <section
       aria-label="Honsell etibar göstəriciləri"
-      className="relative mt-5 overflow-hidden border-y border-[#1e2033] bg-[#060713] px-4 py-5 text-[#f8fbff] sm:px-6 lg:px-8"
+      className="relative mt-5 overflow-hidden bg-[#060713] px-4 py-5 text-[#f8fbff] sm:px-6 lg:px-8"
     >
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(139,92,246,0.16),transparent_34%,rgba(34,211,238,0.09)_63%,rgba(52,211,153,0.12))]" />
       <div className="pointer-events-none absolute inset-0 opacity-[0.09] bg-[linear-gradient(90deg,#ffffff_1px,transparent_1px),linear-gradient(0deg,#ffffff_1px,transparent_1px)] bg-[size:30px_30px]" />

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { REVIEW_COMMENT_BODY_MAX } from "@/lib/reviewAffiliateConstants";
 import { useDialog } from "@/lib/dialogs";
+import TierBadge, { type TierBadgeData } from "@/components/TierBadge";
 
 export type ReviewCardData = {
   id: string;
@@ -27,6 +28,7 @@ export type ReviewCardData = {
     id: string;
     name: string;
     avatarUrl: string | null;
+    tier?: TierBadgeData | null;
   };
   likes: number;
   dislikes: number;
@@ -47,7 +49,7 @@ type Comment = {
   id: string;
   body: string;
   createdAt: string;
-  author: { id: string; name: string; avatarUrl: string | null };
+  author: { id: string; name: string; avatarUrl: string | null; tier?: TierBadgeData | null };
 };
 
 type Props = {
@@ -197,7 +199,10 @@ export default function ReviewCard({ review, game, currentUserId }: Props) {
           <div className="flex items-center gap-3">
             <Avatar name={review.author.name} src={review.author.avatarUrl} />
             <div>
-              <div className="font-medium text-zinc-100">{review.author.name}</div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-medium text-zinc-100">{review.author.name}</span>
+                {review.author.tier && <TierBadge tier={review.author.tier} />}
+              </div>
               <div className="text-xs text-zinc-500">
                 {formatDate(review.createdAt)}
               </div>
@@ -277,8 +282,9 @@ export default function ReviewCard({ review, game, currentUserId }: Props) {
                       <Avatar name={c.author.name} src={c.author.avatarUrl} small />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-sm font-medium text-zinc-100">
-                            {c.author.name}
+                          <div className="flex items-center gap-1.5 text-sm font-medium text-zinc-100">
+                            <span>{c.author.name}</span>
+                            {c.author.tier && <TierBadge tier={c.author.tier} />}
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-[11px] text-zinc-500">

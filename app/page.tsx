@@ -20,24 +20,16 @@ import HomeDiscountCarousel from "@/components/HomeDiscountCarousel";
 import HomeTestimonials from "@/components/HomeTestimonials";
 import { type GameCardData } from "@/components/GameCard";
 import {
-  PlatformCard,
-  MarqueeHeader,
   HeroMotionOverlay,
+  SectionFlowDivider,
 } from "@/components/MarketingUI";
 import {
-  Gamepad2,
   ShieldCheck,
   Zap,
   Clock,
   Sparkles,
-  Tv,
-  Music,
-  Briefcase,
-  Brain,
-  Layers,
   ArrowRight,
   BadgeCheck,
-  Flame,
 } from "lucide-react";
 import FaqAccordion from "@/components/FaqAccordion";
 import HomeReferralCta from "@/components/HomeReferralCta";
@@ -456,7 +448,7 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
 
 async function fetchDiscountedGames(
   settings: Awaited<ReturnType<typeof getSettings>>,
-): Promise<{ cards: GameCardData[]; maxDiscount: number }> {
+): Promise<{ cards: GameCardData[] }> {
   const now = new Date();
   const games = await prisma.game
     .findMany({
@@ -506,7 +498,7 @@ async function fetchDiscountedGames(
         : null,
   }));
 
-  return { cards, maxDiscount: enriched[0]?.price.discountPct ?? 0 };
+  return { cards };
 }
 
 /**
@@ -519,7 +511,7 @@ async function fetchDiscountedGames(
 const getHomePageData = unstable_cache(
   async () => {
   const settings = await getSettings();
-  const [banners, landingProducts, bestSellers, totalsArr, streamingProducts, psPlusProducts, giftCardProducts, discounted, orderCount, testimonialAgg] = await Promise.all([
+  const [banners, landingProducts, bestSellers, totalsArr, discounted, orderCount, testimonialAgg] = await Promise.all([
     prisma.banner
       .findMany({
         where: { isActive: true, scope: "HOME" },
@@ -530,20 +522,6 @@ const getHomePageData = unstable_cache(
     fetchLandingProducts(),
     fetchBestSellers(settings),
     prisma.game.groupBy({ by: ["productType"], where: { isActive: true }, _count: { _all: true } }),
-    prisma.serviceProduct.findMany({
-      where: { isActive: true, type: "STREAMING" },
-      orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
-    }),
-    prisma.serviceProduct.findMany({
-      where: { isActive: true, type: "PS_PLUS" },
-      orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
-      take: 1,
-    }),
-    prisma.serviceProduct.findMany({
-      where: { isActive: true, type: "TRY_BALANCE" },
-      orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
-      take: 1,
-    }),
     fetchDiscountedGames(settings),
     prisma.transaction
       .count({ where: { status: "SUCCESS", type: { in: ["PURCHASE", "SERVICE_PURCHASE"] } } })
@@ -560,21 +538,6 @@ const getHomePageData = unstable_cache(
     avgRating: testimonialAgg?._avg.rating ?? null,
     reviewCount: testimonialAgg?._count._all ?? 0,
   };
-
-  const totals: Record<string, number> = { GAME: 0, ADDON: 0, CURRENCY: 0, OTHER: 0 };
-  for (const row of totalsArr) totals[row.productType] = row._count._all;
-
-  // Streaming-də ən populyar/ucuz xidmət şəklini götürmək üçün lookup
-  const streamingPosters = new Map<string, string | null>();
-  for (const p of streamingProducts) {
-    const meta = (p.metadata as { service?: string } | null) ?? null;
-    const service = (meta?.service ?? "").toUpperCase();
-    if (service && !streamingPosters.has(service) && p.imageUrl) {
-      streamingPosters.set(service, p.imageUrl);
-    }
-  }
-  const netflixImage = streamingPosters.get("NETFLIX") ?? null;
-  const youtubeImage = streamingPosters.get("YOUTUBE_PREMIUM") ?? null;
 
   const bannerSlides = banners
     .map((b) => {
@@ -631,20 +594,12 @@ const getHomePageData = unstable_cache(
     })
     .filter((b) => b.imageUrl);
 
-  const psPlusImage = psPlusProducts[0]?.imageUrl ?? null;
-  const giftCardImage = giftCardProducts[0]?.imageUrl ?? null;
-
   return {
     bannerSlides,
     trustStats,
     landingProducts,
     discounted,
     bestSellers,
-    totals,
-    netflixImage,
-    youtubeImage,
-    psPlusImage,
-    giftCardImage,
   };
   },
   ["home-page-data"],
@@ -658,11 +613,6 @@ export default async function HomePage() {
     landingProducts,
     discounted,
     bestSellers,
-    totals,
-    netflixImage,
-    youtubeImage,
-    psPlusImage,
-    giftCardImage,
   } = await getHomePageData();
 
   const websiteJsonLd = {
@@ -756,70 +706,19 @@ export default async function HomePage() {
 
       <HomeTrustBar {...trustStats} />
 
+      <SectionFlowDivider text="Abunəlik paketləri" tone="violet" />
       <HomeProductMatrix products={landingProducts} />
 
-      <HomeDiscountCarousel games={discounted.cards} maxDiscount={discounted.maxDiscount} />
+      <SectionFlowDivider text="Endirimdə olan oyunlar" tone="rose" flip />
+      <HomeDiscountCarousel games={discounted.cards} />
 
+      <SectionFlowDivider text="Bu həftə ən çox alınanlar" tone="amber" />
       <BestSellersSection items={bestSellers} />
 
-      {/* Top-level platform navigator */}
-      <section id="platformalar" className="py-12 sm:py-16">
-        <MarqueeHeader text="PLATFORMALAR" />
-        <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <PlatformCard
-              href="/playstation"
-              icon={<Gamepad2 className="h-5 w-5 text-white" />}
-              label="PlayStation"
-              sub={`${totals.GAME.toLocaleString("az-AZ")}+ oyun · PS Plus · Hədiyyə kartları · Hesab açma`}
-              imageUrl={bannerSlides[0]?.imageUrl ?? psPlusImage ?? giftCardImage ?? null}
-              accentClass="border-indigo-400/30 from-indigo-400/25 to-fuchsia-400/15"
-            />
-            <PlatformCard
-              href="/streaming"
-              icon={<Tv className="h-5 w-5 text-white" />}
-              label="Yayım Platformaları"
-              sub="Netflix · HBO Max · Gain — Azərbaycan yayımları və icmallar"
-              imageUrl={netflixImage}
-              accentClass="border-rose-400/30 from-rose-400/25 to-orange-400/15"
-            />
-            <PlatformCard
-              href="/music"
-              icon={<Music className="h-5 w-5 text-white" />}
-              label="Musiqi Platformaları"
-              sub="YouTube Premium — reklamsız + YouTube Music"
-              imageUrl={youtubeImage}
-              accentClass="border-amber-400/30 from-amber-400/25 to-yellow-300/15"
-            />
-            <PlatformCard
-              href="/work"
-              icon={<Briefcase className="h-5 w-5 text-white" />}
-              label="İş Platformaları"
-              sub="LinkedIn Premium · Notion · Figma və digər iş alətləri"
-              accentClass="border-emerald-400/30 from-emerald-400/25 to-teal-400/15"
-            />
-            <PlatformCard
-              href="/ai"
-              icon={<Brain className="h-5 w-5 text-white" />}
-              label="Süni İntellekt"
-              sub="ChatGPT Plus · Claude Plus və digər AI alətləri"
-              accentClass="border-violet-400/30 from-violet-400/25 to-purple-400/15"
-            />
-            <PlatformCard
-              href="/diger"
-              icon={<Layers className="h-5 w-5 text-white" />}
-              label="Digər"
-              sub="Bələdçilər, qazan və digər xidmətlər"
-              accentClass="border-zinc-400/30 from-zinc-400/25 to-zinc-500/10"
-            />
-          </div>
-        </div>
-      </section>
-
       {/* Niyə biz */}
+      <SectionFlowDivider text="Niyə biz" tone="violet" />
       <section id="niye-biz" className="py-12 sm:py-16">
-        <MarqueeHeader text="NİYƏ BİZ" />
-        <div className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             {[
               { icon: <Zap className="h-6 w-6 !text-white" />, title: "Anında çatdırılma", desc: "Gift card və bir çox sifarişdə nəticə saniyələr içində." },
@@ -840,12 +739,13 @@ export default async function HomePage() {
       </section>
 
       {/* Müştəri rəyləri (sosial sübut) */}
+      <SectionFlowDivider text="Müştərilər nə deyir" tone="rose" flip />
       <HomeTestimonials />
 
       {/* General FAQ */}
+      <SectionFlowDivider text="Tez verilən suallar" tone="emerald" />
       <section className="py-12 sm:py-14">
-        <MarqueeHeader text="TEZ VERİLƏN SUALLAR" />
-        <div className="mx-auto max-w-3xl px-4 pt-8 sm:px-6">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
           <FaqAccordion items={HOME_FAQS} />
           <div className="mt-8 flex justify-center">
             <Link
@@ -871,22 +771,9 @@ function BestSellersSection({ items }: { items: BestSellerItem[] }) {
   if (items.length === 0) return null;
 
   return (
-    <section id="cox-satanlar" className="border-y border-zinc-200 bg-white py-14 dark:border-white/10 dark:bg-[#07070C] sm:py-16">
-      <MarqueeHeader text="ÇOX SATANLAR" />
-      <div className="mx-auto max-w-7xl px-4 pt-7 sm:px-6 lg:px-8">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-100 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-amber-800 dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-200">
-              <Flame className="h-3.5 w-3.5" />
-              Müştəri seçimi
-            </div>
-            <h2 className="mt-3 text-3xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-4xl">
-              Bu həftə ən çox alınanlar
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-              Oyunlar, abunəliklər və rəqəmsal xidmətlər içində ən çox seçilən məhsullar.
-            </p>
-          </div>
+    <section id="cox-satanlar" className="bg-white py-14 dark:bg-[#07070C] sm:py-16">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-6 flex justify-end">
           <Link
             href="/oyunlar"
             className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-300 bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-zinc-800 dark:border-white/10 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
@@ -903,7 +790,7 @@ function BestSellersSection({ items }: { items: BestSellerItem[] }) {
               href={item.href}
               className={`group flex min-h-[270px] min-w-0 flex-col overflow-hidden rounded-[22px] border p-2.5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-violet-900/10 dark:hover:shadow-black/40 sm:min-h-[320px] sm:p-3 ${BEST_SELLER_CARD_SURFACE}`}
             >
-              <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[18px] bg-gradient-to-br from-zinc-100 to-zinc-200/60 dark:from-zinc-900 dark:to-zinc-950">
+              <div className="relative aspect-square w-full overflow-hidden rounded-[18px] bg-gradient-to-br from-zinc-100 to-zinc-200/60 dark:from-zinc-900 dark:to-zinc-950">
                 <ProductImage
                   src={item.imageUrl}
                   alt={item.title}

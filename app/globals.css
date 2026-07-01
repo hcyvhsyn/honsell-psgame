@@ -2011,3 +2011,25 @@ html[data-ai-chat-open] #theme-toggle {
     animation: none;
   }
 }
+
+/* Full-width section ribbon used between home-page categories. */
+@keyframes honsell-flow-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.honsell-flow-track {
+  animation: honsell-flow-marquee 30s linear infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .honsell-flow-track {
+    animation-play-state: paused;
+    will-change: auto;
+  }
+}

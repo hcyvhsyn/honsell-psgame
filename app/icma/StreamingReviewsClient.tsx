@@ -10,6 +10,7 @@ import {
 import { STREAMING_SERVICE_LABELS, STREAMING_SERVICES, type StreamingService } from "@/lib/streamingCart";
 import { formatAzDate } from "@/lib/streamingLanguages";
 import { useDialog } from "@/lib/dialogs";
+import TierBadge, { type TierBadgeData } from "@/components/TierBadge";
 
 export type ReviewItem = {
   id: string;
@@ -27,7 +28,7 @@ export type ReviewItem = {
   yearSnap: number | null;
   genresSnap: string[];
   createdAt: string;
-  author: { id: string; name: string; avatarUrl: string | null; trusted?: boolean };
+  author: { id: string; name: string; avatarUrl: string | null; trusted?: boolean; tier?: TierBadgeData | null };
   likes: number;
   dislikes: number;
   myReaction: "LIKE" | "DISLIKE" | null;
@@ -79,7 +80,7 @@ export default function StreamingReviewsClient({
 }: {
   isLoggedIn: boolean;
   isTrusted: boolean;
-  myUser: { id: string; name: string; avatarUrl: string | null } | null;
+  myUser: { id: string; name: string; avatarUrl: string | null; tier?: TierBadgeData | null } | null;
   mine: ReviewItem[];
   feed: ReviewItem[];
 }) {
@@ -477,6 +478,7 @@ function ReviewCard({
                 <span className="truncate text-sm font-semibold text-zinc-100">
                   {item.author.name}
                 </span>
+                {item.author.tier && <TierBadge tier={item.author.tier} />}
                 {item.author.trusted && (
                   <BadgeCheck
                     className="h-4 w-4 fill-amber-300 text-black"
@@ -614,7 +616,7 @@ function NewReviewModal({
   onClose: () => void;
   onSubmitted: (it: ReviewItem) => void;
   isTrusted: boolean;
-  myUser: { id: string; name: string; avatarUrl: string | null };
+  myUser: { id: string; name: string; avatarUrl: string | null; tier?: TierBadgeData | null };
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TmdbHit[]>([]);
@@ -739,7 +741,7 @@ function NewReviewModal({
       yearSnap: picked.year,
       genresSnap: picked.genres,
       createdAt: new Date().toISOString(),
-      author: { id: myUser.id, name: myUser.name, avatarUrl: myUser.avatarUrl, trusted: isTrusted },
+      author: { id: myUser.id, name: myUser.name, avatarUrl: myUser.avatarUrl, trusted: isTrusted, tier: myUser.tier ?? null },
       likes: 0,
       dislikes: 0,
       myReaction: null,

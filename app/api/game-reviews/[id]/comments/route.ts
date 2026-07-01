@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getTierBadgesForUsers, getTierBadgeForUser } from "@/lib/customerTier";
 import {
   REVIEW_COMMENT_BODY_MAX,
   REVIEW_COMMENT_BODY_MIN,
@@ -27,6 +28,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     },
   });
 
+  const tierBadges = await getTierBadgesForUsers(
+    comments.map((c) => c.user.id),
+  ).catch(() => new Map());
+
   return NextResponse.json({
     comments: comments.map((c) => ({
       id: c.id,
@@ -36,6 +41,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         id: c.user.id,
         name: c.user.name ?? c.user.email.split("@")[0],
         avatarUrl: null,
+        tier: tierBadges.get(c.user.id) ?? null,
       },
     })),
   });
@@ -74,6 +80,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     },
   });
 
+  const tier = await getTierBadgeForUser(created.user.id).catch(() => null);
+
   return NextResponse.json({
     ok: true,
     comment: {
@@ -84,6 +92,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         id: created.user.id,
         name: created.user.name ?? created.user.email.split("@")[0],
         avatarUrl: null,
+        tier,
       },
     },
   });

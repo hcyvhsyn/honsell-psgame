@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/lib/generated/prisma/client";
 import { getCurrentUser } from "@/lib/auth";
+import { getTierBadgesForUsers } from "@/lib/customerTier";
 import { findProfanity } from "@/lib/profanityFilter";
 import { STREAMING_SERVICES } from "@/lib/streamingCart";
 import {
@@ -62,6 +63,9 @@ export async function GET(req: Request) {
 
   // Auth check — yalnız logged-in istifadəçilər üçün öz reaksiyasını qaytarırıq.
   const me = await getCurrentUser();
+  const tierBadges = await getTierBadgesForUsers(
+    reviews.map((r) => r.user.id),
+  ).catch(() => new Map());
   const data = reviews.map((r) => {
     const likes = r.reactions.filter((x) => x.kind === "LIKE").length;
     const dislikes = r.reactions.filter((x) => x.kind === "DISLIKE").length;
@@ -82,7 +86,12 @@ export async function GET(req: Request) {
       yearSnap: r.yearSnap,
       genresSnap: r.genresSnap,
       createdAt: r.createdAt.toISOString(),
-      author: { id: r.user.id, name: r.user.name ?? r.user.email, avatarUrl: r.user.avatarUrl },
+      author: {
+        id: r.user.id,
+        name: r.user.name ?? r.user.email,
+        avatarUrl: r.user.avatarUrl,
+        tier: tierBadges.get(r.user.id) ?? null,
+      },
       likes,
       dislikes,
       myReaction,

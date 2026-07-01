@@ -12,8 +12,9 @@ TierBadge ikonu `/tiers/<açar>.svg` ünvanından yükləyir. `<açar>` = Custom
 
 ## Manual statuslar
 - `sponsorlu.svg` — Sponsorlu
-- `gaming.svg`    — Honsell Gaming Ambassador   (ikon açarı: `gaming`)
-- `cinema.svg`    — Honsell Cinema Ambassador   (ikon açarı: `cinema`)
+- `gaming.svg`    — Honsell Gaming Ambassador    (ikon açarı: `gaming`)
+- `cinema.svg`    — Honsell Cinema Ambassador    (ikon açarı: `cinema`)
+- `universal.svg` — Honsell Universal Ambassador (ikon açarı: `universal`)
 
 Yeni manual tier üçün: referal səhifəsində "İkon açarı"na ad ver (məs. `gaming`),
 sonra bu qovluğa eyni adlı faylı (`gaming.svg`) əlavə et.

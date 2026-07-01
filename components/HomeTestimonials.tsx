@@ -1,6 +1,5 @@
 import { Star, Quote, BadgeCheck } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { MarqueeHeader } from "@/components/MarketingUI";
 import HomeReviewCta from "@/components/HomeReviewCta";
 
 /**
@@ -43,8 +42,7 @@ export default async function HomeTestimonials() {
 
   return (
     <section id="reyler" className="py-12 sm:py-16">
-      <MarqueeHeader text="MÜŞTƏRİLƏR NƏ DEYİR" />
-      <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <HomeReviewCta />
         {showGrid && (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

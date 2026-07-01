@@ -31,6 +31,7 @@ import {
 import { useModals } from "@/lib/modals";
 import { useDialog } from "@/lib/dialogs";
 import ReferralShareButtons from "@/components/ReferralShareButtons";
+import TierBadge, { type TierBadgeData } from "@/components/TierBadge";
 import StreamingReviewsClient, { type ReviewItem } from "./StreamingReviewsClient";
 import type { LeaderboardEntry } from "@/lib/referralLeaderboard";
 import {
@@ -50,7 +51,7 @@ export type CommunityPostItem = {
   body: string;
   status: string;
   createdAt: string;
-  author: { id: string; name: string; avatarUrl: string | null };
+  author: { id: string; name: string; avatarUrl: string | null; tier?: TierBadgeData | null };
   likes: number;
   dislikes: number;
   myReaction: number;
@@ -61,7 +62,7 @@ export type CommunityPostItem = {
 type StreamingData = {
   isLoggedIn: boolean;
   isTrusted: boolean;
-  myUser: { id: string; name: string; avatarUrl: string | null } | null;
+  myUser: { id: string; name: string; avatarUrl: string | null; tier?: TierBadgeData | null } | null;
   mine: ReviewItem[];
   feed: ReviewItem[];
 };
@@ -74,6 +75,7 @@ type Viewer = {
   referralBalanceCents: number;
   referralCount: number;
   commissionEarnedCents: number;
+  tier?: TierBadgeData | null;
 };
 
 type TabKey = "fikirler" | "icmallar" | "referal";
@@ -814,7 +816,7 @@ function Composer({
         body: typeof created.body === "string" ? created.body : body.trim(),
         status: String(created.status ?? "PENDING"),
         createdAt: new Date().toISOString(),
-        author: { id: viewer.id, name: viewer.name, avatarUrl: viewer.avatarUrl },
+        author: { id: viewer.id, name: viewer.name, avatarUrl: viewer.avatarUrl, tier: viewer.tier ?? null },
         likes: 0,
         dislikes: 0,
         myReaction: 0,
@@ -1031,6 +1033,7 @@ function PostCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-black text-zinc-950 dark:text-white">{post.author.name}</span>
+            {post.author.tier && <TierBadge tier={post.author.tier} />}
             <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black ${ACCENT_BADGE[cat.accent]}`}>
               <CategoryIcon className="h-3 w-3" />
               {cat.label}
@@ -1136,7 +1139,7 @@ type CommentItem = {
   id: string;
   body: string;
   createdAt: string;
-  author: { id: string; name: string; avatarUrl: string | null };
+  author: { id: string; name: string; avatarUrl: string | null; tier?: TierBadgeData | null };
   isMine: boolean;
 };
 
@@ -1271,6 +1274,7 @@ function CommentThread({
           <div className="min-w-0 flex-1 rounded-2xl bg-zinc-50 px-3 py-2 dark:bg-white/[0.045]">
             <div className="flex items-center gap-2">
               <span className="text-xs font-black">{c.author.name}</span>
+              {c.author.tier && <TierBadge tier={c.author.tier} />}
               <span className="text-[11px] text-zinc-400">{timeAgo(c.createdAt)}</span>
               {c.isMine && now <= new Date(c.createdAt).getTime() + POST_DELETE_WINDOW_MS && (
                 <button

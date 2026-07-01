@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { buildReferralRegisterUrl } from "@/lib/referralPromotion";
 import type { PublicRateGroup, PublicRateItem } from "@/lib/publicReferralRates";
+import UniversalAmbassadorExperience from "./UniversalAmbassadorExperience";
 import styles from "./referral-rates.module.css";
 
 type TierView = {
@@ -71,7 +72,7 @@ type AmbassadorStep = {
 };
 
 type AmbassadorVariant = {
-  kind: "gaming" | "cinema";
+  kind: "gaming" | "cinema" | "universal";
   eyebrow: string;
   title: string;
   titleAccent: string;
@@ -114,6 +115,7 @@ function tierHref(key: string) {
 
 function tierViewIcon(view: TierView): LucideIcon {
   const source = `${view.key} ${view.label} ${view.icon ?? ""}`.toLocaleLowerCase("az-AZ");
+  if (source.includes("universal")) return Layers3;
   if (source.includes("gaming")) return Gamepad2;
   if (source.includes("cinema")) return Clapperboard;
   if (source.includes("film")) return Clapperboard;
@@ -405,6 +407,84 @@ const AMBASSADOR_VARIANTS: Record<string, AmbassadorVariant> = {
     disclaimer:
       "Faizlər Cinema Ambassador seqmenti üçün canlı sistem məlumatlarıdır; nümunə hesablamalar təqdimat məqsədlidir.",
   },
+  "universal-ambassador": {
+    kind: "universal",
+    eyebrow: "Universal Ambassador əməkdaşlıq təqdimatı",
+    title: "İstənilən auditoriyanı qazanca çevir,",
+    titleAccent: "oyun, iş və film platformalarını bir səhifədə təqdim et.",
+    lead:
+      "Bu səhifə hər cür bloger və kontent yaradıcısı üçün universaldır — oyun, iş (karyera/biznes) və film/yayım platformalarını eyni səhifədən təqdim edə bilərsən. Auditoriyan hansı sahədə olursa olsun, uyğun məhsulu seçib referal qazancını böyüt.",
+    trust: "Hər tip yaradıcı üçün hazırlanmış, çoxsahəli təqdimat səhifəsi.",
+    heroStatLabels: ["hər sahə üçün uyğun", "aktiv qazanc ssenarisi", "auditoriyadan satışa axın"],
+    deckKicker: "Niyə bu səhifə universaldır",
+    deckText:
+      "Oyun, iş və film platformaları — hamısı bir təqdimatda birləşir; auditoriyana uyğun bucağı seçib istənilən kontent formatında paylaş.",
+    deckChips: ["Oyun kontenti", "İş və karyera", "Film və serial", "Musiqi və AI"],
+    cards: [
+      {
+        title: "Çoxsahəli çatım",
+        text: "Oyun, iş və film auditoriyasının hər birinə uyğun məhsul ritmi ilə danış.",
+        metric: "hər auditoriyaya uyğun",
+        Icon: Layers3,
+      },
+      {
+        title: "Tək link, çox məhsul",
+        text: "PlayStation, yayım, musiqi, AI və iş platformaları — hamısı eyni referal linkindən.",
+        metric: "bir linkdə hər şey",
+        Icon: Sparkles,
+      },
+      {
+        title: "Yaradıcı çevikliyi",
+        text: "Bloq, video, hekayə və ya canlı yayım — kontent formatından asılı olmayaraq işləyir.",
+        metric: "hər formata uyğun",
+        Icon: Users,
+      },
+    ],
+    ticker: [
+      "Bir link, bütün platformalar",
+      "Auditoriyana uyğun məhsul seç",
+      "Hər sahədən qazanc topla",
+    ],
+    processKicker: "Universal əməkdaşlıq axını",
+    processTitle: "Fərqli auditoriyalar necə vahid referal qazanca çevrilir?",
+    processSteps: [
+      {
+        number: "01",
+        Icon: Users,
+        title: "Auditoriyanı tanı",
+        text: "İzləyicilərinin marağına görə oyun, iş və ya film platformasını seç.",
+      },
+      {
+        number: "02",
+        Icon: Layers3,
+        title: "Uyğun məhsulu təqdim et",
+        text: "PlayStation, yayım, musiqi, AI və ya iş platformasından uyğun təklifi paylaş.",
+      },
+      {
+        number: "03",
+        Icon: Coins,
+        title: "Qazancı birləşdir",
+        text: "Bütün sahələrdən gələn referal komissiyası tək balansda toplanır.",
+      },
+    ],
+    quote:
+      "“Ən güclü yaradıcı bir sahə ilə məhdudlaşmır — auditoriyasına uyğun hər məhsulu təbii şəkildə təqdim edir.”",
+    quoteFooter: "Bu səhifə həmin çoxsahəli çevikliyi bir baxışda göstərir.",
+    showcaseLabel: "Ən çevik əməkdaşlıq bucağı",
+    showcaseHeading: "Hansı platforma sənin auditoriyana daha uyğundur?",
+    showcaseText:
+      "Universal yaradıcı üçün üstünlük odur ki, oyun, iş və film məhsulları eyni səhifədə, öz faizləri ilə hazırdır — auditoriyana uyğununu seç.",
+    finalKickerLoggedIn: "Universal linkin artıq hazırdır",
+    finalKickerGuest: "Universal tərəfdaşlıq axınına başla",
+    finalTitleLoggedIn: "İndi paylaş və hər auditoriyadan qazan.",
+    finalTitleGuest: "Universal Ambassador kimi qoşul və bütün platformaları bir səhifədə təqdim et.",
+    finalTextLoggedIn:
+      "Referal linkin hazırdır. Onu oyun, iş və ya film yönümlü istənilən kontentində istifadə edib hər auditoriyadan qazanc topla.",
+    finalTextGuest:
+      "Qeydiyyatdan keç, referal kodunu al və oyun, iş, film — hansı sahədə kontent yaradırsansa, hamısını bir səhifədən təqdim et.",
+    disclaimer:
+      "Faizlər Universal Ambassador seqmenti üçün canlı sistem məlumatlarıdır; nümunə hesablamalar təqdimat məqsədlidir.",
+  },
 };
 
 function groupArtwork(groupKey: string) {
@@ -552,6 +632,31 @@ function QuoteVisual({
     );
   }
 
+  if (ambassador?.kind === "universal") {
+    return (
+      <div className={styles.universalQuoteVisual}>
+        <span className={styles.universalRing} />
+        <div className={styles.universalCore}>
+          <Sparkles />
+          <strong>ÇOXSAHƏLİ</strong>
+          <span>{fmtPct(maxRate)}%-dək qazanc</span>
+        </div>
+        <div className={styles.universalChips}>
+          {[
+            { Icon: Gamepad2, label: "Oyun" },
+            { Icon: BriefcaseBusiness, label: "İş" },
+            { Icon: Film, label: "Film" },
+          ].map(({ Icon, label }) => (
+            <span key={label} className={styles.universalChip}>
+              <Icon />
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       {[30, 46, 61, 82, 100].map((height, index) => (
@@ -567,7 +672,24 @@ function QuoteVisual({
   );
 }
 
-export default function ReferralRatesExperience({ tierViews, activeTierKey, referralCode }: Props) {
+export default function ReferralRatesExperience(props: Props) {
+  const universalView = props.tierViews.find(
+    (view) => view.key === props.activeTierKey && view.key === "universal-ambassador",
+  );
+
+  if (universalView) {
+    return (
+      <UniversalAmbassadorExperience
+        groups={universalView.groups}
+        referralCode={props.referralCode}
+      />
+    );
+  }
+
+  return <LegacyReferralRatesExperience {...props} />;
+}
+
+function LegacyReferralRatesExperience({ tierViews, activeTierKey, referralCode }: Props) {
   const activeView = tierViews.find((v) => v.key === activeTierKey) ?? tierViews[0];
   const ambassador = activeView ? AMBASSADOR_VARIANTS[activeView.key] ?? null : null;
   const groups = useMemo(() => activeView?.groups ?? [], [activeView]);

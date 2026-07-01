@@ -51,25 +51,8 @@ export default function HomeProductMatrix({
   }
 
   return (
-    <section id="mehsullar" className="border-b border-white/10 bg-zinc-950 py-12 sm:py-14">
+    <section id="mehsullar" className="bg-zinc-950 py-12 sm:py-14">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-	        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-	          <div>
-	            <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-300">
-	              Abunəliklər
-	            </p>
-	            <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
-	              Abunəlik paketləri
-	            </h2>
-	          </div>
-	          <Link
-	            href="#platformalar"
-	            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white px-5 py-3 text-sm font-black text-zinc-950 transition hover:bg-zinc-200"
-	          >
-	            Kateqoriyalar
-	          </Link>
-	        </div>
-
         <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {products.map((product, index) => {
             const inCart = hydrated && has(product.id);

@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import { SITE_NAME } from "@/lib/site";
 import { getReferralLeaderboard } from "@/lib/referralLeaderboard";
+import { getTierBadgesForUsers, getTierBadgeForUser } from "@/lib/customerTier";
 import type { ReviewItem } from "./StreamingReviewsClient";
 import IcmaClient, { type CommunityPostItem } from "./IcmaClient";
 
@@ -131,6 +132,18 @@ export default async function IcmaPage() {
   }
   const myMap = new Map(myReactionRows.map((r) => [r.postId, r.value]));
 
+  // ─── Status nişanları (bütün post + icmal müəllifləri üçün toplu) ───────────
+  const authorIds = [
+    ...approvedPosts.map((p) => p.user.id),
+    ...myPosts.map((p) => p.user.id),
+    ...approvedReviews.map((r) => r.user.id),
+    ...myReviews.map((r) => r.user.id),
+  ];
+  const tierBadges = await getTierBadgesForUsers(authorIds).catch(() => new Map());
+  const viewerTier = meId
+    ? await getTierBadgeForUser(meId).catch(() => null)
+    : null;
+
   type RawPost = (typeof approvedPosts)[number];
   function toPost(p: RawPost): CommunityPostItem {
     return {
@@ -144,6 +157,7 @@ export default async function IcmaPage() {
         id: p.user.id,
         name: p.user.name ?? p.user.email.split("@")[0],
         avatarUrl: p.user.avatarUrl,
+        tier: tierBadges.get(p.user.id) ?? null,
       },
       likes: counts.get(p.id)?.likes ?? 0,
       dislikes: counts.get(p.id)?.dislikes ?? 0,
@@ -183,6 +197,7 @@ export default async function IcmaPage() {
         name: r.user.name ?? r.user.email,
         avatarUrl: r.user.avatarUrl,
         trusted: r.user.streamingReviewTrusted,
+        tier: tierBadges.get(r.user.id) ?? null,
       },
       likes,
       dislikes,
@@ -214,6 +229,7 @@ export default async function IcmaPage() {
                 referralBalanceCents: user.referralBalanceCents ?? 0,
                 referralCount,
                 commissionEarnedCents: commissionAgg._sum.amountAznCents ?? 0,
+                tier: viewerTier,
               }
             : null
         }
@@ -223,7 +239,12 @@ export default async function IcmaPage() {
           isLoggedIn: Boolean(user),
           isTrusted: user?.streamingReviewTrusted ?? false,
           myUser: user
-            ? { id: user.id, name: user.name ?? user.email, avatarUrl: user.avatarUrl }
+            ? {
+                id: user.id,
+                name: user.name ?? user.email,
+                avatarUrl: user.avatarUrl,
+                tier: viewerTier,
+              }
             : null,
           mine: myReviewItems,
           feed: feedReviewItems,

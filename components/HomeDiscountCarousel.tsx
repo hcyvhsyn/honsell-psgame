@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import Link from "next/link";
-import { Tag, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import CompactGameCard from "./CompactGameCard";
 import { type GameCardData } from "./GameCard";
 
@@ -11,13 +11,7 @@ import { type GameCardData } from "./GameCard";
  * səhifəsi ilə eyni mənbədəndir (endirim faizinə görə sıralı), amma burada
  * yalnız ən güclü təkliflər göstərilir + countdown ilə aciliyyat yaradılır.
  */
-export default function HomeDiscountCarousel({
-  games,
-  maxDiscount,
-}: {
-  games: GameCardData[];
-  maxDiscount: number;
-}) {
+export default function HomeDiscountCarousel({ games }: { games: GameCardData[] }) {
   const scrollRef = useRef<HTMLUListElement>(null);
 
   if (games.length === 0) return null;
@@ -29,22 +23,9 @@ export default function HomeDiscountCarousel({
   };
 
   return (
-    <section id="endirimler" className="border-y border-zinc-200 bg-white py-12 dark:border-white/10 dark:bg-[#07070C] sm:py-14">
+    <section id="endirimler" className="bg-white py-12 dark:bg-[#07070C] sm:py-14">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-rose-300/40 bg-rose-100 px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-rose-700 dark:border-rose-300/20 dark:bg-rose-500/10 dark:text-rose-200">
-              <Tag className="h-3.5 w-3.5" />
-              Canlı endirimlər
-            </div>
-            <h2 className="mt-3 text-3xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-4xl">
-              Endirimdə oyunlar
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-              Aktiv PS Store kampaniyaları, ən böyük endirim faizinə görə sıralanıb
-              {maxDiscount > 0 ? ` — ən yüksəyi ${maxDiscount}%` : ""}. Qiymət dəyişməzdən tələs.
-            </p>
-          </div>
+        <div className="mb-6 flex justify-end">
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-2 sm:flex">
               <button
