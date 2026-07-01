@@ -37,10 +37,8 @@ const UNIVERSAL_STEPS = [
 ] as const;
 
 function formatNumber(value: number) {
-  return new Intl.NumberFormat("az-AZ", {
-    minimumFractionDigits: value % 1 === 0 ? 0 : 1,
-    maximumFractionDigits: 1,
-  }).format(value);
+  const rounded = Math.round(Math.max(0, value) * 10) / 10;
+  return (Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)).replace(".", ",");
 }
 
 function groupIcon(groupKey: string) {

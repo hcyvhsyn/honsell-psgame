@@ -423,6 +423,103 @@
 .shareBox svg { width: 14px; height: 14px; }
 .ctaButton { color: #fff8f2; background: var(--orange); }
 
+:global(html.dark) .page {
+  --muted: #91a0ad;
+  color: #edf3f5;
+  background:
+    radial-gradient(circle at 12% 38%, rgba(12, 169, 154, 0.12), transparent 28rem),
+    radial-gradient(circle at 88% 12%, rgba(255, 107, 53, 0.08), transparent 30rem),
+    #07111d;
+}
+
+:global(html.dark) .hero {
+  border-bottom-color: rgba(142, 167, 183, 0.16);
+  background: linear-gradient(135deg, rgba(8, 20, 32, 0.92), rgba(7, 17, 29, 0.72));
+}
+
+:global(html.dark) .heroPattern {
+  opacity: 0.22;
+  background-image: radial-gradient(rgba(120, 218, 208, 0.34) 0.8px, transparent 0.8px);
+}
+
+:global(html.dark) .orangeOrb { background: rgba(255, 107, 53, 0.12); }
+:global(html.dark) .tealOrb { background: rgba(12, 169, 154, 0.1); }
+
+:global(html.dark) .backLink {
+  border-color: rgba(255, 158, 116, 0.25);
+  color: #ffe6d9;
+  background: rgba(255, 107, 53, 0.08);
+}
+
+:global(html.dark) .hero h1 { color: #f3f0e8; }
+:global(html.dark) .hero h1 span { color: #ff8151; }
+:global(html.dark) .heroCopy > p { color: #9aa9b6; }
+
+:global(html.dark) .secondaryButton {
+  border-color: rgba(183, 205, 219, 0.2);
+  color: #e9f0f3;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+:global(html.dark) .secondaryButton:hover { background: rgba(255, 255, 255, 0.085); }
+:global(html.dark) .heroStats div:not(:last-child) { border-right-color: rgba(183, 205, 219, 0.16); }
+:global(html.dark) .heroStats strong { color: #f5eee5; }
+:global(html.dark) .heroStats span { color: #8293a2; }
+
+:global(html.dark) .calculator {
+  border-color: rgba(126, 214, 205, 0.2);
+  background:
+    radial-gradient(circle at 92% 4%, rgba(12, 169, 154, 0.22), transparent 34%),
+    #0a1b2d;
+  box-shadow: 0 42px 90px -35px rgba(0, 0, 0, 0.88), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+:global(html.dark) .result { background: rgba(255, 255, 255, 0.04); }
+:global(html.dark) .field select { border-color: rgba(126, 214, 205, 0.18); background: #102943; }
+
+:global(html.dark) .categoryRail { border-inline-color: rgba(139, 165, 182, 0.16); }
+:global(html.dark) .categoryRail span {
+  border-bottom-color: rgba(139, 165, 182, 0.16);
+  color: #dfe9ed;
+  background: rgba(255, 255, 255, 0.018);
+}
+:global(html.dark) .categoryRail span:not(:last-child) { border-right-color: rgba(139, 165, 182, 0.16); }
+
+:global(html.dark) .sectionHead h2 { color: #f2efe7; }
+:global(html.dark) .sectionHead > p { color: #8e9daa; }
+
+:global(html.dark) .rateCard {
+  border-color: rgba(135, 164, 181, 0.16);
+  background: linear-gradient(145deg, rgba(15, 34, 51, 0.94), rgba(10, 25, 40, 0.94));
+  box-shadow: 0 24px 55px -38px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+:global(html.dark) .rateCardHead { border-bottom-color: rgba(139, 165, 181, 0.12); }
+:global(html.dark) .rateCardHead h3 { color: #edf2f3; }
+:global(html.dark) .rateCardHead small { color: #758796; }
+:global(html.dark) .rateCardHead > strong { color: #5bd4c8; }
+:global(html.dark) .rateRow { border-bottom-color: rgba(139, 165, 181, 0.1); }
+:global(html.dark) .rateRow > span { color: #d5e0e5; }
+:global(html.dark) .rateRow small { color: #738695; }
+:global(html.dark) .rateRow b { color: #73e3d7; background: rgba(12, 169, 154, 0.14); }
+:global(html.dark) .rateRow .zeroRate { color: #988a83; background: rgba(151, 128, 117, 0.11); }
+
+:global(html.dark) .steps article:first-child {
+  border: 1px solid rgba(117, 160, 185, 0.16);
+  background: #0b1d30;
+}
+
+:global(html.dark) .steps article:nth-child(2) { background: #e95c2d; }
+:global(html.dark) .steps article:nth-child(3) { background: #69cfc4; }
+
+:global(html.dark) .finalCta {
+  border: 1px solid rgba(125, 167, 188, 0.14);
+  background:
+    radial-gradient(circle at 82% 16%, rgba(255, 107, 53, 0.2), transparent 30%),
+    #0a1a2b;
+  box-shadow: 0 30px 70px -45px rgba(0, 0, 0, 0.95);
+}
+
 @keyframes reveal {
   from { opacity: 0; transform: translateY(18px); }
   to { opacity: 1; transform: translateY(0); }
@@ -459,6 +556,7 @@
   .categoryRail span { min-width: 0; padding-inline: 8px; text-align: center; }
   .categoryRail span:nth-child(2) { border-right: 0; }
   .categoryRail span:nth-child(-n+2) { border-top: 1px solid rgba(16, 35, 62, 0.13); }
+  :global(html.dark) .categoryRail span:nth-child(-n+2) { border-top-color: rgba(139, 165, 182, 0.16); }
   .ratesSection { padding-top: 82px; }
   .sectionHead { align-items: flex-start; flex-direction: column; }
   .sectionHead h2 { font-size: 3rem; }

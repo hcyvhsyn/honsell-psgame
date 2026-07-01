@@ -411,17 +411,13 @@ html.theme-soft-transition *::after {
 
 :root.light .honsell-navbar-shell {
   border-color: rgba(124, 58, 237, 0.22);
-  background:
-    radial-gradient(circle at 86% 88%, rgba(124, 58, 237, 0.10), transparent 30%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 246, 251, 0.92));
+  background: rgba(255, 255, 255, 0.72);
   box-shadow:
     0 24px 70px -48px rgba(124, 58, 237, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 :root.light .honsell-navbar-shell::after {
-  background:
-    linear-gradient(90deg, transparent 0%, rgba(124, 58, 237, 0.07) 48%, transparent 74%);
-  opacity: 0.5;
+  display: none;
 }
 
 :root.light .honsell-logo-img {
@@ -716,26 +712,16 @@ html.light .auth-page-shell input.auth-page-dropdown-input {
     isolation: isolate;
     overflow: visible;
     border: 1px solid rgba(124, 58, 237, 0.32);
-    background:
-      radial-gradient(circle at 86% 88%, rgba(109, 40, 217, 0.24), transparent 30%),
-      linear-gradient(180deg, rgba(8, 8, 18, 0.94), rgba(10, 7, 22, 0.9));
+    background: rgba(8, 8, 18, 0.72);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    backdrop-filter: blur(22px) saturate(150%);
     box-shadow:
       0 24px 70px -48px rgba(124, 58, 237, 0.8),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   .honsell-navbar-shell::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    border-radius: inherit;
-    background:
-      linear-gradient(90deg, transparent 0%, rgba(124, 58, 237, 0.13) 48%, transparent 74%);
-    background-size: 190% 100%;
-    opacity: 0.7;
-    animation: honsell-navbar-sheen 8s ease-in-out infinite;
-    pointer-events: none;
+    display: none;
   }
 
   .honsell-navbar-shell > * {
