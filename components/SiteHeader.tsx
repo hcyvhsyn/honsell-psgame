@@ -586,7 +586,7 @@ function MobileBottomNav({
       className="honsell-mobile-bottom-nav fixed inset-x-0 bottom-0 z-[70] px-2 xl:hidden"
       aria-label="Mobil naviqasiya"
     >
-      <div className="honsell-mobile-bottom-bar relative mx-auto grid min-h-[78px] max-w-[30rem] grid-cols-[1fr_1fr_1.12fr_1fr_1fr] items-end rounded-t-[28px] border border-b-0 px-2 pt-3 pb-[env(safe-area-inset-bottom)] backdrop-blur-2xl">
+      <div className="honsell-mobile-bottom-bar relative mx-auto grid min-h-[78px] max-w-[30rem] grid-cols-[1fr_1fr_1.12fr_1fr_1fr] items-end rounded-t-[28px] border border-b-0 px-2 pt-3 pb-[env(safe-area-inset-bottom)]">
         <MobileBottomNavItem
           href="/"
           label="Ana səhifə"
@@ -607,7 +607,7 @@ function MobileBottomNav({
 	          aria-current={profileActive ? "page" : undefined}
 	          className="group honsell-nav-action -mt-8 flex min-w-0 flex-col items-center justify-end gap-1 text-center"
 	        >
-	          <span className="grid h-[58px] w-[58px] place-items-center rounded-full border-[6px] border-[#0a0716] bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-[0_18px_42px_-18px_rgba(124,58,237,1)] transition group-active:scale-95">
+	          <span className="honsell-mobile-profile-orb grid h-[58px] w-[58px] place-items-center rounded-full border-[6px] border-[#0a0716] bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-[0_18px_42px_-18px_rgba(124,58,237,1)] transition group-active:scale-95">
 	            <User className="honsell-nav-icon-motion h-6 w-6" />
 	          </span>
           <span className="max-w-full truncate text-[11px] font-black leading-3 text-violet-100">

@@ -1,25 +1,14 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getReferralCalculatorOptions } from "@/lib/referralCalculatorOptions";
 import type { ProductCategoryNavAsset } from "@/lib/categoryAssets";
 import SiteHeader from "./SiteHeader";
-import ReferralPromoBar from "./ReferralPromoBar";
 
 /**
- * Header-in user-ə AİD OLMAYAN hissələri (kateqoriya navigasiyası + referral
- * promo faizi) bütün ziyarətçilər üçün eynidir — ona görə `unstable_cache` ilə
- * 10 dəqiqəlik keşdə saxlanır. Bu sorğular əvvəl HƏR səhifə açılışında Mumbai-yə
- * ardıcıl gedirdi (~1.8s + getSettings). İndi keşdən gəlir, demək olar 0ms.
+ * Header-in user-ə AİD OLMAYAN hissəsi (kateqoriya navigasiyası) bütün
+ * ziyarətçilər üçün eynidir — ona görə `unstable_cache` ilə 10 dəqiqəlik keşdə
+ * saxlanır. Bu sorğu əvvəl HƏR səhifə açılışında Mumbai-yə gedirdi (~1.8s). İndi
+ * keşdən gəlir, demək olar 0ms.
  */
-const getCachedPromoPct = unstable_cache(
-  async () => {
-    const referralOptions = await getReferralCalculatorOptions();
-    return Math.round(Math.max(0, ...referralOptions.map((option) => option.ratePct)));
-  },
-  ["site-header:promo-pct"],
-  { revalidate: 600, tags: ["site-header"] },
-);
-
 const getCachedCategoryAssets = unstable_cache(
   async (): Promise<ProductCategoryNavAsset[] | null> => {
     try {
@@ -67,15 +56,7 @@ export default async function SiteHeaderServer() {
   // statik/ISR ola bilir, edge-də keşlənir. User-vəziyyəti (login/hesab, cüzdan,
   // referral kod) client-də `useSession()` ilə `/api/session`-dən gəlir.
   // Yalnız hamı üçün eyni olan keşlənmiş data qalır.
-  const [categoryAssets, promoPct] = await Promise.all([
-    getCachedCategoryAssets(),
-    getCachedPromoPct(),
-  ]);
+  const categoryAssets = await getCachedCategoryAssets();
 
-  return (
-    <>
-      <ReferralPromoBar sharePct={promoPct > 0 ? promoPct : 5} />
-      <SiteHeader categoryAssets={categoryAssets} />
-    </>
-  );
+  return <SiteHeader categoryAssets={categoryAssets} />;
 }

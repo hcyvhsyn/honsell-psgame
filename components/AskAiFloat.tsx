@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
+import styles from "./AskAiFloat.module.css";
 
 type ProductCard = {
   id: string;
@@ -224,61 +225,61 @@ export default function AskAiFloat() {
   }
 
   return (
-    <div className="fixed bottom-[calc(6.4rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-[130] flex flex-col items-end gap-3 xl:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] xl:right-[calc(1.5rem+env(safe-area-inset-right))]">
+    <div className={`${styles.root} fixed bottom-[calc(6.4rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-[130] flex flex-col items-end gap-3 xl:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] xl:right-[calc(1.5rem+env(safe-area-inset-right))]`}>
       {/* Söhbət paneli */}
       {open && (
-        <div className="flex h-[32rem] max-h-[75vh] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[var(--background)] shadow-2xl shadow-black/40">
+        <section className={styles.panel} aria-label="Honsell AI söhbəti">
+          <span className={styles.panelGlow} aria-hidden />
           {/* Başlıq */}
-          <div className="flex items-center gap-3 border-b border-white/10 bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-3 text-white">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/mascote.png"
-              alt="Honsell maskotu"
-              className="h-9 w-9 shrink-0 rounded-full bg-white/20 object-cover object-top"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">Honsell AI köməkçi</p>
-              <p className="truncate text-xs text-white/70">Saytdakı məhsullar üzrə soruş</p>
+          <header className={styles.header}>
+            <div className={styles.avatarWrap}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/mascote.png" alt="Honsell maskotu" className={styles.headerAvatar} />
+              <span className={styles.onlineDot} aria-label="Onlayn" />
+            </div>
+            <div className={styles.headerCopy}>
+              <div className={styles.titleRow}>
+                <p className={styles.title}>Honsell AI</p>
+                <span className={styles.aiBadge}>KÖMƏKÇİ</span>
+              </div>
+              <p className={styles.subtitle}>Oyun və paket seçimini birlikdə edək</p>
             </div>
             <button
+              type="button"
               onClick={() => setOpen(false)}
               aria-label="Bağla"
-              className="rounded-full p-1 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
+              className={styles.closeButton}
             >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
               </svg>
             </button>
-          </div>
+          </header>
 
           {authed === false ? (
             <LoginGate pathname={pathname} />
           ) : authed === null ? (
-            <div className="flex flex-1 items-center justify-center text-zinc-400">
+            <div className={styles.centerLoader}>
               <TypingDots />
             </div>
           ) : (
           <>
           {/* Mesajlar */}
-          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-3 py-3">
+          <div ref={scrollRef} className={styles.messages}>
             {messages.map((m, i) => (
-              <div key={i} className={`flex gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div key={i} className={`${styles.messageRow} ${m.role === "user" ? styles.userRow : styles.assistantRow}`}>
                 {m.role === "assistant" && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src="/mascote.png"
                     alt=""
-                    className="mt-0.5 h-7 w-7 shrink-0 rounded-full bg-violet-500/20 object-cover object-top ring-1 ring-violet-400/30"
+                    className={styles.messageAvatar}
                   />
                 )}
-                <div className={`flex max-w-[85%] flex-col gap-2 ${m.role === "user" ? "items-end" : "items-start"}`}>
+                <div className={`${styles.messageStack} ${m.role === "user" ? styles.userStack : styles.assistantStack}`}>
                   {m.content && (
                     <div
-                      className={`break-words rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-sm ${
-                        m.role === "user"
-                          ? "rounded-br-sm bg-violet-600 text-white"
-                          : "rounded-bl-sm border border-white/10 bg-white/[0.06] text-[var(--foreground)]"
-                      }`}
+                      className={`${styles.messageBubble} ${m.role === "user" ? styles.userBubble : styles.assistantBubble}`}
                     >
                       {m.role === "user" ? (
                         <span className="whitespace-pre-wrap">{m.content}</span>
@@ -304,15 +305,36 @@ export default function AskAiFloat() {
                 </div>
               </div>
             ))}
+            {messages.length === 1 && !loading && (
+              <div className={styles.suggestions} aria-label="Hazır suallar">
+                <span className={styles.suggestionLabel}>Nə axtarırsan?</span>
+                <div className={styles.suggestionList}>
+                  {["Endirimli oyun tap", "PS Plus paketləri", "Netflix qiymətləri"].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => {
+                        setInput(suggestion);
+                        inputRef.current?.focus();
+                      }}
+                      className={styles.suggestion}
+                    >
+                      <span aria-hidden>↗</span>
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {loading && (
-              <div className="flex justify-start gap-2">
+              <div className={`${styles.messageRow} ${styles.assistantRow}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/mascote.png"
                   alt=""
-                  className="mt-0.5 h-7 w-7 shrink-0 rounded-full bg-violet-500/20 object-cover object-top ring-1 ring-violet-400/30"
+                  className={styles.messageAvatar}
                 />
-                <div className="rounded-2xl rounded-bl-sm border border-white/10 bg-white/[0.06] px-3.5 py-2.5 text-sm text-[var(--foreground)]">
+                <div className={`${styles.messageBubble} ${styles.assistantBubble} ${styles.typingBubble}`}>
                   <TypingDots />
                 </div>
               </div>
@@ -320,65 +342,69 @@ export default function AskAiFloat() {
           </div>
 
           {/* Giriş */}
-          <div className="border-t border-white/10 p-2">
-            <div className="flex items-end gap-2">
+          <div className={styles.composerArea}>
+            <div className={styles.composer}>
+              <span className={styles.composerSpark} aria-hidden>✦</span>
               <input
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKeyDown}
-                placeholder="Sualını yaz..."
-                className="flex-1 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--foreground)] outline-none placeholder:text-zinc-500 focus:border-violet-500/60"
+                placeholder="Məsələn: 20₼-dək hansı oyun var?"
+                className={styles.input}
               />
               <button
+                type="button"
                 onClick={send}
                 disabled={loading || !input.trim()}
                 aria-label="Göndər"
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white transition-transform hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
+                className={styles.sendButton}
               >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+                <svg viewBox="0 0 24 24" fill="currentColor">
                   <path d="M3.4 20.4l17.45-7.48a1 1 0 000-1.84L3.4 3.6a.993.993 0 00-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z" />
                 </svg>
               </button>
             </div>
+            <div className={styles.composerMeta}>
+              <span>AI cavabları məhsul bazasına əsaslanır</span>
+              <span className={styles.enterHint}>ENTER ↵</span>
+            </div>
           </div>
           </>
           )}
-        </div>
+        </section>
       )}
 
       {/* Açıcı düymə + tooltip */}
       <div className="hidden items-end gap-2 self-end xl:flex">
         {!open && (
           <div
-            className={`pointer-events-none mb-3 origin-bottom-right rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-lg transition-all duration-300 ${
+            className={`${styles.tooltip} pointer-events-none mb-3 origin-bottom-right ${
               showTooltip ? "translate-y-0 scale-100 opacity-100" : "translate-y-1 scale-95 opacity-0"
             }`}
           >
-            <span className="relative">
-              AI-dan soruş 🤖
-              <span className="absolute -bottom-[10px] right-3 h-0 w-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-white" />
-            </span>
+            <span className={styles.tooltipKicker}>HONSELL AI</span>
+            <span>Birlikdə tapaq</span>
           </div>
         )}
 
         <button
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? "Köməkçini bağla" : "AI köməkçi"}
-          className="group relative inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-900/40 transition-transform duration-200 hover:scale-105 active:scale-95"
+          className={styles.launcher}
         >
-          {!open && <span className="absolute inset-0 animate-ping rounded-full bg-violet-600 opacity-30" />}
+          {!open && <span className={styles.launcherPulse} />}
           {!open && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src="/mascote.png"
               alt="Honsell maskotu"
-              className="absolute inset-0 h-full w-full rounded-full object-cover object-top"
+              className={styles.launcherImage}
             />
           )}
-          <span className="absolute inset-0 rounded-full ring-2 ring-white/20" />
+          <span className={styles.launcherRing} />
           {open && (
-            <svg viewBox="0 0 24 24" className="relative h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2}>
+            <svg viewBox="0 0 24 24" className={styles.launcherClose} fill="none" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
             </svg>
           )}
@@ -399,11 +425,11 @@ function ProductRow({
   const inCart = hydrated && has(product.id);
 
   return (
-    <div className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-2">
+    <div className={styles.resultCard}>
       <Link
         href={`/oyunlar/${product.productId}`}
         onClick={onNavigate}
-        className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-black/20"
+        className={styles.resultImage}
       >
         {product.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -417,12 +443,12 @@ function ProductRow({
         <Link
           href={`/oyunlar/${product.productId}`}
           onClick={onNavigate}
-          className="line-clamp-2 text-xs font-semibold text-[var(--foreground)] hover:underline"
+          className={styles.resultTitle}
         >
           {product.title}
         </Link>
         <div className="mt-0.5 flex items-center gap-1.5">
-          <span className="text-sm font-bold text-violet-400">
+          <span className={styles.resultPrice}>
             {product.finalAzn.toFixed(2)}₼
           </span>
           {product.discountPct && product.originalAzn ? (
@@ -454,7 +480,7 @@ function ProductRow({
         disabled={inCart}
         aria-label={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
         title={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
-        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white transition-transform hover:scale-105 active:scale-95 disabled:bg-emerald-600 disabled:opacity-90"
+        className={styles.resultAction}
       >
         {inCart ? (
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
@@ -491,17 +517,17 @@ function ServiceRow({
   );
 
   return (
-    <div className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-2">
+    <div className={styles.resultCard}>
       {service.link ? (
         <Link
           href={service.link}
           onClick={onNavigate}
-          className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-black/20"
+          className={styles.resultImage}
         >
           {thumb}
         </Link>
       ) : (
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-black/20">{thumb}</div>
+        <div className={styles.resultImage}>{thumb}</div>
       )}
 
       <div className="min-w-0 flex-1">
@@ -509,17 +535,17 @@ function ServiceRow({
           <Link
             href={service.link}
             onClick={onNavigate}
-            className="line-clamp-2 text-xs font-semibold text-[var(--foreground)] hover:underline"
+            className={styles.resultTitle}
           >
             {service.title}
           </Link>
         ) : (
-          <span className="line-clamp-2 text-xs font-semibold text-[var(--foreground)]">
+          <span className={styles.resultTitle}>
             {service.title}
           </span>
         )}
         <div className="mt-0.5 flex items-center gap-1.5">
-          <span className="text-sm font-bold text-violet-400">
+          <span className={styles.resultPrice}>
             {service.finalAzn.toFixed(2)}₼
           </span>
           {service.discountPct && service.originalAzn ? (
@@ -551,7 +577,7 @@ function ServiceRow({
           disabled={inCart}
           aria-label={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
           title={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white transition-transform hover:scale-105 active:scale-95 disabled:bg-emerald-600 disabled:opacity-90"
+          className={styles.resultAction}
         >
           {inCart ? (
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
@@ -571,7 +597,7 @@ function ServiceRow({
           onClick={onNavigate}
           aria-label="Səhifəyə bax"
           title="Səhifəyə bax"
-          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-violet-600 px-3 text-xs font-semibold text-white transition-transform hover:scale-105 active:scale-95"
+          className={`${styles.resultAction} ${styles.resultLink}`}
         >
           Bax
         </Link>
@@ -669,32 +695,29 @@ function renderInline(text: string): React.ReactNode {
 function LoginGate({ pathname }: { pathname: string | null }) {
   const next = encodeURIComponent(pathname || "/");
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-8 text-center">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/mascote.png"
-        alt="Honsell maskotu"
-        className="h-16 w-16 rounded-full bg-violet-500/20 object-cover object-top ring-2 ring-violet-400/30"
-      />
+    <div className={styles.loginGate}>
+      <div className={styles.loginAvatarWrap}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/mascote.png" alt="Honsell maskotu" className={styles.loginAvatar} />
+        <span className={styles.loginLock} aria-hidden>✦</span>
+      </div>
       <div>
-        <p className="text-sm font-semibold text-[var(--foreground)]">
-          Köməkçidən istifadə üçün daxil ol
-        </p>
-        <p className="mt-1 text-xs text-zinc-400">
+        <p className={styles.loginTitle}>Söhbətə başlamağa hazırsan?</p>
+        <p className={styles.loginText}>
           Sual vermək üçün hesabına daxil ol. Hesabın yoxdursa, bir dəqiqəyə
           qeydiyyatdan keç.
         </p>
       </div>
-      <div className="flex w-full flex-col gap-2">
+      <div className={styles.loginActions}>
         <Link
           href={`/login?next=${next}`}
-          className="w-full rounded-full bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500"
+          className={styles.loginPrimary}
         >
           Daxil ol
         </Link>
         <Link
           href={`/register?next=${next}`}
-          className="w-full rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-[var(--foreground)] transition hover:bg-white/10"
+          className={styles.loginSecondary}
         >
           Qeydiyyatdan keç
         </Link>

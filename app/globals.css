@@ -420,6 +420,22 @@ html.theme-soft-transition *::after {
   display: none;
 }
 
+:root.light .honsell-mobile-bottom-bar {
+  border-color: rgba(124, 58, 237, 0.22);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    0 -22px 70px -38px rgba(124, 58, 237, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+:root.light .honsell-mobile-bottom-bar .text-slate-400 { color: #475569 !important; }
+:root.light .honsell-mobile-bottom-bar .text-violet-100 { color: #5b21b6 !important; }
+:root.light .honsell-mobile-bottom-bar .text-sky-300 { color: #0284c7 !important; }
+:root.light .honsell-mobile-bottom-bar .text-violet-300 { color: #7c3aed !important; }
+:root.light .honsell-mobile-bottom-bar .text-amber-300 { color: #d97706 !important; }
+:root.light .honsell-mobile-bottom-bar .text-emerald-300 { color: #059669 !important; }
+:root.light .honsell-mobile-profile-orb { border-color: rgba(255, 255, 255, 0.9) !important; }
+
 :root.light .honsell-logo-img {
   filter: brightness(0) saturate(100%);
 }
@@ -732,9 +748,9 @@ html.light .auth-page-shell input.auth-page-dropdown-input {
   /* Mobil alt naviqasiya navbar ilə eyni bənövşəyi-qara paleti istifadə edir. */
   .honsell-mobile-bottom-bar {
     border-color: rgba(124, 58, 237, 0.32);
-    background:
-      radial-gradient(circle at 50% 0%, rgba(109, 40, 217, 0.22), transparent 60%),
-      linear-gradient(180deg, rgba(10, 7, 22, 0.96), rgba(8, 8, 18, 0.97));
+    background: rgba(8, 8, 18, 0.72);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    backdrop-filter: blur(22px) saturate(150%);
     box-shadow:
       0 -22px 70px -36px rgba(124, 58, 237, 0.8),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
