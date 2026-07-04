@@ -201,7 +201,7 @@ export function SectionFlowDivider({
           flip ? "rotate-[0.65deg]" : "-rotate-[0.65deg]"
         }`}
       >
-        <div className="honsell-flow-track flex w-max items-center text-zinc-950">
+        <div data-scroll-anim className="honsell-flow-track flex w-max items-center text-zinc-950">
           {[0, 1].map((group) => (
             <div key={group} className="flex shrink-0 items-center" aria-hidden={group === 1}>
               {items.map((_, index) => (
@@ -247,6 +247,7 @@ export function HeroMotionOverlay() {
       {symbols.map((s, i) => (
         <span
           key={i}
+          data-scroll-anim
           className={`ps-float absolute hidden sm:block ${s.className}`}
           style={
             {

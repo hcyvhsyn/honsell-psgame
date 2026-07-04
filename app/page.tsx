@@ -15,6 +15,7 @@ import SiteFooter from "@/components/SiteFooter";
 import HomeBannerSlider from "@/components/HomeBannerSlider";
 import HomeProductMatrix, { type HomeProductMatrixItem } from "@/components/HomeProductMatrix";
 import HomeScrollTuning from "@/components/HomeScrollTuning";
+import ScrollAnimationManager from "@/components/ScrollAnimationManager";
 import HomeTrustBar from "@/components/HomeTrustBar";
 import HomeDiscountCarousel from "@/components/HomeDiscountCarousel";
 import HomeTestimonials from "@/components/HomeTestimonials";
@@ -675,6 +676,7 @@ export default async function HomePage() {
       )}
       <SiteHeaderServer />
       <HomeScrollTuning />
+      <ScrollAnimationManager />
 
       <h1 className="sr-only">{SITE_NAME} — {SITE_DESCRIPTION}</h1>
 

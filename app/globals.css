@@ -2035,3 +2035,14 @@ html[data-ai-chat-open] #theme-toggle {
     will-change: auto;
   }
 }
+
+/* ── Mərkəzləşdirilmiş scroll-animasiya gating ──────────────────────────────
+   ScrollAnimationManager görünməyən dekorativ animasiyalara `.anim-idle` əlavə
+   edir: animasiya dayanır və `will-change` sıfırlanır ki, daimi GPU kompozit
+   qatı azad olsun. Bu qaydalar qatsızdır (unlayered) — ona görə `@layer
+   utilities` içindəki `.ps-float` təyinatını da üstələyir. */
+.honsell-flow-track.anim-idle,
+.ps-float.anim-idle {
+  animation-play-state: paused;
+  will-change: auto;
+}
