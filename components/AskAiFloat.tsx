@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useModals } from "@/lib/modals";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import styles from "./AskAiFloat.module.css";
@@ -42,6 +43,7 @@ const GREETING =
 
 export default function AskAiFloat() {
   const pathname = usePathname();
+  const { active: activeModal } = useModals();
   const [open, setOpen] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [input, setInput] = useState("");
@@ -218,8 +220,10 @@ export default function AskAiFloat() {
 
   if (
     pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/reels") || // reels immersiv feed — AI görünməsin
     pathname === "/login" ||
-    pathname === "/register"
+    pathname === "/register" ||
+    activeModal === "cart" // səbət açılanda AI gizli
   ) {
     return null;
   }
@@ -375,8 +379,9 @@ export default function AskAiFloat() {
         </section>
       )}
 
-      {/* Açıcı düymə + tooltip */}
-      <div className="hidden items-end gap-2 self-end xl:flex">
+      {/* Açıcı düymə hər ölçüdə üzən (sticky) görünür; mobil-də desktopdan kiçik
+          (scale ilə). Panel isə açılanda bu fixed konteynerdə görünür. */}
+      <div className="flex origin-bottom-right scale-[0.78] items-end gap-2 self-end xl:scale-100">
         {!open && (
           <div
             className={`${styles.tooltip} pointer-events-none mb-3 origin-bottom-right ${

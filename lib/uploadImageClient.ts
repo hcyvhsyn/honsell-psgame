@@ -61,3 +61,66 @@ export async function uploadAdminImage(
   if (error) return { ok: false, error: error.message };
   return { ok: true, url: String(d.publicUrl ?? "") };
 }
+
+/**
+ * Reels videoları üçün klient yükləyicisi. `uploadAdminImage`-dən fərqi: video
+ * SIXILMIR (olduğu kimi yüklənir) və `onProgress` ilə böyük faylların irəliləyişi
+ * bildirilir (R2 rejimində XHR, Supabase rejimində təxmini).
+ */
+export async function uploadAdminVideo(
+  endpoint: string,
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const init = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contentType: file.type }),
+  });
+  const data = await init.json().catch(() => ({} as Record<string, unknown>));
+  if (!init.ok) {
+    return { ok: false, error: String((data as { error?: string }).error ?? "Upload hazırlanmadı") };
+  }
+
+  // ─── R2 presigned PUT (XHR — progress üçün) ────────────────────────────
+  if ((data as { mode?: string }).mode === "r2") {
+    const uploadUrl = String((data as { uploadUrl?: string }).uploadUrl ?? "");
+    const publicUrl = String((data as { publicUrl?: string }).publicUrl ?? "");
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", uploadUrl);
+        xhr.setRequestHeader("Content-Type", file.type);
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+        };
+        xhr.onload = () =>
+          xhr.status >= 200 && xhr.status < 300
+            ? resolve()
+            : reject(new Error(`R2 upload alınmadı (${xhr.status})`));
+        xhr.onerror = () => reject(new Error("R2 upload alınmadı"));
+        xhr.send(file);
+      });
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "R2 upload alınmadı" };
+    }
+    return { ok: true, url: publicUrl };
+  }
+
+  // ─── Supabase signed upload (fallback) ─────────────────────────────────
+  const d = data as { bucket?: string; path?: string; token?: string; publicUrl?: string };
+  if (!d.bucket || !d.path || !d.token) {
+    return { ok: false, error: "Upload hədəfi natamam qayıtdı" };
+  }
+  const supabase = getSupabaseBrowser();
+  const { error } = await supabase.storage
+    .from(d.bucket)
+    .uploadToSignedUrl(d.path, d.token, file, {
+      cacheControl: IMAGE_UPLOAD_CACHE_CONTROL,
+      contentType: file.type,
+      upsert: true,
+    });
+  if (error) return { ok: false, error: error.message };
+  onProgress?.(100);
+  return { ok: true, url: String(d.publicUrl ?? "") };
+}

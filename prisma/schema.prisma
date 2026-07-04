@@ -125,6 +125,10 @@ model User {
   reviewReactions ReviewReaction[]
   reviewComments  ReviewComment[]
 
+  // Reels — şaquli video feed: reaksiyalar (like/dislike) + şərhlər.
+  reelReactions ReelReaction[]
+  reelComments  ReelComment[]
+
   // Honsell İcması — sərbəst topluluq divarı (postlar + reaksiyalar + şərhlər).
   communityPosts          CommunityPost[]
   communityPostReactions  CommunityPostReaction[]
@@ -1487,6 +1491,87 @@ model ReviewComment {
   updatedAt DateTime @updatedAt
 
   @@index([reviewId, createdAt])
+  @@index([userId])
+}
+
+// ─── Reels: şaquli video feed (TikTok/Instagram tərzi) ───────────────────────
+//
+// Admin panel-dən video yüklənir; istifadəçi izləyir, bəyənir/dislike edir,
+// şərh yazır, izlənmə sayını görür və tək toxunuşla CTA hədəfini (oyun / hesab
+// xidməti / xarici link) açır. Like/dislike/şərh məntiqi GameReview sisteminin
+// (ReviewReaction/ReviewComment) eyni şablonudur.
+model Reel {
+  id         String  @id @default(cuid())
+  title      String
+  caption    String?
+
+  // Video + poster cdn.honsell.store (R2) arxasında. Poster ilk-kadr thumbnaili —
+  // feed-də anında paint olunur, video onun arxasında yüklənir (TTFF üçün).
+  videoUrl   String
+  posterUrl  String
+  width      Int     @default(720)
+  height     Int     @default(1280)
+  durationMs Int     @default(0)
+
+  // Platforma nişanı (badge) — sərbəst string (Game.store kimi), enum deyil.
+  platformCode    String? // NETFLIX | PS | STEAM | EPIC | ...
+  platformLabel   String?
+  platformLogoUrl String?
+
+  // Çevik "tək toxunuşla al" CTA:
+  //   ctaType=GAME    → ctaTargetId = Game.productId (səbətə əlavə)
+  //   ctaType=SERVICE → ctaTargetId = ServiceProduct.id (səbətə əlavə)
+  //   ctaType=URL     → ctaHref açılır
+  ctaType     String  @default("URL") // GAME | SERVICE | URL
+  ctaTargetId String?
+  ctaHref     String?
+  ctaLabel    String? @default("Hesab al")
+
+  viewCount   Int     @default(0)
+  isPublished Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  reactions ReelReaction[]
+  comments  ReelComment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isPublished, sortOrder, createdAt])
+}
+
+model ReelReaction {
+  reelId String
+  reel   Reel   @relation(fields: [reelId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // +1 (Like) | -1 (Dislike). Toggle: eyni dəyər təkrar gəlsə silinir, əks dəyər update.
+  value Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([reelId, userId])
+  @@index([reelId, value])
+}
+
+model ReelComment {
+  id     String @id @default(cuid())
+  reelId String
+  reel   Reel   @relation(fields: [reelId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  body String
+  // Admin tərəfindən gizlədilibsə public feed-də görünmür. Şərhlər dərhal
+  // görünür (moderasiya öncədən deyil) — admin yalnız sonradan gizlədir/silir.
+  isHidden Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reelId, isHidden, createdAt])
   @@index([userId])
 }
 

@@ -78,3 +78,74 @@ export async function createImageUploadTarget(opts: {
     return { ok: false, status: 500, error: msg };
   }
 }
+
+// ─── Video (Reels) ───────────────────────────────────────────────────────────
+
+const ALLOWED_VIDEO = new Set(["video/mp4", "video/webm"]);
+
+function videoExtOf(ct: string): string {
+  return ct === "video/webm" ? "webm" : "mp4";
+}
+
+/**
+ * Reels videoları üçün upload hədəfi. Şəkildən fərqli olaraq video sıxılmır və
+ * ölçü limiti böyükdür (default 100MB). Eyni R2/Supabase presign axını.
+ *
+ * Qeyd: R2-yə düşən MP4-lər ideal halda `-movflags +faststart` (moov atom önündə)
+ * ilə olmalıdır ki, brauzer ilk kadrı bütün faylı çəkmədən oynatsın (TTFF).
+ */
+export async function createVideoUploadTarget(opts: {
+  contentType: string;
+  prefix: string;
+  supabaseBucket: string;
+  fileSizeLimit?: number;
+}): Promise<ImageUploadTarget> {
+  const { contentType, prefix, supabaseBucket } = opts;
+  const limit = opts.fileSizeLimit ?? 100 * 1024 * 1024;
+
+  if (!ALLOWED_VIDEO.has(contentType)) {
+    return { ok: false, status: 400, error: "Yalnız MP4 və WEBM video qəbul olunur" };
+  }
+
+  const ext = videoExtOf(contentType);
+  const rand = Math.random().toString(36).slice(2, 8);
+  const key = `${prefix.replace(/\/+$/, "")}/${Date.now()}-${rand}.${ext}`;
+
+  if (isR2Configured()) {
+    try {
+      const { uploadUrl, publicUrl } = await presignR2Upload(key, contentType);
+      return { ok: true, mode: "r2", uploadUrl, publicUrl, key };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { ok: false, status: 500, error: `R2 upload linki yaradıla bilmədi: ${msg}` };
+    }
+  }
+
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data: existing } = await supabase.storage.getBucket(supabaseBucket);
+    if (!existing) {
+      const { error: createErr } = await supabase.storage.createBucket(supabaseBucket, {
+        public: true,
+        allowedMimeTypes: ["video/mp4", "video/webm"],
+        fileSizeLimit: limit,
+      });
+      if (createErr && !/already exists/i.test(createErr.message)) {
+        return { ok: false, status: 500, error: `Bucket yaradıla bilmədi: ${createErr.message}` };
+      }
+    }
+
+    const { data, error } = await supabase.storage.from(supabaseBucket).createSignedUploadUrl(key);
+    if (error || !data) {
+      return { ok: false, status: 500, error: "Upload linki yaradıla bilmədi" };
+    }
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(supabaseBucket).getPublicUrl(key);
+
+    return { ok: true, mode: "supabase", bucket: supabaseBucket, path: key, token: data.token, publicUrl };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, status: 500, error: msg };
+  }
+}

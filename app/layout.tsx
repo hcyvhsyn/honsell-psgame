@@ -13,6 +13,7 @@ import AppModals from "@/components/AppModals";
 import FavoritesBootstrap from "@/components/FavoritesBootstrap";
 import FavoriteIntroModal from "@/components/FavoriteIntroModal";
 import AskAiFloat from "@/components/AskAiFloatLazy";
+import ReelsLauncher from "@/components/reels/ReelsLauncher";
 import TopLoader from "@/components/TopLoader";
 import { Suspense } from "react";
 import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "@/lib/site";
@@ -147,6 +148,7 @@ export default async function RootLayout({
                       <AppModals />
                       <FavoriteIntroModal />
                       <AskAiFloat />
+                      <ReelsLauncher />
                       <ThemeToggle />
                     </CartProvider>
                   </FavoritesBootstrap>

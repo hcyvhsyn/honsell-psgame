@@ -58,6 +58,12 @@ export function revalidateBanners(): void {
   revalidatePath("/playstation");
 }
 
+/** Reels feed (admin video CRUD) dəyişəndə — ilk səhifə RSC keşini sıfırlayır. */
+export function revalidateReels(): void {
+  revalidateTag("reels");
+  revalidatePath("/reels");
+}
+
 /** Streaming title və featured banner dəyişiklikləri. */
 export function revalidateStreaming(): void {
   revalidateTag("home");

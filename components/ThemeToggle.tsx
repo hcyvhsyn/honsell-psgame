@@ -39,7 +39,7 @@ export default function ThemeToggle() {
       role="radiogroup"
       aria-label="Mövzu rejimi"
       data-theme={isDark ? "dark" : "light"}
-      className={`${styles.switch} ${isDark ? styles.dark : styles.light} fixed left-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[110] xl:bottom-6 xl:left-5`}
+      className={`${styles.switch} ${isDark ? styles.dark : styles.light} fixed left-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[110] max-xl:hidden xl:bottom-6 xl:left-5`}
     >
       <span className={styles.railHighlight} aria-hidden />
       <span className={styles.starField} aria-hidden>

@@ -36,6 +36,7 @@ import {
   Megaphone,
   Network,
   Star,
+  Clapperboard,
   Moon,
   Sun,
 } from "lucide-react";
@@ -82,7 +83,8 @@ type IconName =
   | "Monitor"
   | "Megaphone"
   | "Network"
-  | "Star";
+  | "Star"
+  | "Clapperboard";
 
 export type NavItemSpec = {
   href: string;
@@ -128,6 +130,7 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   Megaphone,
   Network,
   Star,
+  Clapperboard,
 };
 
 export default function AdminSidebar({

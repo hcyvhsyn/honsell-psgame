@@ -67,6 +67,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
     description: "Vitrin, banner, xəbər və marketinq materialları",
     items: [
       { href: "/admin/banners", label: "Bannerlər", iconName: "ImageIcon" },
+      { href: "/admin/reels", label: "Reels (Videolar)", iconName: "Clapperboard" },
       { href: "/admin/subscription-packages", label: "Abunəlik Paketləri (Vitrin)", iconName: "Crown" },
       { href: "/admin/categories", label: "Kateqoriya şəkilləri", iconName: "LayoutGrid" },
       { href: "/admin/news", label: "Xəbərlər", iconName: "Newspaper" },

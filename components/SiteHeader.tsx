@@ -5,7 +5,6 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import {
-  Bot,
   BriefcaseBusiness,
   ChevronDown,
   ChevronRight,
@@ -25,6 +24,8 @@ import {
   MessageCircle,
   MessagesSquare,
   Monitor,
+  Moon,
+  Sun,
   Music2,
   Home,
   Percent,
@@ -43,6 +44,7 @@ import CartIndicator from "./CartIndicator";
 import Logo from "./Logo";
 import NavSearch from "./NavSearch";
 import { useSession } from "./SessionProvider";
+import { useTheme } from "@/lib/theme";
 import {
   PRODUCT_CATEGORY_DEFINITIONS,
   type ProductCategoryNavAsset,
@@ -181,6 +183,7 @@ export default function SiteHeader({
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [desktopCategoriesOpen, setDesktopCategoriesOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
   const pathname = usePathname();
   const productCategoryItems = buildProductCategoryItems(categoryAssets);
 
@@ -238,6 +241,19 @@ export default function SiteHeader({
             </div>
 
             <div className="flex min-w-0 items-center justify-end gap-2 xl:gap-3">
+              {/* Mobil mövzu düyməsi — desktopda üzən switch var, ona görə yalnız mobil. */}
+              <button
+                type="button"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                aria-label="Mövzu rejimi"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-[18px] border border-zinc-200 bg-white/75 text-zinc-700 transition hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-200 dark:hover:bg-white/[0.075] xl:hidden"
+              >
+                {theme === "dark" ? (
+                  <Sun className="h-5 w-5 text-amber-400" />
+                ) : (
+                  <Moon className="h-5 w-5 text-violet-500" />
+                )}
+              </button>
               <CartIndicator />
 
               {sessionLoading ? (
@@ -310,7 +326,6 @@ export default function SiteHeader({
         pathname={pathname}
         categoriesOpen={menuOpen}
         onOpenCategories={() => setMenuOpen(true)}
-        onOpenAi={openAiAssistant}
       />
 
       {menuOpen && (
@@ -571,12 +586,10 @@ function MobileBottomNav({
   pathname,
   categoriesOpen,
   onOpenCategories,
-  onOpenAi,
 }: {
   pathname: string;
   categoriesOpen: boolean;
   onOpenCategories: () => void;
-  onOpenAi: () => void;
 }) {
   const productsActive = hrefMatches(pathname, "/oyunlar");
   const profileActive = hrefMatches(pathname, "/profile");
@@ -623,11 +636,11 @@ function MobileBottomNav({
           iconClassName="text-amber-300"
         />
         <MobileBottomNavItem
-          label="AI bot"
-          Icon={Bot}
-          onClick={onOpenAi}
-          accent
-          iconClassName="text-emerald-300"
+          href="/reels"
+          label="Reels"
+          Icon={Clapperboard}
+          active={hrefMatches(pathname, "/reels")}
+          iconClassName="text-rose-300"
         />
       </div>
     </nav>
