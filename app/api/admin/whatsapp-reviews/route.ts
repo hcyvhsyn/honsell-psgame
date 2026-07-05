@@ -74,19 +74,38 @@ export async function GET(req: Request) {
       reviewText: true,
       rating: true,
       userId: true,
+      testimonialId: true,
       usedAt: true,
       expiresAt: true,
       createdAt: true,
     },
   });
+
+  // Admin cavabları Testimonial-da saxlanılır — dəvətin testimonialId-si ilə birləşdir.
+  const testimonialIds = items
+    .map((i) => i.testimonialId)
+    .filter((id): id is string => Boolean(id));
+  const replies = testimonialIds.length
+    ? await prisma.testimonial.findMany({
+        where: { id: { in: testimonialIds } },
+        select: { id: true, adminReply: true, adminReplyImageUrl: true },
+      })
+    : [];
+  const replyById = new Map(replies.map((r) => [r.id, r]));
+
   return NextResponse.json({
-    items: items.map((i) => ({
-      ...i,
-      url: `${baseUrl()}/rey/${i.token}`,
-      usedAt: i.usedAt?.toISOString() ?? null,
-      expiresAt: i.expiresAt.toISOString(),
-      createdAt: i.createdAt.toISOString(),
-    })),
+    items: items.map((i) => {
+      const reply = i.testimonialId ? replyById.get(i.testimonialId) : null;
+      return {
+        ...i,
+        url: `${baseUrl()}/rey/${i.token}`,
+        adminReply: reply?.adminReply ?? null,
+        adminReplyImageUrl: reply?.adminReplyImageUrl ?? null,
+        usedAt: i.usedAt?.toISOString() ?? null,
+        expiresAt: i.expiresAt.toISOString(),
+        createdAt: i.createdAt.toISOString(),
+      };
+    }),
   });
 }
 

@@ -905,6 +905,11 @@ model Testimonial {
   sortOrder     Int      @default(0)
   // Source order this review was written from (via post-purchase email invite).
   transactionId String?  @unique
+  // Admin cavabı — müştəri rəyinə rəsmi cavab. Anasayfada rəy kartında xüsusi
+  // dizaynla göstərilir. Şəkil (məs. ekran görüntüsü) əlavə oluna bilər.
+  adminReply         String?
+  adminReplyImageUrl String?
+  adminReplyAt       DateTime?
   createdAt     DateTime @default(now())
 }
 

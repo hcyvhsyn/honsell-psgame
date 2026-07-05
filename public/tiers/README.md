@@ -1,14 +1,14 @@
 # Müştəri tier (status) ikonları
 
-TierBadge ikonu `/tiers/<açar>.svg` ünvanından yükləyir. `<açar>` = CustomerTier.icon
-(referal səhifəsində "İkon açarı" sahəsi). SVG yoxdursa ikon gizlədilir, yalnız ad qalır.
+TierBadge avtomatik loyallıq statuslarını birbaşa `public/<status>.svg`, manual
+statusları isə `/tiers/<açar>.svg` ünvanından yükləyir. Manual statuslarda
+`<açar>` = CustomerTier.icon (referal səhifəsində "İkon açarı" sahəsi).
 
 ## Avtomatik (xərc) tier-ləri
-- `bronze.svg`   — Bronze
-- `silver.svg`   — Silver
-- `gold.svg`     — Gold
-- `platinum.svg` — Platinum
-- `diamond.svg`  — Diamond
+- `/bronze.svg`  — Bronze
+- `/silver.svg`  — Silver
+- `/gold.svg`    — Gold
+- `/diamond.svg` — Diamond
 
 ## Manual statuslar
 - `sponsorlu.svg` — Sponsorlu

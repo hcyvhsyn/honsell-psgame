@@ -1,11 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const LOYALTY_ICON_KEYS = new Set(["bronze", "silver", "gold", "diamond"]);
+
+function resolveIconSrc(tier: TierBadgeData): string | null {
+  const candidates = [tier.icon, tier.name, tier.displayName];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const normalized = candidate
+      .trim()
+      .toLowerCase()
+      .replace(/^honsell\s+/, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    if (LOYALTY_ICON_KEYS.has(normalized)) return `/${normalized}.svg`;
+  }
+
+  return tier.icon ? `/tiers/${tier.icon}.svg` : null;
+}
 
 /**
  * Müştəri tier nişanı (status) — ad + SVG ikon.
- * SVG public/-dan gəlir: icon "bronze" → /tiers/bronze.svg (admin əlavə edir).
- * SVG hələ yoxdursa (404) ikon sakitcə gizlədilir — yalnız ad qalır.
+ * Avtomatik loyallıq statusları public/<status>.svg, manual statuslar isə
+ * public/tiers/<icon>.svg yolundan gəlir. SVG yoxdursa yalnız ad göstərilir.
  */
 export type TierBadgeData = {
   name: string;
@@ -24,6 +44,12 @@ export default function TierBadge({
   className?: string;
 }) {
   const [iconOk, setIconOk] = useState(true);
+  const iconSrc = tier ? resolveIconSrc(tier) : null;
+
+  useEffect(() => {
+    setIconOk(true);
+  }, [iconSrc]);
+
   if (!tier) return null;
   const label = (full ? tier.displayName || tier.name : tier.name) || "";
   if (!label) return null;
@@ -38,10 +64,10 @@ export default function TierBadge({
       style={style}
       title={tier.displayName || tier.name}
     >
-      {tier.icon && iconOk && (
+      {iconSrc && iconOk && (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
-          src={`/tiers/${tier.icon}.svg`}
+          src={iconSrc}
           alt=""
           width={14}
           height={14}

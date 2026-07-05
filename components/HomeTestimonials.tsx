@@ -1,4 +1,4 @@
-import { Star, Quote, BadgeCheck, Sparkles } from "lucide-react";
+import { Star, Quote, BadgeCheck, Sparkles, ShieldCheck } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getTierBadgesForUsers } from "@/lib/customerTier";
 import HomeReviewCta from "@/components/HomeReviewCta";
@@ -43,6 +43,8 @@ export default async function HomeTestimonials() {
         platform: true,
         productTitle: true,
         transactionId: true,
+        adminReply: true,
+        adminReplyImageUrl: true,
       },
     })
     .catch(() => []);
@@ -135,6 +137,31 @@ export default async function HomeTestimonials() {
                 <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
                   “{t.text}”
                 </blockquote>
+
+                {t.adminReply || t.adminReplyImageUrl ? (
+                  <div className="mt-4 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-4 dark:border-violet-300/20 dark:from-violet-400/[0.08] dark:to-transparent">
+                    <div className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-violet-700 dark:text-violet-200">
+                      <span className="grid h-5 w-5 place-items-center rounded-full bg-violet-600 text-white">
+                        <ShieldCheck className="h-3 w-3" />
+                      </span>
+                      Honsell cavabı
+                    </div>
+                    {t.adminReply && (
+                      <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-200">
+                        {t.adminReply}
+                      </p>
+                    )}
+                    {t.adminReplyImageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={t.adminReplyImageUrl}
+                        alt="Honsell cavabı"
+                        className="mt-2 max-h-56 w-full rounded-xl border border-violet-100 object-cover dark:border-white/10"
+                      />
+                    )}
+                  </div>
+                ) : null}
+
                 <figcaption className="mt-5 flex items-center gap-3 border-t border-zinc-100 pt-4 dark:border-white/10">
                   <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-violet-600/10 text-sm font-black text-violet-700 dark:bg-violet-400/10 dark:text-violet-200">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
