@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Tv,
   MessageSquare,
+  MessageSquarePlus,
   Brain,
   Briefcase,
   Newspaper,
@@ -37,6 +38,7 @@ import {
   Network,
   Star,
   Clapperboard,
+  TicketPercent,
   Moon,
   Sun,
 } from "lucide-react";
@@ -71,6 +73,7 @@ type IconName =
   | "LayoutGrid"
   | "Tv"
   | "MessageSquare"
+  | "MessageSquarePlus"
   | "Brain"
   | "Briefcase"
   | "Newspaper"
@@ -84,7 +87,8 @@ type IconName =
   | "Megaphone"
   | "Network"
   | "Star"
-  | "Clapperboard";
+  | "Clapperboard"
+  | "TicketPercent";
 
 export type NavItemSpec = {
   href: string;
@@ -117,6 +121,7 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   LayoutGrid,
   Tv,
   MessageSquare,
+  MessageSquarePlus,
   Brain,
   Briefcase,
   Newspaper,
@@ -131,6 +136,7 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   Network,
   Star,
   Clapperboard,
+  TicketPercent,
 };
 
 export default function AdminSidebar({

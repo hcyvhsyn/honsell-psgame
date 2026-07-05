@@ -49,6 +49,13 @@ import {
 import { sendProductGiftCodeEmail } from "@/lib/resend";
 import { MIN_CART_AZN_CENTS } from "@/lib/cartLimits";
 import { validateAccountPassword } from "@/lib/accountPasswordRules";
+import {
+  validatePromoForOrder,
+  applyPromoRedemption,
+  type PromoScopeItem,
+} from "@/lib/promoCodes";
+import { grantCheckoutBonuses, generateUniqueBonusPromoCode } from "@/lib/checkoutBonuses";
+import type { PromoCode } from "@/lib/generated/prisma/client";
 
 export const runtime = "nodejs";
 
@@ -261,6 +268,8 @@ export async function POST(req: Request) {
 
   const paymentSource: "wallet" | "referral" =
     body.paymentSource === "referral" ? "referral" : "wallet";
+
+  const couponCode = typeof body.couponCode === "string" ? body.couponCode.trim() : "";
 
   const settings = await getSettings();
   const ids = payloads.map((i) => i.id);
@@ -758,6 +767,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Sifariş məbləği etibarsızdır." }, { status: 400 });
   }
 
+  // ─── Kupon: server-də YENİDƏN validasiya (client preview-a etibar etmirik) ──
+  let discountCents = 0;
+  let promoForOrder: PromoCode | null = null;
+  if (couponCode) {
+    const scopeItems: PromoScopeItem[] = [
+      ...lines.map((l) => ({
+        productType:
+          l.kind === "GAME"
+            ? "GAME"
+            : String((l as { service?: { type?: string } }).service?.type ?? l.kind),
+        lineCents: l.lineCents,
+      })),
+      ...giftLines.map((g) => ({ productType: g.productKind, lineCents: g.unitListCents * g.qty })),
+    ];
+    const v = await validatePromoForOrder(prisma, { code: couponCode, userId: user.id, items: scopeItems });
+    if (!v.ok) {
+      return NextResponse.json({ error: v.message, code: "COUPON_INVALID" }, { status: 400 });
+    }
+    discountCents = v.discountCents;
+    promoForOrder = v.promo;
+  }
+  const discountedTotalCents = Math.max(0, totalCents - discountCents);
+  if (discountedTotalCents <= 0) {
+    return NextResponse.json(
+      { error: "Kupon bu sifarişə tam tətbiq oluna bilməz.", code: "COUPON_INVALID" },
+      { status: 400 },
+    );
+  }
+
   // Epoint-in minimum işləm məbləği 5 AZN-dir. Sebet bundan azdırsa ödənişi
   // bloklamaq əvəzinə KARTDAN minimum 5 AZN tutub aradakı fərqi müştərinin
   // cüzdanına kredit olaraq qaytarırıq (round-up to wallet). Beləcə 4.98 kimi
@@ -767,9 +805,9 @@ export async function POST(req: Request) {
   const isCardPayment =
     body.paymentMethod === "epoint" || body.paymentMethod === "epoint-widget";
   const chargeCents = isCardPayment
-    ? Math.max(totalCents, MIN_CART_AZN_CENTS)
-    : totalCents;
-  const topUpCents = chargeCents - totalCents;
+    ? Math.max(discountedTotalCents, MIN_CART_AZN_CENTS)
+    : discountedTotalCents;
+  const topUpCents = chargeCents - discountedTotalCents;
 
   const spentAzn = await getLifetimeSpendAznForLoyalty(prisma, user.id);
   const effTier = await getEffectiveTier(user.id, spentAzn);
@@ -951,7 +989,11 @@ export async function POST(req: Request) {
       orderCode,
       createdAt,
       checkout: {
-        totalCents,
+        totalCents: discountedTotalCents,
+        originalTotalCents: totalCents,
+        discountCents,
+        couponCode: promoForOrder ? promoForOrder.code : null,
+        promoCodeId: promoForOrder ? promoForOrder.id : null,
         topUpCents,
         loyalty: {
           label: loyalty.label,
@@ -1112,21 +1154,21 @@ export async function POST(req: Request) {
   }
 
   if (paymentSource === "referral") {
-    if (user.referralBalanceCents < totalCents) {
+    if (user.referralBalanceCents < discountedTotalCents) {
       return NextResponse.json(
         {
           error: "Referal balansı kifayət etmir.",
-          requiredAzn: totalCents / 100,
+          requiredAzn: discountedTotalCents / 100,
           referralBalanceAzn: user.referralBalanceCents / 100,
         },
         { status: 402 }
       );
     }
-  } else if (user.walletBalance < totalCents) {
+  } else if (user.walletBalance < discountedTotalCents) {
     return NextResponse.json(
       {
         error: "Cüzdan balansı kifayət etmir.",
-        requiredAzn: totalCents / 100,
+        requiredAzn: discountedTotalCents / 100,
         balanceAzn: user.walletBalance / 100,
       },
       { status: 402 }
@@ -1149,6 +1191,9 @@ export async function POST(req: Request) {
     }
   }
 
+  // Bonus kupon kodunu tx-dən ƏVVƏL generasiya edirik (kolliziya yoxlaması tx-dən kənarda).
+  const bonusCouponCode = await generateUniqueBonusPromoCode();
+
   let result;
   try {
     result = await prisma.$transaction(async (tx) => {
@@ -1158,8 +1203,8 @@ export async function POST(req: Request) {
         where: { id: user.id },
         data:
           paymentSource === "referral"
-            ? { referralBalanceCents: { decrement: totalCents } }
-            : { walletBalance: { decrement: totalCents } },
+            ? { referralBalanceCents: { decrement: discountedTotalCents } }
+            : { walletBalance: { decrement: discountedTotalCents } },
       });
 
       const purchaseIds: string[] = [];
@@ -1602,7 +1647,7 @@ export async function POST(req: Request) {
       }
 
       if (loyalty.cashbackPct > 0) {
-        cashbackCents = Math.round((totalCents * loyalty.cashbackPct) / 100);
+        cashbackCents = Math.round((discountedTotalCents * loyalty.cashbackPct) / 100);
         if (cashbackCents > 0) {
           await applyCashbackToBalance(tx, {
             userId: user.id,
@@ -1615,6 +1660,28 @@ export async function POST(req: Request) {
           });
         }
       }
+
+      // Kupon redemption (yalnız endirim varsa) — usedCount++ + audit.
+      if (promoForOrder && discountCents > 0) {
+        await applyPromoRedemption(tx, {
+          promo: promoForOrder,
+          userId: user.id,
+          orderCode,
+          discountCents,
+          transactionId: purchaseIds[0] ?? serviceOrderIds[0] ?? null,
+        });
+      }
+
+      // Checkout bonusları (idempotent, ödəniş təsdiqlənəndə = indi).
+      const bonusItemCount =
+        lines.reduce((n, l) => n + l.qty, 0) + giftLines.reduce((n, g) => n + g.qty, 0);
+      const bonus = await grantCheckoutBonuses(tx, {
+        userId: user.id,
+        orderCode,
+        orderTotalCents: discountedTotalCents,
+        itemCount: bonusItemCount,
+        bonusCouponCode,
+      });
 
       return {
         purchaseIds,
@@ -1629,6 +1696,7 @@ export async function POST(req: Request) {
         referredByForTierCheck: Array.from(referredByForTierCheck),
         honsellGiftCardsIssued,
         productGiftsIssued,
+        bonus,
       };
     });
   } catch (e: unknown) {
@@ -1647,14 +1715,15 @@ export async function POST(req: Request) {
 
   const cashbackCentsApplied = Number(result.cashbackCents ?? 0);
 
+  const walletBonusCents = result.bonus?.walletCreditCents ?? 0;
   let newWalletCents = user.walletBalance;
   let newReferralCents = user.referralBalanceCents;
   if (paymentSource === "wallet") {
-    newWalletCents = user.walletBalance - totalCents;
+    newWalletCents = user.walletBalance - discountedTotalCents + walletBonusCents;
     newReferralCents = user.referralBalanceCents;
   } else {
-    newWalletCents = user.walletBalance;
-    newReferralCents = user.referralBalanceCents - totalCents;
+    newWalletCents = user.walletBalance + walletBonusCents;
+    newReferralCents = user.referralBalanceCents - discountedTotalCents;
   }
   const prevCashbackCents = user.cashbackBalanceCents ?? 0;
   const newCashbackBalanceAzn = (prevCashbackCents + cashbackCentsApplied) / 100;
@@ -1725,7 +1794,15 @@ export async function POST(req: Request) {
     pointBlankPendingCount,
     paymentSourceUsed: paymentSource,
     purchaseCount: result.purchaseIds.length + result.serviceOrderIds.length,
-    paidAzn: totalCents / 100,
+    paidAzn: discountedTotalCents / 100,
+    discountAzn: discountCents / 100,
+    bonus: result.bonus
+      ? {
+          walletCreditAzn: result.bonus.walletCreditCents / 100,
+          couponCode: result.bonus.bonusCouponCode,
+          communityAccess: result.bonus.communityAccess,
+        }
+      : null,
     cashbackAzn: cashbackCentsApplied / 100,
     cashbackPct: loyalty.cashbackPct,
     newCashbackBalanceAzn,

@@ -988,15 +988,18 @@ html.dark .honsell-img-skeleton {
   }
 }
 
+/* Yalnız transform + opacity animasiya olunur (hər ikisi GPU-composited, paint
+   tələb etmir). Əvvəllər buradakı `filter: drop-shadow` HƏR nav ikonasında,
+   fasiləsiz, hər frame-də yenidən boyanma yaradırdı — həmişə görünən header-də
+   bu, əsas paint yükünün mənbəyi idi. Glow effekti onsuz da hover-də tətbiq
+   olunur (bax: .honsell-nav-action:hover .honsell-nav-icon-motion). */
 @keyframes honsell-nav-icon-breathe {
   0%, 100% {
     transform: translateY(0) scale(1);
-    filter: drop-shadow(0 0 0 rgba(167, 139, 250, 0));
     opacity: 0.86;
   }
   50% {
     transform: translateY(-1.5px) scale(1.06);
-    filter: drop-shadow(0 0 10px currentColor);
     opacity: 1;
   }
 }
@@ -2045,4 +2048,17 @@ html[data-ai-chat-open] #theme-toggle {
 .ps-float.anim-idle {
   animation-play-state: paused;
   will-change: auto;
+}
+
+/* ── Scroll zamanı bütün dekorativ animasiyaları dayandır ────────────────────
+   ScrollAnimationManager scroll gedərkən <html>-ə `is-scrolling` əlavə edir.
+   Həmişə görünən header-dəki `filter: drop-shadow` / `background-position`
+   animasiyaları hər frame-də yenidən boyanaraq kompozitoru scroll ilə birlikdə
+   yükləyir və "boş/qara zolaq" yaradır. Scroll müddətində onları tam
+   dayandırırıq (yalnız @keyframes animasiyalarına təsir edir — hover/state
+   `transition`-ları toxunulmaz qalır), scroll bitən kimi davam edirlər. */
+html.is-scrolling *,
+html.is-scrolling *::before,
+html.is-scrolling *::after {
+  animation-play-state: paused !important;
 }

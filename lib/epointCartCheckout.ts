@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { applyCashbackToBalance } from "@/lib/loyaltyCashback";
+import { applyPromoRedemption } from "@/lib/promoCodes";
+import { grantCheckoutBonuses, generateUniqueBonusPromoCode } from "@/lib/checkoutBonuses";
 import { recordPurchaseSpend, recordSuccessfulInvite } from "@/lib/referralCycle";
 import {
   sendAdminOrderNotification,
@@ -158,7 +160,15 @@ export type EpointCartPaymentMetadata = {
   orderCode: string;
   createdAt: string;
   checkout: {
+    // Endirimdən SONRAKI sebet məbləği (fulfillment, cashback və amount-mismatch bunu istifadə edir).
     totalCents: number;
+    /** Endirim tətbiq olunmazdan əvvəlki sebet cəmi (audit). */
+    originalTotalCents?: number;
+    /** Tətbiq olunmuş kupon endirimi (qəpik). */
+    discountCents?: number;
+    /** İstifadə olunan kupon kodu / id-si (redemption üçün). */
+    couponCode?: string | null;
+    promoCodeId?: string | null;
     /**
      * Sebet 5 AZN-dən az olduqda epoint minimumunu ödəmək üçün kartdan əlavə
      * tutulan və finalize zamanı müştərinin cüzdanına kredit olunan fərq (qəpik).
@@ -261,6 +271,9 @@ export async function finalizeEpointCartCheckout(
       }
     }
   }
+
+  // Bonus kupon kodu tx-dən əvvəl generasiya (kolliziya yoxlaması kənarda).
+  const bonusCouponCode = await generateUniqueBonusPromoCode();
 
   const summary = await prisma.$transaction(async (tx): Promise<CompletionSummary | null> => {
     const paymentUpdate = await tx.transaction.updateMany({
@@ -754,6 +767,29 @@ export async function finalizeEpointCartCheckout(
         orderCode: meta.orderCode,
       });
     }
+
+    // Kupon redemption (kart yolu) — bir dəfə (updateMany count===1 guard-ı altında).
+    if (meta.checkout.promoCodeId && (meta.checkout.discountCents ?? 0) > 0) {
+      const promo = await tx.promoCode.findUnique({ where: { id: meta.checkout.promoCodeId } });
+      if (promo) {
+        await applyPromoRedemption(tx, {
+          promo,
+          userId: payment.userId,
+          orderCode: meta.orderCode,
+          discountCents: meta.checkout.discountCents!,
+          transactionId: payment.id,
+        });
+      }
+    }
+
+    // Checkout bonusları (idempotent — BonusGrant.orderCode @unique).
+    await grantCheckoutBonuses(tx, {
+      userId: payment.userId,
+      orderCode: meta.orderCode,
+      orderTotalCents: meta.checkout.totalCents,
+      itemCount: meta.checkout.lines.reduce((n, l) => n + l.qty, 0),
+      bonusCouponCode,
+    });
 
     return {
       purchaseIds,

@@ -15,6 +15,7 @@ import FavoriteIntroModal from "@/components/FavoriteIntroModal";
 import AskAiFloat from "@/components/AskAiFloatLazy";
 import ReelsLauncher from "@/components/reels/ReelsLauncher";
 import TopLoader from "@/components/TopLoader";
+import ScrollActivityFlag from "@/components/ScrollActivityFlag";
 import { Suspense } from "react";
 import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "@/lib/site";
 import { Analytics } from "@vercel/analytics/next";
@@ -136,6 +137,7 @@ export default async function RootLayout({
         <Suspense fallback={null}>
           <TopLoader />
         </Suspense>
+        <ScrollActivityFlag />
 
         <ThemeProvider>
           <ReferralRatesProvider value={referralCategoryRates}>

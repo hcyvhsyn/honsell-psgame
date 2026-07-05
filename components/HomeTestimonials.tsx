@@ -13,6 +13,8 @@ const PLATFORM_LABELS: Record<string, string> = {
   PS_PLUS: "PS Plus",
   GIFT_CARD: "Gift Card",
   ACCOUNT_CREATION: "Hesab açma",
+  STREAMING: "Streaming",
+  MUSIC: "Musiqi",
 };
 
 function initials(name: string): string {

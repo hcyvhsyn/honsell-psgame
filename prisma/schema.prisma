@@ -152,6 +152,13 @@ model User {
   adminAuditEntries   AdminAuditLog[]  @relation("AdminAuditTarget")
   adminActionsTaken   AdminAuditLog[]  @relation("AdminAuditActor")
 
+  // İcma kampaniyasına giriş — bir sifarişdə ≥2 məhsul alındıqda true olur.
+  communityCampaignAccess Boolean @default(false)
+  // Kupon / bonus sistemi əlaqələri.
+  promoCodes       PromoCode[]       @relation("UserPromoCodes")
+  promoRedemptions PromoRedemption[] @relation("UserPromoRedemptions")
+  bonusGrants      BonusGrant[]      @relation("UserBonusGrants")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -919,6 +926,38 @@ model ReviewInvite {
   @@index([userId])
 }
 
+// Admin-initiated review invite for customers who bought a subscription over
+// WhatsApp (no on-site transaction). Admin picks the product + phone; a WhatsApp
+// link opens a wizard that collects name/email/review, verifies via WhatsApp OTP,
+// then publishes the testimonial AND registers a (passwordless) honsell account.
+model WhatsappReviewInvite {
+  id            String  @id @default(cuid())
+  token         String  @unique
+  phone         String // E.164, admin-entered
+  platformCode  String? // StreamingPlatform.code snapshot
+  productTitle  String // "Spotify — 3 ay"
+  platform      String  @default("STREAMING") // Testimonial.platform (STREAMING | MUSIC)
+  months        Int?
+  // Wizard-da toplanan sahələr (progressiv doldurulur).
+  name          String?
+  email         String?
+  reviewText    String?
+  rating        Int?
+  // OTP (User modelindəki pattern).
+  otpCode        String?
+  otpExpiresAt   DateTime?
+  otpAttempts    Int       @default(0)
+  otpLockedUntil DateTime?
+  status        String    @default("SENT") // SENT | SUBMITTED
+  usedAt        DateTime?
+  createdUserId String?
+  testimonialId String?
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+
+  @@index([phone])
+}
+
 // ─── Global settings (single row, id = "global") ──────────────────────────────
 
 model Settings {
@@ -1100,6 +1139,83 @@ model ReferralInviteBonus {
 
   @@index([status])
   @@index([referrerId])
+}
+
+// ─── Kupon / promo kodlar + bonus mükafatları ────────────────────────────────
+// Sifariş-səviyyəli endirim kodları. Həm admin yaradır (source=ADMIN), həm də
+// checkout bonusu 10% kupon avto-yaradır (source=BONUS_REWARD, userId-yə bağlı).
+model PromoCode {
+  id    String @id @default(cuid())
+  code  String @unique // normalizə: böyük hərf, boşluqsuz
+  kind  String // "PERCENT" | "FIXED"
+  // PERCENT: tam faiz (10 = 10%). FIXED: AZN qəpik.
+  value Int
+  // PERCENT tavanı (qəpik). null = tavansız. FIXED üçün istifadə olunmur.
+  maxDiscountCents Int?
+  // Minimum sifariş məbləği (qəpik, scope sətirlərinin cəmi ilə müqayisə).
+  minOrderCents Int @default(0)
+  // Scope: boş = bütün productType-lər; dolu olsa yalnız sadalananlar.
+  productTypes String[] @default([])
+
+  usageLimit   Int? // qlobal maksimum. null = limitsiz.
+  usedCount    Int  @default(0)
+  perUserLimit Int  @default(1)
+
+  // İstifadəçiyə xüsusi (bonusla avto-yaradılan) kupon. null = ümumi.
+  userId String?
+  user   User?   @relation("UserPromoCodes", fields: [userId], references: [id], onDelete: Cascade)
+
+  source String @default("ADMIN") // "ADMIN" | "BONUS_REWARD"
+
+  startsAt  DateTime?
+  expiresAt DateTime?
+  isActive  Boolean   @default(true)
+
+  redemptions PromoRedemption[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model PromoRedemption {
+  id          String    @id @default(cuid())
+  promoCodeId String
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation("UserPromoRedemptions", fields: [userId], references: [id])
+
+  discountCents Int
+  // İdempotentlik açarı — hər sifariş üçün ən çoxu bir redemption.
+  orderCode     String  @unique
+  transactionId String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([promoCodeId, userId, orderCode])
+  @@index([promoCodeId])
+  @@index([userId])
+}
+
+// Checkout bonuslarının idempotentlik markeri (hər sifariş üçün bir sətir).
+model BonusGrant {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("UserBonusGrants", fields: [userId], references: [id])
+  // İdempotentlik açarı.
+  orderCode String @unique
+
+  walletCreditCents Int     @default(0) // ≥12 AZN → 100
+  bonusPromoCodeId  String? // ≥20 AZN → yaradılan 10% kuponun id-si
+  communityAccess   Boolean @default(false) // ≥2 məhsul
+  orderTotalCents   Int
+  itemCount         Int
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // ─── Search Suggestions ──────────────────────────────────────────────────────

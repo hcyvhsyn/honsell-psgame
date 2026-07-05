@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Trash2,
   Minus,
@@ -23,6 +23,16 @@ import {
 } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 import { MIN_CART_AZN, MIN_CART_AZN_CENTS } from "@/lib/cartLimits";
+import CartSummary from "@/components/cart/CartSummary";
+import CouponCodeBox, {
+  validateCoupon,
+  type AppliedCoupon,
+  type CouponItemPayload,
+} from "@/components/cart/CouponCodeBox";
+import BonusProgress, { nextBonusHint } from "@/components/cart/BonusProgress";
+import TrustPanel from "@/components/cart/TrustPanel";
+import CartTermsNotice, { cartNeedsTermsAcceptance } from "@/components/cart/CartTermsNotice";
+import { getProductTerms } from "@/lib/productTerms";
 import AccountCreationCartEditModal from "@/components/AccountCreationCartEditModal";
 import EpicAccountOfferModal from "@/components/EpicAccountOfferModal";
 import EpicAccountLinkModal from "@/components/EpicAccountLinkModal";
@@ -112,6 +122,91 @@ export default function CartView({
   }, [hydrated]);
   const cashbackAzn = (totalAzn * loyaltyCashbackPct) / 100;
   const [busy, setBusy] = useState(false);
+
+  // ─── Kupon + şərt qəbulu ──────────────────────────────────────────────────
+  const COUPON_LS_KEY = "honsell.coupon.v1";
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  // İlkin yükləmədə saxlanmış kupon kodunu bərpa et (endirim effektdə re-validasiya olunur).
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(COUPON_LS_KEY);
+      if (raw) setAppliedCoupon({ code: raw, discountCents: 0 });
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const itemsPayload: CouponItemPayload[] = useMemo(
+    () =>
+      items.map((i) => ({
+        id: i.id,
+        productType: i.productType,
+        store: i.store,
+        qty: i.qty,
+        finalAzn: i.finalAzn,
+      })),
+    [items],
+  );
+
+  const itemsSig = useMemo(
+    () => items.map((i) => `${i.id}:${i.gift ? "g" : "n"}:${i.qty}:${i.finalAzn}`).join("|"),
+    [items],
+  );
+
+  // Səbət dəyişəndə tətbiq olunmuş kuponu yenidən validasiya et (min/scope pozula bilər).
+  const appliedRef = useRef<AppliedCoupon | null>(appliedCoupon);
+  appliedRef.current = appliedCoupon;
+  useEffect(() => {
+    const ap = appliedRef.current;
+    if (!ap || items.length === 0) return;
+    let cancelled = false;
+    void validateCoupon(ap.code, itemsPayload).then((res) => {
+      if (cancelled) return;
+      if (res.ok) {
+        setAppliedCoupon((prev) =>
+          prev && prev.code === res.code && prev.discountCents === res.discountCents
+            ? prev
+            : { code: res.code, discountCents: res.discountCents },
+        );
+      } else {
+        setAppliedCoupon(null);
+        try {
+          window.localStorage.removeItem(COUPON_LS_KEY);
+        } catch {
+          /* ignore */
+        }
+        setMessage({ kind: "error", text: res.message });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsSig]);
+
+  function applyCoupon(c: AppliedCoupon) {
+    setAppliedCoupon(c);
+    try {
+      window.localStorage.setItem(COUPON_LS_KEY, c.code);
+    } catch {
+      /* ignore */
+    }
+  }
+  function removeCoupon() {
+    setAppliedCoupon(null);
+    try {
+      window.localStorage.removeItem(COUPON_LS_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const discountAzn = appliedCoupon ? Math.min(appliedCoupon.discountCents / 100, totalAzn) : 0;
+  const finalPayAzn = Math.max(0, totalAzn - discountAzn);
+  const needsTerms = cartNeedsTermsAcceptance(items);
+  const termsBlocked = needsTerms && !termsAccepted;
   const [widget, setWidget] = useState<{
     url: string;
     successUrl: string;
@@ -373,14 +468,14 @@ export default function CartView({
     );
   }
 
-  const insufficientWallet = isAuthed && walletBalanceAzn < totalAzn;
+  const insufficientWallet = isAuthed && walletBalanceAzn < finalPayAzn;
 
-  // Minimum sifariş məbləği yoxlaması. totalAzn float olduğu üçün qəpik
-  // vahidinə yuvarlayıb müqayisə edirik — 4.999... → 500 qəpik kimi düz oxunur.
-  const totalCentsForCheck = Math.round(totalAzn * 100);
+  // Minimum sifariş məbləği yoxlaması — kupon endirimindən SONRAKI məbləğ üzərində.
+  // finalPayAzn float olduğu üçün qəpik vahidinə yuvarlayıb müqayisə edirik.
+  const totalCentsForCheck = Math.round(finalPayAzn * 100);
   const belowMinimum = totalCentsForCheck > 0 && totalCentsForCheck < MIN_CART_AZN_CENTS;
   const missingForMinimumAzn = belowMinimum
-    ? MIN_CART_AZN - totalAzn
+    ? MIN_CART_AZN - finalPayAzn
     : 0;
 
   function checkoutBalanceSuffix(d: Record<string, unknown>): string {
@@ -400,6 +495,13 @@ export default function CartView({
     widgetBrand: "apple" | "google" = "google",
   ) {
     if (!isAuthed || blockedNoPsn || blockedNoEpic) return;
+    if (termsBlocked) {
+      setMessage({
+        kind: "error",
+        text: "Davam etmək üçün məhsul şərtlərini qəbul edin.",
+      });
+      return;
+    }
     if (
       items.some(
         (i) => !i.gift && i.productType === "ACCOUNT_CREATION" && !i.accountCreation
@@ -492,9 +594,15 @@ export default function CartView({
           epicAccountId: deliveryNeedsEpic ? epicAccountId : null,
           paymentSource: "wallet",
           paymentMethod,
+          ...(appliedCoupon ? { couponCode: appliedCoupon.code } : {}),
         }),
       });
       const data = await res.json();
+      if (!res.ok && data?.code === "COUPON_INVALID") {
+        removeCoupon();
+        setMessage({ kind: "error", text: data.error ?? "Kupon tətbiq olunmadı." });
+        return;
+      }
       if (res.ok) {
         if (paymentMethod === "epoint" && typeof data.redirectUrl === "string") {
           window.location.href = data.redirectUrl;
@@ -517,6 +625,8 @@ export default function CartView({
         }
 
         clear();
+        removeCoupon();
+        setTermsAccepted(false);
         const target = data.deliveredTo?.label ?? "hesabına";
         let text = "";
 
@@ -693,17 +803,21 @@ export default function CartView({
       </ul>
 
       <aside className="h-fit space-y-5 rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-5 shadow-2xl backdrop-blur-md">
-        <div>
-          <h2 className="mb-4 text-lg font-semibold tracking-tight">Xülasə</h2>
-          <div className="flex items-end justify-between border-b border-zinc-800/60 pb-4">
-            <span className="text-sm text-zinc-400">
-              {items.length} məhsul
-            </span>
-            <span className="text-2xl font-bold tabular-nums text-white">
-              {totalAzn.toFixed(2)} <span className="text-sm font-medium text-zinc-400">AZN</span>
-            </span>
-          </div>
-        </div>
+        <CartSummary
+          itemCount={items.length}
+          subtotalAzn={totalAzn}
+          discountAzn={discountAzn}
+          bonusHint={nextBonusHint(totalAzn, items.reduce((n, i) => n + i.qty, 0))}
+        />
+
+        <CouponCodeBox
+          items={itemsPayload}
+          applied={appliedCoupon}
+          onApply={applyCoupon}
+          onRemove={removeCoupon}
+        />
+
+        <BonusProgress totalAzn={totalAzn} itemCount={items.reduce((n, i) => n + i.qty, 0)} />
 
         {isAuthed ? (
           <div className="rounded-xl border border-zinc-700/80 bg-zinc-950/40 px-3 py-2 text-xs text-zinc-400">
@@ -806,6 +920,12 @@ export default function CartView({
           </div>
         )}
 
+        <CartTermsNotice
+          items={items}
+          accepted={termsAccepted}
+          onAcceptedChange={setTermsAccepted}
+        />
+
         <div className="pt-2">
           {!isAuthed ? (
             onRequestLogin ? (
@@ -906,7 +1026,7 @@ export default function CartView({
                     tutulacaq, artıq qalan <b>{missingForMinimumAzn.toFixed(2)} AZN</b>{" "}
                     cüzdan balansınıza əlavə olunub növbəti alışda istifadə oluna
                     bilər. <b>Cüzdanla</b> ödəsəniz dəqiq{" "}
-                    <b>{totalAzn.toFixed(2)} AZN</b> tutulur.
+                    <b>{finalPayAzn.toFixed(2)} AZN</b> tutulur.
                   </span>
                 </div>
               )}
@@ -919,14 +1039,14 @@ export default function CartView({
                 >
                   <span>Balansı artır</span>
                   <span className="rounded-md bg-white/20 px-2 py-0.5 text-xs">
-                    {(totalAzn - walletBalanceAzn).toFixed(2)} AZN çatmır
+                    {(finalPayAzn - walletBalanceAzn).toFixed(2)} AZN çatmır
                   </span>
                 </Link>
               ) : (
                 <button
                   type="button"
                   onClick={() => checkout("wallet")}
-                  disabled={busy || insufficientWallet}
+                  disabled={busy || insufficientWallet || termsBlocked}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {busy ? "İşlənir..." : "Cüzdanla ödə"}
@@ -936,7 +1056,7 @@ export default function CartView({
               <button
                 type="button"
                 onClick={() => checkout("epoint")}
-                disabled={busy}
+                disabled={busy || termsBlocked}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {busy ? "İşlənir..." : "Kartla birbaşa ödə"}
@@ -954,7 +1074,7 @@ export default function CartView({
                     <button
                       type="button"
                       onClick={() => checkout("epoint-widget", "apple")}
-                      disabled={busy}
+                      disabled={busy || termsBlocked}
                       aria-label="Apple Pay ilə ödə"
                       className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -969,7 +1089,7 @@ export default function CartView({
                     <button
                       type="button"
                       onClick={() => checkout("epoint-widget", "google")}
-                      disabled={busy}
+                      disabled={busy || termsBlocked}
                       aria-label="Google Pay ilə ödə"
                       className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-700 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -1014,6 +1134,8 @@ export default function CartView({
             <Trash2 className="h-3.5 w-3.5" /> Səbəti təmizlə
           </button>
         </div>
+
+        <TrustPanel />
       </aside>
     </div>
 
@@ -1330,6 +1452,16 @@ function CartLine({
                 />
               </div>
             ) : null}
+            {(() => {
+              if (item.gift) return null;
+              const t = getProductTerms(item.productType, item.store, item.streaming?.platformKind);
+              if (!t) return null;
+              return (
+                <p className="mt-1.5 inline-flex items-start gap-1 text-[10px] leading-snug text-sky-300/90">
+                  <span className="font-semibold">ℹ {t.termsTitle}</span>
+                </p>
+              );
+            })()}
             {item.gift?.discountEndAt ? (
               <p className="mt-2 w-full max-w-md rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-medium leading-snug text-amber-300">
                 ⚠️ Endirimli hədiyyə — dostunuz{" "}

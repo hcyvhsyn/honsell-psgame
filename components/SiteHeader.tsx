@@ -183,6 +183,9 @@ export default function SiteHeader({
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [desktopCategoriesOpen, setDesktopCategoriesOpen] = useState(false);
+  // Aşağı scroll edəndə navbar-ın 2-ci qatı (kateqoriya sətri) yığılır, yalnız
+  // üst qat qalır; yuxarı scroll və ya səhifə başında yenidən açılır.
+  const [navCollapsed, setNavCollapsed] = useState(false);
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
   const productCategoryItems = buildProductCategoryItems(categoryAssets);
@@ -215,6 +218,50 @@ export default function SiteHeader({
   useEffect(() => {
     setDesktopCategoriesOpen(false);
   }, [pathname]);
+
+  // 2-ci navbar qatı (kateqoriya sətri) YALNIZ səhifənin ən yuxarısında tam
+  // görünsün. Bir az aşağı scroll edən kimi yığılır — onu yenidən görmək üçün
+  // ən təpəyə qayıtmaq lazımdır.
+  //
+  // MÜHÜM — histerezis: qat yığılanda header ~65px qısalır və səhifə hündürlüyü
+  // dəyişir. Bağlanma/açılma eyni eşiyi paylaşsaydı, bu layout sürüşməsi scroll
+  // mövqeyini eşiyin o tərəf-bu tərəfinə atıb sonsuz titrəmə (flicker) yaradardı.
+  // Ona görə iki ayrı eşik qoyuruq və aralarındakı "ölü zolağı" (90px) layout
+  // sürüşməsindən (65px) böyük saxlayırıq — beləcə oscillyasiya riyazi olaraq
+  // mümkün olmur.
+  useEffect(() => {
+    const COLLAPSE_AT = 100; // bundan aşağı → yığ
+    const EXPAND_AT = 10; // yalnız buna qayıdanda → aç
+    let ticking = false;
+    let collapsed = window.scrollY > COLLAPSE_AT;
+    setNavCollapsed(collapsed);
+
+    const update = () => {
+      ticking = false;
+      const y = window.scrollY;
+      if (!collapsed && y > COLLAPSE_AT) {
+        collapsed = true;
+        setNavCollapsed(true);
+      } else if (collapsed && y < EXPAND_AT) {
+        collapsed = false;
+        setNavCollapsed(false);
+      }
+    };
+
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(update);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Qat yığılanda açıq kateqoriya paneli də bağlansın (panel ayrıca render olunur).
+  useEffect(() => {
+    if (navCollapsed) setDesktopCategoriesOpen(false);
+  }, [navCollapsed]);
 
   function closeMobileCategories() {
     setMenuOpen(false);
@@ -290,25 +337,35 @@ export default function SiteHeader({
             </div>
           </div>
 
+          {/* grid-template-rows 1fr↔0fr — həqiqi hündürlüyü hamar animasiya edir
+              (max-height-dəki "ölü vaxt/səkmə" olmadan). Daxili örtük overflow-u
+              kəsir; opacity ilə birlikdə yumşaq açılıb-bağlanır. */}
           <div
-            className="hidden min-h-[64px] items-center justify-between gap-4 border-t border-zinc-200 px-6 dark:border-violet-300/15 xl:flex"
-            style={{ zIndex: 20 }}
+            aria-hidden={navCollapsed}
+            className={`hidden transition-[grid-template-rows,opacity] duration-300 ease-out xl:grid ${
+              navCollapsed ? "pointer-events-none opacity-0" : "opacity-100"
+            }`}
+            style={{ zIndex: 20, gridTemplateRows: navCollapsed ? "0fr" : "1fr" }}
           >
-            <nav className="flex min-w-0 flex-1 items-center gap-3" aria-label="Əsas naviqasiya">
-              <CategoriesDropdown
-                active={isAnyCategoryActive(productCategoryItems, pathname)}
-                open={desktopCategoriesOpen}
-                onToggle={() => setDesktopCategoriesOpen((value) => !value)}
-                onClose={() => setDesktopCategoriesOpen(false)}
-              />
-              {utilityLinks.map((item) => (
-                <DesktopNavLink key={item.href} item={item} pathname={pathname} />
-              ))}
-              <DesktopContactButton onClick={openAiAssistant} />
-            </nav>
+            <div className="min-h-0 overflow-hidden">
+              <div className="flex min-h-[64px] items-center justify-between gap-4 border-t border-zinc-200 px-6 dark:border-violet-300/15">
+                <nav className="flex min-w-0 flex-1 items-center gap-3" aria-label="Əsas naviqasiya">
+                  <CategoriesDropdown
+                    active={isAnyCategoryActive(productCategoryItems, pathname)}
+                    open={desktopCategoriesOpen}
+                    onToggle={() => setDesktopCategoriesOpen((value) => !value)}
+                    onClose={() => setDesktopCategoriesOpen(false)}
+                  />
+                  {utilityLinks.map((item) => (
+                    <DesktopNavLink key={item.href} item={item} pathname={pathname} />
+                  ))}
+                  <DesktopContactButton onClick={openAiAssistant} />
+                </nav>
 
-            <div className="ml-auto flex shrink-0 items-center">
-              <DesktopNavLink item={honsellGiftCardLink} pathname={pathname} />
+                <div className="ml-auto flex shrink-0 items-center">
+                  <DesktopNavLink item={honsellGiftCardLink} pathname={pathname} />
+                </div>
+              </div>
             </div>
           </div>
 

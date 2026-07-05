@@ -47,6 +47,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
       { href: "/admin/referral-tree", label: "Referral ağacı", iconName: "Network" },
       { href: "/admin/campaigns", label: "Reklam / Kampaniya", iconName: "Megaphone" },
       { href: "/admin/referrals", label: "Referal faizləri", iconName: "Percent" },
+      { href: "/admin/promo-codes", label: "Endirim kodları", iconName: "TicketPercent" },
       { href: "/admin/invite-bonuses", label: "Dəvət bonusları", iconName: "Gift", badgeKey: "heldInviteBonuses" },
     ],
   },
@@ -56,6 +57,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
     description: "İstifadəçi rəyləri və icma paylaşımlarının yoxlanışı",
     items: [
       { href: "/admin/reviews", label: "Oyun Rəyləri", iconName: "MessageSquare", badgeKey: "pendingReviews" },
+      { href: "/admin/whatsapp-reviews", label: "WhatsApp Rəy Dəvəti", iconName: "MessageSquarePlus" },
       { href: "/admin/testimonials", label: "Müştəri Rəyləri (Anasayfa)", iconName: "Star", badgeKey: "pendingTestimonials" },
       { href: "/admin/community", label: "İcma Paylaşımları", iconName: "MessageSquare", badgeKey: "pendingCommunity" },
       { href: "/admin/streaming-reviews", label: "Streaming İcmalları", iconName: "MessageSquare" },
