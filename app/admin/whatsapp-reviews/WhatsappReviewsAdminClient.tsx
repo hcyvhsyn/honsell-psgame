@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Loader2, Send, Copy, Check, MessageSquarePlus, CheckCircle2, Clock } from "lucide-react";
+import { Fragment, useCallback, useEffect, useState } from "react";
+import { Loader2, Send, Copy, Check, MessageSquarePlus, CheckCircle2, Clock, Star } from "lucide-react";
 
 type PlatformOption = { code: string; label: string; category: string };
 
@@ -12,6 +12,8 @@ type Invite = {
   productTitle: string;
   status: string;
   name: string | null;
+  reviewText: string | null;
+  rating: number | null;
   url: string;
   usedAt: string | null;
   expiresAt: string;
@@ -203,43 +205,70 @@ export default function WhatsappReviewsAdminClient({
                 {items.map((it) => {
                   const done = it.status === "SUBMITTED";
                   return (
-                    <tr key={it.id}>
-                      <td className="px-4 py-3 font-medium text-zinc-800">{it.phone}</td>
-                      <td className="px-4 py-3 text-zinc-700">
-                        {it.productTitle}
-                        {it.name && (
-                          <span className="block text-xs text-zinc-400">{it.name}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {done ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
-                            <CheckCircle2 className="h-3 w-3" /> Rəy yazıldı
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
-                            <Clock className="h-3 w-3" /> Gözləyir
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => copy(it.url, it.id)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
-                        >
-                          {copied === it.id ? (
-                            <>
-                              <Check className="h-3 w-3" /> Kopyalandı
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="h-3 w-3" /> Linki kopyala
-                            </>
+                    <Fragment key={it.id}>
+                      <tr className={done && it.reviewText ? "border-b-0" : ""}>
+                        <td className="px-4 py-3 font-medium text-zinc-800">{it.phone}</td>
+                        <td className="px-4 py-3 text-zinc-700">
+                          {it.productTitle}
+                          {it.name && (
+                            <span className="block text-xs text-zinc-400">{it.name}</span>
                           )}
-                        </button>
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="px-4 py-3">
+                          {done ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
+                              <CheckCircle2 className="h-3 w-3" /> Rəy yazıldı
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
+                              <Clock className="h-3 w-3" /> Gözləyir
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => copy(it.url, it.id)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+                          >
+                            {copied === it.id ? (
+                              <>
+                                <Check className="h-3 w-3" /> Kopyalandı
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3 w-3" /> Linki kopyala
+                              </>
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                      {done && it.reviewText && (
+                        <tr className="bg-zinc-50/60">
+                          <td colSpan={4} className="px-4 pb-4 pt-0">
+                            <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                              {it.rating != null && (
+                                <div className="mb-1 flex items-center gap-0.5">
+                                  {[1, 2, 3, 4, 5].map((n) => (
+                                    <Star
+                                      key={n}
+                                      className={`h-3.5 w-3.5 ${
+                                        n <= (it.rating ?? 0)
+                                          ? "fill-amber-400 text-amber-400"
+                                          : "fill-zinc-200 text-zinc-200"
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                              <p className="whitespace-pre-wrap text-sm text-zinc-700">
+                                {it.reviewText}
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>

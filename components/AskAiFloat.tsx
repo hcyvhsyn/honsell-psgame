@@ -221,6 +221,7 @@ export default function AskAiFloat() {
   if (
     pathname?.startsWith("/admin") ||
     pathname?.startsWith("/reels") || // reels immersiv feed — AI görünməsin
+    pathname?.startsWith("/rey/") || // WhatsApp rəy sehrbazı — AI görünməsin
     pathname === "/login" ||
     pathname === "/register" ||
     activeModal === "cart" // səbət açılanda AI gizli

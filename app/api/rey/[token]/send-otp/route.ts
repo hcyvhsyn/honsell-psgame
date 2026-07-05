@@ -3,12 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { generateOtpCode, OTP_TTL_MINUTES } from "@/lib/resend";
 import { isWasenderConfigured, normalizeToE164, sendWasenderText } from "@/lib/wasender";
 import { normalizeFullName, validateFullName } from "@/lib/nameFormat";
-import { REVIEW_TEXT_MIN, REVIEW_TEXT_MAX } from "@/lib/reviewTextLimits";
+import { REVIEW_TEXT_MAX } from "@/lib/reviewTextLimits";
 import { consumeRateLimit, rateLimitMessage } from "@/lib/rateLimit";
 import { cleanupCommunityText } from "@/lib/communityModeration";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// WhatsApp rəy axını üçün minimum uzunluq (anasayfa/oyun rəylərindən daha aşağı).
+const WA_REVIEW_MIN = 20;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -61,9 +64,9 @@ export async function POST(
   if (!EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Düzgün email ünvanı yazın." }, { status: 400 });
   }
-  if (reviewText.length < REVIEW_TEXT_MIN) {
+  if (reviewText.length < WA_REVIEW_MIN) {
     return NextResponse.json(
-      { error: `Rəy ən azı ${REVIEW_TEXT_MIN} simvol olmalıdır.` },
+      { error: `Rəy ən azı ${WA_REVIEW_MIN} simvol olmalıdır.` },
       { status: 400 }
     );
   }
@@ -90,7 +93,7 @@ export async function POST(
       { status: 400 }
     );
   }
-  const finalReviewText = cleaned.text.length >= REVIEW_TEXT_MIN ? cleaned.text : reviewText;
+  const finalReviewText = cleaned.text.length >= WA_REVIEW_MIN ? cleaned.text : reviewText;
 
   if (!whatsappEnabled()) {
     return NextResponse.json(

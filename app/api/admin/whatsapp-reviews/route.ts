@@ -37,6 +37,8 @@ export async function GET() {
       productTitle: true,
       status: true,
       name: true,
+      reviewText: true,
+      rating: true,
       usedAt: true,
       expiresAt: true,
       createdAt: true,

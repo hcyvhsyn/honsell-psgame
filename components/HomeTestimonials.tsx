@@ -1,6 +1,8 @@
-import { Star, Quote, BadgeCheck } from "lucide-react";
+import { Star, Quote, BadgeCheck, Sparkles } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getTierBadgesForUsers } from "@/lib/customerTier";
 import HomeReviewCta from "@/components/HomeReviewCta";
+import TierBadge from "@/components/TierBadge";
 
 /**
  * Anasayfa müştəri rəyləri. `Testimonial` modeli post-purchase email
@@ -32,7 +34,16 @@ export default async function HomeTestimonials() {
       where: { isActive: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       take: 6,
-      select: { id: true, name: true, avatarUrl: true, text: true, rating: true, platform: true, productTitle: true },
+      select: {
+        id: true,
+        name: true,
+        avatarUrl: true,
+        text: true,
+        rating: true,
+        platform: true,
+        productTitle: true,
+        transactionId: true,
+      },
     })
     .catch(() => []);
 
@@ -40,16 +51,73 @@ export default async function HomeTestimonials() {
   // user-ə bağlı olduğu üçün client-də gəlir → bu komponent server/statik qalır.
   if (testimonials.length === 0) return null;
 
+  const transactionIds = testimonials
+    .map((testimonial) => testimonial.transactionId)
+    .filter((id): id is string => Boolean(id));
+  const testimonialIds = testimonials.map((testimonial) => testimonial.id);
+
+  const [transactions, whatsappInvites] = await Promise.all([
+    transactionIds.length > 0
+      ? prisma.transaction
+          .findMany({
+            where: { id: { in: transactionIds } },
+            select: { id: true, userId: true },
+          })
+          .catch(() => [])
+      : [],
+    prisma.whatsappReviewInvite
+      .findMany({
+        where: {
+          testimonialId: { in: testimonialIds },
+          createdUserId: { not: null },
+        },
+        select: { testimonialId: true, createdUserId: true },
+      })
+      .catch(() => []),
+  ]);
+
+  const userIdByTransaction = new Map(
+    transactions.map((transaction) => [transaction.id, transaction.userId]),
+  );
+  const userIdByTestimonial = new Map(
+    whatsappInvites
+      .filter(
+        (invite): invite is typeof invite & { testimonialId: string; createdUserId: string } =>
+          Boolean(invite.testimonialId && invite.createdUserId),
+      )
+      .map((invite) => [invite.testimonialId, invite.createdUserId]),
+  );
+  const authorIdByTestimonial = new Map(
+    testimonials.map((testimonial) => [
+      testimonial.id,
+      (testimonial.transactionId
+        ? userIdByTransaction.get(testimonial.transactionId)
+        : undefined) ?? userIdByTestimonial.get(testimonial.id),
+    ]),
+  );
+  const tierBadges = await getTierBadgesForUsers(
+    Array.from(authorIdByTestimonial.values()),
+  ).catch(() => new Map());
+
   const showGrid = testimonials.length > 0;
 
   return (
     <section id="reyler" className="py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <HomeReviewCta />
+        <div className="mx-auto mb-7 flex w-fit max-w-2xl items-start gap-2 rounded-2xl border border-violet-200/70 bg-violet-50/70 px-4 py-2.5 text-xs leading-relaxed text-violet-900 dark:border-violet-300/15 dark:bg-violet-400/[0.07] dark:text-violet-200">
+          <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+          <p>
+            Rəylərdəki orfoqrafik və durğu səhvləri məna dəyişdirilmədən AI
+            tərəfindən düzəldilə bilər.
+          </p>
+        </div>
         {showGrid && (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {testimonials.map((t) => {
             const rating = Math.max(1, Math.min(5, t.rating));
+            const authorId = authorIdByTestimonial.get(t.id);
+            const tier = authorId ? tierBadges.get(authorId) : null;
             return (
               <figure
                 key={t.id}
@@ -83,6 +151,16 @@ export default async function HomeTestimonials() {
                     </div>
                     <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">
                       Təsdiqlənmiş alıcı · {t.productTitle ?? PLATFORM_LABELS[t.platform] ?? "Məhsul"}
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-zinc-500 dark:text-zinc-400">
+                      <span>Status:</span>
+                      {tier ? (
+                        <TierBadge tier={tier} full className="px-1.5 py-0 text-[9px]" />
+                      ) : (
+                        <span className="rounded-full border border-zinc-200 bg-zinc-100 px-1.5 py-0.5 font-semibold text-zinc-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-300">
+                          Honsell müştərisi
+                        </span>
+                      )}
                     </div>
                   </div>
                 </figcaption>

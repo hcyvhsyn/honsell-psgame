@@ -6,7 +6,7 @@ import { Star, Loader2, CheckCircle2, ArrowRight, ArrowLeft } from "lucide-react
 
 type Step = "name" | "email" | "review" | "otp" | "password" | "done";
 
-const REVIEW_MIN = 100;
+const REVIEW_MIN = 20;
 const REVIEW_MAX = 1000;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STEP_ORDER: Step[] = ["name", "email", "review", "otp"];
