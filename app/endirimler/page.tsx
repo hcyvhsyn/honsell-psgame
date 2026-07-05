@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     "Azərbaycanda endirimli PlayStation oyunlarının canlı siyahısı. PS4 və PS5 üçün ən böyük endirim faizi ilə sıralanmış oyunlar — anında çatdırılma.",
   alternates: { canonical: "/endirimler" },
   openGraph: {
-    title: "Endirimli PS Oyunları | Honsell PS Store",
+    title: "Endirimli PS Oyunları | Honsell Store",
     description:
       "PS Store-da aktiv endirim kampaniyaları. Endirim faizinə görə sıralanmış canlı siyahı.",
     url: "/endirimler",

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     "Azərbaycanda PlayStation oyunlarının ən böyük kataloqu. PS4, PS5, endirimli oyunlar, ən yeni çıxışlar — anında çatdırılma və etibarlı ödəniş.",
   alternates: { canonical: "/oyunlar" },
   openGraph: {
-    title: "PlayStation Oyunları — PS4 və PS5 Oyun Kataloqu | Honsell PS Store",
+    title: "PlayStation Oyunları — PS4 və PS5 Oyun Kataloqu | Honsell Store",
     description:
       "Azərbaycanda PlayStation oyunlarının ən böyük kataloqu. Endirimli oyunlar, ən yeni çıxışlar — anında çatdırılma.",
     url: "/oyunlar",

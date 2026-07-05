@@ -1,4 +1,4 @@
-// Honsell PS Store — Prisma schema
+// Honsell Store — Prisma schema
 // Provider: PostgreSQL (Supabase).
 
 generator client {
@@ -938,6 +938,11 @@ model WhatsappReviewInvite {
   productTitle  String // "Spotify — 3 ay"
   platform      String  @default("STREAMING") // Testimonial.platform (STREAMING | MUSIC)
   months        Int?
+  // Real satış qeydi üçün: seçilmiş abunəlik SKU-su + satış snapshot-u.
+  userId           String? // mövcud müştəri (telefon uyğunlaşıbsa)
+  serviceProductId String? // seçilmiş ServiceProduct (STREAMING | PLATFORM)
+  priceAznCents    Int? // satış məbləği snapshot (qəpik)
+  transactionId    String? // yaradılmış SERVICE_PURCHASE — ikiqat sayı önləyir
   // Wizard-da toplanan sahələr (progressiv doldurulur).
   name          String?
   email         String?

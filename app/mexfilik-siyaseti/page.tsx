@@ -6,14 +6,14 @@ import SiteHeaderServer from "@/components/SiteHeaderServer";
 import { SITE_NAME } from "@/lib/site";
 
 const description =
-  "Honsell PS Store istifadəçi məlumatlarını necə topladığı, istifadə etdiyi və qoruduğu haqqında məxfilik siyasəti.";
+  "Honsell Store istifadəçi məlumatlarını necə topladığı, istifadə etdiyi və qoruduğu haqqında məxfilik siyasəti.";
 
 export const metadata: Metadata = {
   title: "Məxfilik siyasəti",
   description,
   alternates: { canonical: "/mexfilik-siyaseti" },
   openGraph: {
-    title: "Məxfilik siyasəti | Honsell PS Store",
+    title: "Məxfilik siyasəti | Honsell Store",
     description,
     url: "/mexfilik-siyaseti",
     type: "website",

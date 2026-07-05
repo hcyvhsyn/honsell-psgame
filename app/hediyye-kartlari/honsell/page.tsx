@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     "Honsell Store-da istifadə üçün hədiyyə kartları. 11 simvollu unikal kod ilə anında çatdırılma — istənilən istifadəçi cüzdanına aktivləşdirə bilər.",
   alternates: { canonical: "/hediyye-kartlari/honsell" },
   openGraph: {
-    title: "Honsell Hədiyyə Kartları | Honsell PS Store",
+    title: "Honsell Hədiyyə Kartları | Honsell Store",
     description:
       "Honsell hədiyyə kartı al, 11 simvollu unikal kod əldə et və hədiyyə et. Aktivləşdirildikdə tam məbləğ cüzdana köçürülür.",
     url: "/hediyye-kartlari/honsell",

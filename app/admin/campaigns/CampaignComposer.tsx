@@ -71,7 +71,7 @@ function buildReviewWhatsappPreview(messageText: string): string {
   lines.push("⭐ Rəyini bura yaz:");
   lines.push(`   ${STORE_BASE}/#reyler`);
   lines.push("");
-  lines.push("— Honsell PS Store");
+  lines.push("— Honsell Store");
   return lines.join("\n");
 }
 
@@ -90,7 +90,7 @@ function buildWhatsappPreview(messageText: string, games: Game[]): string {
     lines.push(`   ${STORE_BASE}/oyunlar/${g.productId}`);
   }
   if (games.length) lines.push("");
-  lines.push("— Honsell PS Store");
+  lines.push("— Honsell Store");
   return lines.join("\n");
 }
 

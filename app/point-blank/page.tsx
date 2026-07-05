@@ -14,12 +14,12 @@ import {
 export const revalidate = 1800;
 
 export const metadata: Metadata = {
-  title: "Point Blank TG paketləri — Honsell PS Store",
+  title: "Point Blank TG paketləri — Honsell Store",
   description:
     "Point Blank üçün TG (turqid/zəng) paketlərini sərfəli qiymətə əldə et. Rəsmi e-pin kodları və sürətli çatdırılma.",
   alternates: { canonical: "/point-blank" },
   openGraph: {
-    title: "Point Blank TG Azərbaycan | Honsell PS Store",
+    title: "Point Blank TG Azərbaycan | Honsell Store",
     description:
       "Point Blank TG paketləri — rəsmi e-pin kodları ilə anlıq çatdırılma.",
     url: "/point-blank",

@@ -26,7 +26,7 @@ function otpText(userName: string, code: string): string {
   return [
     `Salam ${userName},`,
     ``,
-    `Honsell PS Store rəy təsdiq kodun: *${code}*`,
+    `Honsell Store rəy təsdiq kodun: *${code}*`,
     ``,
     `Kodun müddəti ${OTP_TTL_MINUTES} dəqiqəyə bitir.`,
     `Bu kodu kimsə ilə paylaşma.`,
@@ -52,17 +52,32 @@ export async function POST(
   }
 
   const body = await req.json().catch(() => ({}));
-  const name = normalizeFullName(body.name != null ? String(body.name) : "");
-  const email = String(body.email ?? "").trim().toLowerCase();
   const reviewText = typeof body.reviewText === "string" ? body.reviewText.trim() : "";
   const rating = Math.round(Number(body.rating) || 0);
 
-  const nameError = validateFullName(name);
-  if (nameError) {
-    return NextResponse.json({ error: nameError }, { status: 400 });
-  }
-  if (!EMAIL_RE.test(email)) {
-    return NextResponse.json({ error: "Düzgün email ünvanı yazın." }, { status: 400 });
+  // Mövcud müştəri: ad/email hesabdan götürülür (client-dən gələnə etibar edilmir).
+  let name: string;
+  let email: string;
+  if (invite.userId) {
+    const known = await prisma.user.findUnique({
+      where: { id: invite.userId },
+      select: { name: true, email: true },
+    });
+    if (!known) {
+      return NextResponse.json({ error: "Müştəri tapılmadı." }, { status: 404 });
+    }
+    name = normalizeFullName(known.name ?? "") || (known.name ?? "Müştəri");
+    email = known.email.trim().toLowerCase();
+  } else {
+    name = normalizeFullName(body.name != null ? String(body.name) : "");
+    email = String(body.email ?? "").trim().toLowerCase();
+    const nameError = validateFullName(name);
+    if (nameError) {
+      return NextResponse.json({ error: nameError }, { status: 400 });
+    }
+    if (!EMAIL_RE.test(email)) {
+      return NextResponse.json({ error: "Düzgün email ünvanı yazın." }, { status: 400 });
+    }
   }
   if (reviewText.length < WA_REVIEW_MIN) {
     return NextResponse.json(

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     "Azərbaycanda EA Play üzvlüyünü ən sərfəli qiymətə əldə edin. EA-nın oyun kolleksiyası, üzv mükafatları, 10% endirim — 1 və 12 aylıq paketlər mövcuddur.",
   alternates: { canonical: "/ea-play" },
   openGraph: {
-    title: "EA Play Üzvlüyü Azərbaycan — 1 / 12 ay | Honsell PS Store",
+    title: "EA Play Üzvlüyü Azərbaycan — 1 / 12 ay | Honsell Store",
     description:
       "EA Play üzvlüyünü ən ucuz qiymətə al. EA SPORTS FC, F1, The Sims, STAR WARS və 100+ digər oyun.",
     url: "/ea-play",

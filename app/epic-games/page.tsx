@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     "Epic Games Store oyunlarının Azərbaycan üçün kataloqu. Endirimli PC oyunları, ən yeni çıxışlar — sərfəli qiymət və etibarlı çatdırılma.",
   alternates: { canonical: "/epic-games" },
   openGraph: {
-    title: "Epic Games Oyunları — PC Oyun Kataloqu | Honsell PS Store",
+    title: "Epic Games Oyunları — PC Oyun Kataloqu | Honsell Store",
     description:
       "Epic Games Store oyunlarının Azərbaycan üçün kataloqu. Endirimli PC oyunları, ən yeni çıxışlar.",
     url: "/epic-games",

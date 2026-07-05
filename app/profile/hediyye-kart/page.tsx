@@ -7,7 +7,7 @@ import { formatHonsellGiftCardCode } from "@/lib/honsellGiftCard";
 import RedeemHonsellGiftCardForm from "./RedeemHonsellGiftCardForm";
 
 export const metadata: Metadata = {
-  title: "Hədiyyə kart aktivləşdir — Honsell PS Store",
+  title: "Hədiyyə kart aktivləşdir — Honsell Store",
 };
 
 export const dynamic = "force-dynamic";

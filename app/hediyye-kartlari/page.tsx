@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     "Türkiyə PSN üçün hədiyyə kartları və wallet top-up kodları. Anında e-pin çatdırılması, etibarlı ödəniş, ən sərfəli kurs.",
   alternates: { canonical: "/hediyye-kartlari" },
   openGraph: {
-    title: "PlayStation Hədiyyə Kartları — TRY Wallet Kodları | Honsell PS Store",
+    title: "PlayStation Hədiyyə Kartları — TRY Wallet Kodları | Honsell Store",
     description:
       "Türkiyə PSN wallet-i üçün anında e-pin kodlar. Ən sərfəli kursla TRY balansı.",
     url: "/hediyye-kartlari",

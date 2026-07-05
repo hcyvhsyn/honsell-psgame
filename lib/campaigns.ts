@@ -76,7 +76,7 @@ export function buildCampaignReviewWhatsappText(messageText: string): string {
   lines.push("⭐ Rəyini bura yaz:");
   lines.push(`   ${reviewInviteUrl()}`);
   lines.push("");
-  lines.push("— Honsell PS Store");
+  lines.push("— Honsell Store");
   return lines.join("\n");
 }
 
@@ -411,7 +411,7 @@ export function buildCampaignWhatsappText(
   }
 
   if (games.length) lines.push("");
-  lines.push("— Honsell PS Store");
+  lines.push("— Honsell Store");
   return lines.join("\n");
 }
 

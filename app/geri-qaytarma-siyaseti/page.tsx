@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description,
   alternates: { canonical: "/geri-qaytarma-siyaseti" },
   openGraph: {
-    title: "Geri qaytarma və ödəniş qaydaları | Honsell PS Store",
+    title: "Geri qaytarma və ödəniş qaydaları | Honsell Store",
     description,
     url: "/geri-qaytarma-siyaseti",
     type: "website",

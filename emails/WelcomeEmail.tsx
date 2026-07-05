@@ -24,7 +24,7 @@ export default function WelcomeEmail({ userName, referralCode }: WelcomeEmailPro
   return (
     <Html>
       <Head />
-      <Preview>Honsell PS Store-a xoş gəldin — növbəti macəran burada başlayır.</Preview>
+      <Preview>Honsell Store-a xoş gəldin — növbəti macəran burada başlayır.</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section style={header}>
@@ -89,7 +89,7 @@ export default function WelcomeEmail({ userName, referralCode }: WelcomeEmailPro
               -ə daxil ol.
             </Text>
             <Text style={footerMeta}>
-              Honsell Studiodan sevgi ilə göndərildi. © {new Date().getFullYear()} Honsell PS Store.
+              Honsell Studiodan sevgi ilə göndərildi. © {new Date().getFullYear()} Honsell Store.
             </Text>
           </Section>
         </Container>

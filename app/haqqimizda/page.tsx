@@ -6,14 +6,14 @@ import SiteHeaderServer from "@/components/SiteHeaderServer";
 import { SITE_NAME } from "@/lib/site";
 
 const description =
-  "Honsell PS Store haqqında məlumat: PlayStation oyunları, PS Plus, hədiyyə kartları və rəqəmsal xidmətlər üçün yerli alış təcrübəsi.";
+  "Honsell Store haqqında məlumat: PlayStation oyunları, PS Plus, hədiyyə kartları və rəqəmsal xidmətlər üçün yerli alış təcrübəsi.";
 
 export const metadata: Metadata = {
   title: "Haqqımızda",
   description,
   alternates: { canonical: "/haqqimizda" },
   openGraph: {
-    title: "Haqqımızda | Honsell PS Store",
+    title: "Haqqımızda | Honsell Store",
     description,
     url: "/haqqimizda",
     type: "website",

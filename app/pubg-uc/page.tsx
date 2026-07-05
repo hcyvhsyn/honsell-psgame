@@ -7,12 +7,12 @@ import { Globe, ShieldCheck, Sparkles, Zap } from "lucide-react";
 export const revalidate = 1800;
 
 export const metadata: Metadata = {
-  title: "PUBG UC paketləri — Honsell PS Store",
+  title: "PUBG UC paketləri — Honsell Store",
   description:
     "PUBG Mobile üçün UC paketlərini sərfəli qiymətə əldə et. E-PIN kod və ya ID yükləmə — rəsmi kodlar, sürətli çatdırılma, etibarlı satıcı.",
   alternates: { canonical: "/pubg-uc" },
   openGraph: {
-    title: "PUBG UC Azərbaycan | Honsell PS Store",
+    title: "PUBG UC Azərbaycan | Honsell Store",
     description:
       "PUBG Mobile UC paketləri — E-PIN kod və ya ID yükləmə ilə anlıq çatdırılma.",
     url: "/pubg-uc",

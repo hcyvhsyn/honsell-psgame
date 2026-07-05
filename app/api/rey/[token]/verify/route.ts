@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE_NAME, generateReferralCode } from "@/lib/auth";
 import { SET_PASSWORD_TTL_HOURS } from "@/lib/resend";
@@ -100,10 +101,13 @@ export async function POST(
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // Mövcud hesab (telefon və ya email) varsa təkrar istifadə et — dublikat yaratma.
-      const existing = await tx.user.findFirst({
-        where: { OR: [{ phone: invite.phone }, { email: invite.email! }] },
-      });
+      // Mövcud müştəri (admin telefonla tanıyıb) → birbaşa onu götür. Yoxdursa
+      // telefon/email üzrə axtar (dublikat yaratma).
+      const existing = invite.userId
+        ? await tx.user.findUnique({ where: { id: invite.userId } })
+        : await tx.user.findFirst({
+            where: { OR: [{ phone: invite.phone }, { email: invite.email! }] },
+          });
 
       // Həqiqi şifrəsi olmayan hesab (yeni və ya placeholder) şifrə təyin edə bilər.
       const hasRealPassword = Boolean(
@@ -155,6 +159,25 @@ export async function POST(
         },
       });
 
+      // Satış hələ qeydə alınmayıbsa (yeni müştəri — yazılışda hesab yox idi),
+      // indi real SERVICE_PURCHASE yarat ki, homepage sifariş sayı + bestsellers artsın.
+      // Mövcud müştəri üçün satış admin yazılışında yaradılıb (transactionId dolu).
+      let saleTxnId = invite.transactionId;
+      if (!saleTxnId && invite.serviceProductId && invite.priceAznCents != null) {
+        const txn = await tx.transaction.create({
+          data: {
+            userId: user.id,
+            type: "SERVICE_PURCHASE",
+            status: "SUCCESS",
+            serviceProductId: invite.serviceProductId,
+            amountAznCents: -invite.priceAznCents,
+            metadata: "whatsapp-review-invite",
+          },
+          select: { id: true },
+        });
+        saleTxnId = txn.id;
+      }
+
       await tx.whatsappReviewInvite.update({
         where: { id: invite.id },
         data: {
@@ -162,6 +185,7 @@ export async function POST(
           usedAt: new Date(),
           createdUserId: user.id,
           testimonialId: testimonial.id,
+          transactionId: saleTxnId,
           otpCode: null,
           otpExpiresAt: null,
           otpAttempts: 0,
@@ -173,10 +197,14 @@ export async function POST(
         userId: user.id,
         referralCode: user.referralCode,
         canSetPassword,
+        saleCreated: saleTxnId !== invite.transactionId,
       };
     });
     userId = result.userId;
     referralCode = result.referralCode;
+
+    // Yeni satış və ya yeni rəy — anasayfa sayğaclarını/rəyləri təzələ.
+    if (result.saleCreated) revalidateTag("home");
 
     const res = NextResponse.json({
       ok: true,

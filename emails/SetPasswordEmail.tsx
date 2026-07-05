@@ -25,7 +25,7 @@ export default function SetPasswordEmail({
   return (
     <Html>
       <Head />
-      <Preview>Honsell PS Store hesabını aktivləşdir və şifrəni təyin et</Preview>
+      <Preview>Honsell Store hesabını aktivləşdir və şifrəni təyin et</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section style={header}>
@@ -38,7 +38,7 @@ export default function SetPasswordEmail({
               Xoş gəldin, <span style={accentPurple}>{userName}</span>.
             </Heading>
             <Text style={lede}>
-              Honsell PS Store-da sənin üçün hesab yaradıldı. Hesabını
+              Honsell Store-da sənin üçün hesab yaradıldı. Hesabını
               aktivləşdirmək və şifrəni təyin etmək üçün aşağıdakı düyməyə bas.
               Bu link {expiresInHours} saat sonra etibarsız olacaq.
             </Text>
@@ -65,7 +65,7 @@ export default function SetPasswordEmail({
               etmədən aktivləşməyəcək.
             </Text>
             <Text style={footerMeta}>
-              © {new Date().getFullYear()} Honsell PS Store.
+              © {new Date().getFullYear()} Honsell Store.
             </Text>
           </Section>
         </Container>

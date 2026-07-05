@@ -371,7 +371,7 @@ function WhatsAppButton({
                 disabled={sending || sent}
                 rows={6}
                 maxLength={4000}
-                placeholder="Salam, Honsell PS Store-dan yazırıq…"
+                placeholder="Salam, Honsell Store-dan yazırıq…"
                 className="w-full rounded-md border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none disabled:opacity-50"
               />
               <div className="mt-1 text-right text-[10px] text-zinc-500">

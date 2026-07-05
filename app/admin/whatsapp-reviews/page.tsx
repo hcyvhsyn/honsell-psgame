@@ -1,14 +1,22 @@
-import { getStreamingPlatforms } from "@/lib/streamingPlatforms";
+import { prisma } from "@/lib/prisma";
 import WhatsappReviewsAdminClient from "./WhatsappReviewsAdminClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminWhatsappReviewsPage() {
-  const platforms = await getStreamingPlatforms();
-  const options = platforms.map((p) => ({
-    code: p.code,
-    label: p.label,
-    category: p.category,
+  const products = await prisma.serviceProduct
+    .findMany({
+      where: { isActive: true, type: { in: ["STREAMING", "PLATFORM"] } },
+      orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { priceAznCents: "asc" }],
+      select: { id: true, title: true, priceAznCents: true, type: true },
+    })
+    .catch(() => []);
+
+  const options = products.map((p) => ({
+    id: p.id,
+    title: p.title,
+    priceAzn: p.priceAznCents / 100,
+    type: p.type,
   }));
 
   return (
@@ -16,13 +24,13 @@ export default async function AdminWhatsappReviewsPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight">WhatsApp Rəy Dəvəti</h1>
         <p className="mt-1 text-sm text-zinc-600">
-          Abunəliyini WhatsApp-dan alan müştərilər üçün. Müştərinin aldığı xidməti və
-          müddəti seçin, telefon nömrəsini yazın — sistem WhatsApp-a rəy linki göndərir.
-          Müştəri linkdə addım-addım ad, email və rəyini yazır, WhatsApp OTP ilə təsdiqləyir;
-          nəticədə həm rəyi dərc olunur, həm də honsell.store hesabı yaranır.
+          Abunəliyini WhatsApp-dan alan müştərilər üçün. Müştərinin aldığı məhsulu seçin,
+          telefon nömrəsini yazın — sistem WhatsApp-a rəy linki göndərir. Nömrə bazada varsa,
+          müştəri avtomatik tanınır (təkrar qeydiyyat olmur, sadəcə rəy yazır). Qeyd edilən hər
+          satış anasayfadakı sifariş sayı və “ən çox alınanlar”a əlavə olunur.
         </p>
       </div>
-      <WhatsappReviewsAdminClient platforms={options} />
+      <WhatsappReviewsAdminClient products={options} />
     </div>
   );
 }

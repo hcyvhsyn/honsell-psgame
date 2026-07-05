@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     "Türkiyə PSN hesabı açmaq, PS Plus seçimi, PS Store-dan oyun almaq və daha çox — Azərbaycanlı PlayStation oyunçuları üçün addım-addım təlimatlar.",
   alternates: { canonical: "/bilmeli-olduglarin" },
   openGraph: {
-    title: "PlayStation Bələdçiləri | Honsell PS Store",
+    title: "PlayStation Bələdçiləri | Honsell Store",
     description: "Azərbaycandan PS oyunu almaq və hesab idarə etmək üçün hər şey.",
     url: "/bilmeli-olduglarin",
     type: "website",

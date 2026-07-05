@@ -17,7 +17,7 @@ if (!process.env.RESEND_API_KEY) {
 
 export const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_ADDRESS = "Honsell PS Store <onboarding@honsell.store>";
+const FROM_ADDRESS = "Honsell Store <onboarding@honsell.store>";
 const ADMIN_NOTIFY_EMAIL = "huseynhajiyev0@gmail.com";
 const ADMIN_BASE_URL = "https://honsell.store";
 
@@ -75,7 +75,7 @@ export async function sendWelcomeEmail(
   const { data, error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to: email,
-    subject: `Honsell PS Store-a xoş gəldin, ${userName}`,
+    subject: `Honsell Store-a xoş gəldin, ${userName}`,
     react: WelcomeEmail({ userName, referralCode }),
   });
 
@@ -94,7 +94,7 @@ export async function sendOtpEmail(
   const { data, error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to: email,
-    subject: `Honsell PS Store kodun: ${code}`,
+    subject: `Honsell Store kodun: ${code}`,
     react: OtpEmail({
       userName,
       code,
@@ -319,7 +319,7 @@ function subscriptionEmailShell(params: {
             </a>
           </div>
           <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center">
-            Honsell PS Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a>
+            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a>
           </p>
         </div>
       </div>
@@ -669,7 +669,7 @@ export async function sendDiscountDigestEmail(params: {
             </a>
           </div>
           <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center;line-height:1.6">
-            Honsell PS Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
+            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
             Bu bültenləri almaq istəmirsiniz? <a href="${params.unsubscribeUrl}" style="color:#a1a1aa;text-decoration:underline">Abunəlikdən çıxın</a>.
           </p>
         </div>
@@ -680,7 +680,7 @@ export async function sendDiscountDigestEmail(params: {
   const { error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to: params.email,
-    subject: `Bu həftə ${params.games.length} yeni endirim — Honsell PS Store`,
+    subject: `Bu həftə ${params.games.length} yeni endirim — Honsell Store`,
     html,
   });
   if (error) {
@@ -755,7 +755,7 @@ export async function sendAbandonedCartEmail(params: {
             </a>
           </div>
           <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center;line-height:1.6">
-            Honsell PS Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
+            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
             Belə xatırlatmaları almaq istəmirsiniz? <a href="${params.unsubscribeUrl}" style="color:#a1a1aa;text-decoration:underline">Abunəlikdən çıxın</a>.
           </p>
         </div>
@@ -766,7 +766,7 @@ export async function sendAbandonedCartEmail(params: {
   const { error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to: params.email,
-    subject: "Səbətinizdə nəsə qaldı — Honsell PS Store",
+    subject: "Səbətinizdə nəsə qaldı — Honsell Store",
     html,
   });
   if (error) {
@@ -799,7 +799,7 @@ export type CampaignEmailContent = {
 
 /** Kampaniya e-poçtunun mövzu sətri. */
 export function campaignEmailSubject(title: string): string {
-  return `${title} — Honsell PS Store`;
+  return `${title} — Honsell Store`;
 }
 
 /**
@@ -833,7 +833,7 @@ export function renderCampaignEmailHtml(params: CampaignEmailContent): string {
             </a>
           </div>
           <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center;line-height:1.6">
-            Honsell PS Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
+            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
             Bu mesajları almaq istəmirsiniz? <a href="${params.unsubscribeUrl}" style="color:#a1a1aa;text-decoration:underline">Abunəlikdən çıxın</a>.
           </p>
         </div>
@@ -890,7 +890,7 @@ export function renderCampaignEmailHtml(params: CampaignEmailContent): string {
             </a>
           </div>
           <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center;line-height:1.6">
-            Honsell PS Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
+            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
             Bu mesajları almaq istəmirsiniz? <a href="${params.unsubscribeUrl}" style="color:#a1a1aa;text-decoration:underline">Abunəlikdən çıxın</a>.
           </p>
         </div>

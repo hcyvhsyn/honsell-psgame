@@ -41,7 +41,7 @@ export const DEFAULT_AI_KNOWLEDGE: Array<{
     category: "GENERAL",
     sortOrder: 0,
     content:
-      "Honsell PS Store — Azərbaycanda PlayStation oyunları, PS Plus, streaming abunəlikləri, hədiyyə kartları və PSN hesab açma xidmətləri satan saytdır. Çatdırılma adətən anında/qısa müddətdə, ödəniş etibarlıdır.",
+      "Honsell Store — Azərbaycanda PlayStation oyunları, PS Plus, streaming abunəlikləri, hədiyyə kartları və PSN hesab açma xidmətləri satan saytdır. Çatdırılma adətən anında/qısa müddətdə, ödəniş etibarlıdır.",
   },
   {
     title: "Oyunlar və PS Plus",

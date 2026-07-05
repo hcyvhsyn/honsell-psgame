@@ -49,7 +49,7 @@ export async function POST(req: Request) {
   const senderName = user.name?.trim() || "Bir dostunuz";
   const claimLink = `${SITE_URL}${PRODUCT_GIFT_CLAIM_PATH}?code=${code}`;
   const lines = [
-    "🎁 Honsell PS Store — sizə hədiyyə var!",
+    "🎁 Honsell Store — sizə hədiyyə var!",
     "",
     `${senderName} sizə «${gift.titleSnap}» hədiyyə etdi.`,
   ];

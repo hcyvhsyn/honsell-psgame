@@ -18,6 +18,7 @@ export default async function WhatsappReviewPage({
       status: true,
       usedAt: true,
       expiresAt: true,
+      userId: true,
     },
   });
 
@@ -26,11 +27,24 @@ export default async function WhatsappReviewPage({
   const used = invite.usedAt != null || invite.status === "SUBMITTED";
   const expired = invite.expiresAt.getTime() < Date.now();
 
+  // Mövcud müştəri: ad/email məlum olduğu üçün wizard həmin addımları atlayır.
+  const knownCustomer = invite.userId
+    ? await prisma.user
+        .findUnique({
+          where: { id: invite.userId },
+          select: { name: true, email: true },
+        })
+        .then((u) =>
+          u ? { name: u.name ?? "", email: u.email } : null
+        )
+        .catch(() => null)
+    : null;
+
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <div className="mx-auto max-w-xl px-4 py-16 sm:px-6">
         <Link href="/" className="mb-6 inline-block text-xs text-zinc-500 hover:text-zinc-300">
-          ← Honsell PS Store
+          ← Honsell Store
         </Link>
 
         <header className="mb-8">
@@ -59,7 +73,11 @@ export default async function WhatsappReviewPage({
             Bu link köhnəldi (30 gün keçib). Yeni link almaq üçün dəstəklə əlaqə saxla.
           </div>
         ) : (
-          <ReviewWizardClient token={invite.token} productTitle={invite.productTitle} />
+          <ReviewWizardClient
+            token={invite.token}
+            productTitle={invite.productTitle}
+            knownCustomer={knownCustomer}
+          />
         )}
       </div>
     </main>

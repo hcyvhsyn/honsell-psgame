@@ -9,7 +9,7 @@ import { getCurrentUser } from "@/lib/auth";
 import ClaimGiftForm from "./ClaimGiftForm";
 
 export const metadata: Metadata = {
-  title: "Hədiyyəni aç — Honsell PS Store",
+  title: "Hədiyyəni aç — Honsell Store",
   description: "Dostunuzdan aldığınız hədiyyə kodunu daxil edib hədiyyənizi açın.",
 };
 

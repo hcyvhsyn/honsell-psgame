@@ -28,7 +28,7 @@ export default async function ReviewInvitePage({
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <div className="mx-auto max-w-xl px-4 py-16 sm:px-6">
         <Link href="/" className="mb-6 inline-block text-xs text-zinc-500 hover:text-zinc-300">
-          ← Honsell PS Store
+          ← Honsell Store
         </Link>
 
         <header className="mb-8">

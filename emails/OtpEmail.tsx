@@ -24,7 +24,7 @@ export default function OtpEmail({
   return (
     <Html>
       <Head />
-      <Preview>Honsell PS Store təsdiq kodun: {code}</Preview>
+      <Preview>Honsell Store təsdiq kodun: {code}</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section style={header}>
@@ -54,7 +54,7 @@ export default function OtpEmail({
               kod istifadə olunana qədər hesabına heç nə baş verməz.
             </Text>
             <Text style={footerMeta}>
-              © {new Date().getFullYear()} Honsell PS Store.
+              © {new Date().getFullYear()} Honsell Store.
             </Text>
           </Section>
         </Container>

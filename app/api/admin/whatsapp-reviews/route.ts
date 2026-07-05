@@ -1,14 +1,14 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { getStreamingPlatforms } from "@/lib/streamingPlatforms";
 import { normalizeToE164, sendWasenderText } from "@/lib/wasender";
 
 export const runtime = "nodejs";
 
 const INVITE_TTL_DAYS = 30;
-const ALLOWED_MONTHS = new Set([1, 3, 6, 12]);
+const SUBSCRIPTION_TYPES = ["STREAMING", "PLATFORM"];
 
 function baseUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell.store").replace(/\/$/, "");
@@ -18,15 +18,49 @@ function inviteText(productTitle: string, url: string): string {
   return [
     `Salam! 👋`,
     ``,
-    `Honsell PS Store-dan aldığın *${productTitle}* üçün rəyini bizimlə bölüş.`,
+    `Honsell Store-dan aldığın *${productTitle}* üçün rəyini bizimlə bölüş.`,
     `Bir neçə addımda tamamlanır və honsell.store hesabın da yaranır:`,
     ``,
     url,
   ].join("\n");
 }
 
-export async function GET() {
+/**
+ * Eyni telefonun DB-də saxlanan mümkün formatlarını qaytarır (E.164, ölkə kodsuz,
+ * yerli 0-lı). İstifadəçi qeydiyyatda telefonu sərbəst formatda saxlaya bilir.
+ */
+function phoneCandidates(e164: string): string[] {
+  const digits = e164.replace(/\D/g, ""); // məs. 994501234567
+  const set = new Set<string>([e164, digits]);
+  // AZ nömrələri: +994 XX XXXXXXX → yerli 0XX XXXXXXX və kodsuz XX XXXXXXX
+  if (digits.startsWith("994") && digits.length >= 12) {
+    const local = digits.slice(3); // 501234567
+    set.add(local);
+    set.add(`0${local}`);
+  }
+  return Array.from(set);
+}
+
+async function findCustomerByPhone(rawPhone: string) {
+  const e164 = normalizeToE164(rawPhone);
+  if (!e164) return null;
+  return prisma.user.findFirst({
+    where: { phone: { in: phoneCandidates(e164) } },
+    select: { id: true, name: true, email: true, phone: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export async function GET(req: Request) {
   await requireAdmin();
+
+  const url = new URL(req.url);
+  const lookupPhone = url.searchParams.get("phone");
+  if (lookupPhone !== null) {
+    const customer = await findCustomerByPhone(lookupPhone);
+    return NextResponse.json({ customer });
+  }
+
   const items = await prisma.whatsappReviewInvite.findMany({
     orderBy: { createdAt: "desc" },
     take: 100,
@@ -39,6 +73,7 @@ export async function GET() {
       name: true,
       reviewText: true,
       rating: true,
+      userId: true,
       usedAt: true,
       expiresAt: true,
       createdAt: true,
@@ -67,44 +102,63 @@ export async function POST(req: Request) {
     );
   }
 
-  const months = Math.round(Number(body.months) || 0);
-  if (!ALLOWED_MONTHS.has(months)) {
-    return NextResponse.json(
-      { error: "Müddət 1, 3, 6 və ya 12 ay olmalıdır." },
-      { status: 400 }
-    );
+  const serviceProductId = body.serviceProductId ? String(body.serviceProductId).trim() : "";
+  const product = serviceProductId
+    ? await prisma.serviceProduct.findFirst({
+        where: { id: serviceProductId, isActive: true, type: { in: SUBSCRIPTION_TYPES } },
+        select: { id: true, title: true, priceAznCents: true, type: true },
+      })
+    : null;
+  if (!product) {
+    return NextResponse.json({ error: "Məhsul tapılmadı və ya aktiv deyil." }, { status: 400 });
   }
 
-  const platformCode = body.platformCode ? String(body.platformCode).trim() : "";
-  const platforms = await getStreamingPlatforms();
-  const platform = platforms.find((p) => p.code === platformCode);
-  if (!platform) {
-    return NextResponse.json({ error: "Xidmət tapılmadı." }, { status: 400 });
-  }
+  const customer = await findCustomerByPhone(phone);
 
-  const productTitle = `${platform.label} — ${months} ay`;
   const token = crypto.randomBytes(24).toString("base64url");
   const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
+
+  // Mövcud müştəri: satışı dərhal qeyd et (real SERVICE_PURCHASE) ki, homepage
+  // güvən zöləsi + bestsellers sayı artsın. walletBalance toxunulmur.
+  let transactionId: string | null = null;
+  if (customer) {
+    const txn = await prisma.transaction.create({
+      data: {
+        userId: customer.id,
+        type: "SERVICE_PURCHASE",
+        status: "SUCCESS",
+        serviceProductId: product.id,
+        amountAznCents: -product.priceAznCents,
+        metadata: "whatsapp-review-invite",
+      },
+      select: { id: true },
+    });
+    transactionId = txn.id;
+  }
 
   const invite = await prisma.whatsappReviewInvite.create({
     data: {
       token,
       phone,
-      platformCode: platform.code,
-      productTitle,
-      platform: platform.category === "MUSIC" ? "MUSIC" : "STREAMING",
-      months,
+      productTitle: product.title,
+      platform: product.type === "PLATFORM" ? "MUSIC" : "STREAMING",
+      serviceProductId: product.id,
+      priceAznCents: product.priceAznCents,
+      userId: customer?.id ?? null,
+      transactionId,
       expiresAt,
     },
     select: { id: true, token: true, phone: true, productTitle: true, status: true, createdAt: true },
   });
+
+  if (transactionId) revalidateTag("home");
 
   const url = `${baseUrl()}/rey/${token}`;
 
   let whatsappSent = false;
   let whatsappError: string | null = null;
   try {
-    const result = await sendWasenderText({ to: phone, text: inviteText(productTitle, url) });
+    const result = await sendWasenderText({ to: phone, text: inviteText(product.title, url) });
     whatsappSent = result.ok;
     if (!result.ok) whatsappError = result.error;
   } catch (err) {
@@ -119,6 +173,7 @@ export async function POST(req: Request) {
       expiresAt: expiresAt.toISOString(),
       createdAt: invite.createdAt.toISOString(),
     },
+    customer,
     whatsappSent,
     whatsappError,
   });

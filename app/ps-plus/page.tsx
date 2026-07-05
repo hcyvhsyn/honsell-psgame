@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     "Azərbaycanda PS Plus Essential, Extra və Deluxe üzvlüklərini ən sərfəli qiymətə əldə edin. 1, 3 və 12 aylıq abunəliklər, anında aktivləşmə.",
   alternates: { canonical: "/ps-plus" },
   openGraph: {
-    title: "PS Plus Üzvlüyü Azərbaycan — Essential / Extra / Deluxe | Honsell PS Store",
+    title: "PS Plus Üzvlüyü Azərbaycan — Essential / Extra / Deluxe | Honsell Store",
     description:
       "PS Plus üzvlüyünü ən ucuz qiymətə al. Essential, Extra və Deluxe — bütün tier-lər mövcuddur.",
     url: "/ps-plus",

@@ -9,18 +9,23 @@ type Step = "name" | "email" | "review" | "otp" | "password" | "done";
 const REVIEW_MIN = 20;
 const REVIEW_MAX = 1000;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const STEP_ORDER: Step[] = ["name", "email", "review", "otp"];
 
 export default function ReviewWizardClient({
   token,
   productTitle,
+  knownCustomer,
 }: {
   token: string;
   productTitle: string;
+  knownCustomer?: { name: string; email: string } | null;
 }) {
-  const [step, setStep] = useState<Step>("name");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  // Mövcud müştəri: ad/email məlumdur → yalnız rəy + OTP addımları.
+  const isKnown = Boolean(knownCustomer);
+  const STEP_ORDER: Step[] = isKnown ? ["review", "otp"] : ["name", "email", "review", "otp"];
+
+  const [step, setStep] = useState<Step>(isKnown ? "review" : "name");
+  const [name, setName] = useState(knownCustomer?.name ?? "");
+  const [email, setEmail] = useState(knownCustomer?.email ?? "");
   const [reviewText, setReviewText] = useState("");
   const [rating, setRating] = useState(5);
   const [hover, setHover] = useState<number | null>(null);
@@ -216,6 +221,11 @@ export default function ReviewWizardClient({
         </div>
       )}
 
+      {isKnown && knownCustomer?.name && step === "review" && (
+        <div className="mb-2 text-sm text-zinc-300">
+          Salam, <span className="font-semibold text-white">{knownCustomer.name}</span>! 👋
+        </div>
+      )}
       <div className="mb-5 text-xs uppercase tracking-wider text-zinc-500">{productTitle}</div>
 
       {/* Step 1: Ad Soyad */}
@@ -348,7 +358,7 @@ export default function ReviewWizardClient({
 
       {/* Actions */}
       <div className="mt-6 flex items-center gap-2">
-        {(step === "email" || step === "review") && (
+        {(step === "email" || (step === "review" && !isKnown)) && (
           <button
             type="button"
             onClick={() => setStep(step === "email" ? "name" : "email")}

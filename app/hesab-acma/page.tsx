@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     "Türkiyə PSN hesabınızı peşəkarlarımız sizin üçün açsın. Tam doğrulanmış hesab, etibarlı proses, qısa müddətdə təhvil.",
   alternates: { canonical: "/hesab-acma" },
   openGraph: {
-    title: "Türkiyə PSN Hesabı Açma Xidməti | Honsell PS Store",
+    title: "Türkiyə PSN Hesabı Açma Xidməti | Honsell Store",
     description:
       "Tam doğrulanmış Türkiyə PlayStation Network hesabı — peşəkarlarımız sizin üçün açır.",
     url: "/hesab-acma",

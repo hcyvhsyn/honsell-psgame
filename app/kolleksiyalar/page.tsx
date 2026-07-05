@@ -12,10 +12,10 @@ export const revalidate = 1800;
 export const metadata: Metadata = {
   title: "Kolleksiyalar — Tematik PlayStation Oyun Siyahıları",
   description:
-    "Honsell PS Store-da seçilmiş tematik PlayStation oyun kolleksiyaları: RPG, çoxoyunçu, PS5 eksklüziv, indie və daha çox.",
+    "Honsell Store-da seçilmiş tematik PlayStation oyun kolleksiyaları: RPG, çoxoyunçu, PS5 eksklüziv, indie və daha çox.",
   alternates: { canonical: "/kolleksiyalar" },
   openGraph: {
-    title: "PlayStation Oyun Kolleksiyaları | Honsell PS Store",
+    title: "PlayStation Oyun Kolleksiyaları | Honsell Store",
     description: "Tematik kolleksiyalarla maraqlandığın janrı tap.",
     url: "/kolleksiyalar",
   },

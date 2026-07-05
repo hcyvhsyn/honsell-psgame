@@ -24,7 +24,7 @@ export default function ResetPasswordEmail({
   return (
     <Html>
       <Head />
-      <Preview>Honsell PS Store şifrə yeniləmə kodun: {code}</Preview>
+      <Preview>Honsell Store şifrə yeniləmə kodun: {code}</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section style={header}>
@@ -54,7 +54,7 @@ export default function ResetPasswordEmail({
               dəyişməyəcək.
             </Text>
             <Text style={footerMeta}>
-              © {new Date().getFullYear()} Honsell PS Store.
+              © {new Date().getFullYear()} Honsell Store.
             </Text>
           </Section>
         </Container>

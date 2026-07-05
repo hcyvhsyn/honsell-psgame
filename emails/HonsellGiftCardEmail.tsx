@@ -107,7 +107,7 @@ export default function HonsellGiftCardEmail({
         </div>
 
         <p style={{ margin: "14px 0 0", color: "#64748b", fontSize: 12, textAlign: "center" }}>
-          Honsell PS Store
+          Honsell Store
         </p>
       </div>
     </div>

@@ -66,9 +66,9 @@ Oyun avtomatik kitabxanada görünəndən sonra:
 - Library → Your Collection → oyunu yüklə
 - Yükləmə bitəndə oyna
 
-## Honsell PS Store haqqında məlumat
+## Honsell Store haqqında məlumat
 
-Honsell PS Store Azərbaycanda fəaliyyət göstərən rəsmi PlayStation oyun satıcısıdır. Əsas üstünlüklər:
+Honsell Store Azərbaycanda fəaliyyət göstərən rəsmi PlayStation oyun satıcısıdır. Əsas üstünlüklər:
 
 | Xüsusiyyət | Honsell |
 |-----------|---------|

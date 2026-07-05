@@ -128,7 +128,9 @@ export default function ReelsFeedClient({
   return (
     <ReelStateProvider>
       <div className="flex justify-center bg-black">
-        <div className="flex items-stretch gap-3 sm:gap-5">
+        {/* Mobil: sarğı tam en (w-full) — sütunun w-full-u viewport enini alsın.
+            Desktop: sarğı content-ə görə daralır (sm:w-auto) və mərkəzləşir. */}
+        <div className="flex w-full items-stretch justify-center gap-3 sm:w-auto sm:gap-5">
           {/* Video sütunu (+ şərh panosu bunun üzərində) */}
           <div className={`relative ${SLOT_H} w-full sm:w-[430px] sm:max-w-full`}>
             <div

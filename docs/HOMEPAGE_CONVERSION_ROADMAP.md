@@ -1,4 +1,4 @@
-# Anasayfa Konversiya Roadmap — Honsell PS Store
+# Anasayfa Konversiya Roadmap — Honsell Store
 
 > Məqsəd: Anasayfanı satış maşınına çevirmək. Strategiya — kodda artıq mövcud olan, amma
 > anasayfada görünməyən aktivləri (endirimlər, rəylər, kolleksiyalar) ön plana çıxarmaq +

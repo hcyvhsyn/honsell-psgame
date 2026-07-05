@@ -43,7 +43,7 @@ export async function generateMetadata({
 
   const description =
     collection.description ??
-    `${collection.title} — Honsell PS Store-da seçilmiş PlayStation oyun kolleksiyası. Azərbaycanda ən sərfəli qiymətə.`;
+    `${collection.title} — Honsell Store-da seçilmiş PlayStation oyun kolleksiyası. Azərbaycanda ən sərfəli qiymətə.`;
   const canonical = `/kolleksiya/${encodeURIComponent(collection.slug)}`;
 
   return {

@@ -19,7 +19,7 @@ function signupOtpText(userName: string, code: string): string {
   return [
     `Salam ${userName},`,
     ``,
-    `Honsell PS Store təsdiq kodun: *${code}*`,
+    `Honsell Store təsdiq kodun: *${code}*`,
     ``,
     `Kodun müddəti ${OTP_TTL_MINUTES} dəqiqəyə bitir.`,
     `Bu kodu kimsə ilə paylaşma.`,
@@ -30,7 +30,7 @@ function resetPasswordOtpText(userName: string, code: string): string {
   return [
     `Salam ${userName},`,
     ``,
-    `Honsell PS Store şifrə yeniləmə kodun: *${code}*`,
+    `Honsell Store şifrə yeniləmə kodun: *${code}*`,
     ``,
     `Kodun müddəti ${OTP_TTL_MINUTES} dəqiqəyə bitir.`,
     `Əgər şifrəni sən yeniləməmisənsə, bu mesajı nəzərə alma.`,
