@@ -12,6 +12,33 @@ export const dynamic = "force-dynamic";
 const MAX_OTP_ATTEMPTS = 5;
 const OTP_LOCK_MINUTES = 15;
 
+type SaleProduct = { id: string; priceAznCents: number };
+
+/**
+ * Dəvətin `products` JSON-undan satış üçün {id, priceAznCents} siyahısı çıxarır.
+ * Köhnə (tək-məhsullu) dəvətlərdə fallback olaraq serviceProductId/priceAznCents istifadə edir.
+ */
+function parseInviteProducts(
+  raw: unknown,
+  fallback: { serviceProductId: string | null; priceAznCents: number | null }
+): SaleProduct[] {
+  if (Array.isArray(raw)) {
+    const list = raw
+      .map((p) => {
+        const obj = p as { id?: unknown; priceAznCents?: unknown };
+        const id = typeof obj?.id === "string" ? obj.id : null;
+        const price = Number(obj?.priceAznCents);
+        return id && Number.isFinite(price) ? { id, priceAznCents: price } : null;
+      })
+      .filter((p): p is SaleProduct => p !== null);
+    if (list.length > 0) return list;
+  }
+  if (fallback.serviceProductId && fallback.priceAznCents != null) {
+    return [{ id: fallback.serviceProductId, priceAznCents: fallback.priceAznCents }];
+  }
+  return [];
+}
+
 async function uniqueReferralCode(): Promise<string> {
   let code = generateReferralCode();
   for (let i = 0; i < 5; i++) {
@@ -159,23 +186,32 @@ export async function POST(
         },
       });
 
-      // Satış hələ qeydə alınmayıbsa (yeni müştəri — yazılışda hesab yox idi),
-      // indi real SERVICE_PURCHASE yarat ki, homepage sifariş sayı + bestsellers artsın.
-      // Mövcud müştəri üçün satış admin yazılışında yaradılıb (transactionId dolu).
-      let saleTxnId = invite.transactionId;
-      if (!saleTxnId && invite.serviceProductId && invite.priceAznCents != null) {
-        const txn = await tx.transaction.create({
-          data: {
-            userId: user.id,
-            type: "SERVICE_PURCHASE",
-            status: "SUCCESS",
-            serviceProductId: invite.serviceProductId,
-            amountAznCents: -invite.priceAznCents,
-            metadata: "whatsapp-review-invite",
-          },
-          select: { id: true },
+      // Satış hələ qeydə alınmayıbsa (yeni müştəri — yazılışda hesab yox idi), indi
+      // hər məhsul üçün ayrı SERVICE_PURCHASE yarat ki, homepage sifariş sayı +
+      // bestsellers artsın. Mövcud müştəri üçün satışlar admin yazılışında yaradılıb.
+      let firstTxnId = invite.transactionId;
+      let saleCreated = false;
+      if (!invite.salesRecorded) {
+        // `products` JSON (çoxlu məhsul); köhnə tək-məhsullu dəvətlər üçün fallback.
+        const list = parseInviteProducts(invite.products, {
+          serviceProductId: invite.serviceProductId,
+          priceAznCents: invite.priceAznCents,
         });
-        saleTxnId = txn.id;
+        for (const p of list) {
+          const txn = await tx.transaction.create({
+            data: {
+              userId: user.id,
+              type: "SERVICE_PURCHASE",
+              status: "SUCCESS",
+              serviceProductId: p.id,
+              amountAznCents: -p.priceAznCents,
+              metadata: "whatsapp-review-invite",
+            },
+            select: { id: true },
+          });
+          if (!firstTxnId) firstTxnId = txn.id;
+          saleCreated = true;
+        }
       }
 
       await tx.whatsappReviewInvite.update({
@@ -185,7 +221,8 @@ export async function POST(
           usedAt: new Date(),
           createdUserId: user.id,
           testimonialId: testimonial.id,
-          transactionId: saleTxnId,
+          transactionId: firstTxnId,
+          salesRecorded: invite.salesRecorded || saleCreated,
           otpCode: null,
           otpExpiresAt: null,
           otpAttempts: 0,
@@ -197,7 +234,7 @@ export async function POST(
         userId: user.id,
         referralCode: user.referralCode,
         canSetPassword,
-        saleCreated: saleTxnId !== invite.transactionId,
+        saleCreated,
       };
     });
     userId = result.userId;

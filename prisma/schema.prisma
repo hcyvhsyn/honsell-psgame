@@ -943,11 +943,15 @@ model WhatsappReviewInvite {
   productTitle  String // "Spotify — 3 ay"
   platform      String  @default("STREAMING") // Testimonial.platform (STREAMING | MUSIC)
   months        Int?
-  // Real satış qeydi üçün: seçilmiş abunəlik SKU-su + satış snapshot-u.
+  // Real satış qeydi üçün: seçilmiş abunəlik SKU-ları + satış snapshot-u.
   userId           String? // mövcud müştəri (telefon uyğunlaşıbsa)
-  serviceProductId String? // seçilmiş ServiceProduct (STREAMING | PLATFORM)
-  priceAznCents    Int? // satış məbləği snapshot (qəpik)
-  transactionId    String? // yaradılmış SERVICE_PURCHASE — ikiqat sayı önləyir
+  serviceProductId String? // ilk SKU (backward-compat; əsas mənbə `products`)
+  priceAznCents    Int? // ümumi satış məbləği snapshot (qəpik)
+  // Müştərinin eyni anda aldığı bütün məhsullar:
+  // [{ id, title, priceAznCents, type }]. Hər biri ayrı SERVICE_PURCHASE yaradır.
+  products         Json?
+  salesRecorded    Boolean @default(false) // satışlar yaradılıb (ikiqat sayı önləyir)
+  transactionId    String? // ilk yaradılmış SERVICE_PURCHASE (istinad üçün)
   // Wizard-da toplanan sahələr (progressiv doldurulur).
   name          String?
   email         String?

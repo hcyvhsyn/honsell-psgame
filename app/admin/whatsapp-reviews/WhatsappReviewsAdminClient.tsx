@@ -49,8 +49,19 @@ export default function WhatsappReviewsAdminClient({
   const [items, setItems] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [serviceProductId, setServiceProductId] = useState(products[0]?.id ?? "");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [phone, setPhone] = useState("");
+
+  function toggleProduct(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  const selectedProducts = selectedIds
+    .map((id) => products.find((p) => p.id === id))
+    .filter((p): p is ProductOption => Boolean(p));
+  const totalAzn = selectedProducts.reduce((sum, p) => sum + p.priceAzn, 0);
 
   const [matched, setMatched] = useState<MatchedCustomer | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
@@ -118,8 +129,8 @@ export default function WhatsappReviewsAdminClient({
     e.preventDefault();
     setError(null);
     setNotice(null);
-    if (!serviceProductId) {
-      setError("Məhsul seçin.");
+    if (selectedIds.length === 0) {
+      setError("Ən azı bir məhsul seçin.");
       return;
     }
     setSaving(true);
@@ -127,7 +138,7 @@ export default function WhatsappReviewsAdminClient({
       const res = await fetch("/api/admin/whatsapp-reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serviceProductId, phone }),
+        body: JSON.stringify({ serviceProductIds: selectedIds, phone }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -136,6 +147,7 @@ export default function WhatsappReviewsAdminClient({
       }
       setPhone("");
       setMatched(null);
+      setSelectedIds([]);
       const who = data.customer
         ? `Mövcud müştəri (${data.customer.name ?? data.customer.email}) — satış qeyd edildi.`
         : "Yeni müştəri — rəy tamamlananda hesab və satış yaranacaq.";
@@ -166,24 +178,64 @@ export default function WhatsappReviewsAdminClient({
           Yeni rəy dəvəti
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-zinc-600">Məhsul</span>
-            <select
-              value={serviceProductId}
-              onChange={(e) => setServiceProductId(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-            >
-              {products.length === 0 && <option value="">Məhsul yoxdur</option>}
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.title} — {p.priceAzn.toFixed(2)} ₼
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="space-y-4">
+          <div>
+            <span className="mb-1 flex items-center justify-between text-xs font-medium text-zinc-600">
+              <span>Məhsul(lar) — müştəri birdən çox ala bilər</span>
+              {selectedIds.length > 0 && (
+                <span className="text-zinc-500">
+                  {selectedIds.length} seçildi · cəmi {totalAzn.toFixed(2)} ₼
+                </span>
+              )}
+            </span>
+            <div className="max-h-56 overflow-y-auto rounded-lg border border-zinc-300 p-1">
+              {products.length === 0 && (
+                <p className="px-2 py-2 text-sm text-zinc-500">Məhsul yoxdur</p>
+              )}
+              {products.map((p) => {
+                const checked = selectedIds.includes(p.id);
+                return (
+                  <label
+                    key={p.id}
+                    className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm ${
+                      checked ? "bg-violet-50 text-violet-900" : "hover:bg-zinc-50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleProduct(p.id)}
+                      className="h-4 w-4 accent-violet-600"
+                    />
+                    <span className="flex-1">{p.title}</span>
+                    <span className="text-xs text-zinc-500">{p.priceAzn.toFixed(2)} ₼</span>
+                  </label>
+                );
+              })}
+            </div>
+            {selectedProducts.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {selectedProducts.map((p) => (
+                  <span
+                    key={p.id}
+                    className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800"
+                  >
+                    {p.title}
+                    <button
+                      type="button"
+                      onClick={() => toggleProduct(p.id)}
+                      className="text-violet-500 hover:text-violet-700"
+                      aria-label="Sil"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
 
-          <label className="block">
+          <label className="block sm:max-w-xs">
             <span className="mb-1 block text-xs font-medium text-zinc-600">
               Telefon (WhatsApp)
             </span>

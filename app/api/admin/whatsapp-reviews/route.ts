@@ -121,63 +121,86 @@ export async function POST(req: Request) {
     );
   }
 
-  const serviceProductId = body.serviceProductId ? String(body.serviceProductId).trim() : "";
-  const product = serviceProductId
-    ? await prisma.serviceProduct.findFirst({
-        where: { id: serviceProductId, isActive: true, type: { in: SUBSCRIPTION_TYPES } },
-        select: { id: true, title: true, priceAznCents: true, type: true },
-      })
-    : null;
-  if (!product) {
-    return NextResponse.json({ error: "Məhsul tapılmadı və ya aktiv deyil." }, { status: 400 });
+  // Bir və ya bir neçə məhsul seçilə bilər (müştəri eyni anda birdən çox alıb).
+  const rawIds: string[] = Array.isArray(body.serviceProductIds)
+    ? body.serviceProductIds.map((v: unknown) => String(v).trim()).filter(Boolean)
+    : body.serviceProductId
+      ? [String(body.serviceProductId).trim()]
+      : [];
+  const uniqueIds = Array.from(new Set(rawIds));
+  if (uniqueIds.length === 0) {
+    return NextResponse.json({ error: "Ən azı bir məhsul seçin." }, { status: 400 });
   }
+
+  const found = await prisma.serviceProduct.findMany({
+    where: { id: { in: uniqueIds }, isActive: true, type: { in: SUBSCRIPTION_TYPES } },
+    select: { id: true, title: true, priceAznCents: true, type: true },
+  });
+  if (found.length !== uniqueIds.length) {
+    return NextResponse.json(
+      { error: "Bəzi məhsullar tapılmadı və ya aktiv deyil." },
+      { status: 400 }
+    );
+  }
+  // Seçim sırasını qoru.
+  const products = uniqueIds.map((id) => found.find((p) => p.id === id)!);
+
+  const combinedTitle = products.map((p) => p.title).join(" + ");
+  const totalPriceCents = products.reduce((sum, p) => sum + p.priceAznCents, 0);
+  const platform = products[0].type === "PLATFORM" ? "MUSIC" : "STREAMING";
 
   const customer = await findCustomerByPhone(phone);
 
   const token = crypto.randomBytes(24).toString("base64url");
   const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
 
-  // Mövcud müştəri: satışı dərhal qeyd et (real SERVICE_PURCHASE) ki, homepage
-  // güvən zöləsi + bestsellers sayı artsın. walletBalance toxunulmur.
-  let transactionId: string | null = null;
+  // Mövcud müştəri: hər məhsul üçün ayrı satış (SERVICE_PURCHASE) dərhal qeyd et ki,
+  // homepage güvən zöləsi + bestsellers sayı artsın. walletBalance toxunulmur.
+  let firstTxnId: string | null = null;
+  let salesRecorded = false;
   if (customer) {
-    const txn = await prisma.transaction.create({
-      data: {
-        userId: customer.id,
-        type: "SERVICE_PURCHASE",
-        status: "SUCCESS",
-        serviceProductId: product.id,
-        amountAznCents: -product.priceAznCents,
-        metadata: "whatsapp-review-invite",
-      },
-      select: { id: true },
-    });
-    transactionId = txn.id;
+    for (const p of products) {
+      const txn = await prisma.transaction.create({
+        data: {
+          userId: customer.id,
+          type: "SERVICE_PURCHASE",
+          status: "SUCCESS",
+          serviceProductId: p.id,
+          amountAznCents: -p.priceAznCents,
+          metadata: "whatsapp-review-invite",
+        },
+        select: { id: true },
+      });
+      if (!firstTxnId) firstTxnId = txn.id;
+    }
+    salesRecorded = true;
   }
 
   const invite = await prisma.whatsappReviewInvite.create({
     data: {
       token,
       phone,
-      productTitle: product.title,
-      platform: product.type === "PLATFORM" ? "MUSIC" : "STREAMING",
-      serviceProductId: product.id,
-      priceAznCents: product.priceAznCents,
+      productTitle: combinedTitle,
+      platform,
+      serviceProductId: products[0].id,
+      priceAznCents: totalPriceCents,
+      products,
+      salesRecorded,
       userId: customer?.id ?? null,
-      transactionId,
+      transactionId: firstTxnId,
       expiresAt,
     },
     select: { id: true, token: true, phone: true, productTitle: true, status: true, createdAt: true },
   });
 
-  if (transactionId) revalidateTag("home");
+  if (salesRecorded) revalidateTag("home");
 
   const url = `${baseUrl()}/rey/${token}`;
 
   let whatsappSent = false;
   let whatsappError: string | null = null;
   try {
-    const result = await sendWasenderText({ to: phone, text: inviteText(product.title, url) });
+    const result = await sendWasenderText({ to: phone, text: inviteText(combinedTitle, url) });
     whatsappSent = result.ok;
     if (!result.ok) whatsappError = result.error;
   } catch (err) {

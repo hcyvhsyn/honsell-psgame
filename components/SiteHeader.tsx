@@ -17,7 +17,6 @@ import {
   Gift,
   Globe,
   Grid2X2,
-  Heart,
   CircleHelp,
   LogIn,
   Mail,
@@ -929,157 +928,31 @@ function UserAccountDropdown({
 }) {
   const wallet =
     typeof user.walletBalance === "number" ? user.walletBalance / 100 : null;
-  const cashback =
-    typeof user.cashbackBalanceCents === "number"
-      ? user.cashbackBalanceCents / 100
-      : null;
-
-  const [open, setOpen] = useState(false);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function show() {
-    if (closeTimer.current) {
-      clearTimeout(closeTimer.current);
-      closeTimer.current = null;
-    }
-    setOpen(true);
-  }
-
-  function scheduleHide() {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    closeTimer.current = setTimeout(() => setOpen(false), 140);
-  }
-
-  useEffect(() => {
-    return () => {
-      if (closeTimer.current) clearTimeout(closeTimer.current);
-    };
-  }, []);
 
   return (
-    <div
-      className="relative hidden sm:inline-flex"
-      onMouseEnter={show}
-      onMouseLeave={scheduleHide}
-      onFocus={show}
-      onBlur={scheduleHide}
-    >
+    <div className="hidden items-center gap-2 sm:inline-flex">
+      {wallet !== null && (
+        <Link
+          href="/profile/wallet"
+          aria-label="Cüzdan"
+          className="group honsell-nav-action inline-flex h-10 items-center gap-2 rounded-[18px] border border-zinc-200 bg-white/75 px-3 text-sm font-bold text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition hover:border-violet-400/35 hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:bg-white/[0.075]"
+        >
+          <Wallet className="honsell-nav-icon-motion h-4 w-4 text-violet-600 dark:text-violet-300" />
+          <span className="tabular-nums">{wallet.toFixed(2)} ₼</span>
+        </Link>
+      )}
+
       <Link
         href="/profile"
         className="group honsell-nav-action flex h-10 max-w-[180px] items-center gap-2 rounded-[18px] border border-zinc-200 bg-white/75 px-3 text-sm font-bold text-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition hover:border-violet-400/35 hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:hover:bg-white/[0.075]"
-        aria-label="Hesab menyusu"
+        aria-label="Hesabım"
       >
         <span className="grid h-7 w-7 place-items-center rounded-xl bg-violet-50 text-rose-600 dark:bg-white/5 dark:text-rose-300">
           <User className="honsell-nav-icon-motion honsell-nav-icon-idle h-4 w-4" />
         </span>
         <span className="truncate">{user.name?.split(" ")[0] ?? "Hesab"}</span>
-        <ChevronDown className="honsell-nav-chevron h-4 w-4 shrink-0 text-violet-400" />
       </Link>
-
-      <div
-        className={`absolute right-0 top-full z-[80] w-[330px] max-w-[calc(100vw-2rem)] pt-3 transition-opacity duration-150 ${
-          open ? "visible opacity-100" : "pointer-events-none invisible opacity-0"
-        }`}
-      >
-        <div className="relative overflow-hidden rounded-[20px] border border-violet-300/45 bg-[radial-gradient(circle_at_12%_0%,rgba(168,85,247,0.10),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.97))] p-3 shadow-[0_22px_70px_-34px_rgba(124,58,237,0.45)] backdrop-blur-2xl dark:border-violet-400/[0.45] dark:bg-[radial-gradient(circle_at_12%_0%,rgba(168,85,247,0.22),transparent_34%),linear-gradient(135deg,rgba(17,19,32,0.98),rgba(5,7,15,0.97))] dark:shadow-[0_22px_70px_-34px_rgba(168,85,247,0.78)]">
-          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/70 to-transparent" />
-          <div className="pointer-events-none absolute inset-x-8 bottom-0 h-14 bg-violet-700/10 blur-3xl" />
-
-          <div className="relative">
-            <div className="flex items-center gap-3 px-1 pb-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-violet-300/45 bg-violet-100 text-violet-700 shadow-[0_0_28px_-18px_rgba(168,85,247,0.65)] dark:border-violet-400/[0.45] dark:bg-violet-950/30 dark:text-white">
-                <User className="honsell-nav-icon-motion h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-base font-black text-zinc-950 dark:text-white">
-                  {user.name?.split(" ")[0] ?? "Hesab"}
-                </p>
-                <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
-                  Hesab paneli
-                </p>
-              </div>
-            </div>
-
-            {(wallet !== null || (cashback !== null && cashback > 0)) && (
-              <div className="mb-3 grid gap-2 sm:grid-cols-2">
-                {wallet !== null && (
-                  <Link
-                    href="/profile/wallet"
-                    onClick={() => setOpen(false)}
-                    className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 transition hover:border-violet-300/40 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.035] dark:hover:bg-white/[0.065]"
-                  >
-                    <span className="flex items-center gap-2 text-[11px] font-black uppercase text-violet-600 dark:text-violet-300">
-                      <Wallet className="honsell-nav-icon-motion h-3.5 w-3.5" />
-                      Cüzdan
-                    </span>
-                    <span className="mt-1 block text-base font-black tabular-nums text-zinc-950 dark:text-white">
-                      {wallet.toFixed(2)} ₼
-                    </span>
-                  </Link>
-                )}
-
-                {cashback !== null && cashback > 0 && (
-                  <div className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-white/[0.035]">
-                    <span className="flex items-center gap-2 text-[11px] font-black uppercase text-emerald-600 dark:text-emerald-300">
-                      <Gem className="honsell-nav-icon-motion h-3.5 w-3.5" />
-                      Cashback
-                    </span>
-                    <span className="mt-1 block text-base font-black tabular-nums text-zinc-950 dark:text-white">
-                      {cashback.toFixed(2)} ₼
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="grid gap-2">
-              <AccountMenuItem href="/profile" icon={User} label="Hesabım" onClick={() => setOpen(false)} />
-              <AccountMenuItem href="/profile/favorites" icon={Heart} label="Favoritlərim" featured onClick={() => setOpen(false)} />
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
-  );
-}
-
-function AccountMenuItem({
-  href,
-  icon: Icon,
-  label,
-  featured = false,
-  onClick,
-}: {
-  href: string;
-  icon: LucideIcon;
-  label: string;
-  featured?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className={`group/item flex min-h-[48px] items-center gap-2.5 rounded-xl border px-2.5 py-2 transition ${
-        featured
-          ? "border-rose-400/55 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-100 dark:hover:bg-rose-500/[0.15]"
-          : "border-zinc-200 bg-white text-zinc-700 hover:border-violet-300/40 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-100 dark:hover:bg-white/[0.065]"
-      }`}
-    >
-      <span
-        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${
-          featured
-            ? "border-rose-300/30 bg-rose-100 text-rose-600 dark:bg-rose-300/[0.15] dark:text-rose-200"
-            : "border-zinc-200 bg-violet-50 text-violet-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-violet-100"
-        }`}
-      >
-        <Icon className="honsell-nav-icon-motion h-4 w-4" />
-      </span>
-      <span className={`min-w-0 flex-1 truncate text-sm font-black ${featured ? "text-rose-600 dark:text-rose-200" : "text-zinc-950 dark:text-white"}`}>
-        {label}
-      </span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 transition group-hover/item:translate-x-1 group-hover/item:text-zinc-950 dark:text-zinc-300 dark:group-hover/item:text-white" />
-    </Link>
   );
 }
 
