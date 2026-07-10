@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useDialog } from "@/lib/dialogs";
-import { ENTRY_CONDITION_LABELS } from "@/lib/giveaways";
+import { ENTRY_CONDITION_LABELS } from "@/lib/giveawaysShared";
 
 type Giveaway = {
   id: string;

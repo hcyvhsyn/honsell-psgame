@@ -3,27 +3,26 @@ import { getTestAccountEmails } from "@/lib/testAccounts";
 import { isWasenderConfigured, normalizeToE164, sendWasenderText } from "@/lib/wasender";
 
 /**
- * Çəkiliş (Giveaway) — ana səhifə hədiyyə çəkilişləri.
+ * Çəkiliş (Giveaway) — ana səhifə hədiyyə çəkilişləri (SERVER logikası).
  *
  * Axın: admin çəkiliş yaradır (DRAFT) → aktivləşdirir (ACTIVE) → istifadəçilər
  * şərti ödəyib qoşulur → bitiş tarixindən sonra admin random qalibləri çəkir
  * (COMPLETED) → qaliblərin WhatsApp-ına bildiriş gedir → qaliblər ana səhifədə
  * ictimai göstərilir (etibar / sosial sübut).
+ *
+ * Client-safe sabitlər/köməkçilər `@/lib/giveawaysShared`-dədir (bu modul prisma
+ * import etdiyi üçün client bundle-a çəkilə bilməz).
  */
 
-/** Qoşulma şərtləri. */
-export const ENTRY_CONDITIONS = ["REGISTER_ONLY", "PURCHASE_ANY", "PURCHASE_PRODUCT"] as const;
-export type EntryCondition = (typeof ENTRY_CONDITIONS)[number];
-
-export const ENTRY_CONDITION_LABELS: Record<EntryCondition, string> = {
-  REGISTER_ONLY: "Sadəcə qeydiyyat",
-  PURCHASE_ANY: "Ən azı bir alış",
-  PURCHASE_PRODUCT: "Müəyyən məhsul alışı",
-};
-
-/** Çəkiliş statusları. */
-export const GIVEAWAY_STATUSES = ["DRAFT", "ACTIVE", "COMPLETED", "CANCELLED"] as const;
-export type GiveawayStatus = (typeof GIVEAWAY_STATUSES)[number];
+// Rahatlıq üçün shared sabitləri buradan da re-export edirik (server importları).
+export {
+  ENTRY_CONDITIONS,
+  ENTRY_CONDITION_LABELS,
+  GIVEAWAY_STATUSES,
+  displayParticipantCount,
+  maskWinnerName,
+} from "@/lib/giveawaysShared";
+export type { EntryCondition, GiveawayStatus } from "@/lib/giveawaysShared";
 
 /** WhatsApp provayder limitlərinə hörmət üçün göndərişlər arası gecikmə (ms). */
 const WA_SEND_DELAY_MS = 400;
@@ -39,26 +38,6 @@ export function giveawayUrl(): string {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Göstərilən iştirakçı sayı = real qoşulanlar + admin təyin etdiyi boost.
- * Boost yalnız sosial sübut üçündür və qalib çəkilişinə təsir etmir.
- */
-export function displayParticipantCount(realCount: number, boost: number): number {
-  return Math.max(0, realCount) + Math.max(0, boost);
-}
-
-/**
- * Qalib adını ictimai göstəriş üçün maskalayır: "Hüseyn H." → "Hüs****".
- * Ad yoxdursa email/telefon istifadə olunmur — anonim "İştirakçı".
- */
-export function maskWinnerName(name: string | null | undefined): string {
-  const trimmed = (name || "").trim();
-  if (!trimmed) return "İştirakçı";
-  const first = trimmed.split(/\s+/)[0];
-  if (first.length <= 2) return `${first}***`;
-  return `${first.slice(0, 3)}${"*".repeat(Math.min(4, first.length - 3))}`;
 }
 
 /**
