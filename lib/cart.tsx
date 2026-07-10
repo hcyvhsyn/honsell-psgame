@@ -33,12 +33,16 @@ export type PlatformAccountCredential = {
  *     PLATFORM məhsullarında ("LINKEDIN" / "YOUTUBE" / "SPOTIFY" və s.) qeyd olunur.
  *   - `accounts` — çoxhesablı PLATFORM planları (Spotify Duo=2, Family=5) üçün N ədəd
  *     email+şifrə cütü. Tək-cüt platformalar (YouTube/LinkedIn) `gmail`/`password`-da qalır.
+ *   - `hasAccount` — Spotify kimi planlarda müştərinin ARTIQ hesabı olub-olmadığını
+ *     bildirir: `true` → mövcud hesab (admin Premium-a keçirir), `false` → hesab yoxdur,
+ *     müştəri istədiyi email+şifrəni verir və admin yeni hesab yaradır.
  */
 export type StreamingCartDetails = {
   gmail?: string;
   password?: string;
   platformKind?: string;
   accounts?: PlatformAccountCredential[];
+  hasAccount?: boolean;
 };
 
 /**

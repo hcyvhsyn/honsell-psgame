@@ -14,6 +14,10 @@ export type PublicTestimonialItem = {
   rating: number;
   platform: string;
   productTitle: string | null;
+  /** Alınan məhsulun qiyməti (AZN qəpik) — məlumdursa. */
+  priceAznCents: number | null;
+  /** Məhsulun alınma tarixi (ISO) — məlumdursa. */
+  purchasedAt: string | null;
   adminReply: string | null;
   adminReplyImageUrl: string | null;
   tier: UserTierBadge | null;
@@ -25,6 +29,8 @@ export type PublicTestimonialsPage = {
   pageSize: number;
   total: number;
   totalPages: number;
+  /** Aktiv rəyi olan hər platforma üzrə rəy sayı (filtrlərdən asılı deyil). */
+  platformCounts: Record<string, number>;
 };
 
 type TestimonialFilters = {
@@ -57,6 +63,18 @@ export async function getPublicTestimonials({
       : {}),
   };
 
+  // Platforma sayğacları — filtr dropdown-u üçün. Yalnız rəyi olan kateqoriyalar
+  // göstərilsin deyə bütün aktiv rəylər üzrə (platform/rating/query filtrindən asılı olmadan).
+  const platformGroups = await prisma.testimonial.groupBy({
+    by: ["platform"],
+    where: { isActive: true },
+    _count: { _all: true },
+  });
+  const platformCounts: Record<string, number> = {};
+  for (const group of platformGroups) {
+    platformCounts[group.platform] = group._count._all;
+  }
+
   const total = await prisma.testimonial.count({ where });
   const totalPages = Math.max(1, Math.ceil(total / TESTIMONIAL_PAGE_SIZE));
   const safePage = Math.min(normalizedPage, totalPages);
@@ -88,22 +106,32 @@ export async function getPublicTestimonials({
     transactionIds.length > 0
       ? prisma.transaction.findMany({
           where: { id: { in: transactionIds } },
-          select: { id: true, userId: true },
+          select: { id: true, userId: true, amountAznCents: true, createdAt: true },
         })
       : [],
     testimonialIds.length > 0
       ? prisma.whatsappReviewInvite.findMany({
-          where: {
-            testimonialId: { in: testimonialIds },
-            createdUserId: { not: null },
+          where: { testimonialId: { in: testimonialIds } },
+          select: {
+            testimonialId: true,
+            createdUserId: true,
+            priceAznCents: true,
+            createdAt: true,
           },
-          select: { testimonialId: true, createdUserId: true },
         })
       : [],
   ]);
 
   const userIdByTransaction = new Map(
     transactions.map((transaction) => [transaction.id, transaction.userId]),
+  );
+  const txnById = new Map(transactions.map((transaction) => [transaction.id, transaction]));
+  const inviteByTestimonial = new Map(
+    whatsappInvites
+      .filter((invite): invite is typeof invite & { testimonialId: string } =>
+        Boolean(invite.testimonialId),
+      )
+      .map((invite) => [invite.testimonialId, invite]),
   );
   const userIdByTestimonial = new Map(
     whatsappInvites
@@ -130,8 +158,17 @@ export async function getPublicTestimonials({
     pageSize: TESTIMONIAL_PAGE_SIZE,
     total,
     totalPages,
+    platformCounts,
     items: testimonials.map((testimonial) => {
       const authorId = authorIdByTestimonial.get(testimonial.id);
+      // Qiymət + alınma tarixi: əvvəlcə bağlı tranzaksiyadan (email-dəvət/oyun),
+      // yoxdursa WhatsApp dəvətindən.
+      const txn = testimonial.transactionId ? txnById.get(testimonial.transactionId) : null;
+      const invite = inviteByTestimonial.get(testimonial.id);
+      const priceAznCents = txn
+        ? Math.abs(txn.amountAznCents)
+        : invite?.priceAznCents ?? null;
+      const purchasedAt = (txn?.createdAt ?? invite?.createdAt ?? null)?.toISOString() ?? null;
       return {
         id: testimonial.id,
         name: testimonial.name,
@@ -139,6 +176,8 @@ export async function getPublicTestimonials({
         text: testimonial.text,
         rating: testimonial.rating,
         platform: testimonial.platform,
+        priceAznCents,
+        purchasedAt,
         productTitle: testimonial.productTitle,
         adminReply: testimonial.adminReply,
         adminReplyImageUrl: testimonial.adminReplyImageUrl,

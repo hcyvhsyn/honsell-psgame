@@ -4,6 +4,7 @@ import {
   startTransition,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -38,11 +39,6 @@ const PLATFORM_LABELS: Record<string, string> = {
   STREAMING: "Streaming",
   MUSIC: "Musiqi",
 };
-
-const PLATFORM_OPTIONS = [
-  { value: "", label: "Bütün məhsullar" },
-  ...Object.entries(PLATFORM_LABELS).map(([value, label]) => ({ value, label })),
-];
 
 const RATING_OPTIONS = [
   { value: "", label: "Bütün reytinqlər" },
@@ -251,28 +247,52 @@ function ReplyImage({ src }: { src: string }) {
 
 function ReviewCard({ item }: { item: PublicTestimonialItem }) {
   const rating = Math.max(1, Math.min(5, item.rating));
+  const productLabel = item.productTitle ?? PLATFORM_LABELS[item.platform] ?? "Məhsul";
+  const loyaltyLabel = item.tier?.displayName || item.tier?.name || "Təsdiqlənmiş müştəri";
 
   return (
-    <figure className="relative flex h-[430px] w-[min(390px,calc(100vw-2rem))] flex-none snap-start flex-col rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-violet-300/60 hover:shadow-xl dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-violet-300/25 sm:h-[440px] sm:p-6">
-      <Quote className="absolute right-5 top-5 h-8 w-8 text-violet-500/15 dark:text-violet-300/15" />
+    <figure className="group relative flex h-[390px] w-[min(370px,calc(100vw-2rem))] flex-none snap-start flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white p-5 shadow-[0_22px_55px_-38px_rgba(15,23,42,0.55)] transition duration-300 hover:-translate-y-1 hover:border-violet-300/60 hover:shadow-[0_28px_65px_-42px_rgba(124,58,237,0.38)] dark:border-white/10 dark:bg-[#101014] dark:hover:border-violet-300/25 sm:p-6">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400 via-violet-500 to-emerald-400 opacity-80" />
+      <Quote className="pointer-events-none absolute right-5 top-16 h-10 w-10 text-violet-500/10 dark:text-violet-300/10" />
 
-      <div className={`${styles.cardBody} min-h-0 flex-1 overflow-y-auto pr-1`}>
-        <div className="flex items-center gap-1 text-amber-400">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <Star
-              key={index}
-              className={`h-4 w-4 ${index < rating ? "fill-current" : "text-zinc-300 dark:text-zinc-700"}`}
-            />
-          ))}
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5 text-amber-400">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Star
+                key={index}
+                className={`h-4 w-4 ${index < rating ? "fill-current" : "text-zinc-300 dark:text-zinc-700"}`}
+              />
+            ))}
+          </div>
+          <span className="text-xs font-bold text-zinc-700 dark:text-zinc-200">{rating}.0</span>
         </div>
-        <blockquote className="mt-4 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
-          “{item.text}”
+
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/45 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold text-emerald-700 dark:border-emerald-300/20 dark:text-emerald-300">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Real alış
+        </span>
+      </div>
+
+      <div className={`${styles.cardBody} relative mt-6 min-h-0 flex-1 overflow-y-auto pr-1`}>
+        <blockquote className="text-[1.1rem] font-medium leading-8 text-zinc-800 dark:text-zinc-100 sm:text-[1.18rem]">
+          <span className="text-violet-500/70 dark:text-violet-300/60">“</span>
+          {item.text}
+          <span className="text-violet-500/70 dark:text-violet-300/60">”</span>
         </blockquote>
+
+        <div className="mt-5 flex">
+          <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-600 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-300">
+            <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+            <span className="truncate">{productLabel}</span>
+          </span>
+        </div>
+
         {item.adminReply || item.adminReplyImageUrl ? <AdminReply item={item} /> : null}
       </div>
 
-      <figcaption className="mt-4 flex shrink-0 items-center gap-3 border-t border-zinc-100 pt-4 dark:border-white/10">
-        <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-violet-600/10 text-sm font-black text-violet-700 dark:bg-violet-400/10 dark:text-violet-200">
+      <figcaption className="relative mt-5 flex shrink-0 items-center gap-3 border-t border-zinc-100 pt-4 dark:border-white/10">
+        <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-2xl bg-violet-600/10 text-sm font-black text-violet-700 ring-1 ring-violet-200/70 dark:bg-violet-400/10 dark:text-violet-200 dark:ring-white/10">
           {item.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={item.avatarUrl} alt={item.name} className="h-full w-full object-cover" />
@@ -280,24 +300,24 @@ function ReviewCard({ item }: { item: PublicTestimonialItem }) {
             initials(item.name)
           )}
         </span>
-        <div className="min-w-0">
-          <div className="flex items-center gap-1 text-sm font-bold text-zinc-900 dark:text-white">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 text-sm font-bold text-zinc-900 dark:text-white">
             <span className="truncate">{item.name}</span>
             <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-violet-500" />
           </div>
-          <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-            Təsdiqlənmiş alıcı · {item.productTitle ?? PLATFORM_LABELS[item.platform] ?? "Məhsul"}
+          <div className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
+            Təsdiqlənmiş alıcı
           </div>
-          <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-zinc-500 dark:text-zinc-400">
-            <span>Status:</span>
-            {item.tier ? (
-              <TierBadge tier={item.tier} full className="px-1.5 py-0 text-[9px]" />
-            ) : (
-              <span className="rounded-full border border-zinc-200 bg-zinc-100 px-1.5 py-0.5 font-semibold text-zinc-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-300">
-                Honsell müştərisi
-              </span>
-            )}
-          </div>
+        </div>
+
+        <div className="shrink-0">
+          {item.tier ? (
+            <TierBadge tier={item.tier} full className="px-2 py-0.5 text-[10px]" />
+          ) : (
+            <span className="inline-flex items-center rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-300">
+              {loyaltyLabel}
+            </span>
+          )}
         </div>
       </figcaption>
     </figure>
@@ -319,6 +339,18 @@ export default function TestimonialsRail({
   const [error, setError] = useState("");
   const initialRender = useRef(true);
   const railRef = useRef<HTMLDivElement>(null);
+
+  // Yalnız rəyi olan kateqoriyalar + hər birinin rəy sayı (qlobal, filtrdən asılı deyil).
+  const platformOptions = useMemo<DropdownOption[]>(() => {
+    const counts = initialData.platformCounts ?? {};
+    const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+    const opts: DropdownOption[] = [{ value: "", label: `Bütün məhsullar (${total})` }];
+    for (const [value, label] of Object.entries(PLATFORM_LABELS)) {
+      const count = counts[value] ?? 0;
+      if (count > 0) opts.push({ value, label: `${label} (${count})` });
+    }
+    return opts;
+  }, [initialData.platformCounts]);
 
   useEffect(() => {
     if (initialRender.current) {
@@ -412,7 +444,7 @@ export default function TestimonialsRail({
 
           <CustomDropdown
             value={filters.platform}
-            options={PLATFORM_OPTIONS}
+            options={platformOptions}
             onChange={(value) => updateFilter("platform", value)}
             label="Məhsul növü"
             Icon={Filter}

@@ -5,9 +5,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { cdnImageUrl } from "@/lib/cdnImage";
 import { ChevronLeft, ChevronRight, ShoppingCart, Check, Heart } from "lucide-react";
-import { useCart } from "@/lib/cart";
+import { useCart, type PlatformAccountCredential } from "@/lib/cart";
 import { useFavorites } from "@/lib/favorites";
 import { bannerContentWrapClass, bannerThemeClasses } from "@/components/bannerLayout";
+import SpotifyAccountsModal from "@/components/SpotifyAccountsModal";
 
 export type BannerCartGame = {
   id: string;
@@ -33,6 +34,11 @@ export type BannerCartService = {
   finalAzn: number;
   originalAzn: number | null;
   discountPct: number | null;
+  /** Spotify kimi çoxhesablı PLATFORM planları üçün hesab (email+şifrə) sayı.
+   *  ≥1 olduqda banner birbaşa səbətə əlavə etmir — əvvəlcə hesab modalını açır. */
+  accountSlots?: number | null;
+  /** Çoxhesablı plan tipi ("SPOTIFY") — modal etiketi/streaming üçün. */
+  platformKind?: string | null;
 };
 
 export type BannerSlide = {
@@ -59,6 +65,9 @@ type BannerCartProduct = {
   originalAzn: number | null;
   discountPct: number | null;
   productType: string;
+  /** Spotify-tipli çoxhesablı plan üçün hesab sayı (yalnız xidmət bannerlərində). */
+  accountSlots?: number | null;
+  platformKind?: string | null;
 };
 
 function bannerProduct(b: BannerSlide): BannerCartProduct | null {
@@ -75,6 +84,11 @@ function bannerProduct(b: BannerSlide): BannerCartProduct | null {
   }
   if (b.service) return { ...b.service };
   return null;
+}
+
+/** Spotify kimi hesab məlumatı tələb edən plan (birbaşa əlavə olunmur, modal açılır). */
+function needsAccountsModal(p: BannerCartProduct | null): boolean {
+  return !!p && p.productType === "PLATFORM" && (p.accountSlots ?? 0) >= 1;
 }
 
 function pad(n: number) {
@@ -120,6 +134,7 @@ function bannerTitle(b: BannerSlide): string {
 export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }) {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [accountsFor, setAccountsFor] = useState<BannerCartProduct | null>(null);
   const cart = useCart();
   const favorites = useFavorites();
 
@@ -164,6 +179,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
   const wrapClass = bannerContentWrapClass(banner.contentPosition, banner.contentPositionMobile);
 
   return (
+    <>
     <div
       className="grid w-full items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_280px]"
       onMouseEnter={() => setPaused(true)}
@@ -333,14 +349,21 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                 onClick={(e) => {
                   e.preventDefault();
                   if (!product) return;
-                  if (inCart) cart.remove(product.id);
-                  else cart.add({
-                    id: product.id,
-                    title: product.title,
-                    imageUrl: product.imageUrl,
-                    finalAzn: product.finalAzn,
-                    productType: product.productType,
-                  });
+                  if (inCart) {
+                    cart.remove(product.id);
+                  } else if (needsAccountsModal(product)) {
+                    // Spotify kimi planlar birbaşa əlavə olunmur — əvvəlcə müştəridən
+                    // hesab məlumatlarını (var/yox) modalda toplayırıq.
+                    setAccountsFor(product);
+                  } else {
+                    cart.add({
+                      id: product.id,
+                      title: product.title,
+                      imageUrl: product.imageUrl,
+                      finalAzn: product.finalAzn,
+                      productType: product.productType,
+                    });
+                  }
                 }}
                 className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold shadow-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40 ${
                   inCart
@@ -474,5 +497,34 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
         </ul>
       )}
     </div>
+
+    {accountsFor && (
+      <SpotifyAccountsModal
+        title={accountsFor.title}
+        slots={Math.max(1, accountsFor.accountSlots ?? 1)}
+        onClose={() => setAccountsFor(null)}
+        onSubmit={(accounts: PlatformAccountCredential[], hasAccount: boolean) => {
+          cart.add({
+            id: accountsFor.id,
+            title: accountsFor.title,
+            imageUrl: accountsFor.imageUrl,
+            finalAzn: accountsFor.finalAzn,
+            productType: accountsFor.productType,
+            streaming: {
+              accounts,
+              platformKind: accountsFor.platformKind ?? "SPOTIFY",
+              hasAccount,
+            },
+          });
+          cart.updateStreaming(accountsFor.id, {
+            accounts,
+            platformKind: accountsFor.platformKind ?? "SPOTIFY",
+            hasAccount,
+          });
+          setAccountsFor(null);
+        }}
+      />
+    )}
+    </>
   );
 }

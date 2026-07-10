@@ -1873,6 +1873,8 @@ function parsePlatformCustomerCreds(metadata?: string | null): {
   planLabel?: string;
   /// Çoxhesablı planlar (Spotify Duo/Family) üçün N hesab cütü.
   accounts?: { email: string; password: string }[];
+  /// Spotify: müştərinin mövcud hesabı var (true) yoxsa yeni açılmalı (false).
+  hasAccount?: boolean;
 } {
   if (!metadata) return { hasCredentials: false, emailLabel: "Gmail" };
   try {
@@ -1906,6 +1908,7 @@ function parsePlatformCustomerCreds(metadata?: string | null): {
         emailLabel: "Email",
         accounts,
         planLabel: planTier ? `Spotify ${planTier}` : undefined,
+        hasAccount: typeof m.hasAccount === "boolean" ? m.hasAccount : undefined,
       };
     }
 
@@ -2166,6 +2169,17 @@ function PlatformOrdersTable({
             </div>
             {creds.accounts?.length ? (
               <div className="space-y-2">
+                {creds.hasAccount !== undefined && (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                      creds.hasAccount
+                        ? "bg-emerald-500/15 text-emerald-700"
+                        : "bg-amber-500/15 text-amber-700"
+                    }`}
+                  >
+                    {creds.hasAccount ? "Mövcud hesab · Premium qoş" : "Hesab yoxdur · yeni yarat"}
+                  </span>
+                )}
                 {creds.accounts.map((acc, idx) => (
                   <div key={idx} className="space-y-1 border-l-2 border-emerald-500/30 pl-2">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">

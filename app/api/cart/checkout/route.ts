@@ -392,6 +392,8 @@ export async function POST(req: Request) {
         password?: string;
         /** Çoxhesablı planlar (Spotify Duo/Family) üçün N hesab cütü. */
         accounts?: PlatformAccount[];
+        /** Spotify: müştərinin mövcud hesabı var (true) yoxsa yeni açılmalı (false). */
+        hasAccount?: boolean;
       }
     | {
         kind: "HONSELL_GIFT_CARD";
@@ -620,6 +622,7 @@ export async function POST(req: Request) {
       let gmail: string | undefined;
       let password: string | undefined;
       let accounts: PlatformAccount[] | undefined;
+      let hasAccount: boolean | undefined;
       if (accountSlots >= 1) {
         // Çoxhesablı plan (Spotify Individual/Duo/Family) — N hesab cütü tələb olunur.
         const parsed = parsePlatformAccounts(p.streaming, accountSlots);
@@ -627,6 +630,9 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: parsed.error }, { status: 400 });
         }
         accounts = parsed.value;
+        // Müştərinin ARTIQ hesabı var (Premium-a keçir) yoxsa yeni açılmalıdır.
+        const s = p.streaming as Record<string, unknown> | null;
+        hasAccount = typeof s?.hasAccount === "boolean" ? s.hasAccount : true;
       } else if (requiresCredentials) {
         const parsed = parseStreamingBody(p.streaming, {
           allowAnyEmail: isLinkedIn,
@@ -659,6 +665,7 @@ export async function POST(req: Request) {
         gmail,
         password,
         accounts,
+        hasAccount,
       });
       continue;
     }
@@ -963,6 +970,7 @@ export async function POST(req: Request) {
         gmail: line.gmail,
         password: line.password,
         accounts: line.accounts,
+        hasAccount: line.hasAccount,
       };
     });
 
@@ -1578,6 +1586,7 @@ export async function POST(req: Request) {
                   ...(line.gmail ? { gmail: line.gmail } : {}),
                   ...(line.password ? { customerPassword: line.password } : {}),
                   ...(line.accounts?.length ? { accounts: line.accounts } : {}),
+                  ...(typeof line.hasAccount === "boolean" ? { hasAccount: line.hasAccount } : {}),
                 }),
               },
             });

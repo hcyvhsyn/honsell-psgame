@@ -119,6 +119,10 @@ model User {
   createdCampaigns   Campaign[]          @relation("CampaignCreator")
   campaignRecipients CampaignRecipient[]
 
+  // Çəkilişlər — yaratdığı (admin) və qoşulduğu çəkilişlər.
+  createdGiveaways Giveaway[]      @relation("GiveawayCreator")
+  giveawayEntries  GiveawayEntry[] @relation("GiveawayEntries")
+
   referralCycleResults ReferralCycleResult[]
 
   gameReviews     GameReview[]
@@ -1423,6 +1427,71 @@ model CampaignClick {
   @@index([campaignId])
   @@index([recipientId])
   @@index([campaignId, productId])
+}
+
+// ─── Çəkiliş (Giveaway) — ana səhifə hədiyyə çəkilişləri ───────────────────────
+
+/// Ana səhifədə göstərilən çəkilişlər. İstifadəçilər şərti ödəyib qoşulur,
+/// bitiş tarixindən sonra admin random qalibləri çəkir və onların WhatsApp-ına
+/// bildiriş gedir. Qaliblər ictimai göstərilir (etibar / sosial sübut).
+model Giveaway {
+  id            String  @id @default(cuid())
+  title         String
+  description   String?
+  /// Mükafat etiketi, məs "Amazon 1000 TL".
+  prizeLabel    String
+  prizeImageUrl String?
+  /// DRAFT | ACTIVE | COMPLETED | CANCELLED
+  status        String  @default("DRAFT")
+  /// Neçə qalib random seçiləcək.
+  winnersCount  Int     @default(1)
+  /// Qoşulma şərti: REGISTER_ONLY (yalnız qeydiyyat) |
+  /// PURCHASE_ANY (ən azı bir uğurlu alış) |
+  /// PURCHASE_PRODUCT (müəyyən ServiceProduct tipini alanlar).
+  entryCondition String @default("REGISTER_ONLY")
+  /// PURCHASE_PRODUCT üçün: hansı ServiceProduct.type (məs "STREAMING").
+  conditionType  String?
+  /// VIP nişanı (kartda "VIP" rozetkası göstərilir).
+  isVip          Boolean @default(false)
+  /// Sosial sübut üçün göstərilən başlanğıc iştirakçı sayı — real qoşulanların
+  /// sayının üstünə əlavə olunur (yalnız göstərişdə; qalib çəkilişinə təsir etmir).
+  participantBoost Int @default(0)
+
+  startAt DateTime @default(now())
+  endAt   DateTime
+  /// Qaliblərin çəkildiyi an (null = hələ çəkilməyib).
+  drawnAt DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("GiveawayCreator", fields: [createdById], references: [id])
+
+  entries GiveawayEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, endAt])
+}
+
+/// Çəkilişə hər qoşulma bir sətir. isWinner random çəkilişdən sonra təyin olunur.
+model GiveawayEntry {
+  id         String   @id @default(cuid())
+  giveawayId String
+  giveaway   Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation("GiveawayEntries", fields: [userId], references: [id], onDelete: Cascade)
+
+  isWinner   Boolean   @default(false)
+  /// Qalibə WhatsApp bildirişi göndərilən an.
+  notifiedAt DateTime?
+  /// N_A | SENT | FAILED — qalib bildirişi kanalının statusu.
+  waStatus   String    @default("N_A")
+
+  createdAt DateTime @default(now())
+
+  @@unique([giveawayId, userId])
+  @@index([giveawayId])
+  @@index([userId])
 }
 
 // ─── FAQ (homepage "Tez-tez verilən suallar") ─────────────────────────────────

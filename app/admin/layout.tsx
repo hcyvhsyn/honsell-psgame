@@ -46,6 +46,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
       { href: "/admin/users", label: "İstifadəçilər", iconName: "Users" },
       { href: "/admin/referral-tree", label: "Referral ağacı", iconName: "Network" },
       { href: "/admin/campaigns", label: "Reklam / Kampaniya", iconName: "Megaphone" },
+      { href: "/admin/giveaways", label: "Çəkilişlər", iconName: "Gift" },
       { href: "/admin/referrals", label: "Referal faizləri", iconName: "Percent" },
       { href: "/admin/promo-codes", label: "Endirim kodları", iconName: "TicketPercent" },
       { href: "/admin/invite-bonuses", label: "Dəvət bonusları", iconName: "Gift", badgeKey: "heldInviteBonuses" },

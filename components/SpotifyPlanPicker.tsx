@@ -10,18 +10,15 @@ import {
   Check,
   Clock3,
   Disc3,
-  Eye,
-  EyeOff,
   Headphones,
   KeyRound,
-  Lock,
-  Mail,
   ShieldCheck,
   ShoppingCart,
   Users,
   X,
 } from "lucide-react";
 import { useCart, type PlatformAccountCredential } from "@/lib/cart";
+import SpotifyAccountsModal from "@/components/SpotifyAccountsModal";
 import {
   SPOTIFY_PLAN_LABELS,
   SPOTIFY_PLAN_TIERS,
@@ -236,7 +233,7 @@ export default function SpotifyPlanPicker({
     document.getElementById("spotify-plans")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function add(accounts: PlatformAccountCredential[]) {
+  function add(accounts: PlatformAccountCredential[], hasAccount: boolean) {
     if (!selected) return;
     const { product } = selected;
     cart.add({
@@ -245,9 +242,9 @@ export default function SpotifyPlanPicker({
       imageUrl: product.imageUrl ?? heroImage,
       finalAzn: product.priceAznCents / 100,
       productType: "PLATFORM",
-      streaming: { accounts, platformKind: "SPOTIFY" },
+      streaming: { accounts, platformKind: "SPOTIFY", hasAccount },
     });
-    cart.updateStreaming(product.id, { accounts, platformKind: "SPOTIFY" });
+    cart.updateStreaming(product.id, { accounts, platformKind: "SPOTIFY", hasAccount });
     setJustAdded(product.id);
     setSelected(null);
     setTimeout(() => setJustAdded((prev) => (prev === product.id ? null : prev)), 2000);
@@ -507,7 +504,7 @@ export default function SpotifyPlanPicker({
       </section>
 
       {selected && (
-        <AccountsModal
+        <SpotifyAccountsModal
           title={selected.product.title}
           slots={selected.meta.accountSlots}
           hasTerms={termRows.length > 0}
@@ -686,192 +683,6 @@ function TermsModal({
                 Başa düşdüm
               </button>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AccountsModal({
-  title,
-  slots,
-  hasTerms,
-  onClose,
-  onOpenTerms,
-  onSubmit,
-}: {
-  title: string;
-  slots: number;
-  hasTerms: boolean;
-  onClose: () => void;
-  onOpenTerms: () => void;
-  onSubmit: (accounts: PlatformAccountCredential[]) => void;
-}) {
-  const [rows, setRows] = useState<PlatformAccountCredential[]>(
-    Array.from({ length: slots }, () => ({ email: "", password: "" })),
-  );
-  const [show, setShow] = useState<boolean[]>(Array.from({ length: slots }, () => false));
-  const [acceptedTerms, setAcceptedTerms] = useState(!hasTerms);
-  const [err, setErr] = useState<string | null>(null);
-
-  function patch(i: number, key: keyof PlatformAccountCredential, value: string) {
-    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
-    if (err) setErr(null);
-  }
-
-  function submit() {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const cleaned: PlatformAccountCredential[] = [];
-    for (let i = 0; i < rows.length; i++) {
-      const email = rows[i].email.trim().toLowerCase();
-      const password = rows[i].password;
-      if (!email || !emailRegex.test(email)) {
-        setErr(`${i + 1}-ci hesab üçün düzgün email daxil et.`);
-        return;
-      }
-      if (!password || password.length < 4) {
-        setErr(`${i + 1}-ci hesab üçün şifrə daxil et (ən az 4 simvol).`);
-        return;
-      }
-      cleaned.push({ email, password });
-    }
-    if (hasTerms && !acceptedTerms) {
-      setErr("Səbətə əlavə etməzdən əvvəl şərtləri qəbul et.");
-      return;
-    }
-    onSubmit(cleaned);
-  }
-
-  return (
-    <div
-      role="presentation"
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="max-h-[min(92vh,760px)] w-full max-w-xl overflow-y-auto rounded-lg border border-[#1ed760]/30 bg-[#030806] shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-[#1ed760]/10 p-5">
-          <div>
-            <p className="text-lg font-black text-[#f5fff7]">Hesab məlumatları</p>
-            <p className="mt-0.5 text-sm text-[#9bad9f]">{title}</p>
-            <p className="mt-1 text-xs font-semibold text-[#7dffa9]">
-              {slots} hesab üçün email və şifrə daxil et.
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-label="Bağla"
-            onClick={onClose}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#8ea294] transition hover:bg-white/10 hover:text-[#f5fff7]"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="space-y-4 p-5">
-          <div className="rounded-lg border border-[#1ed760]/20 bg-[#06120a] p-3 text-xs leading-relaxed text-[#9db3a4]">
-            Məlumatlar yalnız Premium aktivləşdirməsi üçün istifadə olunur və ödəniş mərhələsində
-            sifarişlə birlikdə göndərilir.
-          </div>
-
-          {rows.map((row, i) => (
-            <div key={i} className="rounded-lg border border-[#1ed760]/10 bg-[#06120a] p-4">
-              <p className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-[#7dffa9]">
-                Hesab {i + 1}
-              </p>
-              <label className="block text-sm font-semibold text-[#cce6d3]">
-                Email
-                <div className="relative mt-1.5">
-                  <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#7dffa9]" />
-                  <input
-                    type="email"
-                    autoComplete="off"
-                    value={row.email}
-                    onChange={(e) => patch(i, "email", e.target.value)}
-                    placeholder="hesab@example.com"
-                    className="h-12 w-full rounded-lg border border-[#23452f] bg-[#030806] pl-12 pr-4 text-sm text-[#f5fff7] outline-none placeholder:text-[#506455] transition focus:border-[#1ed760]"
-                  />
-                </div>
-              </label>
-              <label className="mt-3 block text-sm font-semibold text-[#cce6d3]">
-                Şifrə
-                <div className="relative mt-1.5">
-                  <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#7dffa9]" />
-                  <input
-                    type={show[i] ? "text" : "password"}
-                    autoComplete="off"
-                    value={row.password}
-                    onChange={(e) => patch(i, "password", e.target.value)}
-                    placeholder="Hesab şifrəsi"
-                    className="h-12 w-full rounded-lg border border-[#23452f] bg-[#030806] pl-12 pr-12 text-sm text-[#f5fff7] outline-none placeholder:text-[#506455] transition focus:border-[#1ed760]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShow((prev) => prev.map((v, idx) => (idx === i ? !v : v)))}
-                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-[#819284] transition hover:bg-white/10 hover:text-[#f5fff7]"
-                    aria-label={show[i] ? "Şifrəni gizlət" : "Şifrəni göstər"}
-                  >
-                    {show[i] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </label>
-            </div>
-          ))}
-
-          {hasTerms && (
-            <div className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <label className="flex min-w-0 items-center gap-3 text-sm font-bold text-[#ffe8a9]">
-                  <input
-                    type="checkbox"
-                    checked={acceptedTerms}
-                    onChange={(e) => {
-                      setAcceptedTerms(e.target.checked);
-                      if (err) setErr(null);
-                    }}
-                    className="h-4 w-4 accent-[#1ed760]"
-                  />
-                  Şərtləri oxudum və qəbul edirəm.
-                </label>
-                <button
-                  type="button"
-                  onClick={onOpenTerms}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-amber-300/40 px-3 text-xs font-black text-[#ffe8a9] transition hover:bg-amber-300/10"
-                >
-                  <AlertTriangle className="h-4 w-4" />
-                  Şərtlər
-                </button>
-              </div>
-            </div>
-          )}
-
-          {err && (
-            <p className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200">
-              {err}
-            </p>
-          )}
-
-          <div className="grid gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-12 rounded-lg border border-[#2d4234] text-sm font-bold text-[#b8c8bd] transition hover:bg-white/10"
-            >
-              Ləğv et
-            </button>
-            <button
-              type="button"
-              onClick={submit}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[#1ed760] text-sm font-black text-[#031007] transition hover:bg-[#38ef7d]"
-            >
-              <ShoppingCart className="h-5 w-5" />
-              Səbətə əlavə et
-            </button>
           </div>
         </div>
       </div>

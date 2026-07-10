@@ -19,6 +19,7 @@ import ScrollAnimationManager from "@/components/ScrollAnimationManager";
 import HomeTrustBar from "@/components/HomeTrustBar";
 import HomeDiscountCarousel from "@/components/HomeDiscountCarousel";
 import HomeTestimonials from "@/components/HomeTestimonials";
+import HomeGiveaways from "@/components/HomeGiveaways";
 import { type GameCardData } from "@/components/GameCard";
 import {
   HeroMotionOverlay,
@@ -553,6 +554,11 @@ const getHomePageData = unstable_cache(
           typeof meta.originalPriceAznCents === "number" && meta.originalPriceAznCents > svc.priceAznCents
             ? meta.originalPriceAznCents
             : null;
+        // Spotify kimi çoxhesablı PLATFORM planları: banner birbaşa səbətə əlavə
+        // etmir — accountSlots ötürülür ki, klient hesab modalını açsın.
+        const slotsRaw = Number(meta.accountSlots);
+        const accountSlots =
+          svc.type === "PLATFORM" && Number.isInteger(slotsRaw) && slotsRaw >= 1 ? slotsRaw : null;
         service = {
           id: svc.id,
           title: serviceProductLabel(svc.title, svc.metadata),
@@ -561,6 +567,8 @@ const getHomePageData = unstable_cache(
           finalAzn: svc.priceAznCents / 100,
           originalAzn: origCents != null ? origCents / 100 : null,
           discountPct: origCents != null ? Math.round((1 - svc.priceAznCents / origCents) * 100) : null,
+          accountSlots,
+          platformKind: accountSlots != null ? "SPOTIFY" : null,
         };
       }
       return {
@@ -716,6 +724,10 @@ export default async function HomePage() {
 
       <SectionFlowDivider text="Bu həftə ən çox alınanlar" tone="amber" />
       <BestSellersSection items={bestSellers} />
+
+      {/* Çəkilişlər (giveaway) — client fetch, ana səhifə statik qalır */}
+      <SectionFlowDivider text="Çəkilişlər" tone="violet" flip />
+      <HomeGiveaways />
 
       {/* Niyə biz */}
       <SectionFlowDivider text="Niyə biz" tone="violet" />

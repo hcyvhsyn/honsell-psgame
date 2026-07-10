@@ -131,6 +131,8 @@ export type EpointCartLineSnapshot =
       password?: string;
       /// Çoxhesablı planlar (Spotify Duo/Family) üçün N hesab cütü.
       accounts?: { email: string; password: string }[];
+      /// Spotify: müştərinin mövcud hesabı var (true) yoxsa yeni açılmalı (false).
+      hasAccount?: boolean;
     }
   | {
       kind: "HONSELL_GIFT_CARD";
@@ -744,6 +746,7 @@ export async function finalizeEpointCartCheckout(
               ...(line.gmail ? { gmail: line.gmail } : {}),
               ...(line.password ? { customerPassword: line.password } : {}),
               ...(line.accounts?.length ? { accounts: line.accounts } : {}),
+              ...(typeof line.hasAccount === "boolean" ? { hasAccount: line.hasAccount } : {}),
             }),
           },
         });

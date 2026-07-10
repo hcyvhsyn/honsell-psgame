@@ -345,7 +345,7 @@ export default function PsPlusAdminClient() {
                     </button>
                   )}
                   <p className="mt-1 text-[11px] text-zinc-500">
-                    Tövsiyə olunan ölçü: <b className="text-zinc-700">1200×900px</b> (4:3 aspekt) — PS Plus kartları public-də 4:3 nisbətdə render olunur.
+                    Tövsiyə olunan ölçü: <b className="text-zinc-700">1200×1200px</b> (1:1 aspekt) — PS Plus kartları public-də kvadrat render olunur.
                   </p>
                 </div>
 

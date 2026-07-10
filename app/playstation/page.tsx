@@ -139,6 +139,9 @@ export default async function PlayStationPage() {
           typeof meta.originalPriceAznCents === "number" && meta.originalPriceAznCents > svc.priceAznCents
             ? meta.originalPriceAznCents
             : null;
+        const slotsRaw = Number(meta.accountSlots);
+        const accountSlots =
+          svc.type === "PLATFORM" && Number.isInteger(slotsRaw) && slotsRaw >= 1 ? slotsRaw : null;
         service = {
           id: svc.id,
           title: serviceProductLabel(svc.title, svc.metadata),
@@ -147,6 +150,8 @@ export default async function PlayStationPage() {
           finalAzn: svc.priceAznCents / 100,
           originalAzn: origCents != null ? origCents / 100 : null,
           discountPct: origCents != null ? Math.round((1 - svc.priceAznCents / origCents) * 100) : null,
+          accountSlots,
+          platformKind: accountSlots != null ? "SPOTIFY" : null,
         };
       }
       return {
