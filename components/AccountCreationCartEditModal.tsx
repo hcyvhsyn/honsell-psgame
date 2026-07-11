@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { X } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, LockKeyhole, X } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 import { validateAccountCreationDetails } from "@/lib/accountCreationCart";
 import { ACCOUNT_PASSWORD_RULES_AZ } from "@/lib/accountPasswordRules";
@@ -24,6 +24,7 @@ export default function AccountCreationCartEditModal({
   const [password, setPassword] = useState(ac?.password ?? "");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -150,22 +151,38 @@ export default function AccountCreationCartEditModal({
           </label>
 
           <label className="block text-sm text-zinc-300">
-            Şifrə (ən azı 8 simvol, görünür)
-            <input
-              type="text"
-              autoComplete="off"
-              spellCheck={false}
-              inputMode="text"
-              minLength={8}
-              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 font-mono text-sm tracking-wide text-white focus:border-fuchsia-500 focus:outline-none"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Minimum 8 simvol"
-            />
-            <ul className="mt-1.5 space-y-0.5 text-[11px] text-zinc-500">
+            <span className="flex items-center gap-2">
+              <LockKeyhole className="h-4 w-4 text-sky-300" />
+              Yeni PSN şifrəsi
+            </span>
+            <div className="relative mt-1">
+              <input
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                spellCheck={false}
+                inputMode="text"
+                minLength={8}
+                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 pr-11 font-mono text-sm text-white focus:border-sky-500 focus:outline-none"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Minimum 8 simvol"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                aria-label={showPassword ? "Şifrəni gizlət" : "Şifrəni göstər"}
+                className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <span className="mt-1 block text-[11px] text-zinc-500">
+              Bu şifrə PSN hesabına qoyulacaq; başqa şəxsi hesablarınızda istifadə etdiyiniz şifrəni yazmayın.
+            </span>
+            <ul className="mt-2 space-y-1 text-[11px] text-zinc-500">
               {ACCOUNT_PASSWORD_RULES_AZ.map((rule) => (
                 <li key={rule} className="flex gap-1.5">
-                  <span className="text-zinc-600">•</span>
+                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" />
                   <span>{rule}</span>
                 </li>
               ))}

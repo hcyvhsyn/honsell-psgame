@@ -10,6 +10,8 @@ export const ACCOUNT_PASSWORD_MIN = 8;
 /** İstifadəçiyə göstərilən qaydalar (modal-larda siyahı kimi). */
 export const ACCOUNT_PASSWORD_RULES_AZ = [
   `Ən azı ${ACCOUNT_PASSWORD_MIN} simvol olmalıdır.`,
+  "Hərf, rəqəm və simvol növlərindən ən azı iki fərqlisini ehtiva etməlidir.",
+  "Başqa bir xidmət üçün istifadə etdiyiniz şifrə ilə eyni ola bilməz.",
   "Eyni hərf və ya rəqəmi art-arda 3 və ya daha çox dəfə təkrarlaya bilməz (məs.: BBB və ya 222).",
   "Giriş kimliyinizi (e-poçt) və ya online ID-nizi ehtiva edə bilməz.",
 ];
@@ -33,12 +35,21 @@ export function validateAccountPassword(
     return `Şifrə ən azı ${ACCOUNT_PASSWORD_MIN} simvol olmalıdır.`;
   }
 
-  // Qayda 1: eyni hərf və ya rəqəm art-arda 3+ dəfə təkrarlana bilməz (BBB, 222).
+  // Qayda 1: hərf, rəqəm və simvol növlərindən ən azı ikisi olmalıdır.
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasDigit = /[0-9]/.test(password);
+  const hasSymbol = /[^a-zA-Z0-9]/.test(password);
+  const typeCount = Number(hasLetter) + Number(hasDigit) + Number(hasSymbol);
+  if (typeCount < 2) {
+    return "Şifrə hərf, rəqəm və simvol növlərindən ən azı iki fərqlisini ehtiva etməlidir.";
+  }
+
+  // Qayda 2: eyni hərf və ya rəqəm art-arda 3+ dəfə təkrarlana bilməz (BBB, 222).
   if (/([a-zA-Z0-9])\1\1/.test(password)) {
     return "Şifrə eyni hərf və ya rəqəmi art-arda 3 və ya daha çox dəfə təkrarlaya bilməz (məs.: BBB və ya 222).";
   }
 
-  // Qayda 2: şifrə giriş kimliyini (e-poçt) və ya online ID-ni ehtiva edə bilməz.
+  // Qayda 3: şifrə giriş kimliyini (e-poçt) və ya online ID-ni ehtiva edə bilməz.
   const lowerPw = password.toLowerCase();
   for (const raw of identifiers) {
     const id = (raw ?? "").trim().toLowerCase();
