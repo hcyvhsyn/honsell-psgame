@@ -218,6 +218,7 @@ const TABS = [
   { id: "ai", label: "Süni İntellekt" },
   { id: "music", label: "Musiqi" },
   { id: "work", label: "İş Platformaları" },
+  { id: "completed", label: "Tamamlanmış" },
   { id: "cancelled", label: "Ləğv edilmiş" },
 ] as const;
 
@@ -235,6 +236,7 @@ const TAB_DESCRIPTIONS: Record<TabId, string> = {
   ai: "ChatGPT, Claude və digər süni intellekt platformaları.",
   music: "Spotify, YouTube Premium və digər musiqi servisləri.",
   work: "LinkedIn və digər iş platformaları.",
+  completed: "Tamamlanmış sifarişlər — təhvil verilmiş oyun və servislər.",
   cancelled: "Son ləğv edilmiş sifarişlər — səbəb, müştəri və geri qaytarmalar.",
 };
 
@@ -315,6 +317,10 @@ export default function OrdersAdminClient() {
   const [cancelledOrders, setCancelledOrders] = useState<CancelledOrder[] | null>(null);
   const [cancelledLoading, setCancelledLoading] = useState(false);
   const [cancelledError, setCancelledError] = useState<string | null>(null);
+
+  const [completedOrders, setCompletedOrders] = useState<CancelledOrder[] | null>(null);
+  const [completedLoading, setCompletedLoading] = useState(false);
+  const [completedError, setCompletedError] = useState<string | null>(null);
 
   // Cancel-with-reason modal. Used for both game and service tabs.
   type CancelTarget =
@@ -477,9 +483,10 @@ export default function OrdersAdminClient() {
       ai: data?.aiOrders?.length ?? 0,
       music: data?.musicOrders?.length ?? 0,
       work: data?.workOrders?.length ?? 0,
+      completed: completedOrders?.length ?? 0,
       cancelled: cancelledOrders?.length ?? 0,
     };
-  }, [data, cancelledOrders]);
+  }, [data, cancelledOrders, completedOrders]);
 
   // Order codes that also contain a pending Epic account-creation order. An
   // Epic game order with no account attached but a matching code means the
@@ -509,6 +516,21 @@ export default function OrdersAdminClient() {
     if (!opts.silent) setCancelledLoading(false);
   }
 
+  async function loadCompleted(opts: { silent?: boolean } = {}) {
+    if (!opts.silent) setCompletedLoading(true);
+    setCompletedError(null);
+    const res = await fetch("/api/admin/orders?status=SUCCESS", { cache: "no-store" });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      setCompletedError(j.error ?? "Yükləmə xətası");
+      if (!opts.silent) setCompletedLoading(false);
+      return;
+    }
+    const payload = (await res.json()) as { orders: CancelledOrder[] };
+    setCompletedOrders(payload.orders ?? []);
+    if (!opts.silent) setCompletedLoading(false);
+  }
+
   async function load(opts: { silent?: boolean } = {}) {
     if (!opts.silent) setLoading(true);
     setError(null);
@@ -531,6 +553,9 @@ export default function OrdersAdminClient() {
   useEffect(() => {
     if (tab === "cancelled" && cancelledOrders === null && !cancelledLoading) {
       loadCancelled();
+    }
+    if (tab === "completed" && completedOrders === null && !completedLoading) {
+      loadCompleted();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
@@ -650,8 +675,21 @@ export default function OrdersAdminClient() {
           <StatCard label="Arxiv" value={counts.cancelled} tone="rose" />
           <button
             type="button"
-            onClick={() => (tab === "cancelled" ? loadCancelled() : load())}
-            disabled={pending || (tab === "cancelled" ? cancelledLoading : loading)}
+            onClick={() =>
+              tab === "cancelled"
+                ? loadCancelled()
+                : tab === "completed"
+                  ? loadCompleted()
+                  : load()
+            }
+            disabled={
+              pending ||
+              (tab === "cancelled"
+                ? cancelledLoading
+                : tab === "completed"
+                  ? completedLoading
+                  : loading)
+            }
             className="inline-flex items-center gap-2 rounded-lg bg-admin-chip px-3 py-2 text-sm text-zinc-800 hover:bg-admin-chip2 disabled:opacity-50"
           >
             <RefreshCw className="h-4 w-4" />
@@ -765,6 +803,15 @@ export default function OrdersAdminClient() {
             </SidebarGroup>
             <SidebarGroup label="Arxiv">
               <NavItem
+                id="completed"
+                active={tab === "completed"}
+                icon={<Check className="h-4 w-4" />}
+                label="Tamamlanmış"
+                count={counts.completed}
+                onClick={setTab}
+                tone="muted"
+              />
+              <NavItem
                 id="cancelled"
                 active={tab === "cancelled"}
                 icon={<XCircle className="h-4 w-4" />}
@@ -800,6 +847,12 @@ export default function OrdersAdminClient() {
           orders={cancelledOrders}
           loading={cancelledLoading}
           error={cancelledError}
+        />
+      ) : tab === "completed" ? (
+        <CompletedOrdersView
+          orders={completedOrders}
+          loading={completedLoading}
+          error={completedError}
         />
       ) : loading || !data ? (
         <div className="rounded-xl border border-admin-line bg-admin-card p-10 text-center text-sm text-zinc-600">
@@ -2031,6 +2084,7 @@ function TabIcon({ id }: { id: TabId }) {
     ai: <Sparkles className="h-5 w-5 text-fuchsia-700" />,
     music: <Music className="h-5 w-5 text-pink-700" />,
     work: <Briefcase className="h-5 w-5 text-sky-700" />,
+    completed: <Check className="h-5 w-5 text-emerald-700" />,
     cancelled: <XCircle className="h-5 w-5 text-zinc-600" />,
   };
   return (
@@ -2134,6 +2188,87 @@ function CancelledOrdersView({
                 <Td className="text-zinc-600">
                   {meta.cancelledAt ? fmtDate(meta.cancelledAt) : fmtDate(o.createdAt)}
                 </Td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function CompletedOrdersView({
+  orders,
+  loading,
+  error,
+}: {
+  orders: CancelledOrder[] | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading && orders === null) {
+    return (
+      <div className="rounded-xl border border-admin-line bg-admin-card p-10 text-center text-sm text-zinc-600">
+        Yüklənir…
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-700">
+        {error}
+      </div>
+    );
+  }
+  if (!orders || orders.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-admin-line bg-admin-card py-12 text-center text-sm text-zinc-500">
+        Tamamlanmış sifariş yoxdur.
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-admin-line bg-admin-card">
+      <table className="w-full min-w-[820px] text-sm">
+        <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
+          <tr>
+            <Th>Müştəri</Th>
+            <Th>Məhsul</Th>
+            <Th>Növ</Th>
+            <Th>Ödəniş</Th>
+            <Th>Məbləğ</Th>
+            <Th>Tarix</Th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-admin-line">
+          {orders.map((o) => {
+            const paymentSource = getPaymentSource(o.metadata);
+            return (
+              <tr key={o.id} className="hover:bg-admin-chip align-top">
+                <Td>
+                  <Link className="block" href={`/admin/users/${o.user.id}`}>
+                    <div className="truncate text-zinc-900">
+                      {o.user.name ?? o.user.email}
+                    </div>
+                    <div className="truncate text-xs text-zinc-500">{o.user.email}</div>
+                  </Link>
+                </Td>
+                <Td>
+                  <div className="truncate text-zinc-900">{cancelledItemLabel(o)}</div>
+                </Td>
+                <Td>
+                  <span className="rounded-full bg-admin-card px-2 py-0.5 text-[11px] text-zinc-700 ring-1 ring-admin-line">
+                    {cancelledTypeLabel(o)}
+                  </span>
+                </Td>
+                <Td>
+                  <span className="rounded-full bg-admin-card px-2 py-0.5 text-[11px] text-zinc-700 ring-1 ring-admin-line">
+                    {paymentSource}
+                  </span>
+                </Td>
+                <Td className="font-semibold text-zinc-900">{fmtAzn(o.amountAznCents)}</Td>
+                <Td className="text-zinc-600">{fmtDate(o.createdAt)}</Td>
               </tr>
             );
           })}

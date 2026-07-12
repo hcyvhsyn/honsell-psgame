@@ -76,11 +76,11 @@ export default function ProfileSettingsForm({ initial }: { initial: Initial }) {
   return (
     <form
       onSubmit={submit}
-      className="space-y-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6"
+      className="space-y-5 rounded-2xl border border-zinc-200 bg-white/92 p-6 shadow-[0_28px_72px_-56px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-900/40 dark:shadow-none"
     >
       {/* Section: identity */}
       <div className="space-y-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-500">
           Şəxsi məlumatlar
         </h3>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -105,7 +105,7 @@ export default function ProfileSettingsForm({ initial }: { initial: Initial }) {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wide text-zinc-500">
+            <label className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
               <Cake className="h-3.5 w-3.5" /> Doğum tarixi
             </label>
             <input
@@ -113,12 +113,12 @@ export default function ProfileSettingsForm({ initial }: { initial: Initial }) {
               value={birthDate}
               onChange={(e) => setBirthDate(e.target.value)}
               max={new Date().toISOString().slice(0, 10)}
-              className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
+              className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 [color-scheme:light] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:[color-scheme:dark]"
             />
           </div>
 
           <div>
-            <label className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wide text-zinc-500">
+            <label className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
               <User className="h-3.5 w-3.5" /> Cinsiyət
             </label>
             <Select
@@ -133,8 +133,8 @@ export default function ProfileSettingsForm({ initial }: { initial: Initial }) {
       </div>
 
       {/* Section: read-only */}
-      <div className="space-y-4 border-t border-zinc-800 pt-5">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+      <div className="space-y-4 border-t border-zinc-200 pt-5 dark:border-zinc-800">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-500">
           Sistem məlumatları
         </h3>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -154,20 +154,20 @@ export default function ProfileSettingsForm({ initial }: { initial: Initial }) {
       </div>
 
       {/* Action bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
         <div className="text-xs">
           {error ? (
-            <span className="rounded-md bg-red-500/10 px-2.5 py-1 text-red-300">
+            <span className="rounded-md bg-red-50 px-2.5 py-1 text-red-700 dark:bg-red-500/10 dark:text-red-300">
               {error}
             </span>
           ) : savedAt ? (
-            <span className="inline-flex items-center gap-1.5 text-emerald-300">
+            <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300">
               <CheckCircle2 className="h-3.5 w-3.5" /> Yadda saxlandı
             </span>
           ) : dirty ? (
-            <span className="text-zinc-500">Dəyişikliklər yadda saxlanılmayıb</span>
+            <span className="text-zinc-500 dark:text-zinc-500">Dəyişikliklər yadda saxlanılmayıb</span>
           ) : (
-            <span className="text-zinc-600">Hər şey aktualdır</span>
+            <span className="text-zinc-600 dark:text-zinc-600">Hər şey aktualdır</span>
           )}
         </div>
 
@@ -203,7 +203,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wide text-zinc-500">
+      <label className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
         {icon} {label}
       </label>
       <input
@@ -212,7 +212,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
+        className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-600"
       />
     </div>
   );
@@ -233,14 +233,14 @@ function ReadOnly({
 }) {
   return (
     <div>
-      <label className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wide text-zinc-500">
+      <label className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
         {icon} {label}
       </label>
-      <div className="flex items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-300">
+      <div className="flex items-center justify-between gap-2 rounded-md border border-zinc-200 bg-zinc-50/75 px-3 py-2 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-300">
         <span className={mono ? "font-mono tracking-widest" : ""}>{value}</span>
-        <Lock className="h-3.5 w-3.5 text-zinc-600" />
+        <Lock className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-600" />
       </div>
-      {note && <p className="mt-1 text-[11px] text-zinc-500">{note}</p>}
+      {note && <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-500">{note}</p>}
     </div>
   );
 }

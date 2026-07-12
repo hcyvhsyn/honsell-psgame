@@ -37,3 +37,29 @@ export function maskWinnerName(name: string | null | undefined): string {
   if (first.length <= 2) return `${first}***`;
   return `${first.slice(0, 3)}${"*".repeat(Math.min(4, first.length - 3))}`;
 }
+
+/** Çəkilişin birbaşa (dərin) linki — WhatsApp-la müştərilərə paylaşmaq üçün. */
+export function giveawayShareUrl(baseUrl: string, giveawayId: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/cekilis/${giveawayId}`;
+}
+
+/**
+ * Müştəriyə WhatsApp-la göndəriləcək dəvət mətni + link.
+ * Admin "Paylaş" düyməsində və serverdə eyni formatda istifadə oluna bilər.
+ */
+export function buildGiveawayShareText(
+  g: { title: string; prizeLabel: string; winnersCount: number },
+  url: string
+): string {
+  return [
+    `🎁 *${g.title}*`,
+    ``,
+    `Mükafat: *${g.prizeLabel}*`,
+    `${g.winnersCount} nəfər qazanır!`,
+    ``,
+    `Qoşulmaq üçün linkə keç, qeydiyyatdan keç və çəkilişə qatıl 👇`,
+    url,
+    ``,
+    `— Honsell Store`,
+  ].join("\n");
+}

@@ -3,6 +3,7 @@ import SiteHeaderServer from "@/components/SiteHeaderServer";
 import { getCurrentUser } from "@/lib/auth";
 import { getPublicTierViews } from "@/lib/publicReferralRates";
 import ReferralRatesExperience from "./ReferralRatesExperience";
+import StudentPartnerEntryCard from "./StudentPartnerEntryCard";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export default async function ReferralRatesPublicPage() {
         activeTierKey="default"
         referralCode={user?.referralCode ?? null}
       />
+      <StudentPartnerEntryCard />
     </main>
   );
 }

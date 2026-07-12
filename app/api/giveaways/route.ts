@@ -19,13 +19,18 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getCurrentUser();
+
+  // `?scope=all` → arxiv səhifəsi üçün bütün keçmiş çəkilişlər (limit yüksək).
+  // Default (ana səhifə) → yalnız son 12.
+  const scope = new URL(req.url).searchParams.get("scope");
+  const take = scope === "all" ? 100 : 12;
 
   const giveaways = await prisma.giveaway.findMany({
     where: { status: { in: ["ACTIVE", "COMPLETED"] } },
     orderBy: [{ status: "asc" }, { endAt: "desc" }],
-    take: 12,
+    take,
     select: {
       id: true,
       title: true,

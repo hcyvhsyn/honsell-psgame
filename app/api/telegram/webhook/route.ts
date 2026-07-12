@@ -14,7 +14,11 @@ import {
   isTelegramSenderAllowed,
   telegramFetchFileBytes,
   telegramSendMessage,
+  telegramAnswerCallback,
+  telegramEditMessageText,
+  type TgInlineButton,
 } from "@/lib/telegram";
+import { getStreamingPlatformsByCategory } from "@/lib/streamingPlatforms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +38,7 @@ type TgMedia = {
   thumb?: TgPhoto;
 };
 type TgMessage = {
+  message_id?: number;
   chat?: { id: number };
   from?: { id: number };
   caption?: string;
@@ -41,6 +46,12 @@ type TgMessage = {
   video?: TgMedia;
   animation?: TgMedia;
   document?: TgMedia;
+};
+type TgCallbackQuery = {
+  id: string;
+  from?: { id: number };
+  message?: { message_id?: number; chat?: { id: number } };
+  data?: string;
 };
 
 function firstUrl(s?: string): string | null {
@@ -57,8 +68,15 @@ function hostLabel(url: string): string {
   return "Video";
 }
 
-/** R2-yə yükləyir + reel yaradır + Telegram-a cavab yazır. */
-async function publishReel(
+const CB_PREFIX = "rp"; // reel-platform callback
+const CB_SKIP = "-"; // "platformasız yayımla"
+
+/**
+ * R2-yə yükləyir + reel-i QARALAMA (isPublished:false) kimi yaradır, sonra
+ * platforma soruşan düymələr göndərir. Reel-in özü söhbət state-idir — callback
+ * gələndə həmin reel-ə platforma yazılıb yayımlanır.
+ */
+async function createDraftAndAskPlatform(
   chatId: number,
   assets: ReelAssets,
   fallbackTitle: string,
@@ -78,7 +96,7 @@ async function publishReel(
   const title = (firstLine || fallbackTitle).slice(0, 120);
   const body = caption.length > firstLine.length ? caption.slice(firstLine.length).trim() : "";
 
-  await prisma.reel.create({
+  const reel = await prisma.reel.create({
     data: {
       title,
       caption: body || null,
@@ -88,11 +106,89 @@ async function publishReel(
       height: assets.height > 0 ? assets.height : 1280,
       durationMs: assets.durationMs,
       ctaType: "URL",
-      isPublished: true,
+      isPublished: false, // platforma seçilənə qədər qaralama
     },
+    select: { id: true },
   });
+
+  await askPlatform(chatId, reel.id);
+}
+
+/** Reel üçün platforma soruşan inline düymələri göndərir. */
+async function askPlatform(chatId: number, reelId: string) {
+  let platforms: { code: string; label: string }[] = [];
+  try {
+    const metas = await getStreamingPlatformsByCategory("STREAMING");
+    platforms = metas.map((m) => ({ code: m.code, label: m.label }));
+  } catch {
+    platforms = [];
+  }
+
+  const rows: TgInlineButton[][] = [];
+  for (let i = 0; i < platforms.length; i += 2) {
+    rows.push(
+      platforms.slice(i, i + 2).map((p) => ({
+        text: p.label,
+        callback_data: `${CB_PREFIX}|${reelId}|${p.code}`,
+      })),
+    );
+  }
+  rows.push([{ text: "⏭️ Platformasız yayımla", callback_data: `${CB_PREFIX}|${reelId}|${CB_SKIP}` }]);
+
+  await telegramSendMessage(
+    chatId,
+    "🎬 Bu film/serial hansı platformadadır?",
+    { keyboard: rows },
+  );
+}
+
+/** Platforma düyməsinə basılanda: reel-ə platforma yazır + yayımlayır. */
+async function handlePlatformCallback(cb: TgCallbackQuery) {
+  const chatId = cb.message?.chat?.id;
+  const messageId = cb.message?.message_id;
+  const parts = (cb.data ?? "").split("|");
+  if (parts[0] !== CB_PREFIX || parts.length < 3 || chatId == null) {
+    await telegramAnswerCallback(cb.id);
+    return;
+  }
+  const reelId = parts[1];
+  const code = parts[2];
+
+  let platform: { code: string; label: string; logoUrl: string | null } | null = null;
+  if (code !== CB_SKIP) {
+    try {
+      const metas = await getStreamingPlatformsByCategory("STREAMING");
+      const m = metas.find((p) => p.code === code);
+      if (m) platform = { code: m.code, label: m.label, logoUrl: m.heroImageUrl ?? null };
+    } catch {
+      /* platforma tapılmadısa platformasız yayımla */
+    }
+  }
+
+  try {
+    await prisma.reel.update({
+      where: { id: reelId },
+      data: {
+        platformCode: platform?.code ?? null,
+        platformLabel: platform?.label ?? null,
+        platformLogoUrl: platform?.logoUrl ?? null,
+        isPublished: true,
+      },
+    });
+  } catch {
+    await telegramAnswerCallback(cb.id, "Reel tapılmadı");
+    return;
+  }
+
   revalidateReels();
-  await telegramSendMessage(chatId, `✅ Reel yayımlandı: “${title}”.`);
+  await telegramAnswerCallback(cb.id, platform ? `${platform.label} seçildi` : "Yayımlandı");
+  if (messageId != null) {
+    await telegramEditMessageText(
+      chatId,
+      messageId,
+      platform ? `✅ Yayımlandı — ${platform.label}` : "✅ Yayımlandı (platformasız)",
+    );
+  }
 }
 
 export async function POST(req: Request) {
@@ -103,6 +199,19 @@ export async function POST(req: Request) {
   }
 
   const update = await req.json().catch(() => null);
+
+  // ─── Callback (platforma düyməsi) ─────────────────────────────────────────
+  const cb: TgCallbackQuery | undefined = update?.callback_query;
+  if (cb) {
+    const cbChat = cb.message?.chat?.id;
+    if (cbChat != null && isTelegramSenderAllowed(cb.from?.id, cbChat)) {
+      await handlePlatformCallback(cb);
+    } else {
+      await telegramAnswerCallback(cb.id);
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   const msg: TgMessage | undefined = update?.message ?? update?.channel_post;
   const chatId = msg?.chat?.id;
   if (!msg || chatId == null) return NextResponse.json({ ok: true });
@@ -145,7 +254,7 @@ export async function POST(req: Request) {
       }
       await telegramSendMessage(chatId, "⏳ Video endirilir və emal olunur...");
       const assets = await ingestFromUrl(url);
-      await publishReel(chatId, assets, hostLabel(url), (msg.caption ?? "").trim());
+      await createDraftAndAskPlatform(chatId, assets, hostLabel(url), (msg.caption ?? "").trim());
       return NextResponse.json({ ok: true });
     }
 
@@ -167,7 +276,7 @@ export async function POST(req: Request) {
       // ffmpeg var → faststart + poster (ən yaxşı nəticə).
       const ext = (media!.mime_type ?? "").includes("webm") ? "webm" : "mp4";
       const assets = await ingestFromBytes(bytes, ext);
-      await publishReel(chatId, assets, "Reels video", (msg.caption ?? "").trim());
+      await createDraftAndAskPlatform(chatId, assets, "Reels video", (msg.caption ?? "").trim());
       return NextResponse.json({ ok: true });
     }
 
@@ -183,7 +292,7 @@ export async function POST(req: Request) {
     let posterBuffer: Buffer | null = null;
     const thumbId = media!.thumbnail?.file_id ?? media!.thumb?.file_id;
     if (thumbId) posterBuffer = await telegramFetchFileBytes(thumbId);
-    await publishReel(
+    await createDraftAndAskPlatform(
       chatId,
       {
         videoBuffer: bytes,

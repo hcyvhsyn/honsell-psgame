@@ -21,6 +21,8 @@ export {
   GIVEAWAY_STATUSES,
   displayParticipantCount,
   maskWinnerName,
+  giveawayShareUrl,
+  buildGiveawayShareText,
 } from "@/lib/giveawaysShared";
 export type { EntryCondition, GiveawayStatus } from "@/lib/giveawaysShared";
 

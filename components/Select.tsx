@@ -27,8 +27,17 @@ export default function Select({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const selected = options.find((o) => o.value === value);
+
+  // Klaviatura ilə naviqasiyada aktiv seçim görünən sahəyə sürüşdürülsün.
+  useEffect(() => {
+    if (!open) return;
+    const list = listRef.current;
+    const activeEl = list?.children[active] as HTMLElement | undefined;
+    activeEl?.scrollIntoView({ block: "nearest" });
+  }, [active, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -72,7 +81,7 @@ export default function Select({
     ? "border-red-500/60 focus:border-red-500/80"
     : open
       ? "border-indigo-500/60 ring-2 ring-indigo-500/20"
-      : "border-zinc-800 hover:border-zinc-700";
+      : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700";
 
   return (
     <div ref={wrapRef} className={`relative ${className}`}>
@@ -82,28 +91,31 @@ export default function Select({
         aria-expanded={open}
         aria-label={ariaLabel}
         onClick={() => setOpen((o) => !o)}
-        className={`flex w-full items-center gap-2 rounded-md border bg-zinc-950 py-2 pl-3 pr-2 text-sm transition ${triggerBorder}`}
+        className={`flex w-full items-center gap-2 rounded-md border bg-white py-2 pl-3 pr-2 text-sm text-zinc-900 transition dark:bg-zinc-950 dark:text-zinc-100 ${triggerBorder}`}
       >
-        {icon && <span className="text-zinc-500">{icon}</span>}
+        {icon && <span className="text-zinc-400 dark:text-zinc-500">{icon}</span>}
         <span
           className={`flex-1 truncate text-left ${
-            selected ? "text-zinc-100" : "text-zinc-500"
+            selected
+              ? "text-zinc-900 dark:text-zinc-100"
+              : "text-zinc-400 dark:text-zinc-500"
           }`}
         >
           {selected?.label ?? placeholder}
         </span>
         <ChevronDown
-          className={`h-4 w-4 text-zinc-500 transition-transform duration-200 ${
-            open ? "rotate-180 text-indigo-400" : ""
+          className={`h-4 w-4 text-zinc-400 transition-transform duration-200 dark:text-zinc-500 ${
+            open ? "rotate-180 text-indigo-500 dark:text-indigo-400" : ""
           }`}
         />
       </button>
 
       {open && (
         <div
+          ref={listRef}
           role="listbox"
           aria-label={ariaLabel}
-          className="absolute left-0 right-0 z-30 mt-1.5 origin-top overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/95 p-1 shadow-2xl shadow-black/60 ring-1 ring-black/40 backdrop-blur"
+          className="absolute left-0 right-0 z-30 mt-1.5 max-h-72 origin-top overflow-y-auto overscroll-contain rounded-xl border border-zinc-200 bg-white/95 p-1 shadow-2xl shadow-zinc-900/10 ring-1 ring-black/[0.04] backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 dark:shadow-black/60 dark:ring-black/40"
           style={{ animation: "select-in 140ms ease-out" }}
         >
           {options.map((o, i) => {
@@ -122,20 +134,20 @@ export default function Select({
                 }}
                 className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition ${
                   isSelected
-                    ? "bg-indigo-500/15 text-indigo-100"
+                    ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-100"
                     : isActive
-                      ? "bg-zinc-800/70 text-zinc-100"
-                      : "text-zinc-300"
+                      ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800/70 dark:text-zinc-100"
+                      : "text-zinc-600 dark:text-zinc-300"
                 }`}
               >
                 <span className="flex flex-col">
                   <span>{o.label}</span>
                   {o.hint && (
-                    <span className="text-[11px] text-zinc-500">{o.hint}</span>
+                    <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{o.hint}</span>
                   )}
                 </span>
                 {isSelected ? (
-                  <Check className="h-4 w-4 text-indigo-300" />
+                  <Check className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />
                 ) : (
                   <span className="h-4 w-4" />
                 )}

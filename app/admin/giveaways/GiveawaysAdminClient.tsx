@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useDialog } from "@/lib/dialogs";
-import { ENTRY_CONDITION_LABELS } from "@/lib/giveawaysShared";
+import {
+  ENTRY_CONDITION_LABELS,
+  giveawayShareUrl,
+  buildGiveawayShareText,
+} from "@/lib/giveawaysShared";
+import { SITE_URL } from "@/lib/site";
 
 type Giveaway = {
   id: string;
@@ -20,6 +25,15 @@ type Giveaway = {
   drawnAt: string | null;
   createdAt: string;
   _count: { entries: number };
+};
+
+type Participant = {
+  id: string;
+  isWinner: boolean;
+  notifiedAt: string | null;
+  waStatus: string;
+  createdAt: string;
+  user: { id: string; name: string | null; email: string; phone: string | null };
 };
 
 /** PURCHASE_PRODUCT şərti üçün ServiceProduct tipləri. */
@@ -50,6 +64,14 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELLED: "Ləğv olundu",
 };
 
+const STATUS_FILTERS: { value: string; label: string }[] = [
+  { value: "ALL", label: "Hamısı" },
+  { value: "ACTIVE", label: "Aktiv" },
+  { value: "COMPLETED", label: "Keçmiş" },
+  { value: "DRAFT", label: "Qaralama" },
+  { value: "CANCELLED", label: "Ləğv" },
+];
+
 function toLocalInput(iso: string): string {
   // datetime-local üçün "YYYY-MM-DDTHH:mm".
   const d = new Date(iso);
@@ -79,6 +101,17 @@ export default function GiveawaysAdminClient() {
   const [pending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
+
+  // İştirakçılar modalı
+  const [participantsFor, setParticipantsFor] = useState<Giveaway | null>(null);
+  const [participants, setParticipants] = useState<Participant[] | null>(null);
+
+  // Paylaş modalı
+  const [shareFor, setShareFor] = useState<Giveaway | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // Status filtri (keçmiş çəkilişləri asan tapmaq üçün)
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
   const refresh = useCallback(() => {
     startTransition(async () => {
@@ -221,6 +254,35 @@ export default function GiveawaysAdminClient() {
     });
   }
 
+  function openParticipants(g: Giveaway) {
+    setParticipantsFor(g);
+    setParticipants(null);
+    startTransition(async () => {
+      const res = await fetch(`/api/admin/giveaways/${g.id}`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setParticipants([]);
+        return;
+      }
+      setParticipants(Array.isArray(data.giveaway?.entries) ? data.giveaway.entries : []);
+    });
+  }
+
+  function openShare(g: Giveaway) {
+    setShareFor(g);
+    setCopied(false);
+  }
+
+  async function copyShareLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard bloklanıbsa istifadəçi əllə kopyalayır */
+    }
+  }
+
   async function remove(g: Giveaway) {
     const ok = await dialog.confirm({
       title: "Sil",
@@ -238,6 +300,9 @@ export default function GiveawaysAdminClient() {
       refresh();
     });
   }
+
+  const visibleItems =
+    statusFilter === "ALL" ? items : items.filter((g) => g.status === statusFilter);
 
   const inputCls =
     "w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400";
@@ -398,14 +463,40 @@ export default function GiveawaysAdminClient() {
         </div>
       </div>
 
+      {/* Status filtri */}
+      {!loading && items.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {STATUS_FILTERS.map((f) => {
+            const count =
+              f.value === "ALL" ? items.length : items.filter((g) => g.status === f.value).length;
+            const on = statusFilter === f.value;
+            return (
+              <button
+                key={f.value}
+                onClick={() => setStatusFilter(f.value)}
+                className={`rounded-full px-3.5 py-1.5 text-xs font-semibold ring-1 transition ${
+                  on
+                    ? "bg-violet-600 text-white ring-violet-600"
+                    : "bg-white text-zinc-600 ring-zinc-300 hover:bg-zinc-50"
+                }`}
+              >
+                {f.label} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Siyahı */}
       <div className="space-y-3">
         {loading ? (
           <p className="text-sm text-zinc-500">Yüklənir...</p>
         ) : items.length === 0 ? (
           <p className="text-sm text-zinc-500">Hələ çəkiliş yoxdur.</p>
+        ) : visibleItems.length === 0 ? (
+          <p className="text-sm text-zinc-500">Bu statusda çəkiliş yoxdur.</p>
         ) : (
-          items.map((g) => {
+          visibleItems.map((g) => {
             const ended = new Date(g.endAt).getTime() <= Date.now();
             return (
               <div
@@ -450,6 +541,18 @@ export default function GiveawaysAdminClient() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => openParticipants(g)}
+                      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                    >
+                      İştirakçılar ({g._count.entries})
+                    </button>
+                    <button
+                      onClick={() => openShare(g)}
+                      className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
+                    >
+                      WhatsApp paylaş
+                    </button>
                     {g.status === "DRAFT" && (
                       <button
                         onClick={() => patchStatus(g, "ACTIVE")}
@@ -508,6 +611,191 @@ export default function GiveawaysAdminClient() {
             );
           })
         )}
+      </div>
+
+      {/* İştirakçılar modalı */}
+      {participantsFor && (
+        <ParticipantsModal
+          giveaway={participantsFor}
+          participants={participants}
+          onClose={() => {
+            setParticipantsFor(null);
+            setParticipants(null);
+          }}
+        />
+      )}
+
+      {/* Paylaş modalı */}
+      {shareFor && (
+        <ShareModal
+          giveaway={shareFor}
+          copied={copied}
+          onCopy={copyShareLink}
+          onClose={() => setShareFor(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ParticipantsModal({
+  giveaway,
+  participants,
+  onClose,
+}: {
+  giveaway: Giveaway;
+  participants: Participant[] | null;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-zinc-200 px-5 py-4">
+          <div className="min-w-0">
+            <h3 className="truncate font-semibold text-zinc-900">İştirakçılar</h3>
+            <p className="truncate text-xs text-zinc-500">{giveaway.title}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-zinc-300 px-3 py-1 text-sm font-semibold text-zinc-600 hover:bg-zinc-50"
+          >
+            Bağla
+          </button>
+        </div>
+        <div className="overflow-y-auto px-5 py-4">
+          {participants === null ? (
+            <p className="py-6 text-center text-sm text-zinc-500">Yüklənir…</p>
+          ) : participants.length === 0 ? (
+            <p className="py-6 text-center text-sm text-zinc-500">Hələ qoşulan yoxdur.</p>
+          ) : (
+            <ul className="space-y-2">
+              {participants.map((p, i) => (
+                <li
+                  key={p.id}
+                  className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5"
+                >
+                  <span className="w-5 shrink-0 text-right text-xs font-semibold text-zinc-400">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-semibold text-zinc-900">
+                        {p.user.name || p.user.email}
+                      </span>
+                      {p.isWinner && (
+                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                          🏆 Qalib
+                        </span>
+                      )}
+                    </div>
+                    <div className="truncate text-xs text-zinc-500">
+                      {p.user.email}
+                      {p.user.phone ? ` · ${p.user.phone}` : " · nömrə yoxdur"}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShareModal({
+  giveaway,
+  copied,
+  onCopy,
+  onClose,
+}: {
+  giveaway: Giveaway;
+  copied: boolean;
+  onCopy: (url: string) => void;
+  onClose: () => void;
+}) {
+  const url = giveawayShareUrl(SITE_URL, giveaway.id);
+  const shareText = buildGiveawayShareText(
+    { title: giveaway.title, prizeLabel: giveaway.prizeLabel, winnersCount: giveaway.winnersCount },
+    url
+  );
+  const waHref = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-zinc-200 px-5 py-4">
+          <div className="min-w-0">
+            <h3 className="truncate font-semibold text-zinc-900">WhatsApp-la paylaş</h3>
+            <p className="truncate text-xs text-zinc-500">{giveaway.title}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-zinc-300 px-3 py-1 text-sm font-semibold text-zinc-600 hover:bg-zinc-50"
+          >
+            Bağla
+          </button>
+        </div>
+        <div className="space-y-4 px-5 py-4">
+          {giveaway.status !== "ACTIVE" && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+              Diqqət: çəkiliş aktiv deyil. Müştərilər linkə keçə bilər, amma yalnız «Aktiv»
+              olduqda qoşula bilər.
+            </div>
+          )}
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-zinc-600">Çəkilişin linki</span>
+            <div className="flex gap-2">
+              <input
+                readOnly
+                value={url}
+                onFocus={(e) => e.currentTarget.select()}
+                className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700"
+              />
+              <button
+                onClick={() => onCopy(url)}
+                className="shrink-0 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+              >
+                {copied ? "✓ Kopyalandı" : "Kopyala"}
+              </button>
+            </div>
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-zinc-600">
+              Göndəriləcək mesaj (önizləmə)
+            </span>
+            <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg border border-emerald-600/20 bg-emerald-50/40 p-3 text-xs text-zinc-800">
+              {shareText}
+            </pre>
+          </label>
+
+          <a
+            href={waHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700"
+          >
+            WhatsApp-da aç
+          </a>
+          <p className="text-xs text-zinc-500">
+            «WhatsApp-da aç» mesajı hazır şəkildə açır — istədiyin müştəri və ya qrupu seçib
+            göndər. Linki birbaşa da kopyalayıb göndərə bilərsən.
+          </p>
+        </div>
       </div>
     </div>
   );

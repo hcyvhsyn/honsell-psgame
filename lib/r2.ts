@@ -1,4 +1,9 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 /**
@@ -68,6 +73,29 @@ export async function presignR2Upload(
   });
   const uploadUrl = await getSignedUrl(r2Client(), cmd, { expiresIn: 600 });
   return { uploadUrl, publicUrl: r2PublicUrl(key) };
+}
+
+/**
+ * PRIVATE obyektlər üçün qısa-ömürlü signed GET URL. Public CDN URL-dən fərqli
+ * olaraq bu, bucket public olmasa belə (və ya key public domenə bağlanmasa)
+ * işləyir — tələbə kartı kimi şəxsi sənədlər üçün istifadə olunur.
+ */
+export async function presignR2Download(
+  key: string,
+  expiresInSeconds = 300,
+): Promise<string> {
+  const cmd = new GetObjectCommand({
+    Bucket: R2_BUCKET,
+    Key: key.replace(/^\/+/, ""),
+  });
+  return getSignedUrl(r2Client(), cmd, { expiresIn: expiresInSeconds });
+}
+
+/** Obyekti R2-dən silir (tələbə kartı dəyişdirildikdə köhnəsini təmizləmək üçün). */
+export async function deleteR2Object(key: string): Promise<void> {
+  await r2Client().send(
+    new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key.replace(/^\/+/, "") }),
+  );
 }
 
 /** Server-tərəf birbaşa yükləmə (migrasiya skripti üçün). */

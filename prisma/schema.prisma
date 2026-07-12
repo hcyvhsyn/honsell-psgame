@@ -156,6 +156,11 @@ model User {
   adminAuditEntries   AdminAuditLog[]  @relation("AdminAuditTarget")
   adminActionsTaken   AdminAuditLog[]  @relation("AdminAuditActor")
 
+  // Tələbə profili — istifadəçinin (opsional) tələbə statusu və təsdiqi.
+  // DİQQƏT: tələbə olmaq ≠ Student Partner olmaq. Bu yalnız tələbə təsdiqidir;
+  // satış tərəfdaşlığı (StudentPartner/Ambassador) ayrıca entity olacaq.
+  studentProfile StudentProfile?
+
   // İcma kampaniyasına giriş — bir sifarişdə ≥2 məhsul alındıqda true olur.
   communityCampaignAccess Boolean @default(false)
   // Kupon / bonus sistemi əlaqələri.
@@ -165,6 +170,66 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─── Tələbələr (University + StudentProfile) ──────────────────────────────────
+// StudentProfile istifadəçinin TƏLƏBƏ olduğunu təsdiqləyir. Gələcək Student
+// Partner / Ambassador (satış tərəfdaşı) sistemi AYRICA entity olacaq və bu
+// modeli referans götürəcək — burada satış/komissiya məntiqi YOXDUR.
+
+model University {
+  id        String  @id @default(cuid())
+  name      String
+  shortName String? // "UNEC", "BDU", "ADA" — dropdown-da mötərizədə göstərilir
+  slug      String  @unique
+  city      String?
+  logoUrl   String?
+  isActive  Boolean @default(true)
+
+  studentProfiles StudentProfile[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model StudentProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // "Tələbəsən?" seçimi. false olduqda aşağıdakı sahələr saxlanılır, amma
+  // profil UI/eligibility-də aktiv istifadə olunmur.
+  isStudent Boolean @default(false)
+
+  universityId String?
+  university   University? @relation(fields: [universityId], references: [id], onDelete: SetNull)
+
+  // Kurs — string "enum" (bax: lib/studentShared.ts):
+  // "1".."6" | "MASTERS" | "DOCTORATE"
+  course String?
+
+  // Tələbə kartı — PRIVATE R2 obyekt açarı (və ya Supabase path). Heç vaxt
+  // public URL saxlanılmır; baxış üçün server signed GET URL yaradır.
+  studentCardKey String?
+
+  // NOT_SUBMITTED | PENDING | VERIFIED | REJECTED (bax: lib/studentShared.ts).
+  // YALNIZ server dəyişir — client bu sahəyə heç vaxt təsir edə bilməz.
+  verificationStatus String @default("NOT_SUBMITTED")
+
+  // Admin təsdiq/rədd izləməsi (gələcək admin panel üçün).
+  reviewedAt      DateTime?
+  reviewedById    String?
+  rejectionReason String?
+
+  submittedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([verificationStatus])
+  @@index([universityId])
 }
 
 // ─── PSN delivery accounts (one user → many PSN logins) ───────────────────────

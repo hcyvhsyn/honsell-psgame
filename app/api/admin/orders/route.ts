@@ -13,10 +13,12 @@ export async function GET(req: NextRequest) {
 
   const statusParam = (req.nextUrl.searchParams.get("status") ?? "").toUpperCase();
 
-  if (statusParam === "FAILED") {
-    const cancelled = await prisma.transaction.findMany({
+  // Terminal statuslar (FAILED = ləğv, SUCCESS = tamamlanmış) eyni sorğu şəklini
+  // paylaşır — hər ikisi tarixçə cədvəlində göstərilir.
+  if (statusParam === "FAILED" || statusParam === "SUCCESS") {
+    const orders = await prisma.transaction.findMany({
       where: {
-        status: "FAILED",
+        status: statusParam,
         OR: [
           { type: "PURCHASE", gameId: { not: null } },
           { type: "SERVICE_PURCHASE" },
@@ -31,7 +33,8 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ cancelledOrders: cancelled });
+    // `cancelledOrders` — köhnə açar (geriyə uyğunluq); `orders` — ümumi açar.
+    return NextResponse.json({ orders, cancelledOrders: orders });
   }
 
   const [

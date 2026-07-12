@@ -16,6 +16,33 @@ const FFMPEG = process.env.FFMPEG_PATH || "ffmpeg";
 const FFPROBE = process.env.FFPROBE_PATH || "ffprobe";
 const YTDLP = process.env.YTDLP_PATH || "yt-dlp";
 
+/**
+ * yt-dlp üçün auth cookie-ləri. Instagram (və bəzən TikTok) artıq login-siz
+ * media qaytarmır, ona görə Netscape formatlı cookies.txt faylı lazımdır.
+ *  - YTDLP_COOKIES_FILE       — bütün saytlar üçün cookies.txt yolu
+ *  - YTDLP_COOKIES_FROM_BROWSER — məs. "chrome" (yalnız brauzeri olan mühitdə)
+ * Yalnız faktiki auth lazım olan host-lara tətbiq edirik ki, digər saytlar
+ * lazımsız cookie faylından təsirlənməsin.
+ */
+const COOKIES_FILE = process.env.YTDLP_COOKIES_FILE || "";
+const COOKIES_FROM_BROWSER = process.env.YTDLP_COOKIES_FROM_BROWSER || "";
+
+const AUTH_HOSTS = ["instagram.com", "facebook.com", "fb.watch"];
+
+function cookieArgs(url: string): string[] {
+  let host = "";
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    host = "";
+  }
+  const needsAuth = AUTH_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+  if (!needsAuth) return [];
+  if (COOKIES_FILE) return ["--cookies", COOKIES_FILE];
+  if (COOKIES_FROM_BROWSER) return ["--cookies-from-browser", COOKIES_FROM_BROWSER];
+  return [];
+}
+
 export type ReelAssets = {
   videoBuffer: Buffer;
   posterBuffer: Buffer | null;
@@ -111,6 +138,7 @@ async function downloadWithYtDlp(url: string, dir: string): Promise<string> {
       "--no-playlist",
       "--no-warnings",
       "--no-progress",
+      ...cookieArgs(url),
       "-f",
       "mp4/bestvideo*+bestaudio/best",
       "--merge-output-format",
@@ -122,7 +150,16 @@ async function downloadWithYtDlp(url: string, dir: string): Promise<string> {
     150_000,
   );
   if (code !== 0) {
-    throw new Error(`Endirmə alınmadı: ${stderr.split("\n").filter(Boolean).pop() ?? "yt-dlp xətası"}`);
+    const last = stderr.split("\n").filter(Boolean).pop() ?? "yt-dlp xətası";
+    const isAuth =
+      /empty media response|login|rate-limit|cookies|Restricted Video|not available|private/i.test(stderr);
+    const hasCookies = Boolean(COOKIES_FILE || COOKIES_FROM_BROWSER);
+    if (isAuth && !hasCookies) {
+      throw new Error(
+        "Endirmə alınmadı: Instagram login tələb edir. Serverdə YTDLP_COOKIES_FILE (cookies.txt) təyin edin.",
+      );
+    }
+    throw new Error(`Endirmə alınmadı: ${last}`);
   }
   const files = await readdir(dir);
   const src = files.find((f) => f.startsWith("src."));

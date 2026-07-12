@@ -8,12 +8,16 @@ export default function AuthPageShell({
   title,
   subtitle,
   children,
+  next,
 }: {
   mode: AuthMode;
   title: string;
   subtitle: string;
   children: React.ReactNode;
+  /** Girişdən/qeydiyyatdan sonra yönləndiriləcək ünvan — tab-lar arasında qorunur. */
+  next?: string;
 }) {
+  const suffix = next ? `?next=${encodeURIComponent(next)}` : "";
   return (
     <main className="auth-page-shell min-h-screen bg-[#141414] text-white">
       <div className="auth-page-canvas relative min-h-dvh overflow-hidden bg-[#141414]">
@@ -23,10 +27,10 @@ export default function AuthPageShell({
           <Logo href="/" height={32} priority className="auth-page-logo h-auto w-[10.75rem] sm:w-[12rem]" />
 
           <div className="auth-page-tabs mt-8 grid grid-cols-2 gap-2.5 sm:mt-10 sm:gap-3">
-            <AuthTab href="/login" active={mode === "login"}>
+            <AuthTab href={`/login${suffix}`} active={mode === "login"}>
               Daxil ol
             </AuthTab>
-            <AuthTab href="/register" active={mode === "register"}>
+            <AuthTab href={`/register${suffix}`} active={mode === "register"}>
               Qeydiyyatdan keç
             </AuthTab>
           </div>

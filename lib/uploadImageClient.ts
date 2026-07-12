@@ -63,6 +63,62 @@ export async function uploadAdminImage(
 }
 
 /**
+ * Tələbə kartı (PRIVATE) üçün klient yükləyicisi. `uploadAdminImage`-dən fərqi:
+ * public URL DEYİL, DB-yə yazılacaq obyekt `key`-i qaytarır. Şəkil yenə də
+ * sıxılır (webp, max 1600px) — oxunaqlılıq üçün kifayətdir, egress-ə qənaət edir.
+ */
+export async function uploadStudentCard(
+  file: File,
+): Promise<{ ok: true; key: string } | { ok: false; error: string }> {
+  const f = await compressImageForUpload(file);
+
+  const init = await fetch("/api/profile/student-card", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contentType: f.type }),
+  });
+  const data = await init.json().catch(() => ({} as Record<string, unknown>));
+  if (!init.ok) {
+    return { ok: false, error: String((data as { error?: string }).error ?? "Upload hazırlanmadı") };
+  }
+
+  const key = String((data as { key?: string }).key ?? "");
+  if (!key) return { ok: false, error: "Upload hədəfi natamam qayıtdı" };
+
+  // ─── R2 presigned PUT ──────────────────────────────────────────────────
+  if ((data as { mode?: string }).mode === "r2") {
+    const uploadUrl = String((data as { uploadUrl?: string }).uploadUrl ?? "");
+    try {
+      const put = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": f.type },
+        body: f,
+      });
+      if (!put.ok) return { ok: false, error: `Yükləmə alınmadı (${put.status})` };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "Yükləmə alınmadı" };
+    }
+    return { ok: true, key };
+  }
+
+  // ─── Supabase signed upload (fallback, private bucket) ─────────────────
+  const d = data as { bucket?: string; path?: string; token?: string };
+  if (!d.bucket || !d.path || !d.token) {
+    return { ok: false, error: "Upload hədəfi natamam qayıtdı" };
+  }
+  const supabase = getSupabaseBrowser();
+  const { error } = await supabase.storage
+    .from(d.bucket)
+    .uploadToSignedUrl(d.path, d.token, f, {
+      cacheControl: IMAGE_UPLOAD_CACHE_CONTROL,
+      contentType: f.type,
+      upsert: true,
+    });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, key };
+}
+
+/**
  * Reels videoları üçün klient yükləyicisi. `uploadAdminImage`-dən fərqi: video
  * SIXILMIR (olduğu kimi yüklənir) və `onProgress` ilə böyük faylların irəliləyişi
  * bildirilir (R2 rejimində XHR, Supabase rejimində təxmini).

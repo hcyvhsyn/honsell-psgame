@@ -383,6 +383,13 @@
 :global(html.light) .tierSwitchIcon { background: rgba(33,67,38,0.06); }
 :global(html.light) .tierSwitchActive { color: #06120a; background: linear-gradient(135deg, #bff39a, #8fe06a); }
 
+/* Tələbələr üçün ayrıca proqram düyməsi — violet vurğu (student teması ilə uyğun). */
+.tierSwitchStudent { color: #ece8ff; border-color: rgba(167,139,250,0.4); background: linear-gradient(135deg, rgba(124,58,237,0.55), rgba(109,40,217,0.4)); }
+.tierSwitchStudent .tierSwitchIcon { background: rgba(255,255,255,0.14); }
+.tierSwitchStudent:hover { color: #fff; border-color: rgba(167,139,250,0.7); box-shadow: 0 10px 26px rgba(124,58,237,0.3); }
+:global(html.light) .tierSwitchStudent { color: #fff; border-color: rgba(124,58,237,0.35); background: linear-gradient(135deg, #7c3aed, #6d28d9); }
+:global(html.light) .tierSwitchStudent .tierSwitchIcon { background: rgba(255,255,255,0.22); }
+
 .rateGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
 .rateCard { --card-accent: 158,255,101; position: relative; overflow: hidden; border: 1px solid rgba(var(--card-accent),0.12); border-radius: 20px; background: linear-gradient(145deg, rgba(var(--card-accent),0.045), rgba(5,15,9,0.78)); box-shadow: 0 18px 45px -40px rgba(var(--card-accent),0.45), inset 0 1px 0 rgba(255,255,255,0.025); transition: border-color 220ms ease, transform 220ms ease, box-shadow 220ms ease; }
 .accentGold { --card-accent: 244,204,99; }

@@ -50,6 +50,7 @@ function LoginInner() {
       mode="login"
       title="Daxil ol"
       subtitle="Daxil olmaq üçün aşağıdakı xanaları doldurun"
+      next={next !== "/" ? next : undefined}
     >
       <form onSubmit={submit} className="mx-auto w-full max-w-[39rem] space-y-3">
         <input

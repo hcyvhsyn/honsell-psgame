@@ -67,14 +67,57 @@ export async function telegramFetchFileBytes(fileId: string): Promise<Buffer | n
   return telegramDownload(f.file_path);
 }
 
+/** Telegram inline keyboard düyməsi (callback_data ≤ 64 bayt). */
+export type TgInlineButton = { text: string; callback_data: string };
+
 /** Söhbətə mətn cavabı göndərir (nəticə/xəta bildirişi üçün). */
-export async function telegramSendMessage(chatId: number | string, text: string): Promise<void> {
+export async function telegramSendMessage(
+  chatId: number | string,
+  text: string,
+  opts?: { keyboard?: TgInlineButton[][] },
+): Promise<void> {
   const token = telegramToken();
   if (!token) return;
   await fetch(`${API}/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      disable_web_page_preview: true,
+      ...(opts?.keyboard ? { reply_markup: { inline_keyboard: opts.keyboard } } : {}),
+    }),
+  }).catch(() => {});
+}
+
+/** callback_query-ə cavab verir (düyməyə basılanda "saat" ikonasını söndürür). */
+export async function telegramAnswerCallback(callbackId: string, text?: string): Promise<void> {
+  const token = telegramToken();
+  if (!token) return;
+  await fetch(`${API}/bot${token}/answerCallbackQuery`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query_id: callbackId, ...(text ? { text } : {}) }),
+  }).catch(() => {});
+}
+
+/** Mövcud mesajın mətnini yeniləyir (düymələri də silir). */
+export async function telegramEditMessageText(
+  chatId: number | string,
+  messageId: number,
+  text: string,
+): Promise<void> {
+  const token = telegramToken();
+  if (!token) return;
+  await fetch(`${API}/bot${token}/editMessageText`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      disable_web_page_preview: true,
+    }),
   }).catch(() => {});
 }
 
@@ -89,7 +132,7 @@ export async function telegramSetWebhook(url: string): Promise<{ ok: boolean; de
     body: JSON.stringify({
       url,
       ...(secret ? { secret_token: secret } : {}),
-      allowed_updates: ["message", "channel_post"],
+      allowed_updates: ["message", "channel_post", "callback_query"],
       drop_pending_updates: true,
     }),
   });

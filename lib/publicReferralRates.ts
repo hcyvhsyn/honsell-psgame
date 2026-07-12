@@ -111,10 +111,14 @@ export async function getPublicTierViews(): Promise<PublicTierView[]> {
   return [{ key: "default", label: "Standart", icon: null, groups }, ...extra];
 }
 
+/** Tələbə (Student Partner) seqmentinin stabil slug-ı. */
+export const STUDENT_TIER_SLUG = "student";
+
 export async function getPublicAmbassadorTiers(): Promise<PublicTierOption[]> {
   const rows = await prisma.customerTier
     .findMany({
-      where: { kind: "MANUAL", slug: { not: "sponsorlu" } },
+      // "sponsorlu" daxili status; "student" ayrıca öz dizaynlı səhifədə göstərilir.
+      where: { kind: "MANUAL", slug: { notIn: ["sponsorlu", STUDENT_TIER_SLUG] } },
       orderBy: { sortOrder: "asc" },
       select: { id: true, slug: true, name: true, displayName: true, icon: true },
     })
@@ -126,6 +130,19 @@ export async function getPublicAmbassadorTiers(): Promise<PublicTierOption[]> {
     displayName: t.displayName || t.name,
     icon: t.icon,
   }));
+}
+
+/**
+ * Student Partner seqmentinin effektiv referal faizləri (öz sətiri → default
+ * seqment fallback). Ayrıca /referal-faizleri/telebe səhifəsi üçün. Tier hələ
+ * seed olunmayıbsa null qaytarır.
+ */
+export async function getPublicStudentRates(): Promise<PublicRateGroup[] | null> {
+  const tier = await prisma.customerTier
+    .findUnique({ where: { slug: STUDENT_TIER_SLUG }, select: { id: true } })
+    .catch(() => null);
+  if (!tier) return null;
+  return getPublicReferralRates(tier.id);
 }
 
 /**

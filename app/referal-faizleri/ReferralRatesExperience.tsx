@@ -18,6 +18,7 @@ import {
   Film,
   Flame,
   Gamepad2,
+  GraduationCap,
   Layers3,
   type LucideIcon,
   MessageCircleMore,
@@ -795,32 +796,43 @@ function LegacyReferralRatesExperience({ tierViews, activeTierKey, referralCode 
   const disclaimer =
     ambassador?.disclaimer ??
     "Faizlər standart müştəri seqmenti üçündür və zamanla dəyişə bilər. 100 AZN nümunəsi alış məbləği üzərindən sadə izahdır.";
-  const tierSwitchBlock = hasTierSwitch ? (
+  const tierSwitchBlock = (
     <div className={`${styles.tierSwitch} ${styles.heroTierSwitch}`} role="tablist" aria-label="Müştəri statusu üzrə faizlər">
       <span className={styles.tierSwitchLabel}>Statusa görə faizlər:</span>
       <div className={styles.tierSwitchButtons}>
-        {tierViews.map((view) => {
-          const active = view.key === activeTierKey;
-          const Icon = tierViewIcon(view);
-          return (
-            <Link
-              key={view.key}
-              href={tierHref(view.key)}
-              role="tab"
-              aria-selected={active}
-              aria-current={active ? "page" : undefined}
-              className={`${styles.tierSwitchButton} ${active ? styles.tierSwitchActive : ""}`}
-            >
-              <span className={styles.tierSwitchIcon} aria-hidden>
-                <Icon />
-              </span>
-              {view.label}
-            </Link>
-          );
-        })}
+        {hasTierSwitch &&
+          tierViews.map((view) => {
+            const active = view.key === activeTierKey;
+            const Icon = tierViewIcon(view);
+            return (
+              <Link
+                key={view.key}
+                href={tierHref(view.key)}
+                role="tab"
+                aria-selected={active}
+                aria-current={active ? "page" : undefined}
+                className={`${styles.tierSwitchButton} ${active ? styles.tierSwitchActive : ""}`}
+              >
+                <span className={styles.tierSwitchIcon} aria-hidden>
+                  <Icon />
+                </span>
+                {view.label}
+              </Link>
+            );
+          })}
+        {/* Tələbələr üçün ayrıca proqram səhifəsi (öz dizaynlı) — həmişə görünür. */}
+        <Link
+          href="/referal-faizleri/telebe"
+          className={`${styles.tierSwitchButton} ${styles.tierSwitchStudent}`}
+        >
+          <span className={styles.tierSwitchIcon} aria-hidden>
+            <GraduationCap />
+          </span>
+          Tələbələr üçün
+        </Link>
       </div>
     </div>
-  ) : null;
+  );
 
   useEffect(() => {
     if (!rates.some((rate) => rate.id === selectedId)) {

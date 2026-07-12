@@ -1,5 +1,10 @@
 import { getSupabaseAdmin } from "@/lib/supabase-server";
-import { isR2Configured, presignR2Upload } from "@/lib/r2";
+import {
+  isR2Configured,
+  presignR2Upload,
+  presignR2Download,
+  deleteR2Object,
+} from "@/lib/r2";
 
 /**
  * Bütün admin şəkil-yükləmə route-ları üçün ortaq hədəf yaradıcısı.
@@ -76,6 +81,111 @@ export async function createImageUploadTarget(opts: {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return { ok: false, status: 500, error: msg };
+  }
+}
+
+// ─── Private sənədlər (tələbə kartı) ──────────────────────────────────────────
+// Şəkil route-larından fərqli olaraq bu fayllar PUBLIC URL ilə açılmır: DB-də
+// yalnız obyekt açarı (key/path) saxlanılır, baxış üçün server qısa-ömürlü
+// signed GET URL yaradır. Bucket/prefix də private saxlanılır.
+
+/** R2-də private açar prefiksi; Supabase fallback-də private bucket adı. */
+export const STUDENT_CARD_PREFIX = "student-cards";
+const STUDENT_CARD_BUCKET = "student-cards";
+
+export type PrivateUploadTarget =
+  | { ok: true; mode: "r2"; uploadUrl: string; key: string }
+  | { ok: true; mode: "supabase"; bucket: string; path: string; token: string; key: string }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Tələbə kartı üçün presigned upload hədəfi. `key` həmişə `student-cards/<userId>/…`
+ * formasındadır — view/save route-ları sahibliyi bu prefikslə də yoxlaya bilir.
+ * Qaytarılan `key` DB-yə (StudentProfile.studentCardKey) yazılır; public URL YOX.
+ */
+export async function createStudentCardUploadTarget(opts: {
+  contentType: string;
+  userId: string;
+}): Promise<PrivateUploadTarget> {
+  const { contentType, userId } = opts;
+
+  if (!ALLOWED.has(contentType)) {
+    return { ok: false, status: 400, error: "Yalnız PNG, JPEG və WEBP qəbul olunur" };
+  }
+
+  const ext = extOf(contentType);
+  const rand = Math.random().toString(36).slice(2, 10);
+  const key = `${STUDENT_CARD_PREFIX}/${userId}/${Date.now()}-${rand}.${ext}`;
+
+  if (isR2Configured()) {
+    try {
+      const { uploadUrl } = await presignR2Upload(key, contentType);
+      return { ok: true, mode: "r2", uploadUrl, key };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { ok: false, status: 500, error: `R2 upload linki yaradıla bilmədi: ${msg}` };
+    }
+  }
+
+  // Supabase fallback — PRIVATE bucket (public:false).
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data: existing } = await supabase.storage.getBucket(STUDENT_CARD_BUCKET);
+    if (!existing) {
+      const { error: createErr } = await supabase.storage.createBucket(STUDENT_CARD_BUCKET, {
+        public: false,
+        allowedMimeTypes: ["image/png", "image/jpeg", "image/webp"],
+        fileSizeLimit: 10 * 1024 * 1024,
+      });
+      if (createErr && !/already exists/i.test(createErr.message)) {
+        return { ok: false, status: 500, error: `Bucket yaradıla bilmədi: ${createErr.message}` };
+      }
+    }
+    const { data, error } = await supabase.storage
+      .from(STUDENT_CARD_BUCKET)
+      .createSignedUploadUrl(key);
+    if (error || !data) {
+      return { ok: false, status: 500, error: "Upload linki yaradıla bilmədi" };
+    }
+    return { ok: true, mode: "supabase", bucket: STUDENT_CARD_BUCKET, path: key, token: data.token, key };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, status: 500, error: msg };
+  }
+}
+
+/** Saxlanmış tələbə kartı açarı üçün qısa-ömürlü signed GET URL (baxış üçün). */
+export async function getStudentCardViewUrl(
+  key: string,
+  expiresInSeconds = 300,
+): Promise<string | null> {
+  if (!key) return null;
+  try {
+    if (isR2Configured()) {
+      return await presignR2Download(key, expiresInSeconds);
+    }
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.storage
+      .from(STUDENT_CARD_BUCKET)
+      .createSignedUrl(key, expiresInSeconds);
+    if (error || !data) return null;
+    return data.signedUrl;
+  } catch {
+    return null;
+  }
+}
+
+/** Köhnə tələbə kartını təmizləyir (yeni yükləmə/silmə zamanı). Səhvləri udur. */
+export async function deleteStudentCard(key: string): Promise<void> {
+  if (!key) return;
+  try {
+    if (isR2Configured()) {
+      await deleteR2Object(key);
+    } else {
+      await getSupabaseAdmin().storage.from(STUDENT_CARD_BUCKET).remove([key]);
+    }
+  } catch {
+    /* təmizlik uğursuz olsa da axını pozma */
   }
 }
 

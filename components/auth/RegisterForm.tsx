@@ -180,7 +180,15 @@ export default function RegisterForm({
       if (onSuccess) {
         onSuccess();
       } else {
-        window.location.href = "/profile";
+        // `next` varsa (məs. çəkiliş linki) ora qaytar; yoxdursa profil.
+        let dest = "/profile";
+        try {
+          const nextParam = new URLSearchParams(window.location.search).get("next");
+          if (nextParam && nextParam.startsWith("/")) dest = nextParam;
+        } catch {
+          /* ignore */
+        }
+        window.location.href = dest;
       }
       return;
     }
