@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import {
   CAMPAIGN_MAX_GAMES,
   CAMPAIGN_MAX_RECIPIENTS,
+  WA_MAX_DELAY_MS,
   resolveCampaignAudience,
   runCampaign,
   snapshotGamesByProductIds,
@@ -55,6 +56,11 @@ export async function POST(req: Request) {
     : [];
   const cooldownDays =
     typeof body.cooldownDays === "number" && body.cooldownDays >= 0 ? body.cooldownDays : 0;
+  // WhatsApp göndərişləri arası interval (ms) — admin təyin edir; 0..60s aralığı.
+  const waIntervalMs =
+    typeof body.waIntervalMs === "number" && body.waIntervalMs >= 0
+      ? Math.min(body.waIntervalMs, WA_MAX_DELAY_MS)
+      : undefined;
 
   if (!title) {
     return NextResponse.json({ error: "Başlıq boş ola bilməz." }, { status: 400 });
@@ -118,7 +124,7 @@ export async function POST(req: Request) {
       },
     });
 
-    const result = await runCampaign(campaign.id);
+    const result = await runCampaign(campaign.id, { waDelayMs: waIntervalMs });
     return NextResponse.json({ ok: true, campaignId: campaign.id, result });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

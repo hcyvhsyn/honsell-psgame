@@ -57,6 +57,18 @@ function fmtAzn(aznValue: number): string {
   return `${aznValue.toFixed(2)} AZN`;
 }
 
+/** Saniyəni oxunaqlı müddətə çevir (məs: "6 dəq 15 san"). */
+function fmtDuration(totalSec: number): string {
+  const s = Math.round(totalSec);
+  if (s < 60) return `${s} san`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  if (m < 60) return rem ? `${m} dəq ${rem} san` : `${m} dəq`;
+  const h = Math.floor(m / 60);
+  const remM = m % 60;
+  return remM ? `${h} saat ${remM} dəq` : `${h} saat`;
+}
+
 const STORE_BASE = "https://honsell.store";
 
 /** Müştəri tərəfi — server `buildCampaignWhatsappText` ilə eyni format. */
@@ -116,6 +128,9 @@ export default function CampaignComposer({
   // ── Channels ──
   const [sendEmail, setSendEmail] = useState(true);
   const [sendWhatsapp, setSendWhatsapp] = useState(waConfigured);
+  // WhatsApp göndərişləri arası interval (saniyə) — provayder ban riskini
+  // azaltmaq üçün. 0 = mümkün qədər sürətli (defolt 0.4s davranış).
+  const [waIntervalSec, setWaIntervalSec] = useState(15);
 
   // ── Games ──
   const [gameQuery, setGameQuery] = useState("");
@@ -347,6 +362,7 @@ export default function CampaignComposer({
           productIds: selectedGames.map((g) => g.productId),
           sendEmail,
           sendWhatsapp,
+          waIntervalMs: Math.round(waIntervalSec * 1000),
           ...filtersPayload(),
         }),
       });
@@ -714,6 +730,34 @@ export default function CampaignComposer({
                 icon={<MessageSquare className="h-3.5 w-3.5" />}
               />
             </div>
+
+            {/* WhatsApp göndəriş intervalı — yalnız WhatsApp seçiləndə */}
+            {sendWhatsapp && (
+              <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-xs text-emerald-800">
+                <label className="flex flex-wrap items-center gap-2">
+                  <span>Hər WhatsApp mesajı arasında</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    step={0.5}
+                    value={waIntervalSec}
+                    onChange={(e) =>
+                      setWaIntervalSec(Math.min(60, Math.max(0, Number(e.target.value) || 0)))
+                    }
+                    className="w-16 rounded border border-emerald-500/40 bg-admin-card px-2 py-1 text-sm text-zinc-800"
+                  />
+                  <span>saniyə gözlə (0 = mümkün qədər sürətli).</span>
+                </label>
+                {waIntervalSec > 0 && (audience?.withPhone ?? 0) > 0 && (
+                  <p className="mt-1.5 text-emerald-700">
+                    Təxmini müddət: {(audience!.withPhone)} nömrə ×{" "}
+                    {waIntervalSec}s ≈ {fmtDuration(audience!.withPhone * waIntervalSec)}.
+                    Göndəriş bitənə qədər pəncərəni açıq saxlayın.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Preview (WhatsApp / Email) */}

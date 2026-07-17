@@ -739,6 +739,12 @@ export default function CartView({
     platformEdit != null
       ? items.find((i) => i.id === platformEdit.itemId && i.productType === "PLATFORM")
       : undefined;
+  const cartItemCount = items.reduce((n, i) => n + i.qty, 0);
+  const hasCheckoutMeta =
+    (isAuthed && deliveryNeedsPsn && hasPsnCreationInCart) ||
+    (isAuthed && deliveryNeedsPsn && psnAccounts.length > 0 && !hasPsnCreationInCart) ||
+    (isAuthed && deliveryNeedsEpic && epicAccountList.length > 0) ||
+    items.some((i) => !i.gift && Boolean(getProductTerms(i.productType, i.store, i.streaming?.platformKind)));
 
   return (
     <>
@@ -777,367 +783,376 @@ export default function CartView({
           </div>
         </div>
       ) : null}
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      <ul className="space-y-3">
-        {items.map((item) => (
-          <CartLine
-            key={`${item.id}:${item.gift ? "g" : "n"}`}
-            item={item}
-            onIncrement={() => setQty(item.id, item.qty + 1, Boolean(item.gift))}
-            onDecrement={() => setQty(item.id, item.qty - 1, Boolean(item.gift))}
-            onRemove={() => remove(item.id, Boolean(item.gift))}
-            onEditAccountCreation={
-              item.productType === "ACCOUNT_CREATION" ? () => openAccountCartEdit(item) : undefined
-            }
-            onEditPlatform={
-              item.productType === "PLATFORM" &&
-              (item.streaming?.gmail || item.streaming?.accounts?.length)
-                ? () => openPlatformCartEdit(item)
-                : undefined
-            }
-            onSetGiftMessage={
-              item.gift ? (msg) => setGiftMessage(item.id, msg) : undefined
-            }
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+        <ul className="space-y-3">
+          {items.map((item) => (
+            <CartLine
+              key={`${item.id}:${item.gift ? "g" : "n"}`}
+              item={item}
+              onIncrement={() => setQty(item.id, item.qty + 1, Boolean(item.gift))}
+              onDecrement={() => setQty(item.id, item.qty - 1, Boolean(item.gift))}
+              onRemove={() => remove(item.id, Boolean(item.gift))}
+              onEditAccountCreation={
+                item.productType === "ACCOUNT_CREATION" ? () => openAccountCartEdit(item) : undefined
+              }
+              onEditPlatform={
+                item.productType === "PLATFORM" &&
+                (item.streaming?.gmail || item.streaming?.accounts?.length)
+                  ? () => openPlatformCartEdit(item)
+                  : undefined
+              }
+              onSetGiftMessage={
+                item.gift ? (msg) => setGiftMessage(item.id, msg) : undefined
+              }
+            />
+          ))}
+        </ul>
+
+        <aside className="h-fit space-y-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-4 shadow-2xl backdrop-blur-md sm:p-5 xl:sticky xl:top-4">
+          <CartSummary
+            itemCount={items.length}
+            subtotalAzn={totalAzn}
+            discountAzn={discountAzn}
+            bonusHint={nextBonusHint(totalAzn, cartItemCount)}
           />
-        ))}
-      </ul>
 
-      <aside className="h-fit space-y-5 rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-5 shadow-2xl backdrop-blur-md">
-        <CartSummary
-          itemCount={items.length}
-          subtotalAzn={totalAzn}
-          discountAzn={discountAzn}
-          bonusHint={nextBonusHint(totalAzn, items.reduce((n, i) => n + i.qty, 0))}
-        />
-
-        <CouponCodeBox
-          items={itemsPayload}
-          applied={appliedCoupon}
-          onApply={applyCoupon}
-          onRemove={removeCoupon}
-        />
-
-        <BonusProgress totalAzn={totalAzn} itemCount={items.reduce((n, i) => n + i.qty, 0)} />
-
-        {isAuthed ? (
-          <div className="rounded-xl border border-zinc-700/80 bg-zinc-950/40 px-3 py-2 text-xs text-zinc-400">
-            <span className="font-medium text-zinc-300">Cashback balansı: </span>
-            <span className="tabular-nums font-semibold text-amber-200">{cashbackBalanceAzn.toFixed(2)} AZN</span>
-          </div>
-        ) : null}
-
-        {loyaltyCashbackPct > 0 && (
-          <div className="flex items-start justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-sm">
-            <span className="flex items-start gap-2 text-amber-200/90">
-              <Crown className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-              <span className="leading-snug">
-                <span className="block font-medium text-amber-300">Ödənişdən sonra cashback</span>
-                <span className="text-[11px] text-amber-400/60">
-                  Bu məbləğin {loyaltyCashbackPct}%-i cashback balansına yüklənəcək
-                </span>
-              </span>
-            </span>
-            <span className="font-semibold tabular-nums text-amber-400">
-              +{cashbackAzn.toFixed(2)} AZN
-            </span>
-          </div>
-        )}
-
-        {isAuthed && deliveryNeedsPsn && hasPsnCreationInCart && (
-          <div className="flex items-start gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2.5 text-xs text-indigo-200">
-            <Gamepad2 className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>
-              Sifarişinizdə Türkiyə PSN hesab açılışı var. Açıldıqdan sonra oyunlar
-              həmin hesaba bağlanacaq — ayrıca PSN hesabı seçməyə ehtiyac yoxdur.
-            </span>
-          </div>
-        )}
-
-        {isAuthed && deliveryNeedsPsn && psnAccounts.length > 0 && !hasPsnCreationInCart && (
-          <div className="space-y-2">
-            <label className="flex items-center justify-between text-xs font-medium uppercase tracking-wider text-zinc-500">
-              <span className="flex items-center gap-1.5"><Gamepad2 className="h-3.5 w-3.5" /> Hesab</span>
-              <Link
-                href="/profile/accounts"
-                onClick={onNavigate}
-                className="text-[10px] text-indigo-400 hover:text-indigo-300"
-              >
-                İdarə et
-              </Link>
-            </label>
-            {psnAccounts.length === 1 ? (
-              <div className="flex items-center justify-between rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-3 py-2 text-sm">
-                <div className="flex flex-col">
-                  <span className="font-medium text-zinc-200">{psnAccounts[0].label}</span>
-                  <span className="text-xs text-zinc-500">{psnAccounts[0].psnEmail}</span>
+          {hasCheckoutMeta ? (
+            <div className="space-y-3 rounded-2xl border border-zinc-800/60 bg-zinc-950/35 p-3.5">
+              {isAuthed && deliveryNeedsPsn && hasPsnCreationInCart && (
+                <div className="flex items-start gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2.5 text-xs text-indigo-200">
+                  <Gamepad2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>Bu sifarişdə yeni PSN hesab açılır, ayrıca hesab seçmək lazım deyil.</span>
                 </div>
-                {psnAccounts[0].psModel && (
-                  <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-bold text-zinc-300">
-                    {psnAccounts[0].psModel}
-                  </span>
+              )}
+
+              {isAuthed && deliveryNeedsPsn && psnAccounts.length > 0 && !hasPsnCreationInCart && (
+                <div className="space-y-2">
+                  <label className="flex items-center justify-between text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    <span className="flex items-center gap-1.5"><Gamepad2 className="h-3.5 w-3.5" /> Hesab</span>
+                    <Link
+                      href="/profile/accounts"
+                      onClick={onNavigate}
+                      className="text-[10px] text-indigo-400 hover:text-indigo-300"
+                    >
+                      İdarə et
+                    </Link>
+                  </label>
+                  {psnAccounts.length === 1 ? (
+                    <div className="flex items-center justify-between rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-3 py-2 text-sm">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-zinc-200">{psnAccounts[0].label}</span>
+                        <span className="text-xs text-zinc-500">{psnAccounts[0].psnEmail}</span>
+                      </div>
+                      {psnAccounts[0].psModel && (
+                        <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-bold text-zinc-300">
+                          {psnAccounts[0].psModel}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <AccountDropdown
+                      accounts={psnAccounts}
+                      value={psnAccountId}
+                      onChange={setPsnAccountId}
+                    />
+                  )}
+                </div>
+              )}
+
+              {isAuthed && deliveryNeedsEpic && epicAccountList.length > 0 && (
+                <div className="space-y-2">
+                  <label className="flex items-center justify-between text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    <span className="flex items-center gap-1.5">
+                      <Image src="/epic-white-logo.png" alt="" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
+                      Epic hesabı
+                    </span>
+                    <Link
+                      href="/profile/profiles"
+                      onClick={onNavigate}
+                      className="text-[10px] text-violet-400 hover:text-violet-300"
+                    >
+                      İdarə et
+                    </Link>
+                  </label>
+                  {epicAccountList.length === 1 ? (
+                    <div className="flex items-center justify-between rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-3 py-2 text-sm">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-zinc-200">{epicAccountList[0].displayName || epicAccountList[0].label}</span>
+                        <span className="text-xs text-zinc-500">{epicAccountList[0].epicEmail}</span>
+                      </div>
+                      <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-bold text-zinc-300">PC</span>
+                    </div>
+                  ) : (
+                    <EpicAccountDropdown
+                      accounts={epicAccountList}
+                      value={epicAccountId}
+                      onChange={setEpicAccountId}
+                    />
+                  )}
+                </div>
+              )}
+
+              <CartTermsNotice
+                items={items}
+                accepted={termsAccepted}
+                onAcceptedChange={setTermsAccepted}
+              />
+            </div>
+          ) : null}
+
+          <div className="rounded-2xl border border-zinc-800/60 bg-zinc-950/35 p-3.5">
+            {!isAuthed ? (
+              onRequestLogin ? (
+                <button
+                  type="button"
+                  onClick={onRequestLogin}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98]"
+                >
+                  Daxil ol və Ödə <ArrowRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <Link
+                  href="/login?next=/cart"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98]"
+                >
+                  Daxil ol və Ödə <ArrowRight className="h-4 w-4" />
+                </Link>
+              )
+            ) : blockedNoPsn ? (
+              <div className="space-y-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                <p className="flex items-start gap-2 text-xs text-amber-200/90">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                  Davam etmək üçün PlayStation hesabı əlavə edin.
+                </p>
+                <Link
+                  href="/profile/accounts"
+                  onClick={onNavigate}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+                >
+                  Hesab əlavə et
+                </Link>
+              </div>
+            ) : blockedNoEpic ? (
+              <div className="space-y-3 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3">
+                <p className="flex items-start gap-2 text-xs text-violet-100/90">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" />
+                  Epic oyun üçün TR Epic hesabı lazımdır. Mövcud hesabı əlavə et və ya yenisini aç.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEpicLinkOpen(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-500"
+                >
+                  Hesabım var — əlavə et
+                </button>
+
+                <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-violet-300/60">
+                  <span className="h-px flex-1 bg-violet-500/20" />
+                  <span>və ya</span>
+                  <span className="h-px flex-1 bg-violet-500/20" />
+                </div>
+
+                {epicAccountProduct ? (
+                  <button
+                    type="button"
+                    onClick={() => setEpicOfferOpen(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-sm font-medium text-violet-100 hover:bg-violet-500/20"
+                  >
+                    Yeni hesab aç ({(epicAccountProduct.priceAznCents / 100).toFixed(2)} AZN)
+                  </button>
+                ) : (
+                  <Link
+                    href="/profile/profiles"
+                    onClick={onNavigate}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-sm font-medium text-violet-100 hover:bg-violet-500/20"
+                  >
+                    Profildən hesab aç
+                  </Link>
                 )}
               </div>
             ) : (
-              <AccountDropdown
-                accounts={psnAccounts}
-                value={psnAccountId}
-                onChange={setPsnAccountId}
-              />
-            )}
-          </div>
-        )}
-
-        {isAuthed && deliveryNeedsEpic && epicAccountList.length > 0 && (
-          <div className="space-y-2">
-            <label className="flex items-center justify-between text-xs font-medium uppercase tracking-wider text-zinc-500">
-              <span className="flex items-center gap-1.5">
-                <Image src="/epic-white-logo.png" alt="" width={14} height={14} className="h-3.5 w-3.5 object-contain" />
-                Epic hesabı
-              </span>
-              <Link
-                href="/profile/profiles"
-                onClick={onNavigate}
-                className="text-[10px] text-violet-400 hover:text-violet-300"
-              >
-                İdarə et
-              </Link>
-            </label>
-            {epicAccountList.length === 1 ? (
-              <div className="flex items-center justify-between rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-3 py-2 text-sm">
-                <div className="flex flex-col">
-                  <span className="font-medium text-zinc-200">{epicAccountList[0].displayName || epicAccountList[0].label}</span>
-                  <span className="text-xs text-zinc-500">{epicAccountList[0].epicEmail}</span>
-                </div>
-                <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-bold text-zinc-300">PC</span>
-              </div>
-            ) : (
-              <EpicAccountDropdown
-                accounts={epicAccountList}
-                value={epicAccountId}
-                onChange={setEpicAccountId}
-              />
-            )}
-          </div>
-        )}
-
-        <CartTermsNotice
-          items={items}
-          accepted={termsAccepted}
-          onAcceptedChange={setTermsAccepted}
-        />
-
-        <div className="pt-2">
-          {!isAuthed ? (
-            onRequestLogin ? (
-              <button
-                type="button"
-                onClick={onRequestLogin}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98]"
-              >
-                Daxil ol və Ödə <ArrowRight className="h-4 w-4" />
-              </button>
-            ) : (
-              <Link
-                href="/login?next=/cart"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98]"
-              >
-                Daxil ol və Ödə <ArrowRight className="h-4 w-4" />
-              </Link>
-            )
-          ) : blockedNoPsn ? (
-            <div className="space-y-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
-              <p className="flex items-start gap-2 text-xs text-amber-200/90">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-                Davam etmək üçün PlayStation hesabı əlavə edin.
-              </p>
-              <Link
-                href="/profile/accounts"
-                onClick={onNavigate}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400"
-              >
-                Hesab əlavə et
-              </Link>
-            </div>
-          ) : blockedNoEpic ? (
-            <div className="space-y-3 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3">
-              <p className="flex items-start gap-2 text-xs text-violet-100/90">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" />
-                Epic oyununu almaq üçün Türkiyə Epic hesabı lazımdır. Hesabınız
-                varsa əlavə edin, yoxdursa açılışını sifarişə əlavə edin.
-              </p>
-              <button
-                type="button"
-                onClick={() => setEpicLinkOpen(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-500"
-              >
-                Hesabım var — əlavə et
-              </button>
-
-              <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-violet-300/60">
-                <span className="h-px flex-1 bg-violet-500/20" />
-                <span>və ya</span>
-                <span className="h-px flex-1 bg-violet-500/20" />
-              </div>
-
-              {epicAccountProduct ? (
-                <button
-                  type="button"
-                  onClick={() => setEpicOfferOpen(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-sm font-medium text-violet-100 hover:bg-violet-500/20"
-                >
-                  Yeni hesab aç ({(epicAccountProduct.priceAznCents / 100).toFixed(2)} AZN)
-                </button>
-              ) : (
-                <Link
-                  href="/profile/profiles"
-                  onClick={onNavigate}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-sm font-medium text-violet-100 hover:bg-violet-500/20"
-                >
-                  Profildən hesab aç
-                </Link>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Compact wallet line — the explanatory "Ödəniş növləri" card
-                  group was redundant with the action buttons below, so it was
-                  removed. We still surface the wallet balance because users
-                  need to know whether they have enough to pay with it. */}
-              <div className="flex items-center justify-between rounded-xl border border-zinc-800/70 bg-zinc-950/50 px-3 py-2.5 text-sm">
-                <span className="text-zinc-400">Cüzdan balansı</span>
-                <span
-                  className={`font-semibold tabular-nums ${
-                    insufficientWallet ? "text-red-400" : "text-emerald-400"
-                  }`}
-                >
-                  {walletBalanceAzn.toFixed(2)} AZN
-                </span>
-              </div>
-
-              {belowMinimum && (
-                <div
-                  role="status"
-                  className="flex items-start gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2.5 text-xs text-sky-200"
-                >
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    Sifariş məbləği <b>{MIN_CART_AZN} AZN</b>-dən azdır.{" "}
-                    <b>Kartla</b> ödəsəniz <b>{MIN_CART_AZN.toFixed(2)} AZN</b>{" "}
-                    tutulacaq, artıq qalan <b>{missingForMinimumAzn.toFixed(2)} AZN</b>{" "}
-                    cüzdan balansınıza əlavə olunub növbəti alışda istifadə oluna
-                    bilər. <b>Cüzdanla</b> ödəsəniz dəqiq{" "}
-                    <b>{finalPayAzn.toFixed(2)} AZN</b> tutulur.
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-xl border border-zinc-800/70 bg-zinc-950/50 px-3 py-2.5 text-sm">
+                  <span className="text-zinc-400">Cüzdan balansı</span>
+                  <span
+                    className={`font-semibold tabular-nums ${
+                      insufficientWallet ? "text-red-400" : "text-emerald-400"
+                    }`}
+                  >
+                    {walletBalanceAzn.toFixed(2)} AZN
                   </span>
                 </div>
-              )}
 
-              {insufficientWallet ? (
-                <Link
-                  href="/profile/wallet"
-                  onClick={onNavigate}
-                  className="group flex w-full items-center justify-between rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98]"
-                >
-                  <span>Balansı artır</span>
-                  <span className="rounded-md bg-white/20 px-2 py-0.5 text-xs">
-                    {(finalPayAzn - walletBalanceAzn).toFixed(2)} AZN çatmır
-                  </span>
-                </Link>
-              ) : (
+                {belowMinimum && (
+                  <div
+                    role="status"
+                    className="flex items-start gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2.5 text-xs text-sky-200"
+                  >
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      Minimum məbləğ <b>{MIN_CART_AZN.toFixed(2)} AZN</b>-dir. Kartla ödənişdə artıq qalan{" "}
+                      <b>{missingForMinimumAzn.toFixed(2)} AZN</b> cüzdana düşəcək, cüzdanla isə yalnız{" "}
+                      <b>{finalPayAzn.toFixed(2)} AZN</b> tutulur.
+                    </span>
+                  </div>
+                )}
+
+                {insufficientWallet ? (
+                  <Link
+                    href="/profile/wallet"
+                    onClick={onNavigate}
+                    className="group flex w-full items-center justify-between rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98]"
+                  >
+                    <span>Balansı artır</span>
+                    <span className="rounded-md bg-white/20 px-2 py-0.5 text-xs">
+                      {(finalPayAzn - walletBalanceAzn).toFixed(2)} AZN çatmır
+                    </span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => checkout("wallet")}
+                    disabled={busy || insufficientWallet || termsBlocked}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {busy ? "İşlənir..." : "Cüzdanla ödə"}
+                  </button>
+                )}
+
                 <button
                   type="button"
-                  onClick={() => checkout("wallet")}
-                  disabled={busy || insufficientWallet || termsBlocked}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => checkout("epoint")}
+                  disabled={busy || termsBlocked}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {busy ? "İşlənir..." : "Cüzdanla ödə"}
+                  {busy ? "İşlənir..." : "Kartla birbaşa ödə"}
                 </button>
+
+                {EPOINT_WIDGET_ENABLED ? (
+                  <>
+                    <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-zinc-500">
+                      <span className="h-px flex-1 bg-zinc-800" />
+                      <span>və ya</span>
+                      <span className="h-px flex-1 bg-zinc-800" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => checkout("epoint-widget", "apple")}
+                        disabled={busy || termsBlocked}
+                        aria-label="Apple Pay ilə ödə"
+                        className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Image
+                          src="/apple-pay.png"
+                          alt="Apple Pay"
+                          width={96}
+                          height={40}
+                          className="h-10 w-auto object-contain"
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => checkout("epoint-widget", "google")}
+                        disabled={busy || termsBlocked}
+                        aria-label="Google Pay ilə ödə"
+                        className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-700 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Image
+                          src="/google-pay.webp"
+                          alt="Google Pay"
+                          width={64}
+                          height={28}
+                          className="h-7 w-auto object-contain"
+                        />
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            )}
+          </div>
+
+          {message && (
+            <div
+              className={`flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm ${
+                message.kind === "ok"
+                  ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                  : "border border-red-500/20 bg-red-500/10 text-red-300"
+              }`}
+            >
+              {message.kind === "ok" ? (
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+              ) : (
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
               )}
+              <span className="leading-snug">{message.text}</span>
+            </div>
+          )}
 
-              <button
-                type="button"
-                onClick={() => checkout("epoint")}
-                disabled={busy || termsBlocked}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {busy ? "İşlənir..." : "Kartla birbaşa ödə"}
-              </button>
+          <div className="pt-1 text-center">
+            <button
+              type="button"
+              onClick={() => clear()}
+              className="inline-flex items-center gap-1.5 text-xs text-zinc-500 transition hover:text-zinc-300"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Səbəti təmizlə
+            </button>
+          </div>
+        </aside>
+      </div>
 
-              {EPOINT_WIDGET_ENABLED ? (
-                <>
-                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-zinc-500">
-                    <span className="h-px flex-1 bg-zinc-800" />
-                    <span>və ya</span>
-                    <span className="h-px flex-1 bg-zinc-800" />
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/25 p-4">
+            <p className="mb-3 text-sm font-semibold text-zinc-100">Endirim kodu</p>
+            <CouponCodeBox
+              items={itemsPayload}
+              applied={appliedCoupon}
+              onApply={applyCoupon}
+              onRemove={removeCoupon}
+            />
+          </div>
+
+          {(isAuthed || loyaltyCashbackPct > 0) && (
+            <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/25 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-100">Bonus və cashback</p>
+                  <p className="mt-1 text-xs text-zinc-400">Qazancların checkout altında ayrıca görünür.</p>
+                </div>
+                <Crown className="h-5 w-5 shrink-0 text-amber-400" />
+              </div>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {isAuthed ? (
+                  <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/45 px-3 py-2.5 text-sm">
+                    <p className="text-xs text-zinc-500">Cashback balansı</p>
+                    <p className="mt-1 font-semibold tabular-nums text-amber-200">
+                      {cashbackBalanceAzn.toFixed(2)} AZN
+                    </p>
                   </div>
+                ) : null}
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => checkout("epoint-widget", "apple")}
-                      disabled={busy || termsBlocked}
-                      aria-label="Apple Pay ilə ödə"
-                      className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Image
-                        src="/apple-pay.png"
-                        alt="Apple Pay"
-                        width={96}
-                        height={40}
-                        className="h-10 w-auto object-contain"
-                      />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => checkout("epoint-widget", "google")}
-                      disabled={busy || termsBlocked}
-                      aria-label="Google Pay ilə ödə"
-                      className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-zinc-700 bg-white px-4 transition hover:border-zinc-400 hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Image
-                        src="/google-pay.webp"
-                        alt="Google Pay"
-                        width={64}
-                        height={28}
-                        className="h-7 w-auto object-contain"
-                      />
-                    </button>
+                {loyaltyCashbackPct > 0 ? (
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-sm">
+                    <p className="text-xs text-amber-300/80">Bu alışdan qazanacaqsan</p>
+                    <p className="mt-1 font-semibold tabular-nums text-amber-300">
+                      +{cashbackAzn.toFixed(2)} AZN
+                    </p>
                   </div>
-                </>
-              ) : null}
+                ) : null}
+              </div>
             </div>
           )}
         </div>
 
-        {message && (
-          <div
-            className={`flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm ${
-              message.kind === "ok"
-                ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
-                : "bg-red-500/10 text-red-300 border border-red-500/20"
-            }`}
-          >
-            {message.kind === "ok" ? (
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-            ) : (
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
-            )}
-            <span className="leading-snug">{message.text}</span>
-          </div>
-        )}
-
-        <div className="pt-2 text-center">
-          <button
-            type="button"
-            onClick={() => clear()}
-            className="inline-flex items-center gap-1.5 text-xs text-zinc-500 transition hover:text-zinc-300"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Səbəti təmizlə
-          </button>
+        <div className="space-y-4">
+          <BonusProgress totalAzn={totalAzn} itemCount={cartItemCount} />
+          <TrustPanel />
         </div>
-
-        <TrustPanel />
-      </aside>
-    </div>
+      </div>
 
     {(() => {
       // Recommend within the cart's game storefront: Epic cart → Epic games,
@@ -1414,6 +1429,9 @@ function CartLine({
     item.productType === "ACCOUNT_CREATION" ||
     item.productType === "STREAMING";
   const platformCreds = platformCredentialMeta(item);
+  const showTypeLabel = item.productType !== "GAME";
+  const productTerms =
+    item.gift ? null : getProductTerms(item.productType, item.store, item.streaming?.platformKind);
   return (
     <li className="flex gap-3 rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-2.5 shadow-sm transition hover:border-zinc-700/60 hover:bg-zinc-900/50">
       <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900 shadow-inner sm:h-16 sm:w-16">
@@ -1432,14 +1450,16 @@ function CartLine({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p className="line-clamp-2 text-sm font-medium text-zinc-100 leading-snug">{item.title}</p>
-            <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
-              {labelForType(item.productType)}
-              {item.gift ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-500/40 bg-fuchsia-500/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-fuchsia-300">
-                  🎁 Hədiyyə
-                </span>
-              ) : null}
-            </p>
+            {(showTypeLabel || item.gift) && (
+              <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
+                {showTypeLabel ? labelForType(item.productType) : null}
+                {item.gift ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-500/40 bg-fuchsia-500/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-fuchsia-300">
+                    🎁 Hədiyyə
+                  </span>
+                ) : null}
+              </p>
+            )}
             {item.gift && onSetGiftMessage ? (
               <div className="mt-2 w-full max-w-md">
                 <input
@@ -1452,16 +1472,11 @@ function CartLine({
                 />
               </div>
             ) : null}
-            {(() => {
-              if (item.gift) return null;
-              const t = getProductTerms(item.productType, item.store, item.streaming?.platformKind);
-              if (!t) return null;
-              return (
-                <p className="mt-1.5 inline-flex items-start gap-1 text-[10px] leading-snug text-sky-300/90">
-                  <span className="font-semibold">ℹ {t.termsTitle}</span>
-                </p>
-              );
-            })()}
+            {productTerms ? (
+              <p className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-sky-500/20 bg-sky-500/[0.06] px-2 py-1 text-[10px] leading-none text-sky-300/90">
+                <span className="font-semibold">{productTerms.termsTitle}</span>
+              </p>
+            ) : null}
             {item.gift?.discountEndAt ? (
               <p className="mt-2 w-full max-w-md rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-medium leading-snug text-amber-300">
                 ⚠️ Endirimli hədiyyə — dostunuz{" "}

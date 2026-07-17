@@ -780,13 +780,18 @@ export async function POST(req: Request) {
   if (couponCode) {
     const scopeItems: PromoScopeItem[] = [
       ...lines.map((l) => ({
+        productId: l.kind === "GAME" ? l.game.id : l.service.id,
         productType:
           l.kind === "GAME"
             ? "GAME"
             : String((l as { service?: { type?: string } }).service?.type ?? l.kind),
         lineCents: l.lineCents,
       })),
-      ...giftLines.map((g) => ({ productType: g.productKind, lineCents: g.unitListCents * g.qty })),
+      ...giftLines.map((g) => ({
+        productId: g.gameId ?? g.serviceProductId ?? "",
+        productType: g.productKind,
+        lineCents: g.unitListCents * g.qty,
+      })),
     ];
     const v = await validatePromoForOrder(prisma, { code: couponCode, userId: user.id, items: scopeItems });
     if (!v.ok) {

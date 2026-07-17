@@ -130,8 +130,8 @@ function CartModalBody({
   }, []);
 
   return (
-    <div className="p-6 sm:p-7">
-      <h2 className="mb-5 flex items-center gap-2 text-xl font-semibold tracking-tight">
+    <div className="p-4 sm:p-6">
+      <h2 className="mb-4 pr-10 flex items-center gap-2 text-lg font-semibold tracking-tight sm:text-xl">
         <ShoppingCart className="h-5 w-5 text-indigo-400" /> Səbətin
       </h2>
 

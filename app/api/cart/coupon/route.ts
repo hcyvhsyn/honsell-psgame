@@ -23,12 +23,13 @@ export async function POST(req: Request) {
 
   const items: PromoScopeItem[] = rawItems
     .map((it) => {
-      const o = it as { productType?: unknown; finalAzn?: unknown; qty?: unknown };
+      const o = it as { id?: unknown; productType?: unknown; finalAzn?: unknown; qty?: unknown };
+      const productId = String(o.id ?? "");
       const productType = String(o.productType ?? "");
       const finalAzn = Number(o.finalAzn ?? 0);
       const qty = Math.max(1, Number(o.qty ?? 1));
       const lineCents = Math.round(finalAzn * 100) * qty;
-      return { productType, lineCents };
+      return { productId, productType, lineCents };
     })
     .filter((i) => i.lineCents > 0);
 

@@ -10,7 +10,12 @@ export function normalizePromoCode(code: string): string {
   return code.trim().toUpperCase().replace(/\s+/g, "");
 }
 
-export type PromoScopeItem = { productType: string; lineCents: number };
+/** `productId` — Game.id və ya ServiceProduct.id (səbət sətrinin məhsul id-si).
+ *  Məhsula özəl kuponlar bununla uyğunlaşdırılır. */
+export type PromoScopeItem = { productId: string; productType: string; lineCents: number };
+
+/** Scope yoxlaması üçün lazım olan minimal PromoCode formu. */
+export type PromoScope = Pick<PromoCode, "productTypes" | "gameIds" | "serviceProductIds">;
 
 export type PromoValidation =
   | { ok: true; discountCents: number; promo: PromoCode }
@@ -31,6 +36,26 @@ const MSG = {
   scope: "Bu kupon bu məhsullara tətbiq olunmur.",
   min: "Minimum sifariş məbləği tamamlanmayıb.",
 } as const;
+
+/** Kuponun scope-u varmı (yoxdursa bütün səbətə tətbiq olunur). */
+export function promoHasScope(promo: PromoScope): boolean {
+  return (
+    promo.productTypes.length > 0 ||
+    promo.gameIds.length > 0 ||
+    promo.serviceProductIds.length > 0
+  );
+}
+
+/** Sətir kuponun hədəflərindən HƏR HANSI birinə uyğun gəlirmi (OR məntiqi):
+ *  növ üzrə, konkret oyun üzrə, yaxud konkret servis məhsulu üzrə. */
+export function promoMatchesItem(promo: PromoScope, item: PromoScopeItem): boolean {
+  if (!promoHasScope(promo)) return true;
+  return (
+    promo.productTypes.includes(item.productType) ||
+    promo.gameIds.includes(item.productId) ||
+    promo.serviceProductIds.includes(item.productId)
+  );
+}
 
 /** Endirimi hesablayır (yoxlama keçibsə). scope + total qəpiklə. */
 export function computePromoDiscount(
@@ -74,14 +99,14 @@ export async function validatePromoForOrder(
   if (usedByUser >= promo.perUserLimit) return { ok: false, message: MSG.expired };
 
   const totalCents = params.items.reduce((s, i) => s + Math.max(0, i.lineCents), 0);
-  const scopeCents =
-    promo.productTypes.length === 0
-      ? totalCents
-      : params.items
-          .filter((i) => promo.productTypes.includes(i.productType))
-          .reduce((s, i) => s + Math.max(0, i.lineCents), 0);
+  const scoped = promoHasScope(promo);
+  const scopeCents = !scoped
+    ? totalCents
+    : params.items
+        .filter((i) => promoMatchesItem(promo, i))
+        .reduce((s, i) => s + Math.max(0, i.lineCents), 0);
 
-  if (promo.productTypes.length > 0 && scopeCents === 0) {
+  if (scoped && scopeCents === 0) {
     return { ok: false, message: MSG.scope };
   }
   if (scopeCents < promo.minOrderCents) return { ok: false, message: MSG.min };

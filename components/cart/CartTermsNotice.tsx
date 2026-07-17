@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertCircle } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertCircle, ChevronDown } from "lucide-react";
 import type { CartItem } from "@/lib/cart";
 import { getProductTerms, type ProductTerms } from "@/lib/productTerms";
 
@@ -30,24 +31,55 @@ export default function CartTermsNotice({
   onAcceptedChange: (v: boolean) => void;
 }) {
   const terms = collectCartTerms(items);
-  if (terms.length === 0) return null;
+  const hasMultipleTerms = terms.length > 1;
+  const [expanded, setExpanded] = useState(false);
   const needsAcceptance = terms.some((t) => t.requiresAcceptance);
+  const previewText = useMemo(() => {
+    if (terms.length === 0) return "";
+    if (hasMultipleTerms) return `${terms.length} şərt var`;
+    return `${terms[0].termsTitle}: ${terms[0].termsDescription}`;
+  }, [hasMultipleTerms, terms]);
+  if (terms.length === 0) return null;
 
   return (
     <div className="rounded-xl border border-sky-500/25 bg-sky-500/[0.06] px-3 py-2.5">
       <div className="flex items-start gap-2">
         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
         <div className="min-w-0 flex-1 space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-300">
-            Məhsul şərtləri
-          </p>
-          <ul className="space-y-1.5">
-            {terms.map((t) => (
-              <li key={t.termsTitle} className="text-[11px] leading-snug text-sky-100/90">
-                <span className="font-semibold text-sky-200">{t.termsTitle}:</span> {t.termsDescription}
-              </li>
-            ))}
-          </ul>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-300">
+                Məhsul şərtləri
+              </p>
+              <p className="mt-1 text-[11px] leading-snug text-sky-100/90">
+                {previewText}
+              </p>
+            </div>
+
+            {hasMultipleTerms ? (
+              <button
+                type="button"
+                onClick={() => setExpanded((prev) => !prev)}
+                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-sky-500/25 px-2 py-1 text-[10px] font-semibold text-sky-200 transition hover:bg-sky-500/10"
+              >
+                {expanded ? "Gizlət" : "Hamısı"}
+                <ChevronDown
+                  className={`h-3 w-3 transition ${expanded ? "rotate-180" : ""}`}
+                />
+              </button>
+            ) : null}
+          </div>
+
+          {hasMultipleTerms && expanded ? (
+            <ul className="space-y-1.5">
+              {terms.map((t) => (
+                <li key={t.termsTitle} className="text-[11px] leading-snug text-sky-100/90">
+                  <span className="font-semibold text-sky-200">{t.termsTitle}:</span>{" "}
+                  {t.termsDescription}
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
           {needsAcceptance && (
             <label className="flex cursor-pointer items-start gap-2 pt-1 text-xs text-sky-100">

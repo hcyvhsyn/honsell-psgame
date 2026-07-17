@@ -26,17 +26,22 @@ const TRUST_ITEMS: TrustItem[] = [
 export default function TrustPanel() {
   return (
     <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-4">
-      <h3 className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-        Niyə Honsell?
-      </h3>
-      <ul className="space-y-2">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold tracking-tight text-zinc-100">Niyə Honsell?</h3>
+        <span className="text-[11px] text-emerald-300">Təhlükəsiz checkout</span>
+      </div>
+
+      <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
         {TRUST_ITEMS.map((it) => {
           const Icon = it.icon;
           return (
-            <li key={it.id} className="flex items-start gap-2 text-xs text-zinc-300">
+            <li
+              key={it.id}
+              className="flex items-start gap-2 rounded-xl border border-zinc-800/60 bg-zinc-950/35 px-3 py-2.5 text-xs text-zinc-300"
+            >
               <Icon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-              <div className="min-w-0">
-                <span className="leading-snug">{it.title}</span>
+              <div className="min-w-0 leading-snug">
+                <span>{it.title}</span>
                 {it.description && (
                   <span className="block text-[11px] text-zinc-500">{it.description}</span>
                 )}

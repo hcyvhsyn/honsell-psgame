@@ -1237,8 +1237,20 @@ model PromoCode {
   maxDiscountCents Int?
   // Minimum sifariş məbləği (qəpik, scope sətirlərinin cəmi ilə müqayisə).
   minOrderCents Int @default(0)
-  // Scope: boş = bütün productType-lər; dolu olsa yalnız sadalananlar.
+  // ─── Scope (hamısı boş = bütün səbətə tətbiq olunur) ───────────────────
+  // Üç sahə BİRLİKDƏ "icazə verilən hədəflər" siyahısını qurur (məntiqi OR):
+  // sətir bunlardan HƏR HANSI birinə uyğun gəlirsə endirimə daxil olur.
+  // Məs. yalnız Spotify → serviceProductIds = [3 plan id-si]; yalnız bir oyun
+  // → gameIds = [oyun id-si]; bütün oyunlar → productTypes = ["GAME"].
+  //
+  // Növ üzrə scope. DİQQƏT: dəyərlər ServiceProduct.type / "GAME" olmalıdır
+  // (məs. "PLATFORM"), StreamingPlatform.category ("MUSIC") DEYİL.
   productTypes String[] @default([])
+  // Konkret oyunlara özəl (Game.id).
+  gameIds String[] @default([])
+  // Konkret servis/platforma məhsullarına özəl (ServiceProduct.id) — Spotify
+  // planları, PS Plus paketləri və s.
+  serviceProductIds String[] @default([])
 
   usageLimit   Int? // qlobal maksimum. null = limitsiz.
   usedCount    Int  @default(0)

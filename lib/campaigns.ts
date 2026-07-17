@@ -15,8 +15,11 @@ import { isWasenderConfigured, normalizeToE164, sendWasenderText } from "@/lib/w
 /** v1: serverless timeout riskini azaltmaq üçün kampaniya başına alıcı limiti. */
 export const CAMPAIGN_MAX_RECIPIENTS = 500;
 
-/** WhatsApp provayder limitlərinə hörmət üçün göndərişlər arası gecikmə (ms). */
+/** WhatsApp provayder limitlərinə hörmət üçün göndərişlər arası defolt gecikmə (ms). */
 const WA_SEND_DELAY_MS = 400;
+
+/** Admin təyin edə biləcəyi maksimum göndəriş intervalı (ms) — 60 saniyə. */
+export const WA_MAX_DELAY_MS = 60_000;
 
 /** Bir kampaniyada göstərilə biləcək maksimum oyun sayı. */
 export const CAMPAIGN_MAX_GAMES = 20;
@@ -436,9 +439,19 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  *  • Email yalnız emaili təsdiqlənmiş VƏ unsubscribe etməmiş alıcılara → SKIPPED əks halda.
  *  • WhatsApp yalnız etibarlı E.164 nömrəsi olanlara → SKIPPED əks halda.
  */
-export async function runCampaign(campaignId: string): Promise<CampaignSendResult> {
+export async function runCampaign(
+  campaignId: string,
+  opts?: { waDelayMs?: number }
+): Promise<CampaignSendResult> {
   const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
   if (!campaign) throw new Error("Kampaniya tapılmadı.");
+
+  // WhatsApp göndərişləri arası gecikmə — admin təyin edə bilər (defolt 400ms,
+  // maksimum 60s). Provayder ban riskini azaltmaq üçün intervalı böyütmək olar.
+  const waDelayMs = Math.min(
+    Math.max(opts?.waDelayMs ?? WA_SEND_DELAY_MS, 0),
+    WA_MAX_DELAY_MS
+  );
 
   const games = (campaign.gamesSnapshot as unknown as CampaignGame[]) ?? [];
   const isReviewKind = campaign.kind === "REVIEW_INVITE";
@@ -524,7 +537,7 @@ export async function runCampaign(campaignId: string): Promise<CampaignSendResul
           result.waFailed += 1;
           errors.push(`whatsapp: ${sent.error}`);
         }
-        await sleep(WA_SEND_DELAY_MS);
+        await sleep(waDelayMs);
       }
     }
 

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Edit2, Trash2, X, Loader2, Eye, EyeOff, TicketPercent } from "lucide-react";
 import { useDialog } from "@/lib/dialogs";
+import { PROMO_SCOPE_PRODUCT_TYPES, PROMO_SCOPE_TYPE_LABELS } from "@/lib/promoScopeShared";
+import PromoScopePicker from "./PromoScopePicker";
 
 type PromoCode = {
   id: string;
@@ -12,6 +14,8 @@ type PromoCode = {
   maxDiscountCents: number | null;
   minOrderCents: number;
   productTypes: string[];
+  gameIds: string[];
+  serviceProductIds: string[];
   usageLimit: number | null;
   usedCount: number;
   perUserLimit: number;
@@ -29,7 +33,9 @@ type FormState = {
   value: string; // PERCENT: %, FIXED: AZN
   maxDiscountAzn: string;
   minOrderAzn: string;
-  productTypes: string; // vergüllə ayrılmış
+  productTypes: string[];
+  gameIds: string[];
+  serviceProductIds: string[];
   usageLimit: string;
   perUserLimit: string;
   startsAt: string;
@@ -43,7 +49,9 @@ const EMPTY: FormState = {
   value: "",
   maxDiscountAzn: "",
   minOrderAzn: "",
-  productTypes: "",
+  productTypes: [],
+  gameIds: [],
+  serviceProductIds: [],
   usageLimit: "",
   perUserLimit: "1",
   startsAt: "",
@@ -93,7 +101,9 @@ export default function PromoCodesAdminClient() {
       value: p.kind === "FIXED" ? (p.value / 100).toString() : p.value.toString(),
       maxDiscountAzn: p.maxDiscountCents ? (p.maxDiscountCents / 100).toString() : "",
       minOrderAzn: p.minOrderCents ? (p.minOrderCents / 100).toString() : "",
-      productTypes: p.productTypes.join(", "),
+      productTypes: p.productTypes ?? [],
+      gameIds: p.gameIds ?? [],
+      serviceProductIds: p.serviceProductIds ?? [],
       usageLimit: p.usageLimit ? p.usageLimit.toString() : "",
       perUserLimit: p.perUserLimit.toString(),
       startsAt: toDateInput(p.startsAt),
@@ -123,10 +133,9 @@ export default function PromoCodesAdminClient() {
         value: form.kind === "FIXED" ? Math.round(valueNum * 100) : Math.round(valueNum),
         maxDiscountCents: form.maxDiscountAzn ? Math.round(Number(form.maxDiscountAzn) * 100) : null,
         minOrderCents: form.minOrderAzn ? Math.round(Number(form.minOrderAzn) * 100) : 0,
-        productTypes: form.productTypes
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
+        productTypes: form.productTypes,
+        gameIds: form.gameIds,
+        serviceProductIds: form.serviceProductIds,
         usageLimit: form.usageLimit ? Number(form.usageLimit) : null,
         perUserLimit: form.perUserLimit ? Number(form.perUserLimit) : 1,
         startsAt: form.startsAt || null,
@@ -179,6 +188,17 @@ export default function PromoCodesAdminClient() {
     return p.kind === "FIXED" ? `${(p.value / 100).toFixed(2)} ₼` : `${p.value}%`;
   }
 
+  /** Cədvəldə scope-u qısa göstər: növ etiketləri + neçə konkret məhsul. */
+  function fmtScope(p: PromoCode): string {
+    const parts = (p.productTypes ?? []).map((t) => PROMO_SCOPE_TYPE_LABELS[t] ?? t);
+    const products = (p.gameIds?.length ?? 0) + (p.serviceProductIds?.length ?? 0);
+    if (products > 0) parts.push(`${products} məhsul`);
+    return parts.join(" · ");
+  }
+
+  const scopeCount =
+    form.productTypes.length + form.gameIds.length + form.serviceProductIds.length;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -227,7 +247,7 @@ export default function PromoCodesAdminClient() {
                   <td className="px-3 py-2 font-semibold">{fmtDiscount(p)}</td>
                   <td className="px-3 py-2 text-xs text-zinc-500">
                     {p.minOrderCents > 0 ? `min ${(p.minOrderCents / 100).toFixed(0)}₼` : "—"}
-                    {p.productTypes.length > 0 ? ` · ${p.productTypes.join(",")}` : ""}
+                    {fmtScope(p) ? ` · ${fmtScope(p)}` : ""}
                   </td>
                   <td className="px-3 py-2 text-xs text-zinc-500">
                     {p.usedCount}
@@ -322,23 +342,74 @@ export default function PromoCodesAdminClient() {
                   />
                 </Field>
               )}
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Min sifariş (AZN)">
-                  <input
-                    type="number"
-                    value={form.minOrderAzn}
-                    onChange={(e) => setForm((f) => ({ ...f, minOrderAzn: e.target.value }))}
-                    className="promo-input"
-                  />
+              <Field label="Min sifariş (AZN)">
+                <input
+                  type="number"
+                  value={form.minOrderAzn}
+                  onChange={(e) => setForm((f) => ({ ...f, minOrderAzn: e.target.value }))}
+                  className="promo-input"
+                />
+              </Field>
+
+              <div className="rounded-xl border border-zinc-200 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-zinc-800">Scope (opsional)</span>
+                  {scopeCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((f) => ({ ...f, productTypes: [], gameIds: [], serviceProductIds: [] }))
+                      }
+                      className="text-xs font-medium text-zinc-500 hover:text-zinc-800"
+                    >
+                      Təmizlə
+                    </button>
+                  )}
+                </div>
+                <p className="mb-3 text-xs text-zinc-500">
+                  {scopeCount === 0
+                    ? "Heç nə seçilməyib — kupon bütün səbətə tətbiq olunur."
+                    : "Kupon yalnız seçilənlərə tətbiq olunur (endirim həmin sətirlərin cəmindən hesablanır)."}
+                </p>
+
+                <Field label="Məhsul növü üzrə">
+                  <div className="flex flex-wrap gap-1.5">
+                    {PROMO_SCOPE_PRODUCT_TYPES.map((t) => {
+                      const on = form.productTypes.includes(t);
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              productTypes: on
+                                ? f.productTypes.filter((x) => x !== t)
+                                : [...f.productTypes, t],
+                            }))
+                          }
+                          className={`rounded-lg border px-2 py-1 text-xs font-medium ${
+                            on
+                              ? "border-violet-500 bg-violet-100 text-violet-800"
+                              : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                          }`}
+                        >
+                          {PROMO_SCOPE_TYPE_LABELS[t] ?? t}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </Field>
-                <Field label="Məhsul növü (scope, opsional)">
-                  <input
-                    value={form.productTypes}
-                    onChange={(e) => setForm((f) => ({ ...f, productTypes: e.target.value }))}
-                    className="promo-input"
-                    placeholder="GAME, STREAMING"
-                  />
-                </Field>
+
+                <div className="mt-3">
+                  <Field label="Konkret məhsula özəl (oyun / platforma paketi)">
+                    <PromoScopePicker
+                      gameIds={form.gameIds}
+                      serviceProductIds={form.serviceProductIds}
+                      onChange={(next) => setForm((f) => ({ ...f, ...next }))}
+                    />
+                  </Field>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Qlobal limit (opsional)">
