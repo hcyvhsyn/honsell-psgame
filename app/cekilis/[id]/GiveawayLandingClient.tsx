@@ -13,8 +13,10 @@ import {
   Clock,
   Loader2,
   ArrowLeft,
+  ExternalLink,
 } from "lucide-react";
 import { useSession } from "@/components/SessionProvider";
+import { socialPlatformLabel } from "@/lib/giveawaysShared";
 
 type Giveaway = {
   id: string;
@@ -26,6 +28,7 @@ type Giveaway = {
   winnersCount: number;
   entryCondition: string;
   conditionType: string | null;
+  conditionUrl: string | null;
   isVip: boolean;
   participantCount: number;
   endAt: string;
@@ -39,7 +42,15 @@ const ENTRY_HINT: Record<string, string> = {
   REGISTER_ONLY: "Qoşulmaq üçün sadəcə hesabınla daxil ol.",
   PURCHASE_ANY: "Qoşulmaq üçün ən azı bir alışın olmalıdır.",
   PURCHASE_PRODUCT: "Qoşulmaq üçün müvafiq məhsulu almalısan.",
+  FOLLOW_SOCIAL: "Qoşulmaq üçün sosial səhifəmizi izləməlisən.",
 };
+
+function entryHint(g: { entryCondition: string; conditionType: string | null }): string {
+  if (g.entryCondition === "FOLLOW_SOCIAL") {
+    return `Qoşulmaq üçün bizi ${socialPlatformLabel(g.conditionType)}-da izləməlisən.`;
+  }
+  return ENTRY_HINT[g.entryCondition] || "";
+}
 
 function useCountdown(endIso: string): string {
   const [now, setNow] = useState(() => Date.now());
@@ -78,6 +89,8 @@ export default function GiveawayLandingClient({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  // FOLLOW_SOCIAL: izlə linkinə kliklənmədən "Qoşul" aktiv olmur.
+  const [followClicked, setFollowClicked] = useState(false);
   const autojoinTried = useRef(false);
   // Hook qaydası üçün erkən return-lardan əvvəl çağırılır (g hələ yox ola bilər).
   const countdown = useCountdown(g?.endAt ?? "");
@@ -166,6 +179,9 @@ export default function GiveawayLandingClient({ id }: { id: string }) {
   }
 
   const completed = g.status === "COMPLETED";
+  const needsFollow = g.entryCondition === "FOLLOW_SOCIAL" && Boolean(g.conditionUrl);
+  // Login-dən qayıdan autojoin axını izləmə klikini artıq keçib sayılır.
+  const joinLocked = needsFollow && !followClicked && !wantsAutojoin && !g.joined && !completed;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-10 sm:py-14">
@@ -235,9 +251,31 @@ export default function GiveawayLandingClient({ id }: { id: string }) {
           </div>
 
           {!completed && !g.joined && (
-            <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-              {ENTRY_HINT[g.entryCondition] || ""}
-            </p>
+            <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">{entryHint(g)}</p>
+          )}
+
+          {/* İzlə düyməsi (FOLLOW_SOCIAL) */}
+          {!completed && !g.joined && needsFollow && (
+            <a
+              href={g.conditionUrl!}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setFollowClicked(true)}
+              className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-black transition ${
+                followClicked
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300"
+                  : "border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300"
+              }`}
+            >
+              {followClicked ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : (
+                <ExternalLink className="h-4 w-4" />
+              )}
+              {followClicked
+                ? `${socialPlatformLabel(g.conditionType)} səhifəmiz açıldı`
+                : `${socialPlatformLabel(g.conditionType)}-da bizi izlə`}
+            </a>
           )}
 
           {error && (
@@ -283,7 +321,8 @@ export default function GiveawayLandingClient({ id }: { id: string }) {
             ) : (
               <button
                 onClick={join}
-                disabled={busy}
+                disabled={busy || joinLocked}
+                title={joinLocked ? "Əvvəlcə səhifəmizi izlə" : undefined}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-3.5 text-sm font-black text-white shadow-[0_16px_40px_-20px_rgba(168,85,247,0.9)] transition hover:-translate-y-0.5 hover:from-violet-500 hover:to-fuchsia-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Flame className="h-4 w-4" />}

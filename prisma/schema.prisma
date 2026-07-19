@@ -1041,6 +1041,33 @@ model WhatsappReviewInvite {
   @@index([phone])
 }
 
+// Admin-initiated win-back / churn survey for customers whose subscription ended
+// and did not renew. Admin picks the product(s) + phone; a WhatsApp link opens a
+// short page (/niye/<token>) asking why they didn't continue: a preset reason +
+// optional free text. Feedback-only — no account/testimonial/sale is created.
+model WhatsappWinbackInvite {
+  id    String @id @default(cuid())
+  token String @unique
+  phone String // E.164, admin-entered
+
+  productTitle String // "Spotify — 3 ay" (satın alınan abunəlik snapshot)
+  // Mövcud müştəri (telefon uyğunlaşıbsa) + seçilmiş məhsullar snapshot-u.
+  userId           String? // matched existing customer (relation yoxdur, ReviewInvite kimi)
+  serviceProductId String? // ilk SKU (backward-compat; əsas mənbə `products`)
+  products         Json? // [{ id, title, priceAznCents, type }]
+
+  // Public səhifədə toplanan cavab.
+  reason     String? // WinbackReasonCode: TOO_EXPENSIVE | NOT_USED | TECHNICAL | SWITCHED | SERVICE_ISSUE | OTHER
+  reasonText String?
+
+  status      String    @default("SENT") // SENT | SUBMITTED
+  submittedAt DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  @@index([phone])
+}
+
 // ─── Global settings (single row, id = "global") ──────────────────────────────
 
 model Settings {
@@ -1524,10 +1551,14 @@ model Giveaway {
   winnersCount  Int     @default(1)
   /// Qoşulma şərti: REGISTER_ONLY (yalnız qeydiyyat) |
   /// PURCHASE_ANY (ən azı bir uğurlu alış) |
-  /// PURCHASE_PRODUCT (müəyyən ServiceProduct tipini alanlar).
+  /// PURCHASE_PRODUCT (müəyyən ServiceProduct tipini alanlar) |
+  /// FOLLOW_SOCIAL (sosial şəbəkədə bizi izləyənlər).
   entryCondition String @default("REGISTER_ONLY")
   /// PURCHASE_PRODUCT üçün: hansı ServiceProduct.type (məs "STREAMING").
+  /// FOLLOW_SOCIAL üçün: platforma kodu (məs "INSTAGRAM", "FACEBOOK").
   conditionType  String?
+  /// FOLLOW_SOCIAL üçün: izlənəcək səhifənin linki (məs Facebook səhifəmiz).
+  conditionUrl   String?
   /// VIP nişanı (kartda "VIP" rozetkası göstərilir).
   isVip          Boolean @default(false)
   /// Sosial sübut üçün göstərilən başlanğıc iştirakçı sayı — real qoşulanların

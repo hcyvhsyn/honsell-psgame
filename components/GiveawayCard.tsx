@@ -11,7 +11,9 @@ import {
   X,
   Clock,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
+import { socialPlatformLabel } from "@/lib/giveawaysShared";
 
 /** Ana səhifə + arxiv arasında paylaşılan çəkiliş kartı. */
 
@@ -25,6 +27,7 @@ export type Giveaway = {
   winnersCount: number;
   entryCondition: string;
   conditionType: string | null;
+  conditionUrl: string | null;
   isVip: boolean;
   participantCount: number;
   endAt: string;
@@ -38,7 +41,19 @@ const ENTRY_HINT: Record<string, string> = {
   REGISTER_ONLY: "Qoşulmaq üçün sadəcə hesabınla daxil ol.",
   PURCHASE_ANY: "Qoşulmaq üçün ən azı bir alışın olmalıdır.",
   PURCHASE_PRODUCT: "Qoşulmaq üçün müvafiq məhsulu almalısan.",
+  FOLLOW_SOCIAL: "Qoşulmaq üçün sosial səhifəmizi izləməlisən.",
 };
+
+/** FOLLOW_SOCIAL şərti üçün qoşulmadan əvvəl göstərilən dinamik ipucu. */
+export function giveawayEntryHint(g: {
+  entryCondition: string;
+  conditionType: string | null;
+}): string {
+  if (g.entryCondition === "FOLLOW_SOCIAL") {
+    return `Qoşulmaq üçün bizi ${socialPlatformLabel(g.conditionType)}-da izləməlisən.`;
+  }
+  return ENTRY_HINT[g.entryCondition] || "";
+}
 
 function useCountdown(endIso: string): string {
   const [now, setNow] = useState(() => Date.now());
@@ -79,6 +94,12 @@ export function GiveawayCard({
 }) {
   const countdown = useCountdown(g.endAt);
   const completed = g.status === "COMPLETED";
+
+  // FOLLOW_SOCIAL: izlə linkinə kliklənməmiş "Qoşul" aktiv olmur (server izləməni
+  // yoxlaya bilmədiyi üçün bu, yumşaq client-tərəfi qapıdır).
+  const needsFollow = g.entryCondition === "FOLLOW_SOCIAL" && Boolean(g.conditionUrl);
+  const [followClicked, setFollowClicked] = useState(false);
+  const joinLocked = needsFollow && !followClicked && !g.joined && !completed;
 
   return (
     <div className="flex flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-[0_24px_60px_-40px_rgba(76,29,149,0.5)] dark:border-white/10 dark:bg-white/[0.03]">
@@ -138,8 +159,28 @@ export function GiveawayCard({
 
         {!completed && !g.joined && (
           <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-            {ENTRY_HINT[g.entryCondition] || ""}
+            {giveawayEntryHint(g)}
           </p>
+        )}
+
+        {/* İzlə düyməsi (FOLLOW_SOCIAL) */}
+        {!completed && !g.joined && needsFollow && (
+          <a
+            href={g.conditionUrl!}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setFollowClicked(true)}
+            className={`inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-black transition ${
+              followClicked
+                ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300"
+                : "border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300"
+            }`}
+          >
+            {followClicked ? <CheckCircle2 className="h-4 w-4" /> : <ExternalLink className="h-4 w-4" />}
+            {followClicked
+              ? `${socialPlatformLabel(g.conditionType)} səhifəmiz açıldı`
+              : `${socialPlatformLabel(g.conditionType)}-da bizi izlə`}
+          </a>
         )}
 
         <div className="mt-auto pt-2">
@@ -157,7 +198,8 @@ export function GiveawayCard({
           ) : (
             <button
               onClick={() => onJoin(g)}
-              disabled={busy}
+              disabled={busy || joinLocked}
+              title={joinLocked ? "Əvvəlcə səhifəmizi izlə" : undefined}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-3 text-sm font-black text-white shadow-[0_16px_40px_-20px_rgba(168,85,247,0.9)] transition hover:-translate-y-0.5 hover:from-violet-500 hover:to-fuchsia-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Flame className="h-4 w-4" />}

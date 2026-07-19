@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import WhatsappReviewsAdminClient from "./WhatsappReviewsAdminClient";
+import WhatsappAdminTabs from "./WhatsappAdminTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -21,16 +21,13 @@ export default async function AdminWhatsappReviewsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">WhatsApp Rəy Dəvəti</h1>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">WhatsApp Rəy &amp; Sorğu</h1>
         <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-          Abunəliyini WhatsApp-dan alan müştərilər üçün. Müştərinin aldığı məhsulu seçin,
-          telefon nömrəsini yazın — sistem WhatsApp-a rəy linki göndərir. Nömrə bazada varsa,
-          müştəri avtomatik tanınır (təkrar qeydiyyat olmur, sadəcə rəy yazır). Qeyd edilən hər
-          satış anasayfadakı sifariş sayı və “ən çox alınanlar”a əlavə olunur.
+          Yeni müştərilərdən rəy toplayın, abunəliyi bitib davam etməyənlərdən isə səbəbini soruşun.
         </p>
       </div>
-      <WhatsappReviewsAdminClient products={options} />
+      <WhatsappAdminTabs products={options} />
     </div>
   );
 }

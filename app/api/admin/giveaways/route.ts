@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { ENTRY_CONDITIONS, type EntryCondition } from "@/lib/giveaways";
+import { ENTRY_CONDITIONS, SOCIAL_PLATFORMS, type EntryCondition } from "@/lib/giveaways";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,9 +33,15 @@ function parseBody(body: Record<string, unknown>) {
   const entryCondition: EntryCondition = ENTRY_CONDITIONS.includes(body.entryCondition as EntryCondition)
     ? (body.entryCondition as EntryCondition)
     : "REGISTER_ONLY";
+  // PURCHASE_PRODUCT → məhsul tipi; FOLLOW_SOCIAL → platforma kodu.
   const conditionType =
-    entryCondition === "PURCHASE_PRODUCT" && typeof body.conditionType === "string"
+    (entryCondition === "PURCHASE_PRODUCT" || entryCondition === "FOLLOW_SOCIAL") &&
+    typeof body.conditionType === "string"
       ? body.conditionType.trim() || null
+      : null;
+  const conditionUrl =
+    entryCondition === "FOLLOW_SOCIAL" && typeof body.conditionUrl === "string"
+      ? body.conditionUrl.trim() || null
       : null;
   const isVip = Boolean(body.isVip);
   const participantBoost =
@@ -52,6 +58,7 @@ function parseBody(body: Record<string, unknown>) {
     winnersCount,
     entryCondition,
     conditionType,
+    conditionUrl,
     isVip,
     participantBoost,
     endAt,
@@ -71,6 +78,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bitiş tarixi düzgün deyil." }, { status: 400 });
   if (data.entryCondition === "PURCHASE_PRODUCT" && !data.conditionType)
     return NextResponse.json({ error: "Məhsul şərti üçün məhsul tipi seçilməlidir." }, { status: 400 });
+  if (data.entryCondition === "FOLLOW_SOCIAL") {
+    if (!SOCIAL_PLATFORMS.some((p) => p.value === data.conditionType))
+      return NextResponse.json({ error: "İzləmə şərti üçün platforma seçilməlidir." }, { status: 400 });
+    if (!data.conditionUrl || !/^https?:\/\//i.test(data.conditionUrl))
+      return NextResponse.json(
+        { error: "İzləmə şərti üçün düzgün link (https://...) daxil edilməlidir." },
+        { status: 400 }
+      );
+  }
 
   const status = body.status === "ACTIVE" ? "ACTIVE" : "DRAFT";
 
@@ -83,6 +99,7 @@ export async function POST(req: Request) {
       winnersCount: data.winnersCount,
       entryCondition: data.entryCondition,
       conditionType: data.conditionType,
+      conditionUrl: data.conditionUrl,
       isVip: data.isVip,
       participantBoost: data.participantBoost,
       endAt: data.endAt,

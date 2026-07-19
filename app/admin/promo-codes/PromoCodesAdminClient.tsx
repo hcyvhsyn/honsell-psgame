@@ -1,9 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Plus, Edit2, Trash2, X, Loader2, Eye, EyeOff, TicketPercent } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, Edit2, Trash2, X, Loader2, Eye, EyeOff, TicketPercent, Copy, Check } from "lucide-react";
 import { useDialog } from "@/lib/dialogs";
-import { PROMO_SCOPE_PRODUCT_TYPES, PROMO_SCOPE_TYPE_LABELS } from "@/lib/promoScopeShared";
+import {
+  PROMO_SCOPE_PRODUCT_TYPES,
+  PROMO_SCOPE_TYPE_LABELS,
+  buildCustomerCouponMessage,
+} from "@/lib/promoScopeShared";
 import PromoScopePicker from "./PromoScopePicker";
 
 type PromoCode = {
@@ -73,6 +77,9 @@ export default function PromoCodesAdminClient() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
+  /** Seçilmiş scope məhsullarının id → ad xəritəsi (müştəri mətni üçün). */
+  const [scopeNames, setScopeNames] = useState<Record<string, string>>({});
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,9 +98,13 @@ export default function PromoCodesAdminClient() {
 
   function openNew() {
     setForm(EMPTY);
+    setScopeNames({});
+    setCopied(false);
     setOpen(true);
   }
   function openEdit(p: PromoCode) {
+    setScopeNames({});
+    setCopied(false);
     setForm({
       id: p.id,
       code: p.code,
@@ -198,6 +209,37 @@ export default function PromoCodesAdminClient() {
 
   const scopeCount =
     form.productTypes.length + form.gameIds.length + form.serviceProductIds.length;
+
+  // Müştəriyə göndərilə bilən izah mətni — formun canlı dəyərlərindən qurulur.
+  const customerMessage = useMemo(() => {
+    if (!form.code.trim() || !(Number(form.value) > 0)) return "";
+    const productNames = [...form.gameIds, ...form.serviceProductIds].map(
+      (id) => scopeNames[id] ?? id,
+    );
+    return buildCustomerCouponMessage({
+      code: form.code.trim().toUpperCase(),
+      kind: form.kind,
+      value: Number(form.value),
+      maxDiscountAzn: form.maxDiscountAzn ? Number(form.maxDiscountAzn) : null,
+      minOrderAzn: form.minOrderAzn ? Number(form.minOrderAzn) : null,
+      productTypes: form.productTypes,
+      productNames,
+      startsAt: form.startsAt || null,
+      expiresAt: form.expiresAt || null,
+      perUserLimit: form.perUserLimit ? Number(form.perUserLimit) : null,
+    });
+  }, [form, scopeNames]);
+
+  async function copyMessage() {
+    if (!customerMessage) return;
+    try {
+      await navigator.clipboard.writeText(customerMessage);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      await dialog.alert({ title: "Kopyalanmadı", message: "Mətni əl ilə seçin.", tone: "warning" });
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -407,6 +449,7 @@ export default function PromoCodesAdminClient() {
                       gameIds={form.gameIds}
                       serviceProductIds={form.serviceProductIds}
                       onChange={(next) => setForm((f) => ({ ...f, ...next }))}
+                      onNamesChange={setScopeNames}
                     />
                   </Field>
                 </div>
@@ -456,6 +499,34 @@ export default function PromoCodesAdminClient() {
                 />
                 Aktiv
               </label>
+
+              {customerMessage && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-emerald-800">
+                      Müştəriyə göndəriləcək mətn
+                    </span>
+                    <button
+                      type="button"
+                      onClick={copyMessage}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
+                        copied
+                          ? "bg-emerald-600 text-white"
+                          : "border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
+                      }`}
+                    >
+                      {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copied ? "Kopyalandı" : "Kopyala"}
+                    </button>
+                  </div>
+                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-white p-2.5 text-xs leading-relaxed text-zinc-700">
+                    {customerMessage}
+                  </pre>
+                  <p className="mt-1.5 text-[11px] text-emerald-700/80">
+                    Bu mətn formdakı dəyərlərə görə avtomatik yenilənir — kodu yadda saxladıqdan sonra kopyalayıb müştəriyə göndərin.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2 border-t border-zinc-100 p-4">
               <button onClick={() => setOpen(false)} className="rounded-lg px-4 py-2 text-sm font-medium hover:bg-zinc-100">

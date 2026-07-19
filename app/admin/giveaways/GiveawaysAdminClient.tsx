@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useDialog } from "@/lib/dialogs";
 import {
   ENTRY_CONDITION_LABELS,
+  SOCIAL_PLATFORMS,
   giveawayShareUrl,
   buildGiveawayShareText,
 } from "@/lib/giveawaysShared";
+import { uploadAdminImage } from "@/lib/uploadImageClient";
 import { SITE_URL } from "@/lib/site";
 
 type Giveaway = {
@@ -19,6 +21,7 @@ type Giveaway = {
   winnersCount: number;
   entryCondition: string;
   conditionType: string | null;
+  conditionUrl: string | null;
   isVip: boolean;
   participantBoost: number;
   endAt: string;
@@ -87,6 +90,8 @@ const EMPTY_FORM = {
   winnersCount: 1,
   entryCondition: "REGISTER_ONLY",
   conditionType: "STREAMING",
+  conditionPlatform: "INSTAGRAM",
+  conditionUrl: "",
   isVip: false,
   participantBoost: 0,
   endAt: "",
@@ -101,6 +106,10 @@ export default function GiveawaysAdminClient() {
   const [pending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
+
+  // Mükafat şəkli yükləməsi
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [imgUploading, setImgUploading] = useState(false);
 
   // İştirakçılar modalı
   const [participantsFor, setParticipantsFor] = useState<Giveaway | null>(null);
@@ -137,6 +146,25 @@ export default function GiveawaysAdminClient() {
     setEditingId(null);
   }
 
+  async function onPickPrizeImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Yalnız şəkil faylı seçilə bilər.");
+      return;
+    }
+    setImgUploading(true);
+    setError(null);
+    const up = await uploadAdminImage("/api/admin/giveaways/image-upload", file);
+    setImgUploading(false);
+    if (!up.ok) {
+      setError(up.error);
+      return;
+    }
+    setForm((f) => ({ ...f, prizeImageUrl: up.url }));
+  }
+
   function startEdit(g: Giveaway) {
     setEditingId(g.id);
     setForm({
@@ -146,7 +174,12 @@ export default function GiveawaysAdminClient() {
       prizeImageUrl: g.prizeImageUrl ?? "",
       winnersCount: g.winnersCount,
       entryCondition: g.entryCondition,
-      conditionType: g.conditionType ?? "STREAMING",
+      // conditionType DB-də şərtə görə ya məhsul tipi, ya platforma kodudur.
+      conditionType:
+        g.entryCondition === "PURCHASE_PRODUCT" ? g.conditionType ?? "STREAMING" : "STREAMING",
+      conditionPlatform:
+        g.entryCondition === "FOLLOW_SOCIAL" ? g.conditionType ?? "INSTAGRAM" : "INSTAGRAM",
+      conditionUrl: g.conditionUrl ?? "",
       isVip: g.isVip,
       participantBoost: g.participantBoost,
       endAt: toLocalInput(g.endAt),
@@ -165,7 +198,9 @@ export default function GiveawaysAdminClient() {
         prizeImageUrl: form.prizeImageUrl,
         winnersCount: Number(form.winnersCount),
         entryCondition: form.entryCondition,
-        conditionType: form.conditionType,
+        conditionType:
+          form.entryCondition === "FOLLOW_SOCIAL" ? form.conditionPlatform : form.conditionType,
+        conditionUrl: form.conditionUrl,
         isVip: form.isVip,
         participantBoost: Number(form.participantBoost),
         endAt: form.endAt ? new Date(form.endAt).toISOString() : "",
@@ -339,17 +374,42 @@ export default function GiveawaysAdminClient() {
               placeholder="Amazon 1000 TL"
             />
           </label>
-          <label className="block">
+          <div className="block">
             <span className="mb-1 block text-xs font-semibold text-zinc-600">
-              Mükafat şəkli (URL, opsional)
+              Mükafat şəkli (opsional)
             </span>
-            <input
-              className={inputCls}
-              value={form.prizeImageUrl}
-              onChange={(e) => setForm((f) => ({ ...f, prizeImageUrl: e.target.value }))}
-              placeholder="https://..."
-            />
-          </label>
+            <div className="flex items-center gap-2">
+              {form.prizeImageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={form.prizeImageUrl}
+                  alt=""
+                  className="h-10 w-10 shrink-0 rounded-lg border border-zinc-200 object-cover"
+                />
+              )}
+              <input
+                className={inputCls}
+                value={form.prizeImageUrl}
+                onChange={(e) => setForm((f) => ({ ...f, prizeImageUrl: e.target.value }))}
+                placeholder="https://... və ya sağdan yüklə"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={imgUploading}
+                className="shrink-0 rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-700 transition hover:bg-violet-100 disabled:opacity-60"
+              >
+                {imgUploading ? "Yüklənir…" : "Şəkil yüklə"}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={onPickPrizeImage}
+              />
+            </div>
+          </div>
           <label className="block sm:col-span-2">
             <span className="mb-1 block text-xs font-semibold text-zinc-600">Təsvir (opsional)</span>
             <textarea
@@ -389,6 +449,35 @@ export default function GiveawaysAdminClient() {
                 ))}
               </select>
             </label>
+          )}
+          {form.entryCondition === "FOLLOW_SOCIAL" && (
+            <>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-zinc-600">Platforma</span>
+                <select
+                  className={inputCls}
+                  value={form.conditionPlatform}
+                  onChange={(e) => setForm((f) => ({ ...f, conditionPlatform: e.target.value }))}
+                >
+                  {SOCIAL_PLATFORMS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-xs font-semibold text-zinc-600">
+                  Səhifəmizin linki (izlənəcək)
+                </span>
+                <input
+                  className={inputCls}
+                  value={form.conditionUrl}
+                  onChange={(e) => setForm((f) => ({ ...f, conditionUrl: e.target.value }))}
+                  placeholder="https://www.facebook.com/honsellstore"
+                />
+              </label>
+            </>
           )}
 
           <label className="block">

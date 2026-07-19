@@ -19,11 +19,13 @@ export type AdminTestimonial = {
 
 const PLATFORM_LABELS: Record<string, string> = {
   GAME: "Oyun",
+  EPIC_GAMES: "Epic Games",
   PS_PLUS: "PS Plus",
   GIFT_CARD: "Gift Card",
   ACCOUNT_CREATION: "Hesab açma",
   STREAMING: "Streaming",
   MUSIC: "Musiqi",
+  GENERAL: "Ümumi",
 };
 
 type Tab = "pending" | "active";

@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { ENTRY_CONDITIONS, GIVEAWAY_STATUSES, type EntryCondition } from "@/lib/giveaways";
+import {
+  ENTRY_CONDITIONS,
+  GIVEAWAY_STATUSES,
+  SOCIAL_PLATFORMS,
+  type EntryCondition,
+} from "@/lib/giveaways";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,10 +43,26 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     data.winnersCount = Math.floor(body.winnersCount);
   if (ENTRY_CONDITIONS.includes(body.entryCondition as EntryCondition)) {
     data.entryCondition = body.entryCondition;
+    // PURCHASE_PRODUCT → məhsul tipi; FOLLOW_SOCIAL → platforma kodu.
     data.conditionType =
-      body.entryCondition === "PURCHASE_PRODUCT" && typeof body.conditionType === "string"
+      (body.entryCondition === "PURCHASE_PRODUCT" || body.entryCondition === "FOLLOW_SOCIAL") &&
+      typeof body.conditionType === "string"
         ? body.conditionType.trim() || null
         : null;
+    const conditionUrl =
+      body.entryCondition === "FOLLOW_SOCIAL" && typeof body.conditionUrl === "string"
+        ? body.conditionUrl.trim() || null
+        : null;
+    data.conditionUrl = conditionUrl;
+    if (body.entryCondition === "FOLLOW_SOCIAL") {
+      if (!SOCIAL_PLATFORMS.some((p) => p.value === data.conditionType))
+        return NextResponse.json({ error: "İzləmə şərti üçün platforma seçilməlidir." }, { status: 400 });
+      if (!conditionUrl || !/^https?:\/\//i.test(conditionUrl))
+        return NextResponse.json(
+          { error: "İzləmə şərti üçün düzgün link (https://...) daxil edilməlidir." },
+          { status: 400 }
+        );
+    }
   }
   if (typeof body.isVip === "boolean") data.isVip = body.isVip;
   if (typeof body.participantBoost === "number" && body.participantBoost >= 0)

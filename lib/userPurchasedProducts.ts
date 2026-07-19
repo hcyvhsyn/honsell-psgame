@@ -1,7 +1,13 @@
 import { prisma } from "@/lib/prisma";
 
 /** Testimonial.platform üçün icazə verilən kobud kateqoriyalar. */
-export type TestimonialPlatform = "GAME" | "PS_PLUS" | "GIFT_CARD" | "ACCOUNT_CREATION";
+export type TestimonialPlatform =
+  | "GAME"
+  | "EPIC_GAMES"
+  | "PS_PLUS"
+  | "GIFT_CARD"
+  | "ACCOUNT_CREATION"
+  | "GENERAL";
 
 export type PurchasedProduct = {
   /** title əsaslı stabil açar — modal seçimi və validasiya üçün. */
@@ -43,7 +49,7 @@ export async function getUserPurchasedProducts(userId: string): Promise<Purchase
       },
       orderBy: { createdAt: "desc" },
       select: {
-        game: { select: { title: true } },
+        game: { select: { title: true, store: true } },
         serviceProduct: { select: { title: true, type: true } },
       },
     })
@@ -56,7 +62,7 @@ export async function getUserPurchasedProducts(userId: string): Promise<Purchase
 
     if (row.game?.title) {
       title = row.game.title;
-      platform = "GAME";
+      platform = row.game.store === "EPIC" ? "EPIC_GAMES" : "GAME";
     } else if (row.serviceProduct?.title) {
       title = row.serviceProduct.title;
       platform = serviceTypeToPlatform(row.serviceProduct.type);
@@ -96,7 +102,7 @@ export async function getUserReviewablePurchases(userId: string): Promise<Review
       select: {
         id: true,
         amountAznCents: true,
-        game: { select: { title: true } },
+        game: { select: { title: true, store: true } },
         serviceProduct: { select: { title: true, type: true } },
       },
     })
@@ -121,7 +127,7 @@ export async function getUserReviewablePurchases(userId: string): Promise<Review
     let platform: TestimonialPlatform = "GAME";
     if (row.game?.title) {
       title = row.game.title;
-      platform = "GAME";
+      platform = row.game.store === "EPIC" ? "EPIC_GAMES" : "GAME";
     } else if (row.serviceProduct?.title) {
       title = row.serviceProduct.title;
       platform = serviceTypeToPlatform(row.serviceProduct.type);

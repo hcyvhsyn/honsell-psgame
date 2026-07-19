@@ -5,14 +5,37 @@
  */
 
 /** Qoşulma şərtləri. */
-export const ENTRY_CONDITIONS = ["REGISTER_ONLY", "PURCHASE_ANY", "PURCHASE_PRODUCT"] as const;
+export const ENTRY_CONDITIONS = [
+  "REGISTER_ONLY",
+  "PURCHASE_ANY",
+  "PURCHASE_PRODUCT",
+  "FOLLOW_SOCIAL",
+] as const;
 export type EntryCondition = (typeof ENTRY_CONDITIONS)[number];
 
 export const ENTRY_CONDITION_LABELS: Record<EntryCondition, string> = {
   REGISTER_ONLY: "Sadəcə qeydiyyat",
   PURCHASE_ANY: "Ən azı bir alış",
   PURCHASE_PRODUCT: "Müəyyən məhsul alışı",
+  FOLLOW_SOCIAL: "Bizi izlə",
 };
+
+/**
+ * FOLLOW_SOCIAL şərti üçün platformalar. Kod `Giveaway.conditionType`-da,
+ * izlənəcək link isə `Giveaway.conditionUrl`-da saxlanır.
+ */
+export const SOCIAL_PLATFORMS = [
+  { value: "INSTAGRAM", label: "Instagram" },
+  { value: "FACEBOOK", label: "Facebook" },
+  { value: "TIKTOK", label: "TikTok" },
+  { value: "YOUTUBE", label: "YouTube" },
+  { value: "TELEGRAM", label: "Telegram" },
+] as const;
+export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number]["value"];
+
+export function socialPlatformLabel(value: string | null | undefined): string {
+  return SOCIAL_PLATFORMS.find((p) => p.value === value)?.label ?? (value || "Sosial şəbəkə");
+}
 
 /** Çəkiliş statusları. */
 export const GIVEAWAY_STATUSES = ["DRAFT", "ACTIVE", "COMPLETED", "CANCELLED"] as const;

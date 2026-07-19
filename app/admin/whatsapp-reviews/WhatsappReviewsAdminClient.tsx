@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { uploadAdminImage } from "@/lib/uploadImageClient";
+import { REVIEW_CATEGORY_OPTIONS } from "@/lib/reviewCategoryShared";
 
 type ProductOption = { id: string; title: string; priceAzn: number; type: string };
 
@@ -51,6 +52,7 @@ export default function WhatsappReviewsAdminClient({
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [phone, setPhone] = useState("");
+  const [category, setCategory] = useState(""); // "" = avtomatik (məhsula görə)
 
   function toggleProduct(id: string) {
     setSelectedIds((prev) =>
@@ -138,7 +140,7 @@ export default function WhatsappReviewsAdminClient({
       const res = await fetch("/api/admin/whatsapp-reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serviceProductIds: selectedIds, phone }),
+        body: JSON.stringify({ serviceProductIds: selectedIds, phone, platform: category }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -148,6 +150,7 @@ export default function WhatsappReviewsAdminClient({
       setPhone("");
       setMatched(null);
       setSelectedIds([]);
+      setCategory("");
       const who = data.customer
         ? `Mövcud müştəri (${data.customer.name ?? data.customer.email}) — satış qeyd edildi.`
         : "Yeni müştəri — rəy tamamlananda hesab və satış yaranacaq.";
@@ -236,18 +239,37 @@ export default function WhatsappReviewsAdminClient({
             )}
           </div>
 
-          <label className="block sm:max-w-xs">
-            <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Telefon (WhatsApp)
-            </span>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+994501234567"
-              className="w-full rounded-lg border border-admin-line bg-admin-chip px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20 dark:text-zinc-100 dark:placeholder:text-zinc-500"
-            />
-          </label>
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <label className="block sm:max-w-xs sm:flex-1">
+              <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                Telefon (WhatsApp)
+              </span>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+994501234567"
+                className="w-full rounded-lg border border-admin-line bg-admin-chip px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+              />
+            </label>
+
+            <label className="block sm:max-w-xs sm:flex-1">
+              <span className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                Rəy kateqoriyası
+              </span>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-lg border border-admin-line bg-admin-chip px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20 dark:text-zinc-100"
+              >
+                {REVIEW_CATEGORY_OPTIONS.map((o) => (
+                  <option key={o.code || "auto"} value={o.code}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
 
         <div className="mt-2 min-h-[24px] text-xs">

@@ -23,10 +23,13 @@ export default function PromoScopePicker({
   gameIds,
   serviceProductIds,
   onChange,
+  onNamesChange,
 }: {
   gameIds: string[];
   serviceProductIds: string[];
   onChange: (next: { gameIds: string[]; serviceProductIds: string[] }) => void;
+  /** Seçilmiş məhsul id → ad (müştəri mətni üçün valideynə ötürülür). */
+  onNamesChange?: (names: Record<string, string>) => void;
 }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<ApiResult>({ games: [], services: [] });
@@ -37,6 +40,15 @@ export default function PromoScopePicker({
 
   const selectedIds = [...gameIds, ...serviceProductIds];
   const selectedKey = selectedIds.join(",");
+
+  // Seçilmiş id-lərin adları həll olunduqca valideynə xəbər ver (müştəri mətni).
+  useEffect(() => {
+    if (!onNamesChange) return;
+    const names: Record<string, string> = {};
+    for (const id of selectedIds) if (known[id]) names[id] = known[id].title;
+    onNamesChange(names);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedKey, known]);
 
   // Yadda saxlanmış scope id-lərinin adlarını yüklə (yalnız naməlum olanları).
   useEffect(() => {

@@ -4,7 +4,12 @@ import { sendReviewInviteEmail } from "@/lib/resend";
 
 const INVITE_TTL_DAYS = 30;
 
-export type ReviewProductType = "GAME" | "PS_PLUS" | "GIFT_CARD" | "ACCOUNT_CREATION";
+export type ReviewProductType =
+  | "GAME"
+  | "EPIC_GAMES"
+  | "PS_PLUS"
+  | "GIFT_CARD"
+  | "ACCOUNT_CREATION";
 
 function generateToken(): string {
   return crypto.randomBytes(24).toString("base64url");

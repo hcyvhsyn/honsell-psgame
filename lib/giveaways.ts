@@ -18,6 +18,8 @@ import { isWasenderConfigured, normalizeToE164, sendWasenderText } from "@/lib/w
 export {
   ENTRY_CONDITIONS,
   ENTRY_CONDITION_LABELS,
+  SOCIAL_PLATFORMS,
+  socialPlatformLabel,
   GIVEAWAY_STATUSES,
   displayParticipantCount,
   maskWinnerName,
@@ -47,12 +49,14 @@ function sleep(ms: number): Promise<void> {
  * REGISTER_ONLY → hər qeydiyyatlı istifadəçi.
  * PURCHASE_ANY  → ən azı bir uğurlu PURCHASE/SERVICE_PURCHASE tranzaksiyası.
  * PURCHASE_PRODUCT → conditionType (ServiceProduct.type) üzrə uğurlu alış.
+ * FOLLOW_SOCIAL → sosial izləməni server yoxlaya bilmir; UI izlə linkinə
+ *   klikləməyi tələb edir, server tərəfdə hər login istifadəçi eligible sayılır.
  */
 export async function checkGiveawayEligibility(
   userId: string,
   giveaway: { entryCondition: string; conditionType: string | null }
 ): Promise<{ eligible: boolean; reason?: string }> {
-  if (giveaway.entryCondition === "REGISTER_ONLY") {
+  if (giveaway.entryCondition === "REGISTER_ONLY" || giveaway.entryCondition === "FOLLOW_SOCIAL") {
     return { eligible: true };
   }
 

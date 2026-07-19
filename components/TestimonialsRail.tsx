@@ -33,11 +33,13 @@ import styles from "./TestimonialsRail.module.css";
 
 const PLATFORM_LABELS: Record<string, string> = {
   GAME: "Oyun",
+  EPIC_GAMES: "Epic Games",
   PS_PLUS: "PS Plus",
   GIFT_CARD: "Hədiyyə kartı",
   ACCOUNT_CREATION: "Hesab açma",
   STREAMING: "Streaming",
   MUSIC: "Musiqi",
+  GENERAL: "Ümumi",
 };
 
 const RATING_OPTIONS = [

@@ -189,7 +189,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         userEmail: row.user.email,
         userName: row.user.name,
         productTitle: gameRow.title,
-        productType: "GAME",
+        productType: gameRow.store === "EPIC" ? "EPIC_GAMES" : "GAME",
       });
     }
 
