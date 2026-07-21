@@ -13,13 +13,14 @@ import { fetchPopularGames } from "@/lib/popularity";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Sort = "newest" | "priceAsc" | "priceDesc" | "discount" | "alpha" | "popular";
+type Sort = "newest" | "priceAsc" | "priceDesc" | "discount" | "discountAsc" | "alpha" | "popular";
 
 const SORTS = new Set<Sort>([
   "newest",
   "priceAsc",
   "priceDesc",
   "discount",
+  "discountAsc",
   "alpha",
   "popular",
 ]);
@@ -29,7 +30,7 @@ const PRODUCT_TYPES = new Set(["ALL", "GAME", "ADDON", "CURRENCY", "OTHER"]);
 /**
  * Unified games listing.
  *   q             search query (min 2 chars; otherwise ignored)
- *   sort          newest | priceAsc | priceDesc | discount | alpha
+ *   sort          newest | priceAsc | priceDesc | discount | discountAsc | alpha
  *   type          ALL | GAME | ADDON | CURRENCY | OTHER  (default: ALL)
  *   platform      PS4 | PS5
  *   onSale        "1" → only items with an active discount
@@ -265,14 +266,15 @@ async function fetchSorted(
         take,
         skip,
       });
-    case "discount": {
+    case "discount":
+    case "discountAsc": {
       const all = await prisma.game.findMany({
         where: { ...where, discountTryCents: { not: null } },
       });
       all.sort((a, b) => {
         const pa = (a.priceTryCents - (a.discountTryCents ?? a.priceTryCents)) / a.priceTryCents;
         const pb = (b.priceTryCents - (b.discountTryCents ?? b.priceTryCents)) / b.priceTryCents;
-        return pb - pa;
+        return sort === "discountAsc" ? pa - pb : pb - pa;
       });
       return all.slice(skip, skip + take);
     }
@@ -324,7 +326,7 @@ async function fetchFuzzy({
     // əhatə edir. Popular filter-i artıq tətbiq olunmur (popular bütün
     // kataloqda işləyir).
 
-    if (sort === "discount") {
+    if (sort === "discount" || sort === "discountAsc") {
       // This sort is computed (requires discount), so we fetch all matching and
       // sort in JS (same approach as the non-fuzzy codepath).
       const discountWhere = PrismaSql.sql`${whereSql} AND g."discountTryCents" IS NOT NULL`;
@@ -338,7 +340,7 @@ async function fetchFuzzy({
       all.sort((a, b) => {
         const pa = (a.priceTryCents - (a.discountTryCents ?? a.priceTryCents)) / a.priceTryCents;
         const pb = (b.priceTryCents - (b.discountTryCents ?? b.priceTryCents)) / b.priceTryCents;
-        return pb - pa;
+        return sort === "discountAsc" ? pa - pb : pb - pa;
       });
       return { filteredCount, rows: all.slice(offset, offset + limit) };
     }
@@ -484,6 +486,7 @@ function buildFuzzyOrderSql(sort: Sort, q: string) {
     case "popular":
       return PrismaSql.sql`${relevance}, g."lastScrapedAt" DESC, g."title" ASC`;
     case "discount":
+    case "discountAsc":
       // handled above
       return PrismaSql.sql`${relevance}`;
   }

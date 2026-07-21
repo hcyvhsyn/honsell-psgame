@@ -15,6 +15,7 @@ import {
   Library,
   Sparkles,
   Check,
+  SlidersHorizontal,
 } from "lucide-react";
 import GameCard, { GameCardData } from "./GameCard";
 import PlatformInfoButton from "./PlatformInfoButton";
@@ -31,7 +32,7 @@ type ListingResponse = {
   totalPages?: number;
 };
 
-type Sort = "newest" | "popular" | "priceAsc" | "priceDesc" | "discount" | "alpha";
+type Sort = "newest" | "popular" | "priceAsc" | "priceDesc" | "discount" | "discountAsc" | "alpha";
 type Platform = "ALL" | "PS4" | "PS5";
 type ProductType = "ALL" | "GAME" | "ADDON" | "CURRENCY" | "OTHER";
 
@@ -45,7 +46,8 @@ const SORT_OPTIONS: { value: Sort; label: string }[] = [
   { value: "popular", label: "Ən populyar" },
   { value: "priceAsc", label: "Qiymət: ucuzdan bahaya" },
   { value: "priceDesc", label: "Qiymət: bahadan ucuza" },
-  { value: "discount", label: "Ən böyük endirim" },
+  { value: "discount", label: "Endirim faizi: çoxdan aza" },
+  { value: "discountAsc", label: "Endirim faizi: azdan çoxa" },
   { value: "alpha", label: "Əlifba sırası" },
 ];
 
@@ -362,7 +364,7 @@ export default function GameBrowser({
   };
 
   const showingCount = useMemo(() => {
-    if (sort === "discount") return Math.min(data.total, data.totalOnSale);
+    if (sort === "discount" || sort === "discountAsc") return Math.min(data.total, data.totalOnSale);
     return data.total;
   }, [sort, data.total, data.totalOnSale]);
 
@@ -397,7 +399,7 @@ export default function GameBrowser({
       onRemove: () => setOnSale(false),
     });
   }
-  if (sort !== DEFAULT_SORT) {
+  if (sort !== defaultSort) {
     activeFilterChips.push({
       key: "sort",
       label: SORT_OPTIONS.find((s) => s.value === sort)?.label ?? sort,
@@ -428,11 +430,11 @@ export default function GameBrowser({
 
   return (
     <>
-      <section className="relative z-40 mb-3 overflow-visible rounded-[18px] border border-violet-200 bg-[radial-gradient(circle_at_5%_0%,rgba(124,58,237,0.10),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] p-2 shadow-[0_18px_60px_-48px_rgba(124,58,237,0.36)] backdrop-blur-xl dark:border-violet-300/25 dark:bg-[radial-gradient(circle_at_8%_0%,rgba(139,92,246,0.18),transparent_30%),linear-gradient(135deg,rgba(21,18,34,0.96),rgba(8,8,14,0.98))] dark:shadow-[0_18px_70px_-44px_rgba(124,58,237,0.72)] sm:mb-5 sm:rounded-[22px] sm:p-3">
-        <div className="flex flex-col gap-2 sm:gap-3">
-          <div className="flex flex-col gap-2 sm:gap-3 xl:flex-row xl:items-center xl:justify-between">
+      <section className="relative z-40 mb-5 overflow-visible rounded-2xl border border-zinc-200 bg-white p-3 shadow-[0_16px_48px_-38px_rgba(15,23,42,0.5)] dark:border-white/10 dark:bg-[#0c0b12] dark:shadow-[0_20px_60px_-42px_rgba(0,0,0,0.9)] sm:rounded-3xl sm:p-5">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className={`-mx-1 overflow-x-auto px-1 pb-1 ${isEpic ? "hidden" : ""}`}>
-              <div className="flex min-w-max gap-1.5 sm:gap-2">
+              <div className="flex min-w-max gap-2">
                 {TYPE_TABS.map((tab) => {
                   const count =
                     tab.value === "ALL"
@@ -448,7 +450,7 @@ export default function GameBrowser({
                       key={tab.value}
                       type="button"
                       onClick={() => setProductType(tab.value)}
-                      className={`group relative inline-flex h-9 shrink-0 items-center gap-1.5 overflow-hidden rounded-xl border px-2 text-xs font-semibold transition-all duration-200 sm:h-11 sm:gap-2 sm:rounded-2xl sm:px-3 sm:text-sm ${
+                      className={`group relative inline-flex h-10 shrink-0 items-center gap-1.5 overflow-hidden rounded-xl border px-2.5 text-xs font-semibold transition-all duration-200 sm:h-11 sm:gap-2 sm:rounded-2xl sm:px-3 sm:text-sm ${
                         active
                           ? `${a.activeWrap} ${a.activeText} ${a.glow}`
                           : "border-zinc-200 bg-white/70 text-zinc-700 hover:-translate-y-0.5 hover:border-violet-300 hover:bg-white dark:border-zinc-700/80 dark:bg-zinc-950/[0.45] dark:text-zinc-300 dark:hover:border-violet-300/[0.35] dark:hover:bg-white/[0.07] dark:hover:text-zinc-100"
@@ -483,54 +485,35 @@ export default function GameBrowser({
               </div>
             </div>
 
-            {/* Single inline status line. Replaces 4 different "badge" pills
-                that used to compete with the actual filter controls visually
-                — these are passive counts, they don't need full chips. */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-0.5 text-xs text-zinc-600 dark:text-zinc-400">
-              {hasActiveFilter && (
-                <span>
-                  <strong className="text-zinc-900 tabular-nums dark:text-white">
-                    {showingCount.toLocaleString("en-US")}
-                  </strong>
-                  {" nəticə"}
-                </span>
-              )}
-              <span>
-                <strong className="text-zinc-800 tabular-nums dark:text-zinc-100">
-                  {data.totalAll.toLocaleString("en-US")}
-                </strong>
-                {" oyun kataloqda"}
-              </span>
+            <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="hidden sm:inline">Kataloqda</span>
+              <strong className="tabular-nums text-zinc-900 dark:text-zinc-100">{data.totalAll.toLocaleString("en-US")}</strong>
+              <span className="hidden sm:inline">məhsul</span>
               {data.totalOnSale > 0 && (
-                <span className="text-emerald-600 dark:text-emerald-300">
-                  <strong className="tabular-nums">
-                    {data.totalOnSale.toLocaleString("en-US")}
-                  </strong>
-                  {" endirimdə"}
-                </span>
-              )}
-              {aiSemantic && query.trim().length >= 2 && (
-                <span className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-300">
-                  <Sparkles className="h-3 w-3" />
-                  AI axtarış aktiv
-                </span>
-              )}
-              {loading && (
-                <span className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-300">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Yüklənir
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setOnSale((value) => !value)}
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 font-semibold transition ${
+                    onSale
+                      ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-300"
+                      : "border-emerald-500/20 bg-emerald-500/[0.07] text-emerald-600 hover:border-emerald-400/50 dark:text-emerald-300"
+                  }`}
+                >
+                  <Tag className="h-3.5 w-3.5" />
+                  {data.totalOnSale.toLocaleString("en-US")} endirimdə
+                </button>
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-[1fr_auto] gap-2 lg:grid-cols-[minmax(280px,1fr)_auto]">
+          <div className="border-t border-zinc-100 pt-4 dark:border-white/[0.07]">
+            <div className="grid grid-cols-[1fr_auto] gap-2 lg:grid-cols-[minmax(280px,1fr)_auto]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-zinc-400 sm:left-4" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={`${activeTab.singular} axtar...`}
+                placeholder={`${activeTab.singular} adı, janrı və ya seriyası ilə axtar...`}
                 className="h-10 w-full rounded-xl border border-zinc-200 bg-white pl-9 pr-9 text-sm text-zinc-950 outline-none transition placeholder:text-slate-400 focus:border-violet-400/70 focus:bg-white focus:ring-4 focus:ring-violet-500/10 dark:border-zinc-700/80 dark:bg-zinc-950/70 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] dark:focus:border-violet-300/60 dark:focus:bg-zinc-950 dark:focus:ring-violet-400/[0.14] sm:h-11 sm:rounded-2xl sm:pl-11 sm:pr-11"
               />
               {loading ? (
@@ -559,7 +542,7 @@ export default function GameBrowser({
               }`}
             >
               <Filter className="h-4 w-4 text-violet-600 dark:text-violet-300" />
-              <span className="hidden sm:inline">Filter et</span>
+              <span className="hidden sm:inline">Bütün filtrlər</span>
               {advancedFilterCount > 0 && (
                 <span className="grid h-5 min-w-5 place-items-center rounded-full bg-violet-500 px-1.5 text-[11px] text-white">
                   {advancedFilterCount}
@@ -571,6 +554,44 @@ export default function GameBrowser({
                 }`}
               />
             </button>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="mr-1 text-xs font-semibold text-zinc-500 dark:text-zinc-400">Sürətli seçimlər:</span>
+              <button
+                type="button"
+                onClick={() => setOnSale((value) => !value)}
+                aria-pressed={onSale}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition ${
+                  onSale
+                    ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200"
+                    : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-500/[0.1] dark:hover:text-emerald-200"
+                }`}
+              >
+                <Tag className="h-3.5 w-3.5" /> Endirimdə
+                {onSale && <Check className="h-3.5 w-3.5" />}
+              </button>
+              {!isEpic && ["PS5", "PS4"].map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setPlatform(platform === item ? "ALL" : (item as Platform))}
+                  aria-pressed={platform === item}
+                  className={`inline-flex h-8 items-center rounded-full border px-3 text-xs font-semibold transition ${
+                    platform === item
+                      ? "border-violet-400/50 bg-violet-500/15 text-violet-700 dark:text-violet-200"
+                      : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-violet-300 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:border-violet-400/30 dark:hover:bg-violet-500/[0.1]"
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+              {aiSemantic && isSearching && (
+                <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-violet-500/[0.1] px-3 text-xs font-medium text-violet-700 dark:text-violet-200">
+                  <Sparkles className="h-3.5 w-3.5" /> AI uyğunluğu
+                </span>
+              )}
+            </div>
           </div>
 
           {activeFilterChips.length > 0 && (
@@ -602,30 +623,11 @@ export default function GameBrowser({
           )}
 
           {filtersOpen && (
-            <div className="space-y-3 rounded-xl border border-zinc-200 bg-white/[0.78] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] dark:border-white/10 dark:bg-black/[0.18] dark:shadow-none sm:space-y-4 sm:rounded-2xl sm:p-4">
+            <div className="space-y-4 rounded-2xl border border-violet-200/70 bg-violet-50/40 p-4 dark:border-violet-400/[0.18] dark:bg-violet-500/[0.06] sm:rounded-3xl sm:p-5">
               {/* Each control gets an explicit Azerbaijani label above it so a
                   first-time visitor doesn't have to guess what each dropdown
                   does. The label-on-top layout also reads well on mobile. */}
-              <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
-                <FilterField label="Sıralama">
-                  {isSearching ? (
-                    <span
-                      className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 text-sm font-semibold text-violet-800 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200"
-                      title="Axtarış zamanı nəticələr AI uyğunluğuna görə sıralanır"
-                    >
-                      <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-300" />
-                      Uyğunluğa görə
-                    </span>
-                  ) : (
-                    <Dropdown
-                      value={sort}
-                      onChange={(v) => setSort(v as Sort)}
-                      options={SORT_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
-                      ariaLabel="Sıralama"
-                    />
-                  )}
-                </FilterField>
-
+              <div className="grid gap-4 md:grid-cols-2">
                 {isEpic ? (
                   <FilterField label="Kateqoriya">
                     <Dropdown
@@ -675,8 +677,9 @@ export default function GameBrowser({
                 </FilterField>
               </div>
 
+              <div className="grid gap-4 md:grid-cols-2">
               <FilterField label="Qiymət (AZN)">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2">
                   <PriceInput
                     value={priceMin}
                     onChange={setPriceMin}
@@ -704,6 +707,7 @@ export default function GameBrowser({
                   )}
                 </div>
               </FilterField>
+              </div>
 
               {hasActiveFilter && (
                 <div className="flex justify-end border-t border-zinc-200 pt-3 dark:border-white/5">
@@ -734,6 +738,29 @@ export default function GameBrowser({
 
       <div className="relative">
         {loading && <ProgressBar />}
+
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3 px-0.5">
+          <div>
+            <p className="text-lg font-bold tracking-tight text-zinc-950 dark:text-white">
+              {loading ? "Nəticələr yenilənir" : `${showingCount.toLocaleString("en-US")} nəticə`}
+            </p>
+            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+              {isSearching ? "Axtarışınıza ən uyğun oyunlar" : onSale ? "Hazırda endirimdə olan oyunlar" : "Kataloqdan seçilmiş oyunlar"}
+            </p>
+          </div>
+          {!isSearching && (
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4 text-zinc-400" />
+              <Dropdown
+                value={sort}
+                onChange={(v) => setSort(v as Sort)}
+                options={SORT_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
+                ariaLabel="Nəticələri sırala"
+                align="end"
+              />
+            </div>
+          )}
+        </div>
 
         {loading && data.results.length === 0 ? (
           <SkeletonGrid />
