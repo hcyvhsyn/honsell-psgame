@@ -14,12 +14,23 @@ import {
   UserPlus,
   Reply,
   ImagePlus,
+  Search,
+  Gamepad2,
   X,
 } from "lucide-react";
 import { uploadAdminImage } from "@/lib/uploadImageClient";
 import { REVIEW_CATEGORY_OPTIONS } from "@/lib/reviewCategoryShared";
 
-type ProductOption = { id: string; title: string; priceAzn: number; type: string };
+type SearchResult = {
+  kind: "GAME" | "SERVICE";
+  id: string;
+  type: string;
+  store: string | null;
+  title: string;
+  priceAzn: number;
+  group: string;
+};
+type SelectedItem = Pick<SearchResult, "kind" | "id" | "title" | "priceAzn" | "group">;
 
 type MatchedCustomer = { id: string; name: string | null; email: string; phone: string | null };
 
@@ -42,28 +53,34 @@ type Invite = {
   createdAt: string;
 };
 
-export default function WhatsappReviewsAdminClient({
-  products,
-}: {
-  products: ProductOption[];
-}) {
+export default function WhatsappReviewsAdminClient() {
   const [items, setItems] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selected, setSelected] = useState<SelectedItem[]>([]);
   const [phone, setPhone] = useState("");
   const [category, setCategory] = useState(""); // "" = avtomatik (məhsula görə)
 
-  function toggleProduct(id: string) {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+  // Məhsul axtarışı (oyunlar + xidmətlər).
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  function addItem(r: SearchResult) {
+    setSelected((prev) =>
+      prev.some((s) => s.kind === r.kind && s.id === r.id)
+        ? prev
+        : [...prev, { kind: r.kind, id: r.id, title: r.title, priceAzn: r.priceAzn, group: r.group }]
     );
+    setQuery("");
+    setResults([]);
   }
 
-  const selectedProducts = selectedIds
-    .map((id) => products.find((p) => p.id === id))
-    .filter((p): p is ProductOption => Boolean(p));
-  const totalAzn = selectedProducts.reduce((sum, p) => sum + p.priceAzn, 0);
+  function removeItem(kind: string, id: string) {
+    setSelected((prev) => prev.filter((s) => !(s.kind === kind && s.id === id)));
+  }
+
+  const totalAzn = selected.reduce((sum, p) => sum + p.priceAzn, 0);
 
   const [matched, setMatched] = useState<MatchedCustomer | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
@@ -117,6 +134,35 @@ export default function WhatsappReviewsAdminClient({
     };
   }, [phone]);
 
+  // Məhsul axtarışı — debounced.
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/whatsapp-reviews/product-search?q=${encodeURIComponent(q)}`
+        );
+        const data = await res.json();
+        setResults(Array.isArray(data.results) ? data.results : []);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, [query]);
+
   async function copy(text: string, id: string) {
     try {
       await navigator.clipboard.writeText(text);
@@ -131,7 +177,7 @@ export default function WhatsappReviewsAdminClient({
     e.preventDefault();
     setError(null);
     setNotice(null);
-    if (selectedIds.length === 0) {
+    if (selected.length === 0) {
       setError("Ən azı bir məhsul seçin.");
       return;
     }
@@ -140,7 +186,11 @@ export default function WhatsappReviewsAdminClient({
       const res = await fetch("/api/admin/whatsapp-reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serviceProductIds: selectedIds, phone, platform: category }),
+        body: JSON.stringify({
+          items: selected.map((s) => ({ kind: s.kind, id: s.id })),
+          phone,
+          platform: category,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -149,7 +199,9 @@ export default function WhatsappReviewsAdminClient({
       }
       setPhone("");
       setMatched(null);
-      setSelectedIds([]);
+      setSelected([]);
+      setQuery("");
+      setResults([]);
       setCategory("");
       const who = data.customer
         ? `Mövcud müştəri (${data.customer.name ?? data.customer.email}) — satış qeyd edildi.`
@@ -183,51 +235,83 @@ export default function WhatsappReviewsAdminClient({
         <div className="space-y-4">
           <div>
             <span className="mb-1 flex items-center justify-between text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              <span>Məhsul(lar) — müştəri birdən çox ala bilər</span>
-              {selectedIds.length > 0 && (
+              <span>Məhsul(lar) — oyun, EA Play, PS Plus, hesab açma, streaming…</span>
+              {selected.length > 0 && (
                 <span className="text-zinc-500 dark:text-zinc-400">
-                  {selectedIds.length} seçildi · cəmi {totalAzn.toFixed(2)} ₼
+                  {selected.length} seçildi · cəmi {totalAzn.toFixed(2)} ₼
                 </span>
               )}
             </span>
-            <div className="max-h-56 overflow-y-auto rounded-lg border border-admin-line bg-admin-chip/40 p-1">
-              {products.length === 0 && (
-                <p className="px-2 py-2 text-sm text-zinc-500 dark:text-zinc-400">Məhsul yoxdur</p>
+
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Oyun və ya məhsul adı yaz (ən az 2 hərf)…"
+                className="w-full rounded-lg border border-admin-line bg-admin-chip py-2 pl-9 pr-9 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+              />
+              {searching && (
+                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-zinc-400" />
               )}
-              {products.map((p) => {
-                const checked = selectedIds.includes(p.id);
-                return (
-                  <label
-                    key={p.id}
-                    className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition ${
-                      checked
-                        ? "bg-violet-500/15 text-violet-700 dark:text-violet-200"
-                        : "text-zinc-700 hover:bg-admin-chip2 dark:text-zinc-300"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleProduct(p.id)}
-                      className="h-4 w-4 accent-violet-600"
-                    />
-                    <span className="flex-1">{p.title}</span>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{p.priceAzn.toFixed(2)} ₼</span>
-                  </label>
-                );
-              })}
             </div>
-            {selectedProducts.length > 0 && (
+
+            {query.trim().length >= 2 && (
+              <div className="mt-1 max-h-72 overflow-y-auto rounded-lg border border-admin-line bg-admin-card p-1 shadow-sm">
+                {!searching && results.length === 0 ? (
+                  <p className="px-2 py-2 text-sm text-zinc-500 dark:text-zinc-400">Nəticə yoxdur</p>
+                ) : (
+                  Object.entries(
+                    results.reduce<Record<string, SearchResult[]>>((acc, r) => {
+                      (acc[r.group] ??= []).push(r);
+                      return acc;
+                    }, {})
+                  ).map(([group, rows]) => (
+                    <div key={group} className="mb-1 last:mb-0">
+                      <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                        {group}
+                      </div>
+                      {rows.map((r) => {
+                        const picked = selected.some((s) => s.kind === r.kind && s.id === r.id);
+                        return (
+                          <button
+                            key={`${r.kind}:${r.id}`}
+                            type="button"
+                            onClick={() => addItem(r)}
+                            disabled={picked}
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-zinc-700 transition hover:bg-admin-chip2 disabled:opacity-40 dark:text-zinc-300"
+                          >
+                            {r.kind === "GAME" ? (
+                              <Gamepad2 className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                            ) : (
+                              <MessageSquarePlus className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                            )}
+                            <span className="flex-1 truncate">{r.title}</span>
+                            <span className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
+                              {r.priceAzn.toFixed(2)} ₼
+                            </span>
+                            {picked && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {selected.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {selectedProducts.map((p) => (
+                {selected.map((p) => (
                   <span
-                    key={p.id}
+                    key={`${p.kind}:${p.id}`}
                     className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-violet-500/20 dark:text-violet-200"
                   >
                     {p.title}
                     <button
                       type="button"
-                      onClick={() => toggleProduct(p.id)}
+                      onClick={() => removeItem(p.kind, p.id)}
                       className="text-violet-500 transition hover:text-violet-700 dark:text-violet-300 dark:hover:text-violet-100"
                       aria-label="Sil"
                     >

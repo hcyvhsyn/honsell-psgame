@@ -34,6 +34,7 @@ import styles from "./TestimonialsRail.module.css";
 const PLATFORM_LABELS: Record<string, string> = {
   GAME: "Oyun",
   EPIC_GAMES: "Epic Games",
+  EA_PLAY: "EA Play",
   PS_PLUS: "PS Plus",
   GIFT_CARD: "Hədiyyə kartı",
   ACCOUNT_CREATION: "Hesab açma",

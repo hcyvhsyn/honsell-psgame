@@ -5,39 +5,13 @@ import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE_NAME, generateReferralCode } from "@/lib/auth";
 import { SET_PASSWORD_TTL_HOURS } from "@/lib/resend";
 import { rateLimitMessage } from "@/lib/rateLimit";
+import { parseInviteSaleItems, reviewSaleTxnData } from "@/lib/whatsappReviewProducts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_OTP_ATTEMPTS = 5;
 const OTP_LOCK_MINUTES = 15;
-
-type SaleProduct = { id: string; priceAznCents: number };
-
-/**
- * Dəvətin `products` JSON-undan satış üçün {id, priceAznCents} siyahısı çıxarır.
- * Köhnə (tək-məhsullu) dəvətlərdə fallback olaraq serviceProductId/priceAznCents istifadə edir.
- */
-function parseInviteProducts(
-  raw: unknown,
-  fallback: { serviceProductId: string | null; priceAznCents: number | null }
-): SaleProduct[] {
-  if (Array.isArray(raw)) {
-    const list = raw
-      .map((p) => {
-        const obj = p as { id?: unknown; priceAznCents?: unknown };
-        const id = typeof obj?.id === "string" ? obj.id : null;
-        const price = Number(obj?.priceAznCents);
-        return id && Number.isFinite(price) ? { id, priceAznCents: price } : null;
-      })
-      .filter((p): p is SaleProduct => p !== null);
-    if (list.length > 0) return list;
-  }
-  if (fallback.serviceProductId && fallback.priceAznCents != null) {
-    return [{ id: fallback.serviceProductId, priceAznCents: fallback.priceAznCents }];
-  }
-  return [];
-}
 
 async function uniqueReferralCode(): Promise<string> {
   let code = generateReferralCode();
@@ -193,20 +167,14 @@ export async function POST(
       let saleCreated = false;
       if (!invite.salesRecorded) {
         // `products` JSON (çoxlu məhsul); köhnə tək-məhsullu dəvətlər üçün fallback.
-        const list = parseInviteProducts(invite.products, {
+        // Oyun → PURCHASE, xidmət → SERVICE_PURCHASE (kind-ə görə).
+        const list = parseInviteSaleItems(invite.products, {
           serviceProductId: invite.serviceProductId,
           priceAznCents: invite.priceAznCents,
         });
         for (const p of list) {
           const txn = await tx.transaction.create({
-            data: {
-              userId: user.id,
-              type: "SERVICE_PURCHASE",
-              status: "SUCCESS",
-              serviceProductId: p.id,
-              amountAznCents: -p.priceAznCents,
-              metadata: "whatsapp-review-invite",
-            },
+            data: reviewSaleTxnData(user.id, p),
             select: { id: true },
           });
           if (!firstTxnId) firstTxnId = txn.id;

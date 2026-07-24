@@ -43,12 +43,12 @@ export default function WhatsappAdminTabs({ products }: { products: ProductOptio
       {tab === "reviews" ? (
         <div>
           <p className="mb-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-            Abunəliyini WhatsApp-dan alan müştərilər üçün. Müştərinin aldığı məhsulu seçin,
-            telefon nömrəsini yazın — sistem WhatsApp-a rəy linki göndərir. Nömrə bazada varsa,
-            müştəri avtomatik tanınır (təkrar qeydiyyat olmur, sadəcə rəy yazır). Qeyd edilən hər
-            satış anasayfadakı sifariş sayı və “ən çox alınanlar”a əlavə olunur.
+            Müştərinin aldığı məhsulu axtarıb seçin (oyun, EA Play, PS Plus, hesab açma,
+            streaming, musiqi…), telefon nömrəsini yazın — sistem WhatsApp-a rəy linki göndərir.
+            Nömrə bazada varsa, müştəri avtomatik tanınır (təkrar qeydiyyat olmur, sadəcə rəy
+            yazır). Qeyd edilən hər satış anasayfadakı sifariş sayı və “ən çox alınanlar”a əlavə olunur.
           </p>
-          <WhatsappReviewsAdminClient products={products} />
+          <WhatsappReviewsAdminClient />
         </div>
       ) : (
         <div>

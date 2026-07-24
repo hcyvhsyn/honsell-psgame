@@ -8,9 +8,13 @@
 
 export const REVIEW_CATEGORY_OPTIONS: { code: string; label: string }[] = [
   { code: "", label: "Avtomatik (məhsula görə)" },
+  { code: "GAME", label: "Oyun" },
+  { code: "EPIC_GAMES", label: "Epic Games" },
+  { code: "EA_PLAY", label: "EA Play" },
+  { code: "PS_PLUS", label: "PS Plus" },
+  { code: "ACCOUNT_CREATION", label: "Hesab açma" },
   { code: "STREAMING", label: "Streaming" },
   { code: "MUSIC", label: "Musiqi" },
-  { code: "EPIC_GAMES", label: "Epic Games" },
   { code: "GENERAL", label: "Ümumi" },
 ];
 
