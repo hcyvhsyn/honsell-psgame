@@ -16,9 +16,10 @@ export const dynamic = "force-dynamic";
  * müştəriyə göstərilən AZN qiyməti (endirimli) və birbaşa məhsul linkini alır.
  *
  *   GET /api/games/search?q=<oyun_adı>&limit=5
- *   Header: X-API-Key: <GAMES_API_KEY>
+ *   Header: X-API-Key: <GAMES_SEARCH_API_KEY>
  *
- * Auth: paylaşılan gizli açar `GAMES_API_KEY` (env). Açar server-də təyin
+ * Auth: paylaşılan gizli açar `GAMES_SEARCH_API_KEY` (env) — CRM-dəki
+ * `HONSELL_GAMES_API_KEY` ilə eyni olmalıdır. Açar server-də təyin
  * olunmayıbsa endpoint fail-closed davranır (503) — heç vaxt public açılmır.
  * Açar uyğun gəlmirsə → 401.
  *
@@ -28,7 +29,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: Request) {
   // ---- Auth: X-API-Key -----------------------------------------------------
-  const expected = process.env.GAMES_API_KEY?.trim();
+  const expected = process.env.GAMES_SEARCH_API_KEY?.trim();
   if (!expected) {
     // Fail-closed: açar konfiqurasiya olunmayıbsa açıq buraxmırıq.
     return NextResponse.json(
@@ -82,19 +83,31 @@ export async function GET(req: Request) {
 }
 
 /**
- * Fuzzy oyun axtarışı (pg_trgm). Uyğun olmayan Postgres-də graceful fallback
- * ilə sadə `contains` axtarışına keçir — app/api/games/route.ts ilə eyni model.
+ * Fuzzy oyun axtarışı (pg_trgm). Ad üzrə hissəvi/case-insensitive + typo
+ * tolerant; həmçinin `genres` tag massivində hissəvi uyğunluq da tutulur
+ * ("rpg" → RPG kateqoriyalı oyunlar). Uyğun olmayan Postgres-də graceful
+ * fallback ilə sadə `contains` axtarışına keçir — app/api/games/route.ts modeli.
  */
 async function searchGames(q: string, limit: number): Promise<Game[]> {
+  const like = `%${q}%`;
   try {
     // ILIKE substring güclü siqnaldır; similarity qısa/typo sorğuları tutur.
+    // genres — tag massivi; hər hansı tag q-nu ehtiva edərsə də uyğun sayılır.
     const where = PrismaSql.sql`
       g."isActive" = true
       AND g."store" = 'PS'
-      AND (g."title" ILIKE ${`%${q}%`} OR similarity(g."title", ${q}) >= 0.15)
+      AND (
+        g."title" ILIKE ${like}
+        OR similarity(g."title", ${q}) >= 0.15
+        OR EXISTS (
+          SELECT 1 FROM unnest(g."genres") AS tag WHERE tag ILIKE ${like}
+        )
+      )
     `;
+    // Ad uyğunluğu tag uyğunluğundan öndə sıralanır ki, birbaşa oyun adı
+    // axtaranda kateqoriya nəticələri onu sıxışdırmasın.
     const order = PrismaSql.sql`
-      (CASE WHEN g."title" ILIKE ${`%${q}%`} THEN 1 ELSE 0 END) DESC,
+      (CASE WHEN g."title" ILIKE ${like} THEN 1 ELSE 0 END) DESC,
       similarity(g."title", ${q}) DESC,
       g."isFeatured" DESC,
       g."lastScrapedAt" DESC
@@ -107,7 +120,10 @@ async function searchGames(q: string, limit: number): Promise<Game[]> {
       where: {
         isActive: true,
         store: "PS",
-        title: { contains: q, mode: "insensitive" },
+        OR: [
+          { title: { contains: q, mode: "insensitive" } },
+          { genres: { has: q } },
+        ],
       },
       orderBy: [{ isFeatured: "desc" }, { lastScrapedAt: "desc" }],
       take: limit,
