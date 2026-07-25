@@ -1,6 +1,8 @@
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getTestAccountEmails } from "@/lib/testAccounts";
 import { isWasenderConfigured, normalizeToE164, sendWasenderText } from "@/lib/wasender";
+import { createRandomWinnerRows, logGiveawayAudit } from "@/lib/giveawayWinners";
 
 /**
  * Çəkiliş (Giveaway) — ana səhifə hədiyyə çəkilişləri (SERVER logikası).
@@ -38,6 +40,11 @@ function storeBaseUrl(): string {
 /** Çəkilişin ictimai linki (ana səhifə bölməsi). */
 export function giveawayUrl(): string {
   return `${storeBaseUrl()}/#cekilisler`;
+}
+
+/** Qalib rəyi linkinin ictimai URL-i (token qalibin WhatsApp-ına gedir). */
+export function winnerReviewUrl(token: string): string {
+  return `${storeBaseUrl()}/cekilis-rey/${token}`;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -97,7 +104,8 @@ export async function checkGiveawayEligibility(
  * qaliblər sıfırlanıb yenidən çəkilir (admin "yenidən çək" istəyə bilər).
  */
 export async function drawGiveawayWinners(
-  giveawayId: string
+  giveawayId: string,
+  actorId: string | null = null
 ): Promise<{ ok: true; winners: { userId: string; name: string | null }[] } | { ok: false; error: string }> {
   const giveaway = await prisma.giveaway.findUnique({ where: { id: giveawayId } });
   if (!giveaway) return { ok: false, error: "Çəkiliş tapılmadı." };
@@ -105,10 +113,21 @@ export async function drawGiveawayWinners(
   const testEmails = getTestAccountEmails();
   const entries = await prisma.giveawayEntry.findMany({
     where: { giveawayId, user: { email: { notIn: testEmails } } },
-    select: { id: true, userId: true, user: { select: { name: true } } },
+    select: {
+      id: true,
+      userId: true,
+      user: { select: { name: true, phone: true, email: true, avatarUrl: true } },
+    },
   });
 
   if (entries.length === 0) return { ok: false, error: "Qoşulan iştirakçı yoxdur." };
+
+  // Admin əl ilə əlavə etdiyi XARİCİ qaliblər (entryId = null) qorunur; random
+  // çəkiliş yalnız qalan yerləri doldurur ki, ümumi say winnersCount-u keçməsin.
+  const externalCount = await prisma.giveawayWinner.count({
+    where: { giveawayId, entryId: null },
+  });
+  const slots = Math.max(0, giveaway.winnersCount - externalCount);
 
   // Fisher–Yates qarışdırması ilə random qaliblər.
   const pool = [...entries];
@@ -116,25 +135,36 @@ export async function drawGiveawayWinners(
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  const winnersCount = Math.max(1, Math.min(giveaway.winnersCount, pool.length));
+  const winnersCount = Math.min(slots, pool.length);
   const winners = pool.slice(0, winnersCount);
   const winnerEntryIds = new Set(winners.map((w) => w.id));
 
-  await prisma.$transaction([
-    // Əvvəlki qalibləri sıfırla (yenidən çəkmə halı üçün).
-    prisma.giveawayEntry.updateMany({
+  await prisma.$transaction(async (tx) => {
+    // Əvvəlki entry-əsaslı qalibləri (RANDOM/MANUAL) sıfırla — xariciləri saxla.
+    await tx.giveawayWinner.deleteMany({ where: { giveawayId, entryId: { not: null } } });
+    await tx.giveawayEntry.updateMany({
       where: { giveawayId, isWinner: true, id: { notIn: [...winnerEntryIds] } },
       data: { isWinner: false, notifiedAt: null, waStatus: "N_A" },
-    }),
-    prisma.giveawayEntry.updateMany({
+    });
+    await tx.giveawayEntry.updateMany({
       where: { id: { in: [...winnerEntryIds] } },
       data: { isWinner: true },
-    }),
-    prisma.giveaway.update({
+    });
+    await createRandomWinnerRows(tx, giveawayId, winners, giveaway.prizeLabel, actorId);
+    await tx.giveaway.update({
       where: { id: giveawayId },
       data: { status: "COMPLETED", drawnAt: new Date() },
-    }),
-  ]);
+    });
+  });
+
+  await logGiveawayAudit({
+    actorId,
+    giveawayId,
+    entityType: "winner",
+    entityId: giveawayId,
+    action: "winner.draw.random",
+    next: { drawn: winners.length, externalPreserved: externalCount },
+  });
 
   return {
     ok: true,
@@ -202,6 +232,83 @@ export async function notifyGiveawayWinners(
         where: { id: w.id },
         data: { waStatus: "FAILED", notifiedAt: new Date() },
       });
+    }
+    await sleep(WA_SEND_DELAY_MS);
+  }
+
+  return { ok: true, sent, failed, skipped };
+}
+
+function winnerReviewWhatsappText(
+  userName: string | null,
+  prizeLabel: string,
+  title: string,
+  url: string
+): string {
+  return [
+    `Salam ${userName || ""}`.trim() + ",",
+    ``,
+    `"${title}" çəkilişində qazandığın *${prizeLabel}* mükafatını aldın 🎁`,
+    ``,
+    `Bir xahişimiz var: təcrübəni qısa rəy kimi bizimlə bölüşərsənmi? Digər`,
+    `iştirakçılar hədiyyələri həqiqətən verdiyimizə əmin olsun deyə rəyin`,
+    `çəkilişin altında göstəriləcək. İstəsən mükafatın fotosunu da əlavə edə bilərsən.`,
+    ``,
+    `👉 ${url}`,
+    ``,
+    `— Honsell Store`,
+  ].join("\n");
+}
+
+/**
+ * Qaliblərə rəy linki göndərir (hədiyyə çatdırıldıqdan sonra admin işə salır).
+ * Hər qalib üçün (reviewStatus NONE) unikal token yaradıb WhatsApp-a link atır və
+ * reviewStatus=SENT edir. Rəyini artıq yazmış (SUBMITTED) qaliblər keçilir →
+ * idempotent; təkrar çağırılsa yalnız hələ göndərilməmişlərə göndərilir.
+ */
+export async function sendWinnerReviewLinks(
+  giveawayId: string
+): Promise<{ ok: true; sent: number; failed: number; skipped: number } | { ok: false; error: string }> {
+  const giveaway = await prisma.giveaway.findUnique({ where: { id: giveawayId } });
+  if (!giveaway) return { ok: false, error: "Çəkiliş tapılmadı." };
+  if (!isWasenderConfigured()) return { ok: false, error: "WhatsApp (WaSender) konfiqurasiya olunmayıb." };
+
+  // Rəyi hələ yazmayan qaliblər (NONE və ya təkrar link üçün SENT).
+  const winners = await prisma.giveawayEntry.findMany({
+    where: { giveawayId, isWinner: true, reviewStatus: { in: ["NONE", "SENT"] } },
+    select: { id: true, reviewToken: true, user: { select: { name: true, phone: true } } },
+  });
+
+  let sent = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  for (const w of winners) {
+    const phone = normalizeToE164(w.user.phone);
+    if (!phone) {
+      skipped++;
+      continue;
+    }
+    // Mövcud token varsa təkrar istifadə et (təkrar göndəriş eyni linki saxlasın).
+    const token = w.reviewToken || crypto.randomBytes(24).toString("base64url");
+    const res = await sendWasenderText({
+      to: phone,
+      text: winnerReviewWhatsappText(
+        w.user.name,
+        giveaway.prizeLabel,
+        giveaway.title,
+        winnerReviewUrl(token)
+      ),
+    });
+    if (res.ok) {
+      sent++;
+      await prisma.giveawayEntry.update({
+        where: { id: w.id },
+        data: { reviewToken: token, reviewStatus: "SENT", reviewSentAt: new Date() },
+      });
+    } else {
+      failed++;
+      console.error("giveaway winner review link send failed", { entryId: w.id, error: res.error });
     }
     await sleep(WA_SEND_DELAY_MS);
   }

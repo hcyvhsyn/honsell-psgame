@@ -1574,6 +1574,7 @@ model Giveaway {
   createdBy   User?   @relation("GiveawayCreator", fields: [createdById], references: [id])
 
   entries GiveawayEntry[]
+  winners GiveawayWinner[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1595,11 +1596,119 @@ model GiveawayEntry {
   /// N_A | SENT | FAILED — qalib bildirişi kanalının statusu.
   waStatus   String    @default("N_A")
 
+  /// Qalib rəyi (sosial sübut). Admin hədiyyəni çatdırdıqdan sonra "Rəy linki
+  /// göndər" ilə token yaradır və qalibin WhatsApp-ına /cekilis-rey/<token>
+  /// göndərir. Qalib linkə girib rəy + opsional foto yazır → çəkiliş səhifəsində
+  /// "Qaliblərin rəyləri" bölməsində ictimai göstərilir.
+  reviewToken       String?   @unique
+  reviewText        String?
+  reviewRating      Int?
+  reviewImageUrl    String?
+  /// NONE | SENT | SUBMITTED — qalib rəyi linkinin/təqdiminin vəziyyəti.
+  reviewStatus      String    @default("NONE")
+  reviewSentAt      DateTime?
+  reviewSubmittedAt DateTime?
+
+  /// Bu iştirakçı qalib seçiləndə yaradılan qalib qeydi (snapshot + rəylər).
+  winners GiveawayWinner[]
+
   createdAt DateTime @default(now())
 
   @@unique([giveawayId, userId])
   @@index([giveawayId])
   @@index([userId])
+}
+
+/// Vahid qalib qeydi — həm sayt iştirakçıları (entryId dolu), həm də admin
+/// tərəfindən xaricdən (Instagram/WhatsApp/offline) əlavə olunan qaliblər
+/// (entryId = null). İştirakçı məlumatları snapshot kimi saxlanılır ki, entry
+/// dəyişsə/silinsə də qalib qeydi qorunsun.
+///
+/// source (WinnerSource):          WEBSITE_ENTRY | INSTAGRAM | WHATSAPP | TELEGRAM | OFFLINE | MANUAL_OTHER
+/// selectionMethod (SelectionMethod): RANDOM | MANUAL | EXTERNAL
+model GiveawayWinner {
+  id                String  @id @default(cuid())
+  giveawayId        String
+  entryId           String?
+  name              String
+  phone             String?
+  email             String?
+  instagramUsername String?
+  avatarUrl         String?
+  prizeTitle        String?
+  source            String
+  selectionMethod   String
+  selectedAt        DateTime
+  /// Qalibi seçən/əlavə edən admin (audit üçün; silinsə də qeyd qalır).
+  selectedById      String?
+  proofUrl          String?
+  /// Sübut faylı ictimai göstərilsin? Default gizli (yalnız admin panel).
+  proofIsPublic     Boolean @default(false)
+  internalNote      String?
+  isPublic          Boolean @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  giveaway Giveaway       @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  entry    GiveawayEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  reviews  GiveawayWinnerReview[]
+
+  @@index([giveawayId])
+  @@index([entryId])
+}
+
+/// Qalib rəyi — mənbəyi və sistemə necə daxil edildiyi şəffaf saxlanılır.
+/// Admin tərəfindən köçürülən (ADMIN_TRANSCRIBED) və ya mağaza açıqlaması
+/// (ADMIN_STORE_NOTE) rəylər heç vaxt "istifadəçinin özü yazıb" kimi təqdim
+/// olunmur — ictimai göstərimdə mənbə etiketlə açıqlanır.
+///
+/// source (ReviewSource):        WEBSITE | WHATSAPP | INSTAGRAM | TELEGRAM | EMAIL | STORE_NOTE
+/// entryMethod (ReviewEntryMethod): USER_SUBMITTED | ADMIN_TRANSCRIBED | ADMIN_STORE_NOTE
+/// status (ReviewStatus):        PENDING | APPROVED | REJECTED | HIDDEN
+model GiveawayWinnerReview {
+  id                   String    @id @default(cuid())
+  winnerId             String
+  text                 String
+  rating               Int?
+  imageUrl             String?
+  videoUrl             String?
+  source               String
+  entryMethod          String
+  originalSubmittedAt  DateTime?
+  enteredByAdminId     String?
+  hasPublishingConsent Boolean   @default(false)
+  status               String    @default("PENDING")
+  isPublic             Boolean   @default(false)
+  internalNote         String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  winner GiveawayWinner @relation(fields: [winnerId], references: [id], onDelete: Cascade)
+
+  @@index([winnerId])
+  @@index([status, isPublic])
+}
+
+/// Çəkiliş qalib/rəy əməliyyatları üçün audit izi (AdminAuditLog user-target
+/// tələb etdiyi üçün ayrıca — xarici qaliblərin user-i olmaya bilər).
+model GiveawayAuditLog {
+  id         String   @id @default(cuid())
+  giveawayId String?
+  actorId    String?
+  /// "winner" | "review"
+  entityType String
+  entityId   String
+  /// "winner.create" | "winner.update" | "winner.delete" |
+  /// "review.create" | "review.update" | "review.moderate" |
+  /// "review.public.toggle" | "review.consent.toggle" | "review.delete"
+  action     String
+  prevData   String?
+  newData    String?
+  createdAt  DateTime @default(now())
+
+  @@index([giveawayId, createdAt])
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
 }
 
 // ─── FAQ (homepage "Tez-tez verilən suallar") ─────────────────────────────────

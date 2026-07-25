@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "scrape:prime": "tsx scripts/scrapePrimeFull.ts",
+    "test:giveaway": "tsx scripts/giveawayWinners.test.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

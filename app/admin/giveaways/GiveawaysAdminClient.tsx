@@ -10,6 +10,7 @@ import {
 } from "@/lib/giveawaysShared";
 import { uploadAdminImage } from "@/lib/uploadImageClient";
 import { SITE_URL } from "@/lib/site";
+import GiveawayDetailModal from "./GiveawayDetailModal";
 
 type Giveaway = {
   id: string;
@@ -28,15 +29,6 @@ type Giveaway = {
   drawnAt: string | null;
   createdAt: string;
   _count: { entries: number };
-};
-
-type Participant = {
-  id: string;
-  isWinner: boolean;
-  notifiedAt: string | null;
-  waStatus: string;
-  createdAt: string;
-  user: { id: string; name: string | null; email: string; phone: string | null };
 };
 
 /** PURCHASE_PRODUCT şərti üçün ServiceProduct tipləri. */
@@ -111,9 +103,8 @@ export default function GiveawaysAdminClient() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [imgUploading, setImgUploading] = useState(false);
 
-  // İştirakçılar modalı
-  const [participantsFor, setParticipantsFor] = useState<Giveaway | null>(null);
-  const [participants, setParticipants] = useState<Participant[] | null>(null);
+  // Qalib/rəy idarəetmə modalı (İştirakçılar / Qaliblər / Rəylər tabları)
+  const [detailFor, setDetailFor] = useState<Giveaway | null>(null);
 
   // Paylaş modalı
   const [shareFor, setShareFor] = useState<Giveaway | null>(null);
@@ -289,17 +280,26 @@ export default function GiveawaysAdminClient() {
     });
   }
 
-  function openParticipants(g: Giveaway) {
-    setParticipantsFor(g);
-    setParticipants(null);
+  async function sendReviewLinks(g: Giveaway) {
+    const ok = await dialog.confirm({
+      title: "Rəy linki göndər",
+      message: `"${g.title}" qaliblərinin WhatsApp-ına rəy linki göndərilsin? Bunu mükafatları çatdırdıqdan SONRA et — qaliblər linkə girib rəy + foto yükləyəcək, rəylər çəkiliş səhifəsində göstəriləcək. (Rəyini yazmış qaliblər keçilir.)`,
+      confirmLabel: "Göndər",
+    });
+    if (!ok) return;
     startTransition(async () => {
-      const res = await fetch(`/api/admin/giveaways/${g.id}`, { cache: "no-store" });
+      setError(null);
+      const res = await fetch(`/api/admin/giveaways/${g.id}/send-review-links`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setParticipants([]);
+        setError(data.error ?? "Göndərmək alınmadı.");
         return;
       }
-      setParticipants(Array.isArray(data.giveaway?.entries) ? data.giveaway.entries : []);
+      await dialog.alert({
+        title: "Rəy linki nəticəsi",
+        message: `Göndərildi: ${data.sent} · Uğursuz: ${data.failed} · Telefonsuz: ${data.skipped}`,
+      });
+      refresh();
     });
   }
 
@@ -631,10 +631,10 @@ export default function GiveawaysAdminClient() {
 
                   <div className="flex flex-wrap items-center gap-2">
                     <button
-                      onClick={() => openParticipants(g)}
+                      onClick={() => setDetailFor(g)}
                       className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
                     >
-                      İştirakçılar ({g._count.entries})
+                      Qalib / Rəy idarəsi ({g._count.entries})
                     </button>
                     <button
                       onClick={() => openShare(g)}
@@ -675,6 +675,12 @@ export default function GiveawaysAdminClient() {
                           Qaliblərə WhatsApp
                         </button>
                         <button
+                          onClick={() => sendReviewLinks(g)}
+                          className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
+                        >
+                          Rəy linki göndər
+                        </button>
+                        <button
                           onClick={() => drawWinners(g)}
                           className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
                         >
@@ -702,15 +708,17 @@ export default function GiveawaysAdminClient() {
         )}
       </div>
 
-      {/* İştirakçılar modalı */}
-      {participantsFor && (
-        <ParticipantsModal
-          giveaway={participantsFor}
-          participants={participants}
-          onClose={() => {
-            setParticipantsFor(null);
-            setParticipants(null);
+      {/* Qalib / Rəy idarəetmə modalı (3 tab) */}
+      {detailFor && (
+        <GiveawayDetailModal
+          giveaway={{
+            id: detailFor.id,
+            title: detailFor.title,
+            prizeLabel: detailFor.prizeLabel,
+            winnersCount: detailFor.winnersCount,
           }}
+          onClose={() => setDetailFor(null)}
+          onChanged={refresh}
         />
       )}
 
@@ -723,77 +731,6 @@ export default function GiveawaysAdminClient() {
           onClose={() => setShareFor(null)}
         />
       )}
-    </div>
-  );
-}
-
-function ParticipantsModal({
-  giveaway,
-  participants,
-  onClose,
-}: {
-  giveaway: Giveaway;
-  participants: Participant[] | null;
-  onClose: () => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-zinc-200 px-5 py-4">
-          <div className="min-w-0">
-            <h3 className="truncate font-semibold text-zinc-900">İştirakçılar</h3>
-            <p className="truncate text-xs text-zinc-500">{giveaway.title}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-zinc-300 px-3 py-1 text-sm font-semibold text-zinc-600 hover:bg-zinc-50"
-          >
-            Bağla
-          </button>
-        </div>
-        <div className="overflow-y-auto px-5 py-4">
-          {participants === null ? (
-            <p className="py-6 text-center text-sm text-zinc-500">Yüklənir…</p>
-          ) : participants.length === 0 ? (
-            <p className="py-6 text-center text-sm text-zinc-500">Hələ qoşulan yoxdur.</p>
-          ) : (
-            <ul className="space-y-2">
-              {participants.map((p, i) => (
-                <li
-                  key={p.id}
-                  className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5"
-                >
-                  <span className="w-5 shrink-0 text-right text-xs font-semibold text-zinc-400">
-                    {i + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-semibold text-zinc-900">
-                        {p.user.name || p.user.email}
-                      </span>
-                      {p.isWinner && (
-                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-                          🏆 Qalib
-                        </span>
-                      )}
-                    </div>
-                    <div className="truncate text-xs text-zinc-500">
-                      {p.user.email}
-                      {p.user.phone ? ` · ${p.user.phone}` : " · nömrə yoxdur"}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
