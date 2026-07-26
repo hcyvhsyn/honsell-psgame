@@ -12,6 +12,10 @@ import {
   Clock,
   Loader2,
   ExternalLink,
+  Star,
+  Quote,
+  Info,
+  BadgeCheck,
 } from "lucide-react";
 import { socialPlatformLabel } from "@/lib/giveawaysShared";
 
@@ -212,7 +216,46 @@ export function GiveawayCard({
   );
 }
 
+type WinnerReview = {
+  name: string;
+  avatarUrl: string | null;
+  instagramUsername: string | null;
+  text: string;
+  rating: number | null;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  entryMethod: string;
+  source: string;
+  provenanceLabel: string;
+  createdAt: string | null;
+};
+type StoreNote = { text: string; imageUrl: string | null; createdAt: string | null };
+
 export function WinnersModal({ g, onClose }: { g: Giveaway; onClose: () => void }) {
+  const [reviews, setReviews] = useState<WinnerReview[]>([]);
+  const [storeNotes, setStoreNotes] = useState<StoreNote[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Rəylər siyahı endpoint-ində gəlmir — modal açılanda tək çəkiliş məlumatından
+  // (artıq reviews + storeNotes qaytarır) lazy yüklənir.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/giveaways/${g.id}`, { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!alive) return;
+        setReviews(Array.isArray(data.giveaway?.reviews) ? data.giveaway.reviews : []);
+        setStoreNotes(Array.isArray(data.giveaway?.storeNotes) ? data.giveaway.storeNotes : []);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [g.id]);
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
@@ -238,7 +281,7 @@ export function WinnersModal({ g, onClose }: { g: Giveaway; onClose: () => void 
             <Gift className="h-4 w-4" /> {g.prizeLabel}
           </p>
         </div>
-        <div className="max-h-[50vh] overflow-y-auto p-5">
+        <div className="max-h-[65vh] overflow-y-auto p-5">
           {g.winners.length === 0 ? (
             <p className="py-6 text-center text-sm text-zinc-500">Qalib hələ elan olunmayıb.</p>
           ) : (
@@ -256,6 +299,117 @@ export function WinnersModal({ g, onClose }: { g: Giveaway; onClose: () => void 
                 </li>
               ))}
             </ul>
+          )}
+
+          {/* Qaliblərin rəyləri — sosial sübut */}
+          {loading ? (
+            <div className="mt-4 flex items-center justify-center py-3 text-zinc-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+          ) : (
+            <>
+              {reviews.length > 0 && (
+                <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-white/10">
+                  <div className="mb-3 flex items-center gap-1.5 text-sm font-bold text-zinc-700 dark:text-zinc-200">
+                    <Quote className="h-4 w-4 text-violet-500" /> Qaliblərin rəyləri
+                  </div>
+                  <div className="space-y-3">
+                    {reviews.map((r, i) => (
+                      <div
+                        key={i}
+                        className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.03]"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-xs font-black text-white">
+                              {r.name.charAt(0).toUpperCase() || "?"}
+                            </span>
+                            <div className="min-w-0">
+                              <span className="block text-sm font-bold text-zinc-800 dark:text-zinc-100">
+                                {r.name}
+                              </span>
+                              {r.instagramUsername && (
+                                <span className="block text-xs text-zinc-400">
+                                  @{r.instagramUsername.replace(/^@/, "")}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {r.rating != null && (
+                            <div className="flex shrink-0 items-center gap-0.5">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <Star
+                                  key={n}
+                                  className={`h-3.5 w-3.5 ${
+                                    n <= (r.rating ?? 0)
+                                      ? "fill-amber-400 text-amber-400"
+                                      : "text-zinc-300 dark:text-zinc-600"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <p className="mt-2.5 whitespace-pre-line text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                          {r.text}
+                        </p>
+                        {r.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={r.imageUrl}
+                            alt={`${r.name} — mükafat fotosu`}
+                            loading="lazy"
+                            className="mt-3 max-h-72 w-full rounded-xl border border-zinc-200 object-cover dark:border-white/10"
+                          />
+                        )}
+                        {r.videoUrl && (
+                          <video
+                            src={r.videoUrl}
+                            controls
+                            preload="metadata"
+                            className="mt-3 max-h-72 w-full rounded-xl border border-zinc-200 dark:border-white/10"
+                          />
+                        )}
+                        {r.provenanceLabel && (
+                          <div className="mt-2.5 flex items-center gap-1.5 text-[11px] font-medium text-zinc-400">
+                            <Info className="h-3 w-3 shrink-0" />
+                            <span>{r.provenanceLabel}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Mağaza açıqlaması — qalib rəyi kimi göstərilmir */}
+              {storeNotes.length > 0 && (
+                <div className="mt-3 space-y-3">
+                  {storeNotes.map((n, i) => (
+                    <div
+                      key={i}
+                      className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-400/20 dark:bg-violet-400/5"
+                    >
+                      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-violet-700 dark:text-violet-300">
+                        <BadgeCheck className="h-3.5 w-3.5" /> Honsell Store açıqlaması
+                      </div>
+                      <p className="whitespace-pre-line text-sm leading-6 text-zinc-700 dark:text-zinc-200">
+                        {n.text}
+                      </p>
+                      {n.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={n.imageUrl}
+                          alt="Honsell Store açıqlaması"
+                          loading="lazy"
+                          className="mt-3 max-h-72 w-full rounded-xl border border-violet-200 object-cover dark:border-violet-400/20"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
