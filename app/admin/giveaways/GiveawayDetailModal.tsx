@@ -367,12 +367,28 @@ export default function GiveawayDetailModal({
                               <Badge tone="amber">Rəy yoxdur</Badge>
                             )}
                           </div>
-                          {(w.instagramUsername || w.prizeTitle) && (
-                            <div className="mt-1 text-xs text-zinc-500">
-                              {w.instagramUsername ? `@${w.instagramUsername.replace(/^@/, "")}` : ""}
-                              {w.instagramUsername && w.prizeTitle ? " · " : ""}
-                              {w.prizeTitle ?? ""}
-                            </div>
+                          {/* Əlaqə (yalnız admin görür — mükafat çatdırmaq üçün) */}
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                            {w.phone ? (
+                              <a
+                                href={`https://wa.me/${w.phone.replace(/[^\d]/g, "")}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-semibold text-emerald-700 hover:underline"
+                                title="WhatsApp-da aç"
+                              >
+                                📞 {w.phone}
+                              </a>
+                            ) : (
+                              <span className="text-zinc-400">📞 nömrə yoxdur</span>
+                            )}
+                            {w.email && <span className="text-zinc-500">✉️ {w.email}</span>}
+                            {w.instagramUsername && (
+                              <span className="text-zinc-500">@{w.instagramUsername.replace(/^@/, "")}</span>
+                            )}
+                          </div>
+                          {w.prizeTitle && (
+                            <div className="mt-0.5 text-xs text-zinc-400">🎁 {w.prizeTitle}</div>
                           )}
                         </div>
                         <div className="flex shrink-0 flex-col items-end gap-1.5">

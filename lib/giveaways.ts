@@ -172,7 +172,12 @@ export async function drawGiveawayWinners(
   };
 }
 
-function winnerWhatsappText(userName: string | null, prizeLabel: string, title: string): string {
+function winnerWhatsappText(
+  userName: string | null,
+  prizeLabel: string,
+  title: string,
+  reviewUrl: string
+): string {
   return [
     `Salam ${userName || ""}`.trim() + ",",
     ``,
@@ -180,7 +185,11 @@ function winnerWhatsappText(userName: string | null, prizeLabel: string, title: 
     ``,
     `Mükafatın: *${prizeLabel}*`,
     ``,
-    `Mükafatını almaq üçün tezliklə səninlə əlaqə saxlanılacaq.`,
+    `🎁 Hədiyyəni *AKTİV* etmək üçün aşağıdakı linkə daxil ol və qısa rəyini yaz.`,
+    `Rəy yazılmadan hədiyyə aktivləşdirilmir.`,
+    ``,
+    `👉 ${reviewUrl}`,
+    ``,
     `— Honsell Store`,
   ].join("\n");
 }
@@ -198,7 +207,7 @@ export async function notifyGiveawayWinners(
 
   const winners = await prisma.giveawayEntry.findMany({
     where: { giveawayId, isWinner: true, notifiedAt: null },
-    select: { id: true, user: { select: { name: true, phone: true } } },
+    select: { id: true, reviewToken: true, user: { select: { name: true, phone: true } } },
   });
 
   let sent = 0;
@@ -215,15 +224,16 @@ export async function notifyGiveawayWinners(
       });
       continue;
     }
+    const token = w.reviewToken || crypto.randomBytes(24).toString("base64url");
     const res = await sendWasenderText({
       to: phone,
-      text: winnerWhatsappText(w.user.name, giveaway.prizeLabel, giveaway.title),
+      text: winnerWhatsappText(w.user.name, giveaway.prizeLabel, giveaway.title, winnerReviewUrl(token)),
     });
     if (res.ok) {
       sent++;
       await prisma.giveawayEntry.update({
         where: { id: w.id },
-        data: { waStatus: "SENT", notifiedAt: new Date() },
+        data: { waStatus: "SENT", notifiedAt: new Date(), reviewToken: token, reviewStatus: "SENT", reviewSentAt: new Date() },
       });
     } else {
       failed++;
@@ -237,6 +247,132 @@ export async function notifyGiveawayWinners(
   }
 
   return { ok: true, sent, failed, skipped };
+}
+
+// ─── Tək-tək göndəriş (client 10s aralıqla + geri sayımla idarə edir) ──────────
+
+export type SendRecipient = { entryId: string; name: string | null };
+export type OneSendResult = { status: "SENT" | "FAILED" | "SKIPPED" | "NO_PHONE"; error?: string };
+
+/**
+ * Təbrik bildirişi göndəriləcək qaliblərin siyahısı (nömrəsi olan, hələ
+ * bildirilməmiş). Nömrəsizlər ayrıca `skippedNoPhone` kimi sayılır.
+ */
+export async function listWinnerNotifyRecipients(
+  giveawayId: string
+): Promise<{ recipients: SendRecipient[]; skippedNoPhone: number }> {
+  const winners = await prisma.giveawayEntry.findMany({
+    where: { giveawayId, isWinner: true, notifiedAt: null },
+    select: { id: true, user: { select: { name: true, phone: true } } },
+  });
+  const recipients: SendRecipient[] = [];
+  let skippedNoPhone = 0;
+  for (const w of winners) {
+    if (normalizeToE164(w.user.phone)) recipients.push({ entryId: w.id, name: w.user.name });
+    else skippedNoPhone++;
+  }
+  return { recipients, skippedNoPhone };
+}
+
+/** Tək qalibə təbrik bildirişi göndərir (idempotent — bildirilibsə keçilir). */
+export async function notifyGiveawayWinnerOne(
+  giveawayId: string,
+  entryId: string
+): Promise<OneSendResult> {
+  const giveaway = await prisma.giveaway.findUnique({ where: { id: giveawayId } });
+  if (!giveaway) return { status: "FAILED", error: "Çəkiliş tapılmadı." };
+  if (!isWasenderConfigured()) return { status: "FAILED", error: "WhatsApp konfiqurasiya olunmayıb." };
+
+  const w = await prisma.giveawayEntry.findFirst({
+    where: { id: entryId, giveawayId, isWinner: true },
+    select: {
+      id: true,
+      notifiedAt: true,
+      reviewToken: true,
+      user: { select: { name: true, phone: true } },
+    },
+  });
+  if (!w) return { status: "FAILED", error: "Qalib tapılmadı." };
+  if (w.notifiedAt) return { status: "SKIPPED" };
+
+  const phone = normalizeToE164(w.user.phone);
+  if (!phone) {
+    await prisma.giveawayEntry.update({
+      where: { id: w.id },
+      data: { waStatus: "FAILED", notifiedAt: new Date() },
+    });
+    return { status: "NO_PHONE" };
+  }
+
+  // Təbrik mesajının içində rəy linki gedir — qalib rəy yazmadan hədiyyə
+  // aktivləşmir. Mövcud token varsa təkrar istifadə olunur.
+  const token = w.reviewToken || crypto.randomBytes(24).toString("base64url");
+  const res = await sendWasenderText({
+    to: phone,
+    text: winnerWhatsappText(w.user.name, giveaway.prizeLabel, giveaway.title, winnerReviewUrl(token)),
+  });
+  await prisma.giveawayEntry.update({
+    where: { id: w.id },
+    data: {
+      waStatus: res.ok ? "SENT" : "FAILED",
+      notifiedAt: new Date(),
+      // Rəy linki də göndərildiyi üçün review vəziyyətini SENT et (idempotent).
+      ...(res.ok ? { reviewToken: token, reviewStatus: "SENT", reviewSentAt: new Date() } : {}),
+    },
+  });
+  return res.ok ? { status: "SENT" } : { status: "FAILED", error: res.error };
+}
+
+/** Rəy linki göndəriləcək qaliblərin siyahısı (nömrəsi olan, rəyi yazmamış). */
+export async function listReviewLinkRecipients(
+  giveawayId: string
+): Promise<{ recipients: SendRecipient[]; skippedNoPhone: number }> {
+  const winners = await prisma.giveawayEntry.findMany({
+    where: { giveawayId, isWinner: true, reviewStatus: { in: ["NONE", "SENT"] } },
+    select: { id: true, user: { select: { name: true, phone: true } } },
+  });
+  const recipients: SendRecipient[] = [];
+  let skippedNoPhone = 0;
+  for (const w of winners) {
+    if (normalizeToE164(w.user.phone)) recipients.push({ entryId: w.id, name: w.user.name });
+    else skippedNoPhone++;
+  }
+  return { recipients, skippedNoPhone };
+}
+
+/** Tək qalibə rəy linki göndərir (mövcud token varsa təkrar istifadə edir). */
+export async function sendWinnerReviewLinkOne(
+  giveawayId: string,
+  entryId: string
+): Promise<OneSendResult> {
+  const giveaway = await prisma.giveaway.findUnique({ where: { id: giveawayId } });
+  if (!giveaway) return { status: "FAILED", error: "Çəkiliş tapılmadı." };
+  if (!isWasenderConfigured()) return { status: "FAILED", error: "WhatsApp konfiqurasiya olunmayıb." };
+
+  const w = await prisma.giveawayEntry.findFirst({
+    where: { id: entryId, giveawayId, isWinner: true },
+    select: { id: true, reviewToken: true, reviewStatus: true, user: { select: { name: true, phone: true } } },
+  });
+  if (!w) return { status: "FAILED", error: "Qalib tapılmadı." };
+  if (w.reviewStatus === "SUBMITTED") return { status: "SKIPPED" };
+
+  const phone = normalizeToE164(w.user.phone);
+  if (!phone) return { status: "NO_PHONE" };
+
+  const token = w.reviewToken || crypto.randomBytes(24).toString("base64url");
+  const res = await sendWasenderText({
+    to: phone,
+    text: winnerReviewWhatsappText(w.user.name, giveaway.prizeLabel, giveaway.title, winnerReviewUrl(token)),
+  });
+  if (res.ok) {
+    await prisma.giveawayEntry.update({
+      where: { id: w.id },
+      data: { reviewToken: token, reviewStatus: "SENT", reviewSentAt: new Date() },
+    });
+    return { status: "SENT" };
+  }
+  console.error("giveaway winner review link send failed", { entryId: w.id, error: res.error });
+  return { status: "FAILED", error: res.error };
 }
 
 function winnerReviewWhatsappText(

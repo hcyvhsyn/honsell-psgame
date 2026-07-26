@@ -31,6 +31,19 @@ type Giveaway = {
   _count: { entries: number };
 };
 
+type BatchState = {
+  title: string;
+  total: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+  skippedNoPhone: number;
+  currentName: string | null;
+  nextInSec: number | null;
+  done: boolean;
+  cancelled: boolean;
+};
+
 /** PURCHASE_PRODUCT şərti üçün ServiceProduct tipləri. */
 const PRODUCT_TYPES: { value: string; label: string }[] = [
   { value: "STREAMING", label: "Streaming / Musiqi (Spotify, Netflix, ...)" },
@@ -105,6 +118,10 @@ export default function GiveawaysAdminClient() {
 
   // Qalib/rəy idarəetmə modalı (İştirakçılar / Qaliblər / Rəylər tabları)
   const [detailFor, setDetailFor] = useState<Giveaway | null>(null);
+
+  // WhatsApp toplu göndəriş (10s aralıq + geri sayım)
+  const [batch, setBatch] = useState<BatchState | null>(null);
+  const batchCancelRef = useRef(false);
 
   // Paylaş modalı
   const [shareFor, setShareFor] = useState<Giveaway | null>(null);
@@ -258,49 +275,121 @@ export default function GiveawaysAdminClient() {
   }
 
   async function notifyWinners(g: Giveaway) {
-    const ok = await dialog.confirm({
-      title: "Qaliblərə bildiriş",
-      message: `"${g.title}" qaliblərinin WhatsApp-ına təbrik mesajı göndərilsin? (yalnız hələ bildirilməmişlərə)`,
-      confirmLabel: "Göndər",
-    });
-    if (!ok) return;
-    startTransition(async () => {
-      setError(null);
-      const res = await fetch(`/api/admin/giveaways/${g.id}/notify`, { method: "POST" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error ?? "Göndərmək alınmadı.");
-        return;
-      }
-      await dialog.alert({
-        title: "Bildiriş nəticəsi",
-        message: `Göndərildi: ${data.sent} · Uğursuz: ${data.failed} · Telefonsuz: ${data.skipped}`,
-      });
-      refresh();
+    await runBatchSend({
+      endpoint: `/api/admin/giveaways/${g.id}/notify`,
+      title: "Qaliblərə təbrik mesajı",
+      confirmMessage: (n) =>
+        `"${g.title}" üçün ${n} qalibə təbrik + rəy linki 10 saniyə aralıqla göndəriləcək. Davam edilsin?`,
     });
   }
 
   async function sendReviewLinks(g: Giveaway) {
+    await runBatchSend({
+      endpoint: `/api/admin/giveaways/${g.id}/send-review-links`,
+      title: "Qaliblərə rəy linki",
+      confirmMessage: (n) =>
+        `"${g.title}" üçün ${n} qalibə rəy linki 10 saniyə aralıqla göndəriləcək. Bunu mükafatları çatdırdıqdan SONRA et. Davam edilsin?`,
+    });
+  }
+
+  // 10 saniyə aralıqla, bir-bir göndəriş + ekranda canlı geri sayım.
+  async function runBatchSend({
+    endpoint,
+    title,
+    confirmMessage,
+  }: {
+    endpoint: string;
+    title: string;
+    confirmMessage: (n: number) => string;
+  }) {
+    setError(null);
+    // 1) Göndəriləcək qalibləri gətir.
+    const listRes = await fetch(endpoint, { cache: "no-store" });
+    const listData = await listRes.json().catch(() => ({}));
+    if (!listRes.ok) {
+      setError(listData.error ?? "Siyahı alınmadı.");
+      return;
+    }
+    const recipients: { entryId: string; name: string | null }[] = listData.recipients ?? [];
+    const skippedNoPhone: number = listData.skippedNoPhone ?? 0;
+
+    if (recipients.length === 0) {
+      await dialog.alert({
+        title,
+        message:
+          skippedNoPhone > 0
+            ? `Göndəriləcək qalib yoxdur. ${skippedNoPhone} qalibin nömrəsi yoxdur.`
+            : "Göndəriləcək qalib yoxdur (hamısına artıq göndərilib və ya nömrə yoxdur).",
+      });
+      return;
+    }
+
     const ok = await dialog.confirm({
-      title: "Rəy linki göndər",
-      message: `"${g.title}" qaliblərinin WhatsApp-ına rəy linki göndərilsin? Bunu mükafatları çatdırdıqdan SONRA et — qaliblər linkə girib rəy + foto yükləyəcək, rəylər çəkiliş səhifəsində göstəriləcək. (Rəyini yazmış qaliblər keçilir.)`,
-      confirmLabel: "Göndər",
+      title,
+      message: confirmMessage(recipients.length),
+      confirmLabel: "Başla",
     });
     if (!ok) return;
-    startTransition(async () => {
-      setError(null);
-      const res = await fetch(`/api/admin/giveaways/${g.id}/send-review-links`, { method: "POST" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error ?? "Göndərmək alınmadı.");
-        return;
-      }
-      await dialog.alert({
-        title: "Rəy linki nəticəsi",
-        message: `Göndərildi: ${data.sent} · Uğursuz: ${data.failed} · Telefonsuz: ${data.skipped}`,
-      });
-      refresh();
+
+    // 2) Batch vəziyyətini başlat.
+    batchCancelRef.current = false;
+    setBatch({
+      title,
+      total: recipients.length,
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+      skippedNoPhone,
+      currentName: null,
+      nextInSec: null,
+      done: false,
+      cancelled: false,
     });
+
+    const sleepMs = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    for (let i = 0; i < recipients.length; i++) {
+      if (batchCancelRef.current) {
+        setBatch((b) => (b ? { ...b, done: true, cancelled: true, nextInSec: null, currentName: null } : b));
+        break;
+      }
+      const r = recipients[i];
+      setBatch((b) => (b ? { ...b, currentName: r.name || "(adsız)", nextInSec: null } : b));
+
+      let status = "FAILED";
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entryId: r.entryId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        status = res.ok ? data.status ?? "FAILED" : "FAILED";
+      } catch {
+        status = "FAILED";
+      }
+      setBatch((b) =>
+        b
+          ? {
+              ...b,
+              sent: b.sent + (status === "SENT" || status === "SKIPPED" ? 1 : 0),
+              failed: b.failed + (status === "FAILED" || status === "NO_PHONE" ? 1 : 0),
+            }
+          : b
+      );
+
+      // Sonuncu deyilsə 10 saniyə geri sayım.
+      if (i < recipients.length - 1 && !batchCancelRef.current) {
+        for (let s = 10; s > 0; s--) {
+          if (batchCancelRef.current) break;
+          setBatch((b) => (b ? { ...b, nextInSec: s } : b));
+          await sleepMs(1000);
+        }
+      }
+    }
+
+    setBatch((b) => (b ? { ...b, done: true, currentName: null, nextInSec: null } : b));
+    refresh();
   }
 
   function openShare(g: Giveaway) {
@@ -731,6 +820,101 @@ export default function GiveawaysAdminClient() {
           onClose={() => setShareFor(null)}
         />
       )}
+
+      {/* WhatsApp toplu göndəriş — irəliləyiş + geri sayım */}
+      {batch && (
+        <BatchProgressModal
+          batch={batch}
+          onCancel={() => {
+            batchCancelRef.current = true;
+          }}
+          onClose={() => setBatch(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function BatchProgressModal({
+  batch,
+  onCancel,
+  onClose,
+}: {
+  batch: BatchState;
+  onCancel: () => void;
+  onClose: () => void;
+}) {
+  const processed = batch.sent + batch.failed;
+  const pct = batch.total ? Math.round((processed / batch.total) * 100) : 0;
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <h3 className="text-lg font-bold text-zinc-900">{batch.title}</h3>
+
+        {/* İrəliləyiş */}
+        <div className="mt-4">
+          <div className="mb-1.5 flex items-center justify-between text-sm">
+            <span className="font-semibold text-zinc-700">
+              {processed} / {batch.total} göndərildi
+            </span>
+            <span className="tabular-nums text-zinc-500">{pct}%</span>
+          </div>
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-200">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-500"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Cari vəziyyət */}
+        {!batch.done && (
+          <div className="mt-4 rounded-xl bg-zinc-50 px-4 py-3 text-sm">
+            {batch.nextInSec != null ? (
+              <span className="text-zinc-700">
+                Növbəti mesaj: <span className="font-black tabular-nums text-violet-600">{batch.nextInSec}s</span>
+              </span>
+            ) : batch.currentName ? (
+              <span className="text-zinc-700">
+                Göndərilir: <span className="font-bold">{batch.currentName}</span>…
+              </span>
+            ) : (
+              <span className="text-zinc-500">Hazırlanır…</span>
+            )}
+          </div>
+        )}
+
+        {/* Nəticə */}
+        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">✓ {batch.sent}</span>
+          <span className="rounded-full bg-rose-100 px-2.5 py-1 text-rose-700">✗ {batch.failed}</span>
+          {batch.skippedNoPhone > 0 && (
+            <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-zinc-600">
+              Nömrəsiz: {batch.skippedNoPhone}
+            </span>
+          )}
+        </div>
+
+        {/* Düymələr */}
+        <div className="mt-5 flex justify-end gap-2">
+          {batch.done ? (
+            <button
+              onClick={onClose}
+              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700"
+            >
+              {batch.cancelled ? "Dayandırıldı — bağla" : "Bitdi — bağla"}
+            </button>
+          ) : (
+            <button
+              onClick={onCancel}
+              className="rounded-lg border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50"
+            >
+              Dayandır
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
