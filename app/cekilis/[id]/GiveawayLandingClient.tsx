@@ -20,7 +20,7 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import { useSession } from "@/components/SessionProvider";
-import { socialPlatformLabel } from "@/lib/giveawaysShared";
+import { socialPlatformLabel, formatAzDateTime } from "@/lib/giveawaysShared";
 
 type Giveaway = {
   id: string;
@@ -95,13 +95,7 @@ function useCountdown(endIso: string): string {
 }
 
 function formatEndDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("az-AZ", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatAzDateTime(iso);
 }
 
 export default function GiveawayLandingClient({ id }: { id: string }) {
@@ -262,7 +256,7 @@ export default function GiveawayLandingClient({ id }: { id: string }) {
               <>
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-violet-500" />
                 <span className="font-semibold text-zinc-700 dark:text-zinc-200">
-                  {formatEndDate(g.drawnAt || g.endAt)} tarixində sonuçlandı
+                  {formatEndDate(g.drawnAt || g.endAt)} tarixində yekunlaşdı
                 </span>
               </>
             ) : (

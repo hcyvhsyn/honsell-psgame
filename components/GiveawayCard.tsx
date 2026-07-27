@@ -17,7 +17,7 @@ import {
   Info,
   BadgeCheck,
 } from "lucide-react";
-import { socialPlatformLabel } from "@/lib/giveawaysShared";
+import { socialPlatformLabel, formatAzDateTime } from "@/lib/giveawaysShared";
 
 /** Ana səhifə + arxiv arasında paylaşılan çəkiliş kartı. */
 
@@ -76,13 +76,7 @@ function useCountdown(endIso: string): string {
 }
 
 function formatEndDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("az-AZ", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatAzDateTime(iso);
 }
 
 export function GiveawayCard({
@@ -148,7 +142,7 @@ export function GiveawayCard({
             <>
               <CheckCircle2 className="h-4 w-4 shrink-0 text-violet-500" />
               <span className="font-semibold text-zinc-700 dark:text-zinc-200">
-                {formatEndDate(g.drawnAt || g.endAt)} tarixində sonuçlandı
+                {formatEndDate(g.drawnAt || g.endAt)} tarixində yekunlaşdı
               </span>
             </>
           ) : (
@@ -189,12 +183,18 @@ export function GiveawayCard({
 
         <div className="mt-auto pt-2">
           {completed ? (
-            <button
-              onClick={() => onShowWinners(g)}
-              className="w-full rounded-xl bg-zinc-200 px-4 py-3 text-sm font-black text-zinc-700 transition hover:bg-zinc-300 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
-            >
-              Nəticələri gör
-            </button>
+            <div className="group relative">
+              {/* Diqqət çəkən canlı işıq (arxa fon) */}
+              <div className="absolute -inset-0.5 animate-pulse rounded-xl bg-gradient-to-r from-amber-400 via-fuchsia-500 to-violet-500 opacity-60 blur-md" />
+              <button
+                onClick={() => onShowWinners(g)}
+                className="relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-fuchsia-600 px-4 py-3.5 text-sm font-black text-white shadow-lg shadow-fuchsia-500/40 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-fuchsia-500/50"
+              >
+                <Trophy className="h-4 w-4 transition-transform duration-300 group-hover:-rotate-12" />
+                Nəticələri gör
+                <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+              </button>
+            </div>
           ) : g.joined ? (
             <div className="w-full rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-center text-sm font-black text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300">
               ✓ Qoşuldun

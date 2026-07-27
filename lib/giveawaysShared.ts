@@ -4,6 +4,38 @@
  * (məs. admin komponenti) təhlükəsiz import oluna bilsin.
  */
 
+/** Azərbaycan ay adları (lokal ICU məlumatından asılı olmadan). */
+const AZ_MONTHS = [
+  "yanvar",
+  "fevral",
+  "mart",
+  "aprel",
+  "may",
+  "iyun",
+  "iyul",
+  "avqust",
+  "sentyabr",
+  "oktyabr",
+  "noyabr",
+  "dekabr",
+];
+
+/**
+ * Tarixi Azərbaycan dilində formatlaşdırır: "26 iyul 2026, 18:01".
+ * `toLocaleString("az-AZ")` server konteynerində ICU olmadıqda "M07" kimi
+ * pozuq çıxış verdiyi üçün manual formatlaşdırma istifadə olunur.
+ */
+export function formatAzDateTime(iso: string | Date): string {
+  const d = iso instanceof Date ? iso : new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const day = d.getDate();
+  const month = AZ_MONTHS[d.getMonth()] ?? "";
+  const year = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${day} ${month} ${year}, ${hh}:${mm}`;
+}
+
 /** Qoşulma şərtləri. */
 export const ENTRY_CONDITIONS = [
   "REGISTER_ONLY",
