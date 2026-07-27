@@ -108,10 +108,9 @@ test("limit: random + external birlikdə limiti keçə bilməz", () => {
 test("provenance: USER_SUBMITTED etiketi", () => {
   assert.equal(reviewProvenanceLabel("USER_SUBMITTED", "WEBSITE"), "Qalib tərəfindən göndərilib");
 });
-test("provenance: ADMIN_TRANSCRIBED mənbəni açıqlayır", () => {
-  const label = reviewProvenanceLabel("ADMIN_TRANSCRIBED", "WHATSAPP");
-  assert.ok(label.includes("WhatsApp"));
-  assert.ok(label.includes("admin tərəfindən sistemə əlavə"));
+test("provenance: ADMIN_TRANSCRIBED ictimai etiket göstərmir", () => {
+  // Real qalibin real (icazəli) sözləri — "admin köçürüb" qeydi ictimai göstərilmir.
+  assert.equal(reviewProvenanceLabel("ADMIN_TRANSCRIBED", "WHATSAPP"), "");
 });
 test("store note: qalib rəyi kimi göstərilmir (ayrı başlıq)", () => {
   assert.equal(isStoreNote("ADMIN_STORE_NOTE"), true);

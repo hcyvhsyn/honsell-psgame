@@ -95,11 +95,11 @@ export const STORE_NOTE_HEADING = "Honsell Store açıqlaması";
  * blokda göstərilir (aşağıdakı isStoreNote true olduqda bu funksiya çağırılmır).
  */
 export function reviewProvenanceLabel(entryMethod: string, source: string): string {
+  void source;
   if (entryMethod === "USER_SUBMITTED") return "Qalib tərəfindən göndərilib";
-  if (entryMethod === "ADMIN_TRANSCRIBED") {
-    const via = reviewSourceLabel(source);
-    return `Qalibin ${via} vasitəsilə göndərdiyi rəy admin tərəfindən sistemə əlavə edilib`;
-  }
+  // ADMIN_TRANSCRIBED — real qalibin real (icazəli) sözləridir; ictimai göstərimdə
+  // "admin köçürüb" qeydi göstərilmir (adi testimonial kimi). Daxili provenance
+  // admin panelində və audit-də qalır.
   if (entryMethod === "ADMIN_STORE_NOTE") return STORE_NOTE_HEADING;
   return "";
 }

@@ -47,6 +47,14 @@ export async function GET(req: Request) {
       endAt: true,
       drawnAt: true,
       _count: { select: { entries: true } },
+      // Vahid qalib sistemi (detal endpoint ilə eyni mənbə) — köhnə entry-əsaslı
+      // siyahı ilə uyğunsuzluğu önləmək üçün.
+      winners: {
+        where: { isPublic: true },
+        orderBy: { selectedAt: "asc" },
+        select: { name: true },
+      },
+      // Legacy fallback (miqrasiyadan əvvəlki tamamlanmış çəkilişlər).
       entries: {
         where: { isWinner: true },
         select: { user: { select: { name: true } } },
@@ -91,7 +99,9 @@ export async function GET(req: Request) {
         eligible,
         winners:
           g.status === "COMPLETED"
-            ? g.entries.map((e) => maskWinnerName(e.user.name))
+            ? g.winners.length > 0
+              ? g.winners.map((w) => maskWinnerName(w.name))
+              : g.entries.map((e) => maskWinnerName(e.user.name))
             : [],
       };
     })
