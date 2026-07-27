@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Trophy } from "lucide-react";
 import { useSession } from "./SessionProvider";
 import { GiveawayCard, WinnersModal, type Giveaway } from "./GiveawayCard";
 
@@ -84,12 +84,20 @@ export default function HomeGiveaways() {
               Fürsətləri qaçırma
             </p>
           </div>
-          <Link
-            href="/cekilisler"
-            className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 px-4 py-2 text-sm font-bold text-zinc-700 transition hover:border-violet-400 hover:text-violet-600 dark:border-white/15 dark:text-zinc-200 dark:hover:border-violet-400/50"
-          >
-            Keçmiş çəkilişlər <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/qazananlar"
+              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-fuchsia-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5"
+            >
+              <Trophy className="h-4 w-4" /> Qazananlar
+            </Link>
+            <Link
+              href="/cekilisler"
+              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 px-4 py-2 text-sm font-bold text-zinc-700 transition hover:border-violet-400 hover:text-violet-600 dark:border-white/15 dark:text-zinc-200 dark:hover:border-violet-400/50"
+            >
+              Keçmiş çəkilişlər <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
 
         {error && (

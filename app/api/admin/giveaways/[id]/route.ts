@@ -63,6 +63,20 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           { status: 400 }
         );
     }
+    // Şərt PURCHASE_MIN_AMOUNT deyilsə minimum xərci təmizlə.
+    if (body.entryCondition !== "PURCHASE_MIN_AMOUNT") data.minSpendAznCents = null;
+  }
+  if ("minSpendAznCents" in body) {
+    data.minSpendAznCents =
+      typeof body.minSpendAznCents === "number" && body.minSpendAznCents > 0
+        ? Math.floor(body.minSpendAznCents)
+        : null;
+  }
+  if ("ticketUnitAznCents" in body) {
+    data.ticketUnitAznCents =
+      typeof body.ticketUnitAznCents === "number" && body.ticketUnitAznCents > 0
+        ? Math.floor(body.ticketUnitAznCents)
+        : null;
   }
   if (typeof body.isVip === "boolean") data.isVip = body.isVip;
   if (typeof body.participantBoost === "number" && body.participantBoost >= 0)

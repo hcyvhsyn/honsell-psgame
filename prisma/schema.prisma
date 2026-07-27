@@ -1565,6 +1565,13 @@ model Giveaway {
   /// sayının üstünə əlavə olunur (yalnız göstərişdə; qalib çəkilişinə təsir etmir).
   participantBoost Int @default(0)
 
+  /// PURCHASE_MIN_AMOUNT şərti üçün: qoşulmaq üçün lazım olan minimum ümumi
+  /// uğurlu xərc (qəpik, AZN*100). məs 3000 = 30 AZN.
+  minSpendAznCents Int?
+  /// Bilet sistemi (weighted draw): hər bu qədər qəpik xərc = 1 əlavə şans.
+  /// null → bilet sistemi yoxdur (hamı bərabər şansla). məs 3000 = hər 30 AZN 1 bilet.
+  ticketUnitAznCents Int?
+
   startAt DateTime @default(now())
   endAt   DateTime
   /// Qaliblərin çəkildiyi an (null = hələ çəkilməyib).
@@ -1646,6 +1653,8 @@ model GiveawayWinner {
   proofIsPublic     Boolean @default(false)
   internalNote      String?
   isPublic          Boolean @default(true)
+  /// Hədiyyə çatdırıldı işarəsi (ictimai "✅ Hədiyyə çatdırıldı" badge-i üçün).
+  deliveredAt       DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

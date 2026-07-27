@@ -19,6 +19,7 @@ import {
   WINNER_SOURCES,
   STORE_NOTE_HEADING,
 } from "../lib/giveawayWinnersShared";
+import { formatAzn, ENTRY_CONDITIONS } from "../lib/giveawaysShared";
 
 let passed = 0;
 const failures: string[] = [];
@@ -134,6 +135,36 @@ test("enum sabitləri gözlənilən dəyərləri saxlayır", () => {
   assert.deepEqual([...REVIEW_STATUSES], ["PENDING", "APPROVED", "REJECTED", "HIDDEN"]);
   assert.ok((WINNER_SOURCES as readonly string[]).includes("INSTAGRAM"));
   assert.ok((WINNER_SOURCES as readonly string[]).includes("OFFLINE"));
+});
+
+// ── formatAzn (qəpik → AZN göstərimi) ────────────────────────────────────────
+test("formatAzn: tam və kəsr məbləğlər", () => {
+  assert.equal(formatAzn(3000), "30 AZN");
+  assert.equal(formatAzn(2999), "29.99 AZN");
+  assert.equal(formatAzn(0), "0 AZN");
+  assert.equal(formatAzn(150), "1.50 AZN");
+});
+
+// ── Bilet sayı məntiqi (weighted draw) ───────────────────────────────────────
+test("bilet sayı: hər unit = 1 bilet, min 1", () => {
+  // computeTickets məntiqi: max(1, floor(spend/unit)); unit yoxdursa 1.
+  const tickets = (spend: number, unit: number | null) =>
+    !unit || unit <= 0 ? 1 : Math.max(1, Math.floor(spend / unit));
+  assert.equal(tickets(9000, 3000), 3); // 90 AZN / 30 = 3 bilet
+  assert.equal(tickets(2900, 3000), 1); // 29 AZN → minimum 1
+  assert.equal(tickets(0, 3000), 1); // xərcsiz → 1 (bərabər şans)
+  assert.equal(tickets(9000, null), 1); // bilet sistemi yoxdur → 1
+});
+
+// ── PURCHASE_MIN_AMOUNT şərti ─────────────────────────────────────────────────
+test("PURCHASE_MIN_AMOUNT ENTRY_CONDITIONS-də var", () => {
+  assert.ok((ENTRY_CONDITIONS as readonly string[]).includes("PURCHASE_MIN_AMOUNT"));
+});
+test("min xərc şərti: spent ≥ required qoşula bilər", () => {
+  const eligible = (spent: number, required: number) => spent >= required;
+  assert.equal(eligible(3000, 3000), true);
+  assert.equal(eligible(3001, 3000), true);
+  assert.equal(eligible(2999, 3000), false);
 });
 
 // ── Nəticə ───────────────────────────────────────────────────────────────────

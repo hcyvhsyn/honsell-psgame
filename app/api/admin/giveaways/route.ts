@@ -49,6 +49,17 @@ function parseBody(body: Record<string, unknown>) {
       ? Math.floor(body.participantBoost)
       : 0;
   const endAt = typeof body.endAt === "string" ? new Date(body.endAt) : null;
+  // Xərc şərti yalnız PURCHASE_MIN_AMOUNT üçün; bilet vahidi hər hansı şərtdə optional.
+  const minSpendAznCents =
+    entryCondition === "PURCHASE_MIN_AMOUNT" &&
+    typeof body.minSpendAznCents === "number" &&
+    body.minSpendAznCents > 0
+      ? Math.floor(body.minSpendAznCents)
+      : null;
+  const ticketUnitAznCents =
+    typeof body.ticketUnitAznCents === "number" && body.ticketUnitAznCents > 0
+      ? Math.floor(body.ticketUnitAznCents)
+      : null;
 
   return {
     title,
@@ -61,6 +72,8 @@ function parseBody(body: Record<string, unknown>) {
     conditionUrl,
     isVip,
     participantBoost,
+    minSpendAznCents,
+    ticketUnitAznCents,
     endAt,
   };
 }
@@ -78,6 +91,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bitiş tarixi düzgün deyil." }, { status: 400 });
   if (data.entryCondition === "PURCHASE_PRODUCT" && !data.conditionType)
     return NextResponse.json({ error: "Məhsul şərti üçün məhsul tipi seçilməlidir." }, { status: 400 });
+  if (data.entryCondition === "PURCHASE_MIN_AMOUNT" && !data.minSpendAznCents)
+    return NextResponse.json({ error: "Minimum xərc şərti üçün məbləğ daxil edilməlidir." }, { status: 400 });
   if (data.entryCondition === "FOLLOW_SOCIAL") {
     if (!SOCIAL_PLATFORMS.some((p) => p.value === data.conditionType))
       return NextResponse.json({ error: "İzləmə şərti üçün platforma seçilməlidir." }, { status: 400 });
@@ -102,6 +117,8 @@ export async function POST(req: Request) {
       conditionUrl: data.conditionUrl,
       isVip: data.isVip,
       participantBoost: data.participantBoost,
+      minSpendAznCents: data.minSpendAznCents,
+      ticketUnitAznCents: data.ticketUnitAznCents,
       endAt: data.endAt,
       status,
       createdById: admin.id,

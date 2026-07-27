@@ -36,11 +36,19 @@ export function formatAzDateTime(iso: string | Date): string {
   return `${day} ${month} ${year}, ${hh}:${mm}`;
 }
 
+/** Məbləği (qəpik, AZN*100) formatlaşdırır: 3000 → "30 AZN", 2999 → "29.99 AZN". */
+export function formatAzn(cents: number): string {
+  const azn = cents / 100;
+  const s = Number.isInteger(azn) ? String(azn) : azn.toFixed(2);
+  return `${s} AZN`;
+}
+
 /** Qoşulma şərtləri. */
 export const ENTRY_CONDITIONS = [
   "REGISTER_ONLY",
   "PURCHASE_ANY",
   "PURCHASE_PRODUCT",
+  "PURCHASE_MIN_AMOUNT",
   "FOLLOW_SOCIAL",
 ] as const;
 export type EntryCondition = (typeof ENTRY_CONDITIONS)[number];
@@ -49,6 +57,7 @@ export const ENTRY_CONDITION_LABELS: Record<EntryCondition, string> = {
   REGISTER_ONLY: "Sadəcə qeydiyyat",
   PURCHASE_ANY: "Ən azı bir alış",
   PURCHASE_PRODUCT: "Müəyyən məhsul alışı",
+  PURCHASE_MIN_AMOUNT: "Minimum xərc (AZN)",
   FOLLOW_SOCIAL: "Bizi izlə",
 };
 

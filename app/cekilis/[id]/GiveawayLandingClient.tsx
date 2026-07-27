@@ -20,7 +20,7 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import { useSession } from "@/components/SessionProvider";
-import { socialPlatformLabel, formatAzDateTime } from "@/lib/giveawaysShared";
+import { socialPlatformLabel, formatAzDateTime, formatAzn } from "@/lib/giveawaysShared";
 
 type Giveaway = {
   id: string;
@@ -35,11 +35,15 @@ type Giveaway = {
   conditionUrl: string | null;
   isVip: boolean;
   participantCount: number;
+  minSpendAznCents: number | null;
+  ticketUnitAznCents: number | null;
   endAt: string;
   drawnAt: string | null;
   joined: boolean;
   eligible: boolean;
-  winners: string[];
+  spendProgress: { current: number; required: number } | null;
+  myTickets: number | null;
+  winners: { name: string; delivered: boolean }[];
   reviews: WinnerReview[];
   storeNotes: StoreNote[];
 };
@@ -68,6 +72,7 @@ const ENTRY_HINT: Record<string, string> = {
   REGISTER_ONLY: "Qoşulmaq üçün sadəcə hesabınla daxil ol.",
   PURCHASE_ANY: "Qoşulmaq üçün ən azı bir alışın olmalıdır.",
   PURCHASE_PRODUCT: "Qoşulmaq üçün müvafiq məhsulu almalısan.",
+  PURCHASE_MIN_AMOUNT: "Qoşulmaq üçün müəyyən məbləğ xərcləməlisən.",
   FOLLOW_SOCIAL: "Qoşulmaq üçün sosial səhifəmizi izləməlisən.",
 };
 
@@ -274,6 +279,57 @@ export default function GiveawayLandingClient({ id }: { id: string }) {
             <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">{entryHint(g)}</p>
           )}
 
+          {/* Xərc progress barı (PURCHASE_MIN_AMOUNT) */}
+          {!completed && g.spendProgress && (
+            <div className="rounded-xl border border-violet-200 bg-violet-50/60 px-3 py-2.5 dark:border-violet-400/20 dark:bg-violet-400/5">
+              <div className="mb-1.5 flex items-center justify-between text-xs font-semibold">
+                <span className="text-zinc-600 dark:text-zinc-300">
+                  {formatAzn(g.spendProgress.current)} / {formatAzn(g.spendProgress.required)}
+                </span>
+                <span className="tabular-nums text-violet-600 dark:text-violet-300">
+                  {Math.min(100, Math.round((g.spendProgress.current / g.spendProgress.required) * 100))}%
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-white/10">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-500"
+                  style={{
+                    width: `${Math.min(100, Math.round((g.spendProgress.current / g.spendProgress.required) * 100))}%`,
+                  }}
+                />
+              </div>
+              {g.spendProgress.current < g.spendProgress.required ? (
+                <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Qoşulmağa{" "}
+                  <span className="font-bold text-violet-600 dark:text-violet-300">
+                    {formatAzn(g.spendProgress.required - g.spendProgress.current)}
+                  </span>{" "}
+                  qalıb
+                </p>
+              ) : (
+                <p className="mt-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  ✓ Şərti ödədin — qoşula bilərsən!
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Bilet sayı (weighted) */}
+          {!completed && g.myTickets != null && (
+            <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2 text-sm dark:border-amber-400/20 dark:bg-amber-400/5">
+              <span className="text-base">🎟️</span>
+              <span className="text-zinc-600 dark:text-zinc-300">
+                Sənin biletlərin:{" "}
+                <span className="font-black text-amber-600 dark:text-amber-400">{g.myTickets}</span>
+              </span>
+              {g.ticketUnitAznCents ? (
+                <span className="ml-auto text-[11px] text-zinc-400">
+                  hər {formatAzn(g.ticketUnitAznCents)} = 1 bilet
+                </span>
+              ) : null}
+            </div>
+          )}
+
           {/* İzlə düyməsi (FOLLOW_SOCIAL) */}
           {!completed && !g.joined && needsFollow && (
             <a
@@ -311,7 +367,7 @@ export default function GiveawayLandingClient({ id }: { id: string }) {
                 <Trophy className="h-4 w-4 text-amber-500" /> Qaliblər
               </div>
               <ul className="space-y-2">
-                {g.winners.map((name, i) => (
+                {g.winners.map((w, i) => (
                   <li
                     key={i}
                     className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.04]"
@@ -319,7 +375,12 @@ export default function GiveawayLandingClient({ id }: { id: string }) {
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-xs font-black text-white">
                       {i + 1}
                     </span>
-                    <span className="font-bold text-zinc-800 dark:text-zinc-100">{name}</span>
+                    <span className="font-bold text-zinc-800 dark:text-zinc-100">{w.name}</span>
+                    {w.delivered && (
+                      <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
+                        ✅ Çatdırıldı
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

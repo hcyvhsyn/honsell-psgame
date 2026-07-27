@@ -25,6 +25,8 @@ type Giveaway = {
   conditionUrl: string | null;
   isVip: boolean;
   participantBoost: number;
+  minSpendAznCents: number | null;
+  ticketUnitAznCents: number | null;
   endAt: string;
   drawnAt: string | null;
   createdAt: string;
@@ -99,6 +101,8 @@ const EMPTY_FORM = {
   conditionUrl: "",
   isVip: false,
   participantBoost: 0,
+  minSpendAzn: "",
+  ticketUnitAzn: "",
   endAt: "",
   activateNow: false,
 };
@@ -190,6 +194,8 @@ export default function GiveawaysAdminClient() {
       conditionUrl: g.conditionUrl ?? "",
       isVip: g.isVip,
       participantBoost: g.participantBoost,
+      minSpendAzn: g.minSpendAznCents != null ? String(g.minSpendAznCents / 100) : "",
+      ticketUnitAzn: g.ticketUnitAznCents != null ? String(g.ticketUnitAznCents / 100) : "",
       endAt: toLocalInput(g.endAt),
       activateNow: false,
     });
@@ -211,6 +217,13 @@ export default function GiveawaysAdminClient() {
         conditionUrl: form.conditionUrl,
         isVip: form.isVip,
         participantBoost: Number(form.participantBoost),
+        // AZN → qəpik. Boş/0 → null (PATCH-də təmizlənir).
+        minSpendAznCents:
+          form.entryCondition === "PURCHASE_MIN_AMOUNT" && Number(form.minSpendAzn) > 0
+            ? Math.round(Number(form.minSpendAzn) * 100)
+            : null,
+        ticketUnitAznCents:
+          Number(form.ticketUnitAzn) > 0 ? Math.round(Number(form.ticketUnitAzn) * 100) : null,
         endAt: form.endAt ? new Date(form.endAt).toISOString() : "",
       };
       const isEdit = Boolean(editingId);
@@ -539,6 +552,25 @@ export default function GiveawaysAdminClient() {
               </select>
             </label>
           )}
+          {form.entryCondition === "PURCHASE_MIN_AMOUNT" && (
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-zinc-600">
+                Minimum xərc (AZN)
+              </span>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className={inputCls}
+                value={form.minSpendAzn}
+                onChange={(e) => setForm((f) => ({ ...f, minSpendAzn: e.target.value }))}
+                placeholder="30"
+              />
+              <span className="mt-1 block text-[11px] text-zinc-400">
+                Bu qədər (və ya çox) uğurlu xərci olan qoşula bilər.
+              </span>
+            </label>
+          )}
           {form.entryCondition === "FOLLOW_SOCIAL" && (
             <>
               <label className="block">
@@ -590,6 +622,23 @@ export default function GiveawaysAdminClient() {
               value={form.participantBoost}
               onChange={(e) => setForm((f) => ({ ...f, participantBoost: Number(e.target.value) }))}
             />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-zinc-600">
+              Bilet vahidi (AZN) — opsional
+            </span>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              className={inputCls}
+              value={form.ticketUnitAzn}
+              onChange={(e) => setForm((f) => ({ ...f, ticketUnitAzn: e.target.value }))}
+              placeholder="məs. 30"
+            />
+            <span className="mt-1 block text-[11px] text-zinc-400">
+              Doldurulsa: hər bu qədər AZN xərc = 1 əlavə şans (weighted çəkiliş). Boş = hamı bərabər.
+            </span>
           </label>
           <label className="block">
             <span className="mb-1 block text-xs font-semibold text-zinc-600">Bitiş tarixi</span>

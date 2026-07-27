@@ -41,6 +41,7 @@ export async function PATCH(
   if ("proofUrl" in body) data.proofUrl = str(body.proofUrl);
   if (typeof body.proofIsPublic === "boolean") data.proofIsPublic = body.proofIsPublic;
   if (typeof body.isPublic === "boolean") data.isPublic = body.isPublic;
+  if (typeof body.delivered === "boolean") data.deliveredAt = body.delivered ? new Date() : null;
   if (body.source != null) {
     if (!isWinnerSource(body.source))
       return NextResponse.json({ error: "Keçərsiz mənbə." }, { status: 400 });

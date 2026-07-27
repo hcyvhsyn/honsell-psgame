@@ -5,6 +5,8 @@ import {
   checkGiveawayEligibility,
   displayParticipantCount,
   maskWinnerName,
+  getUserSuccessfulSpendCents,
+  computeTickets,
 } from "@/lib/giveaways";
 import { reviewProvenanceLabel } from "@/lib/giveawayWinnersShared";
 
@@ -35,6 +37,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       conditionUrl: true,
       isVip: true,
       participantBoost: true,
+      minSpendAznCents: true,
+      ticketUnitAznCents: true,
       endAt: true,
       drawnAt: true,
       _count: { select: { entries: true } },
@@ -53,6 +57,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
           name: true,
           avatarUrl: true,
           instagramUsername: true,
+          deliveredAt: true,
           reviews: {
             where: { status: "APPROVED", isPublic: true, hasPublishingConsent: true },
             orderBy: { createdAt: "desc" },
@@ -75,26 +80,41 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
   let joined = false;
   let eligible = true;
+  // Xərc əsaslı şərt/bilet üçün istifadəçinin cari xərci (bir dəfə hesablanır).
+  let spendProgress: { current: number; required: number } | null = null;
+  let myTickets: number | null = null;
   if (user) {
     const mine = await prisma.giveawayEntry.findUnique({
       where: { giveawayId_userId: { giveawayId: g.id, userId: user.id } },
       select: { id: true },
     });
     joined = Boolean(mine);
+
+    const needsSpend =
+      g.status === "ACTIVE" &&
+      (g.entryCondition === "PURCHASE_MIN_AMOUNT" || (g.ticketUnitAznCents ?? 0) > 0);
+    const spendCents = needsSpend ? await getUserSuccessfulSpendCents(user.id) : 0;
+
     if (!joined && g.status === "ACTIVE") {
       const check = await checkGiveawayEligibility(user.id, g);
       eligible = check.eligible;
+    }
+    if (g.status === "ACTIVE" && g.entryCondition === "PURCHASE_MIN_AMOUNT" && g.minSpendAznCents) {
+      spendProgress = { current: spendCents, required: g.minSpendAznCents };
+    }
+    if (g.status === "ACTIVE" && (g.ticketUnitAznCents ?? 0) > 0) {
+      myTickets = computeTickets(spendCents, g.ticketUnitAznCents);
     }
   }
 
   const completed = g.status === "COMPLETED";
 
-  // Qalib adları: vahid sistem (GiveawayWinner) əsas mənbə; boşdursa köhnə
-  // entry-əsaslı qaliblərə düş (miqrasiyadan əvvəlki çəkilişlər). Ad maskalanır.
-  const winnerNames = completed
+  // Qalib adları + çatdırılma statusu. Vahid sistem əsas mənbə; boşdursa köhnə
+  // entry-əsaslı qaliblərə düş. Ad maskalanır.
+  const winnerList = completed
     ? g.winners.length > 0
-      ? g.winners.map((w) => maskWinnerName(w.name))
-      : g.entries.map((e) => maskWinnerName(e.user.name))
+      ? g.winners.map((w) => ({ name: maskWinnerName(w.name), delivered: w.deliveredAt != null }))
+      : g.entries.map((e) => ({ name: maskWinnerName(e.user.name), delivered: false }))
     : [];
 
   // Qalib rəyləri (mağaza açıqlaması XARİC) — mənbə şəffaf göstərilir.
@@ -147,11 +167,15 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       conditionUrl: g.conditionUrl,
       isVip: g.isVip,
       participantCount: displayParticipantCount(g._count.entries, g.participantBoost),
+      minSpendAznCents: g.minSpendAznCents,
+      ticketUnitAznCents: g.ticketUnitAznCents,
       endAt: g.endAt.toISOString(),
       drawnAt: g.drawnAt ? g.drawnAt.toISOString() : null,
       joined,
       eligible,
-      winners: winnerNames,
+      spendProgress,
+      myTickets,
+      winners: winnerList,
       reviews,
       storeNotes,
     },

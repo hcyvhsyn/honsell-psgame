@@ -57,6 +57,7 @@ type Winner = {
   proofIsPublic: boolean;
   internalNote: string | null;
   isPublic: boolean;
+  deliveredAt: string | null;
   reviews: Review[];
 };
 
@@ -172,6 +173,17 @@ export default function GiveawayDetailModal({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isPublic: !w.isPublic }),
+    });
+    setBusy(false);
+    if (res.ok) refreshAll();
+  }
+
+  async function toggleDelivered(w: Winner) {
+    setBusy(true);
+    const res = await fetch(`/api/admin/giveaways/${giveaway.id}/winners/${w.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delivered: !w.deliveredAt }),
     });
     setBusy(false);
     if (res.ok) refreshAll();
@@ -366,6 +378,7 @@ export default function GiveawayDetailModal({
                             ) : (
                               <Badge tone="amber">Rəy yoxdur</Badge>
                             )}
+                            {w.deliveredAt && <Badge tone="emerald">✅ Çatdırıldı</Badge>}
                           </div>
                           {/* Əlaqə (yalnız admin görür — mükafat çatdırmaq üçün) */}
                           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
@@ -397,6 +410,17 @@ export default function GiveawayDetailModal({
                             className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
                           >
                             Rəy əlavə et
+                          </button>
+                          <button
+                            onClick={() => toggleDelivered(w)}
+                            disabled={busy}
+                            className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
+                              w.deliveredAt
+                                ? "border border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                : "bg-emerald-600 text-white hover:bg-emerald-700"
+                            }`}
+                          >
+                            {w.deliveredAt ? "Çatdırıldı ✓" : "Çatdırıldı işarələ"}
                           </button>
                           <div className="flex gap-1.5">
                             <button

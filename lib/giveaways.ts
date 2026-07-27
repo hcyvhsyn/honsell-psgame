@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getTestAccountEmails } from "@/lib/testAccounts";
 import { isWasenderConfigured, normalizeToE164, sendWasenderText } from "@/lib/wasender";
 import { createRandomWinnerRows, logGiveawayAudit } from "@/lib/giveawayWinners";
+import { formatAzn } from "@/lib/giveawaysShared";
 
 /**
  * Çəkiliş (Giveaway) — ana səhifə hədiyyə çəkilişləri (SERVER logikası).
@@ -59,12 +60,39 @@ function sleep(ms: number): Promise<void> {
  * FOLLOW_SOCIAL → sosial izləməni server yoxlaya bilmir; UI izlə linkinə
  *   klikləməyi tələb edir, server tərəfdə hər login istifadəçi eligible sayılır.
  */
+/** İstifadəçinin ümumi uğurlu xərci (qəpik) — PURCHASE + SERVICE_PURCHASE cəmi. */
+export async function getUserSuccessfulSpendCents(userId: string): Promise<number> {
+  const agg = await prisma.transaction.aggregate({
+    where: { userId, status: "SUCCESS", type: { in: ["PURCHASE", "SERVICE_PURCHASE"] } },
+    _sum: { amountAznCents: true },
+  });
+  return agg._sum.amountAznCents ?? 0;
+}
+
+/** Bilet sayı (weighted draw): hər `unit` qəpik = 1 bilet, minimum 1. */
+export function computeTickets(spendCents: number, unitCents: number | null | undefined): number {
+  if (!unitCents || unitCents <= 0) return 1;
+  return Math.max(1, Math.floor(spendCents / unitCents));
+}
+
 export async function checkGiveawayEligibility(
   userId: string,
-  giveaway: { entryCondition: string; conditionType: string | null }
+  giveaway: { entryCondition: string; conditionType: string | null; minSpendAznCents?: number | null }
 ): Promise<{ eligible: boolean; reason?: string }> {
   if (giveaway.entryCondition === "REGISTER_ONLY" || giveaway.entryCondition === "FOLLOW_SOCIAL") {
     return { eligible: true };
+  }
+
+  if (giveaway.entryCondition === "PURCHASE_MIN_AMOUNT") {
+    const required = giveaway.minSpendAznCents ?? 0;
+    if (required <= 0) return { eligible: true };
+    const spent = await getUserSuccessfulSpendCents(userId);
+    return spent >= required
+      ? { eligible: true }
+      : {
+          eligible: false,
+          reason: `Qoşulmaq üçün ən azı ${formatAzn(required)} xərcləməlisən (indi: ${formatAzn(spent)}).`,
+        };
   }
 
   if (giveaway.entryCondition === "PURCHASE_ANY") {
@@ -129,14 +157,33 @@ export async function drawGiveawayWinners(
   });
   const slots = Math.max(0, giveaway.winnersCount - externalCount);
 
-  // Fisher–Yates qarışdırması ilə random qaliblər.
-  const pool = [...entries];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+  // Bilet sistemi: hər iştirakçının çəkisi (bilet sayı) xərcinə görə hesablanır.
+  // ticketUnitAznCents null-dırsa hamı bərabər (1 bilet) → sadə random.
+  let weightByUser: Map<string, number> | null = null;
+  if (giveaway.ticketUnitAznCents && giveaway.ticketUnitAznCents > 0) {
+    const spend = await prisma.transaction.groupBy({
+      by: ["userId"],
+      where: {
+        userId: { in: entries.map((e) => e.userId) },
+        status: "SUCCESS",
+        type: { in: ["PURCHASE", "SERVICE_PURCHASE"] },
+      },
+      _sum: { amountAznCents: true },
+    });
+    weightByUser = new Map(
+      spend.map((s) => [s.userId, computeTickets(s._sum.amountAznCents ?? 0, giveaway.ticketUnitAznCents)])
+    );
   }
-  const winnersCount = Math.min(slots, pool.length);
-  const winners = pool.slice(0, winnersCount);
+
+  // Weighted sampling without replacement (Efraimidis–Spirakis): key = u^(1/w).
+  // w=1 hamı üçün → adi uniform random-a bərabərdir.
+  const keyed = entries.map((e) => {
+    const w = weightByUser ? weightByUser.get(e.userId) ?? 1 : 1;
+    return { entry: e, key: Math.random() ** (1 / Math.max(1, w)) };
+  });
+  keyed.sort((a, b) => b.key - a.key);
+  const winnersCount = Math.min(slots, keyed.length);
+  const winners = keyed.slice(0, winnersCount).map((k) => k.entry);
   const winnerEntryIds = new Set(winners.map((w) => w.id));
 
   await prisma.$transaction(async (tx) => {

@@ -5,6 +5,8 @@ import {
   checkGiveawayEligibility,
   displayParticipantCount,
   maskWinnerName,
+  getUserSuccessfulSpendCents,
+  computeTickets,
 } from "@/lib/giveaways";
 
 /**
@@ -44,6 +46,8 @@ export async function GET(req: Request) {
       conditionUrl: true,
       isVip: true,
       participantBoost: true,
+      minSpendAznCents: true,
+      ticketUnitAznCents: true,
       endAt: true,
       drawnAt: true,
       _count: { select: { entries: true } },
@@ -52,7 +56,7 @@ export async function GET(req: Request) {
       winners: {
         where: { isPublic: true },
         orderBy: { selectedAt: "asc" },
-        select: { name: true },
+        select: { name: true, deliveredAt: true },
       },
       // Legacy fallback (miqrasiyadan əvvəlki tamamlanmış çəkilişlər).
       entries: {
@@ -72,6 +76,12 @@ export async function GET(req: Request) {
     for (const e of myEntries) joinedIds.add(e.giveawayId);
   }
 
+  // Xərc əsaslı şərt/bilet varsa istifadəçinin cari xərci bir dəfə hesablanır.
+  const anySpendBased = giveaways.some(
+    (g) => g.entryCondition === "PURCHASE_MIN_AMOUNT" || (g.ticketUnitAznCents ?? 0) > 0
+  );
+  const userSpendCents = user && anySpendBased ? await getUserSuccessfulSpendCents(user.id) : 0;
+
   const items = await Promise.all(
     giveaways.map(async (g) => {
       const joined = joinedIds.has(g.id);
@@ -80,6 +90,7 @@ export async function GET(req: Request) {
         const check = await checkGiveawayEligibility(user.id, g);
         eligible = check.eligible;
       }
+      const active = g.status === "ACTIVE";
       return {
         id: g.id,
         title: g.title,
@@ -93,15 +104,25 @@ export async function GET(req: Request) {
         conditionUrl: g.conditionUrl,
         isVip: g.isVip,
         participantCount: displayParticipantCount(g._count.entries, g.participantBoost),
+        minSpendAznCents: g.minSpendAznCents,
+        ticketUnitAznCents: g.ticketUnitAznCents,
         endAt: g.endAt.toISOString(),
         drawnAt: g.drawnAt ? g.drawnAt.toISOString() : null,
         joined,
         eligible,
+        spendProgress:
+          user && active && g.entryCondition === "PURCHASE_MIN_AMOUNT" && g.minSpendAznCents
+            ? { current: userSpendCents, required: g.minSpendAznCents }
+            : null,
+        myTickets:
+          user && active && (g.ticketUnitAznCents ?? 0) > 0
+            ? computeTickets(userSpendCents, g.ticketUnitAznCents)
+            : null,
         winners:
           g.status === "COMPLETED"
             ? g.winners.length > 0
-              ? g.winners.map((w) => maskWinnerName(w.name))
-              : g.entries.map((e) => maskWinnerName(e.user.name))
+              ? g.winners.map((w) => ({ name: maskWinnerName(w.name), delivered: w.deliveredAt != null }))
+              : g.entries.map((e) => ({ name: maskWinnerName(e.user.name), delivered: false }))
             : [],
       };
     })
