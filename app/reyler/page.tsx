@@ -169,6 +169,7 @@ export default async function ReviewsPage({
               const game: ReviewCardGame = {
                 id: r.game.id,
                 productId: r.game.productId,
+                slug: r.game.slug,
                 title: r.game.title,
                 coverImageUrl: r.game.heroImageUrl ?? r.game.imageUrl,
                 finalAzn: display.finalAzn,

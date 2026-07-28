@@ -47,6 +47,7 @@ import {
   PLATFORM_CATEGORY_LABELS,
   readPlatformMeta,
 } from "@/lib/platformSubscriptions";
+import { gameDetailHref } from "@/lib/gameSlug";
 
 export const revalidate = 1800;
 
@@ -250,6 +251,7 @@ async function fetchBestSellers(settings: Awaited<ReturnType<typeof getSettings>
           select: {
             id: true,
             productId: true,
+        slug: true,
             title: true,
             imageUrl: true,
             platform: true,
@@ -289,7 +291,7 @@ async function fetchBestSellers(settings: Awaited<ReturnType<typeof getSettings>
     const price = computeDisplayPrice(game, settings);
     items.push({
       id: `game-${game.id}`,
-      href: `/oyunlar/${game.productId}`,
+      href: gameDetailHref(game) ?? "/oyunlar",
       title: game.title,
       subtitle: game.store === "EPIC" ? "Epic Games · PC" : `${game.platform ?? "PlayStation"} oyunu`,
       imageUrl: game.imageUrl,
@@ -332,6 +334,7 @@ async function fetchBestSellers(settings: Awaited<ReturnType<typeof getSettings>
       select: {
         id: true,
         productId: true,
+        slug: true,
         title: true,
         imageUrl: true,
         platform: true,
@@ -369,7 +372,7 @@ async function fetchBestSellers(settings: Awaited<ReturnType<typeof getSettings>
     const price = computeDisplayPrice(game, settings);
     ranked.push({
       id,
-      href: `/oyunlar/${game.productId}`,
+      href: gameDetailHref(game) ?? "/oyunlar",
       title: game.title,
       subtitle: game.store === "EPIC" ? "Epic Games · PC" : `${game.platform ?? "PlayStation"} oyunu`,
       imageUrl: game.imageUrl,
@@ -464,6 +467,7 @@ async function fetchDiscountedGames(
       select: {
         id: true,
         productId: true,
+        slug: true,
         title: true,
         imageUrl: true,
         platform: true,
@@ -486,6 +490,7 @@ async function fetchDiscountedGames(
   const cards: GameCardData[] = enriched.slice(0, 10).map(({ game, price }) => ({
     id: game.id,
     productId: game.productId,
+    slug: game.slug,
     title: game.title,
     imageUrl: game.imageUrl,
     platform: game.platform,
@@ -584,6 +589,7 @@ const getHomePageData = unstable_cache(
             ? {
                 id: b.game.id,
                 productId: b.game.productId,
+                slug: b.game.slug,
                 title: b.game.title,
                 imageUrl: b.game.imageUrl,
                 heroImageUrl: b.game.heroImageUrl,

@@ -9,6 +9,10 @@ import {
 import type { Game, Prisma } from "@/lib/generated/prisma/client";
 import { Prisma as PrismaSql } from "@/lib/generated/prisma/client";
 import { fetchPopularGames } from "@/lib/popularity";
+import {
+  buildGameBaseWhereSql,
+  buildPriceFilter,
+} from "@/lib/gameQuery";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,7 +73,16 @@ export async function GET(req: Request) {
   const store = storeParam === "EPIC" ? "EPIC" : "PS";
 
   // Epic-only genre/category filter (e.g. "Action", "RPG").
-  const genre = (url.searchParams.get("genre") ?? "").trim();
+  // Vergüllə ayrılmış janr siyahısı ("Aksiyon,Nişancı") — facet səhifələri bir
+  // neçə DB janrını tək landing altında birləşdirir. Tək dəyər də keçərlidir.
+  const genres = (url.searchParams.get("genre") ?? "")
+    .split(",")
+    .map((g) => g.trim())
+    .filter(Boolean);
+  // Seriya (franchise) landing səhifələri üçün başlıq alt-sətri —
+  // "FIFA", "Call of Duty". `q`-dan fərqlidir: `q` semantik axtarış
+  // endpoint-inə keçid edir, bu isə sırf filtrdir və sıralamanı dəyişmir.
+  const franchise = (url.searchParams.get("franchise") ?? "").trim();
 
   const priceMinRaw = Number(url.searchParams.get("priceMin"));
   const priceMaxRaw = Number(url.searchParams.get("priceMax"));
@@ -94,7 +107,25 @@ export async function GET(req: Request) {
     ];
   }
   if (onSale) where.discountTryCents = { not: null };
-  if (genre && store === "EPIC") where.genres = { has: genre };
+  // Janr filtri əvvəl yalnız Epic üçün açıq idi, çünki PS sətirlərində
+  // `genres` boş olurdu. İndi scripts/enrichGameMetadata.ts PS janrlarını da
+  // doldurur, ona görə qapı hər iki storefront üçün açıqdır.
+  if (genres.length === 1) where.genres = { has: genres[0] };
+  else if (genres.length > 1) {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      { genres: { hasSome: genres } },
+    ];
+  }
+  if (franchise) {
+    // `q` ilə eyni sütuna yazmır: `q` verilibsə fuzzy yolu onsuz da başlığı
+    // filtrləyir, franchise isə ondan asılı olmadan AND kimi əlavə olunur.
+    const franchiseClause = { title: { contains: franchise, mode: "insensitive" as const } };
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      franchiseClause,
+    ];
+  }
   // Qeyd: "popular" sort artıq bütün kataloq üzərində işləyir (məhsul real
   // istifadəçi davranışına görə sıralanır — bax: lib/popularity.ts). Featured
   // flag-i hələ də skor formulundan yumşaq boost kimi keçir.
@@ -139,7 +170,8 @@ export async function GET(req: Request) {
       q,
       sort,
       store,
-      genre: genre && store === "EPIC" ? genre : null,
+      genres: genres.length > 0 ? genres : null,
+      franchise: franchise || null,
       productType: filterByType ? productType : null,
       platform,
       onSale,
@@ -157,7 +189,8 @@ export async function GET(req: Request) {
       productType: filterByType ? productType : null,
       platform,
       onSale,
-      genre: genre && store === "EPIC" ? genre : null,
+      genres: genres.length > 0 ? genres : null,
+      titleContains: franchise || null,
       priceMinTryCents,
       priceMaxTryCents,
     });
@@ -189,6 +222,7 @@ export async function GET(req: Request) {
       // Epic rows have no detail page yet, so don't surface a productId the
       // card would turn into a /oyunlar/[productId] link.
       productId: isEpic ? null : g.productId,
+      slug: isEpic ? null : g.slug,
       title: g.title,
       imageUrl: g.imageUrl,
       platform: g.platform,
@@ -285,7 +319,8 @@ async function fetchFuzzy({
   q,
   sort,
   store,
-  genre,
+  genres,
+  franchise,
   productType,
   platform,
   onSale,
@@ -297,8 +332,10 @@ async function fetchFuzzy({
   q: string;
   sort: Sort;
   store: string;
-  /** Epic genre filter, or null. */
-  genre: string | null;
+  /** Janr filtri (PS və Epic) — bir neçə dəyərdən hər hansı biri, or null. */
+  genres: string[] | null;
+  /** Seriya səhifələri üçün başlıq alt-sətri, or null. */
+  franchise: string | null;
   /** null when type=ALL (no productType filter applied) */
   productType: string | null;
   platform: string | null;
@@ -315,7 +352,8 @@ async function fetchFuzzy({
     const whereSql = buildGameWhereSql({
       q,
       store,
-      genre,
+      genres,
+      titleContains: franchise,
       productType,
       platform,
       onSale,
@@ -358,7 +396,7 @@ async function fetchFuzzy({
   } catch {
     // Fallback: simple substring match (existing behavior).
     const where: Prisma.GameWhereInput = { isActive: true, store };
-    if (genre) where.genres = { has: genre };
+    if (genres && genres.length > 0) where.genres = { hasSome: genres };
     if (productType) where.productType = productType;
     where.title = { contains: q, mode: "insensitive" };
     if (platform === "PS4" || platform === "PS5") {
@@ -377,58 +415,14 @@ async function fetchFuzzy({
 }
 
 /**
- * Filterləri SQL fraqmentinə çevirir — q (axtarış) clauseı YOXDUR.
- * Həm fuzzy axtarış (buildGameWhereSql), həm də populyarlıq sıralaması üçün
- * baza filter dəstidir. `g.` aliası istifadə edir.
+ * Fuzzy axtarış üçün SQL fraqmenti: baza filterlər (lib/gameQuery.ts) +
+ * başlıq üzrə oxşarlıq clauseı. `g.` aliası istifadə edir.
  */
-function buildGameBaseWhereSql({
-  store,
-  genre,
-  productType,
-  platform,
-  onSale,
-  priceMinTryCents,
-  priceMaxTryCents,
-}: {
-  store: string;
-  genre: string | null;
-  productType: string | null;
-  platform: string | null;
-  onSale: boolean;
-  priceMinTryCents: number | null;
-  priceMaxTryCents: number | null;
-}): PrismaSql.Sql {
-  const parts: PrismaSql.Sql[] = [
-    PrismaSql.sql`g."isActive" = true`,
-    PrismaSql.sql`g."store" = ${store}`,
-  ];
-  if (genre) parts.push(PrismaSql.sql`${genre} = ANY(g."genres")`);
-  if (productType) parts.push(PrismaSql.sql`g."productType" = ${productType}`);
-  if (onSale) parts.push(PrismaSql.sql`g."discountTryCents" IS NOT NULL`);
-  if (platform === "PS4" || platform === "PS5") {
-    parts.push(
-      PrismaSql.sql`(g."platform" ILIKE ${`%${platform}%`} OR g."platform" IS NULL)`
-    );
-  }
-  // Price range — filter on the effective price (discount when present, else
-  // base price). COALESCE keeps the comparison single-column on the DB side.
-  if (priceMinTryCents != null) {
-    parts.push(
-      PrismaSql.sql`COALESCE(g."discountTryCents", g."priceTryCents") >= ${priceMinTryCents}`
-    );
-  }
-  if (priceMaxTryCents != null) {
-    parts.push(
-      PrismaSql.sql`COALESCE(g."discountTryCents", g."priceTryCents") <= ${priceMaxTryCents}`
-    );
-  }
-  return PrismaSql.join(parts, " AND ");
-}
-
 function buildGameWhereSql({
   q,
   store,
-  genre,
+  genres,
+  titleContains,
   productType,
   platform,
   onSale,
@@ -437,7 +431,8 @@ function buildGameWhereSql({
 }: {
   q: string;
   store: string;
-  genre: string | null;
+  genres: string[] | null;
+  titleContains?: string | null;
   /** null when type=ALL (no productType filter applied) */
   productType: string | null;
   platform: string | null;
@@ -447,7 +442,8 @@ function buildGameWhereSql({
 }) {
   const baseSql = buildGameBaseWhereSql({
     store,
-    genre,
+    genres,
+    titleContains,
     productType,
     platform,
     onSale,
@@ -502,23 +498,3 @@ function buildFuzzyOrderSql(sort: Sort, q: string) {
  * — discount-bearing rows hit a `discountTryCents BETWEEN` scan, the rest
  * fall back to the `priceTryCents` index.
  */
-function buildPriceFilter(
-  minTryCents: number | null,
-  maxTryCents: number | null
-): Prisma.GameWhereInput | null {
-  if (minTryCents == null && maxTryCents == null) return null;
-
-  const range = (col: "discountTryCents" | "priceTryCents") => {
-    const r: Prisma.IntFilter = {};
-    if (minTryCents != null) r.gte = minTryCents;
-    if (maxTryCents != null) r.lte = maxTryCents;
-    return { [col]: r } as Prisma.GameWhereInput;
-  };
-
-  return {
-    OR: [
-      { discountTryCents: { not: null }, ...range("discountTryCents") },
-      { discountTryCents: null, ...range("priceTryCents") },
-    ],
-  };
-}

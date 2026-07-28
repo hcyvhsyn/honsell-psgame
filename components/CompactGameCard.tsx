@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Gamepad2, Plus, Check } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import type { GameCardData } from "./GameCard";
+import { gameDetailHref } from "@/lib/gameSlug";
 
 /**
  * Slim recommendation card used in the cart "Bunları da bəyənə bilərsən"
@@ -20,7 +21,7 @@ export default function CompactGameCard({ game }: { game: GameCardData }) {
   const { add, has, hydrated } = useCart();
   const inCart = hydrated && has(game.id);
 
-  const detailHref = game.productId ? `/oyunlar/${game.productId}` : null;
+  const detailHref = gameDetailHref(game);
 
   const cover = (
     <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-zinc-900">

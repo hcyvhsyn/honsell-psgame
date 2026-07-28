@@ -18,6 +18,7 @@ import {
 import { REVIEW_COMMENT_BODY_MAX } from "@/lib/reviewAffiliateConstants";
 import { useDialog } from "@/lib/dialogs";
 import TierBadge, { type TierBadgeData } from "@/components/TierBadge";
+import { gameDetailHref } from "@/lib/gameSlug";
 
 export type ReviewCardData = {
   id: string;
@@ -40,6 +41,7 @@ export type ReviewCardData = {
 export type ReviewCardGame = {
   id: string;
   productId: string;
+  slug?: string | null;
   title: string;
   coverImageUrl: string | null;
   finalAzn: number;
@@ -74,7 +76,7 @@ export default function ReviewCard({ review, game, currentUserId }: Props) {
   const [commentCount, setCommentCount] = useState(review.commentCount);
 
   const isSelf = currentUserId === review.author.id;
-  const buyHref = `/oyunlar/${encodeURIComponent(game.productId)}?via=${encodeURIComponent(review.id)}`;
+  const buyHref = `${gameDetailHref(game) ?? "/oyunlar"}?via=${encodeURIComponent(review.id)}`;
 
   async function loadComments() {
     if (comments !== null) return;

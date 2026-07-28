@@ -18,8 +18,7 @@ import TopLoader from "@/components/TopLoader";
 import ScrollActivityFlag from "@/components/ScrollActivityFlag";
 import { Suspense } from "react";
 import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "@/lib/site";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
+import SiteAnalytics from "@/components/SiteAnalytics";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -102,6 +101,17 @@ export const metadata: Metadata = {
     icon: "/icon.png",
     apple: "/icon.png",
   },
+  // Search Console / Bing Webmaster təsdiqi. DNS üsulu ilə təsdiqləmisinizsə
+  // bunlar lazım deyil — env qurulmayanda meta teq render OLUNMUR.
+  // Dəyər kimi YALNIZ token yazılır, bütöv <meta> teqi yox.
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION
+      ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+      : {}),
+    ...(process.env.BING_SITE_VERIFICATION
+      ? { other: { "msvalidate.01": process.env.BING_SITE_VERIFICATION } }
+      : {}),
+  },
 };
 
 export const viewport: Viewport = {
@@ -159,8 +169,7 @@ export default async function RootLayout({
             </DialogProvider>
           </ReferralRatesProvider>
         </ThemeProvider>
-        <Analytics />
-        <SpeedInsights />
+        <SiteAnalytics />
       </body>
     </html>
   );

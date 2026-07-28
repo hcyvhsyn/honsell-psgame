@@ -296,6 +296,11 @@ model Game {
   // raw PS product id; for Epic it is namespaced as `epic:<namespace>:<offerId>`
   // so the two storefronts never collide on this @unique column.
   productId  String  @unique
+  // SEO URL segment — `/oyunlar/god-of-war-ragnarok-ps5`. Assigned once by
+  // lib/gameSlug.ts and never rotated on title change (that would drop the
+  // accumulated ranking). NULL only until the backfill reaches the row; the
+  // detail route falls back to productId lookup + 301 while that is true.
+  slug       String? @unique
   title      String
   imageUrl   String?
   productUrl String?
@@ -304,8 +309,10 @@ model Game {
   store String @default("PS")
   // Epic catalog namespace (needed to build the product page link). NULL for PS.
   namespace String?
-  // Epic genre tag names (e.g. ["Action","RPG"]). Powers the PC category filter.
-  // Empty for PS rows. Populated from Epic `tags` where groupName = "genre".
+  // Genre tag names (e.g. ["Action","RPG"]). Powers the PC category filter and
+  // the genre landing pages. Epic rows get these from `tags` where
+  // groupName = "genre"; PS rows from the detail page `localizedGenres`
+  // (see lib/psStoreMetadata.ts), so they are no longer Epic-only.
   genres String[] @default([])
 
   // PS4 | PS5 — derived from the productId code (CUSA/PPSA). "PC" for Epic.
@@ -340,6 +347,34 @@ model Game {
   screenshots  Json? // String[] — additional IMAGE-role media URLs
   editionLabel String? // e.g. "Tam Sürüm Oyun", "Premium Sürüm"
 
+  // ─── SEO metadata ───────────────────────────────────────────────────────────
+  // Scraped from the PS Store *detail* page (listing pages carry none of this)
+  // by scripts/enrichGameMetadata.ts. Turkish, because the TR storefront is the
+  // source of truth for pricing — `descriptionAz` is the user-facing text.
+  descriptionShort String? // `descriptions[type=SHORT]` — one-line tagline
+  descriptionLong  String? // `descriptions[type=LONG]` — full copy, contains <br/>
+  publisherName    String?
+  releaseDate      DateTime?
+  contentRating    String? // PEGI label, e.g. "PEGI 18"
+
+  // PS Store's own user rating. Displayed on the detail page with explicit
+  // attribution and fed to Product JSON-LD `aggregateRating` only when the game
+  // has no first-party GameReview rows (own reviews always win).
+  psRatingAvg   Float?
+  psRatingCount Int?
+
+  /// Azerbaijani marketing copy generated from the fields above by
+  /// scripts/generateGameDescriptions.ts. This is what the detail page renders
+  /// and what makes each page unique to a crawler — without it every game page
+  /// is the same boilerplate template. `descriptionAzHash` fingerprints the
+  /// source text so a re-run only pays for rows whose source actually changed.
+  descriptionAz     String?
+  descriptionAzHash String?
+
+  /// Last successful detail-page metadata fetch. Drives the "enrich the oldest
+  /// N rows" batching so the enricher can be run repeatedly on a cron.
+  metadataFetchedAt DateTime?
+
   isActive      Boolean  @default(true)
   isFeatured    Boolean  @default(false)
   lastScrapedAt DateTime @default(now())
@@ -372,6 +407,8 @@ model Game {
   @@index([title])
   @@index([isFeatured])
   @@index([store])
+  // "Enrich the least-recently-fetched rows" batch query.
+  @@index([metadataFetchedAt])
 }
 
 // Caches LLM-generated "Bunu nəzərdə tutdunuz?" corrections so repeated typos

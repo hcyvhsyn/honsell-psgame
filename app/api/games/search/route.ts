@@ -5,6 +5,7 @@ import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { cdnImageUrl } from "@/lib/cdnImage";
 import type { Game } from "@/lib/generated/prisma/client";
 import { Prisma as PrismaSql } from "@/lib/generated/prisma/client";
+import { gameDetailHref } from "@/lib/gameSlug";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,7 +71,7 @@ export async function GET(req: Request) {
       priceAzn: price.finalAzn,
       oldPriceAzn: price.originalAzn, // null olduqda endirim yoxdur
       currency: "AZN",
-      url: `${base}/oyunlar/${encodeURIComponent(g.productId)}`,
+      url: `${base}${gameDetailHref(g) ?? "/oyunlar"}`,
       platform: g.platform ?? null,
       // Kataloqda yalnız aktiv (satışda olan) oyunları qaytarırıq → hamısı
       // əlçatandır. Ayrıca stok sütunu yoxdur; rəqəmsal çatdırılma modeli.

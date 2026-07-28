@@ -7,6 +7,8 @@ import { fetchPopularGames } from "@/lib/popularity";
 import GameBrowser from "@/components/GameBrowser";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import type { GameCardData } from "@/components/GameCard";
+import Link from "next/link";
+import { ALL_FACETS } from "@/lib/gameFacets";
 
 export const revalidate = 600;
 
@@ -86,6 +88,7 @@ export default async function OyunlarPage({
     return {
       id: g.id,
       productId: g.productId,
+      slug: g.slug,
       title: g.title,
       imageUrl: g.imageUrl,
       platform: g.platform,
@@ -116,6 +119,27 @@ export default async function OyunlarPage({
     <main className="min-h-screen bg-zinc-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100">
       <SiteHeaderServer />
    
+
+      {/* Kateqoriya keçidləri. Facet landing səhifələri sitemap-da var, amma
+          crawler-in onları kataloqdan da tapması vacibdir — orfan səhifə
+          (heç bir daxili keçidi olmayan) çox zəif indekslənir. */}
+      <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
+        <h2 className="mb-3 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+          Kateqoriyalar
+        </h2>
+        <ul className="flex flex-wrap gap-2">
+          {ALL_FACETS.map((f) => (
+            <li key={f.path}>
+              <Link
+                href={`/${f.path}`}
+                className="inline-flex rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-sm text-zinc-700 transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+              >
+                {f.h1}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8 mt-12">
         <GameBrowser initial={initial} />

@@ -9,6 +9,7 @@ import { useCart, type PlatformAccountCredential } from "@/lib/cart";
 import { useFavorites } from "@/lib/favorites";
 import { bannerContentWrapClass, bannerThemeClasses } from "@/components/bannerLayout";
 import SpotifyAccountsModal from "@/components/SpotifyAccountsModal";
+import { gameDetailHref } from "@/lib/gameSlug";
 
 export type BannerCartGame = {
   id: string;
@@ -172,7 +173,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
   const isFav = game ? favorites.hydrated && favorites.has(game.id) : false;
   const platforms = game?.platform ? game.platform.split(",") : [];
   const linkHref = !isCartAction && banner.linkUrl ? banner.linkUrl : null;
-  const detailHref = game?.productId ? `/oyunlar/${game.productId}` : null;
+  const detailHref = game ? gameDetailHref(game) : null;
   const title = bannerTitle(banner);
   const subtitle = banner.subtitle?.trim() || null;
   const theme = bannerThemeClasses(banner.contentTheme);

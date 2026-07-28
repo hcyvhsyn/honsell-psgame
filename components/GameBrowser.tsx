@@ -158,6 +158,7 @@ export default function GameBrowser({
   store = "PS",
   defaultSort = DEFAULT_SORT,
   categories = [],
+  lockedFilters,
 }: {
   initial: ListingResponse;
   /** Storefront scope. "EPIC" routes requests to the Epic-filtered catalog. */
@@ -166,6 +167,13 @@ export default function GameBrowser({
   defaultSort?: Sort;
   /** Epic genre/category names for the PC category filter. */
   categories?: string[];
+  /**
+   * Facet landing səhifələrinin sabit filtri (məs. `/ps5-oyunlari` üçün
+   * `{ platform: "PS5" }`). İstifadəçinin dəyişdiyi filtrlərin ÜSTÜNƏ deyil,
+   * ONLARLA BİRLİKDƏ hər sorğuya əlavə olunur — yəni landing səhifəsində
+   * "PS4" seçib kateqoriyadan çıxmaq mümkün deyil, səhifə öz mövzusunda qalır.
+   */
+  lockedFilters?: Record<string, string>;
 }) {
   // Epic/PC mode: swaps the PlayStation type tabs + platform filter for a
   // genre/category picker, and routes requests to the Epic catalog.
@@ -188,6 +196,14 @@ export default function GameBrowser({
   const pageSize = initial.pageSize ?? DEFAULT_PAGE_SIZE;
   const [page, setPage] = useState<number>(initial.page ?? 1);
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // `lockedFilters` server komponentdən gələn obyekt literalıdır — effekt
+  // asılılığında birbaşa işlətsək, hər render-də yeni referans kimi görünüb
+  // artıq sorğu tetikləyə bilər. Sabit sətir açarına çeviririk.
+  const lockedKey = useMemo(
+    () => (lockedFilters ? new URLSearchParams(lockedFilters).toString() : ""),
+    [lockedFilters]
+  );
 
   const reqId = useRef(0);
   const hasMounted = useRef(false);
@@ -224,6 +240,12 @@ export default function GameBrowser({
       // and totals continue to work unchanged. The AI endpoint isn't
       // store-scoped, so Epic searches stay on the store-filtered /api/games
       // keyword path.
+      // Sabit facet filtrləri sorğunun sonunda tətbiq olunur ki, istifadəçinin
+      // seçdiyi eyniadlı filtri əvəz etsin (səhifə öz mövzusundan çıxmasın).
+      if (lockedKey) {
+        for (const [k, v] of new URLSearchParams(lockedKey)) params.set(k, v);
+      }
+
       const useAi = isSearching && store === "PS";
       const endpoint = useAi ? "/api/search/ai" : "/api/games";
       if (!useAi) params.set("sort", sort);
@@ -252,7 +274,7 @@ export default function GameBrowser({
     }, 250);
 
     return () => clearTimeout(handle);
-  }, [query, sort, platform, onSale, productType, page, pageSize, priceMin, priceMax, store, genre, isEpic]);
+  }, [query, sort, platform, onSale, productType, page, pageSize, priceMin, priceMax, store, genre, isEpic, lockedKey]);
 
   // Filtrlər dəyişəndə ilk səhifəyə qayıt. İlk mount-da skip edirik ki,
   // sessionStorage-dan restore olunan səhifə nömrəsi sıfırlanmasın.

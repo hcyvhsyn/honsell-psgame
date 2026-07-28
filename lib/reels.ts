@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
+import { gameDetailHref } from "@/lib/gameSlug";
 
 /**
  * Reels feed data qatı — TƏK mənbə.
@@ -82,6 +83,7 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
           select: {
             id: true,
             productId: true,
+        slug: true,
             title: true,
             imageUrl: true,
             store: true,
@@ -137,7 +139,7 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
           finalAzn: computeDisplayPrice(g, settings).finalAzn,
           productType: g.productType,
           store: g.store === "EPIC" || g.platform === "PC" ? "EPIC" : "PS",
-          href: `/oyunlar/${encodeURIComponent(g.productId)}`,
+          href: gameDetailHref(g) ?? "/oyunlar",
         };
       }
     } else if (r.ctaType === "SERVICE" && r.ctaTargetId) {

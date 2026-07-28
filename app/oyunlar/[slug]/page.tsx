@@ -1,4 +1,5 @@
-import { notFound } from "next/navigation";
+import { cache } from "react";
+import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { cdnImageUrl } from "@/lib/cdnImage";
@@ -16,6 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { looksLikeProductId } from "@/lib/gameSlug";
 import { getCurrentUser } from "@/lib/auth";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
@@ -48,28 +50,50 @@ function buildFranchiseSeed(title: string): string | null {
   return seed.length >= 3 ? seed : null;
 }
 
+/**
+ * Resolves a `/oyunlar/<segment>` path segment to a game row.
+ *
+ * The segment is normally a slug. Legacy links — old sitemap entries, sent
+ * campaign emails, WhatsApp messages, external backlinks — still carry the raw
+ * productId, so those are looked up too and reported back as a redirect so the
+ * route can 308 them onto the canonical slug URL. Wrapped in React `cache` so
+ * `generateMetadata` and the page body share a single query per request.
+ */
+const resolveGame = cache(async (segment: string) => {
+  const decoded = decodeURIComponent(segment);
+
+  // A productId-shaped segment can never be a slug (slugs have no `EP0001-`
+  // prefix), so skip the wasted slug lookup on legacy traffic.
+  if (!looksLikeProductId(decoded)) {
+    const bySlug = await prisma.game.findUnique({ where: { slug: decoded } });
+    if (bySlug) return { game: bySlug, redirectTo: null as string | null };
+  }
+
+  const byProductId = await prisma.game.findUnique({ where: { productId: decoded } });
+  if (!byProductId) return { game: null, redirectTo: null as string | null };
+
+  return {
+    game: byProductId,
+    // Rows the slug backfill hasn't reached yet keep serving on the productId
+    // URL rather than 404-ing; they start redirecting once they get a slug.
+    redirectTo: byProductId.slug ? `/oyunlar/${byProductId.slug}` : null,
+  };
+});
+
+/** Canonical public URL for a game — slug when it has one, productId until then. */
+function gamePath(game: { slug: string | null; productId: string }): string {
+  return game.slug
+    ? `/oyunlar/${game.slug}`
+    : `/oyunlar/${encodeURIComponent(game.productId)}`;
+}
+
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ productId: string }>;
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const { productId } = await params;
-  const [game, settings] = await Promise.all([
-    prisma.game.findUnique({
-      where: { productId },
-      select: {
-        title: true,
-        imageUrl: true,
-        heroImageUrl: true,
-        platform: true,
-        productType: true,
-        priceTryCents: true,
-        discountTryCents: true,
-        discountEndAt: true,
-      },
-    }),
-    getSettings(),
-  ]);
+  const { slug } = await params;
+  const [{ game }, settings] = await Promise.all([resolveGame(slug), getSettings()]);
   if (!game) return { title: "Oyun tapılmadı", robots: { index: false } };
 
   const display = computeDisplayPrice(game, settings);
@@ -78,9 +102,13 @@ export async function generateMetadata({
   const priceTag = `${display.finalAzn.toFixed(2)} ₼`;
 
   const title = `${game.title} — ${priceTag}${discountTag} | ${platforms}`;
-  const description = `${game.title} ${platforms} oyununu Azərbaycanda ən sərfəli qiymətə (${priceTag}) al. Anında çatdırılma, etibarlı ödəniş, rəsmi PSN hesabına yüklənmə.`;
+  // Prefer the real game copy: a unique first sentence per product is what stops
+  // Google treating thousands of catalogue pages as one boilerplate template.
+  const description = game.descriptionAz
+    ? `${game.descriptionAz.slice(0, 150).trim()}… ${priceTag}-dən, anında çatdırılma.`
+    : `${game.title} ${platforms} oyununu Azərbaycanda ən sərfəli qiymətə (${priceTag}) al. Anında çatdırılma, etibarlı ödəniş, rəsmi PSN hesabına yüklənmə.`;
   const cover = game.heroImageUrl ?? game.imageUrl ?? undefined;
-  const canonical = `/oyunlar/${encodeURIComponent(productId)}`;
+  const canonical = gamePath(game);
 
   return {
     title,
@@ -105,16 +133,17 @@ export async function generateMetadata({
 export default async function GameDetailPage({
   params,
 }: {
-  params: Promise<{ productId: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { productId } = await params;
+  const { slug } = await params;
+  const { game, redirectTo } = await resolveGame(slug);
+  if (!game || !game.isActive) notFound();
+  // Legacy productId URL → permanent redirect onto the slug so link equity and
+  // crawl budget consolidate on one canonical address.
+  if (redirectTo) permanentRedirect(redirectTo);
+
   const settings = await getSettings();
   const currentUser = await getCurrentUser().catch(() => null);
-
-  const game = await prisma.game.findUnique({
-    where: { productId },
-  });
-  if (!game || !game.isActive) notFound();
 
   const display = computeDisplayPrice(game, settings);
 
@@ -128,6 +157,16 @@ export default async function GameDetailPage({
     select: { collectionId: true },
   });
   const myCollectionIds = myCollections.map((c) => c.collectionId);
+
+  // First-party rating aggregate, for the visible summary and for JSON-LD.
+  // Only APPROVED reviews count — PENDING/REJECTED ones are not public, and
+  // marking up ratings a visitor cannot see violates Google's review snippet
+  // policy.
+  const ownRatings = await prisma.gameReview.aggregate({
+    where: { gameId: game.id, status: "APPROVED" },
+    _avg: { rating: true },
+    _count: { rating: true },
+  });
 
   const platformContains = game.platform ? game.platform.split(",")[0] : null;
 
@@ -184,6 +223,7 @@ export default async function GameDetailPage({
     return {
       id: g.id,
       productId: g.productId,
+      slug: g.slug,
       title: g.title,
       imageUrl: g.imageUrl,
       platform: g.platform,
@@ -203,21 +243,66 @@ export default async function GameDetailPage({
     : [];
 
   const heroImage = game.heroImageUrl ?? game.imageUrl;
-  const canonicalUrl = `${SITE_URL}/oyunlar/${encodeURIComponent(game.productId)}`;
+  const canonicalUrl = `${SITE_URL}${gamePath(game)}`;
   const productImages = [heroImage, game.imageUrl, ...screenshots]
     .filter((u): u is string => Boolean(u))
     .filter((u, i, arr) => arr.indexOf(u) === i);
+
+  // ─── Rating for the snippet ─────────────────────────────────────────────────
+  // Own reviews always win: they are first-party, moderated, and rendered right
+  // below. PS Store's rating is the fallback — it is displayed on the page with
+  // explicit attribution, so marking it up describes what the visitor sees.
+  const ownRatingCount = ownRatings._count.rating ?? 0;
+  const ownRatingAvg = ownRatings._avg.rating ?? null;
+  const aggregateRating =
+    ownRatingCount > 0 && ownRatingAvg != null
+      ? {
+          value: Math.round(ownRatingAvg * 10) / 10,
+          count: ownRatingCount,
+          source: "own" as const,
+        }
+      : game.psRatingAvg != null && game.psRatingCount != null && game.psRatingCount > 0
+        ? { value: game.psRatingAvg, count: game.psRatingCount, source: "ps" as const }
+        : null;
+
+  // Unique per-product copy when we have it — the boilerplate line is only a
+  // fallback for rows the enrichment/generation jobs have not reached yet.
+  const seoDescription =
+    game.descriptionAz ??
+    `${game.title} — ${platforms.join("/") || "PlayStation"} oyununu Azərbaycanda ən sərfəli qiymətə.`;
 
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: game.title,
-    description: `${game.title} — ${platforms.join("/") || "PlayStation"} oyununu Azərbaycanda ən sərfəli qiymətə.`,
+    description: seoDescription,
     sku: game.productId,
     image: productImages,
-    brand: { "@type": "Brand", name: "PlayStation" },
+    brand: {
+      "@type": "Brand",
+      // The publisher is the real brand when we know it; PlayStation is the
+      // platform, and using it for every row makes the field meaningless.
+      name: game.publisherName ?? "PlayStation",
+    },
     category: PRODUCT_TYPE_LABEL[game.productType] ?? "Oyun",
     url: canonicalUrl,
+    ...(game.genres.length > 0 ? { genre: game.genres } : {}),
+    ...(game.releaseDate
+      ? { releaseDate: game.releaseDate.toISOString().slice(0, 10) }
+      : {}),
+    ...(game.contentRating ? { contentRating: game.contentRating } : {}),
+    ...(platforms.length > 0 ? { gamePlatform: platforms } : {}),
+    ...(aggregateRating
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: aggregateRating.value.toFixed(1),
+            ratingCount: aggregateRating.count,
+            bestRating: "5",
+            worstRating: "1",
+          },
+        }
+      : {}),
     offers: {
       "@type": "Offer",
       url: canonicalUrl,
@@ -231,6 +316,31 @@ export default async function GameDetailPage({
         : {}),
     },
   };
+
+  // Visible spec table. Doubles as the on-page evidence for the structured-data
+  // fields above — every JSON-LD claim has a rendered counterpart here.
+  const metaFacts: { label: string; value: string }[] = [
+    game.genres.length > 0 ? { label: "Janr", value: game.genres.join(", ") } : null,
+    game.publisherName ? { label: "Nəşriyyatçı", value: game.publisherName } : null,
+    game.releaseDate
+      ? {
+          label: "Çıxış tarixi",
+          value: game.releaseDate.toLocaleDateString("az-AZ", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          }),
+        }
+      : null,
+    platforms.length > 0 ? { label: "Platforma", value: platforms.join(", ") } : null,
+    game.contentRating ? { label: "Yaş reytinqi", value: game.contentRating } : null,
+    aggregateRating
+      ? {
+          label: "Reytinq",
+          value: `${aggregateRating.value.toFixed(1)}/5 (${aggregateRating.count.toLocaleString("az-AZ")} qiymətləndirmə)`,
+        }
+      : null,
+  ].filter((f): f is { label: string; value: string } => f !== null);
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -494,6 +604,60 @@ export default async function GameDetailPage({
         </div>
       </section>
 
+      {/* Oyun haqqında — the unique, indexable body copy for this page.
+          Rendered above the trailer so crawlers (and users) hit real text
+          before media. `descriptionAz` is generated per product; the PS Store
+          Turkish text is never shown as-is (duplicate content + wrong language). */}
+      {(game.descriptionAz || metaFacts.length > 0) && (
+        <section className="mx-auto w-full max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
+          <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-200">
+            {game.title} haqqında
+          </h2>
+          <div className="grid gap-6 lg:grid-cols-3">
+            {game.descriptionAz && (
+              <div className="lg:col-span-2">
+                <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950/40">
+                  {game.descriptionAz.split(/\n{2,}/).map((para, i) => (
+                    <p
+                      key={i}
+                      className="mb-3 text-sm leading-relaxed text-zinc-700 last:mb-0 dark:text-zinc-300"
+                    >
+                      {para}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {metaFacts.length > 0 && (
+              <div className={game.descriptionAz ? "" : "lg:col-span-3"}>
+                <dl className="divide-y divide-zinc-200 overflow-hidden rounded-2xl border border-zinc-200 bg-white text-sm dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950/40">
+                  {metaFacts.map((fact) => (
+                    <div key={fact.label} className="flex gap-3 px-5 py-3">
+                      <dt className="w-32 shrink-0 text-zinc-500 dark:text-zinc-500">
+                        {fact.label}
+                      </dt>
+                      <dd className="font-medium text-zinc-900 dark:text-zinc-200">
+                        {fact.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+
+                {/* Attribution is mandatory: this rating is PlayStation Store's,
+                    not ours, and the JSON-LD only claims it because it is
+                    visible here. */}
+                {aggregateRating?.source === "ps" && (
+                  <p className="mt-3 px-1 text-xs text-zinc-500 dark:text-zinc-500">
+                    Reytinq mənbəyi: PlayStation Store istifadəçi qiymətləndirmələri.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* Trailer */}
       {game.trailerUrl && (
         <section className="mx-auto w-full max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
@@ -543,6 +707,7 @@ export default async function GameDetailPage({
         game={{
           id: game.id,
           productId: game.productId,
+          slug: game.slug,
           title: game.title,
           coverImageUrl: heroImage ?? game.imageUrl,
           finalAzn: display.finalAzn,

@@ -7,10 +7,13 @@ export const alt = "Honsell Store — oyun";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default async function OgImage({ params }: { params: { productId: string } }) {
+export default async function OgImage({ params }: { params: { slug: string } }) {
+  const segment = decodeURIComponent(params.slug);
   const [game, settings] = await Promise.all([
-    prisma.game.findUnique({
-      where: { productId: params.productId },
+    // The route accepts both a slug and a legacy productId, so the OG image has
+    // to resolve either — `findFirst` with an OR avoids two round trips.
+    prisma.game.findFirst({
+      where: { OR: [{ slug: segment }, { productId: segment }] },
       select: {
         title: true,
         imageUrl: true,

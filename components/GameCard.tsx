@@ -14,6 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import { gameDetailHref } from "@/lib/gameSlug";
 import FavoriteButton from "./FavoriteButton";
 import PlatformInfoButton from "./PlatformInfoButton";
 import ReferralBadge from "./ReferralBadge";
@@ -30,8 +31,10 @@ export type GameCardData = {
   discountPct: number | null;
   /** ISO timestamp of when the active discount expires; null if no discount or unknown. */
   discountEndAt: string | null;
-  /** PS Store productId — when present, the card links to /oyunlar/[productId]. */
+  /** PS Store productId — legacy link target, used when `slug` is not set yet. */
   productId?: string | null;
+  /** SEO slug — the canonical detail URL. Preferred over productId when present. */
+  slug?: string | null;
   /** Storefront: "PS" (default) or "EPIC". Epic cards swap PS chrome for Epic branding. */
   store?: string | null;
 };
@@ -148,7 +151,7 @@ export default function GameCard({
   const giftDiscountEndAt = game.discountPct != null ? game.discountEndAt : null;
   const isDiscounted = game.discountPct != null;
   const platforms = game.platform ? game.platform.split(",").map((p) => p.trim()).filter(Boolean) : [];
-  const detailHref = game.productId ? `/oyunlar/${game.productId}` : null;
+  const detailHref = gameDetailHref(game);
   const productTypeBadge = getProductTypeBadge(game.productType);
 
   const coverVisual = (

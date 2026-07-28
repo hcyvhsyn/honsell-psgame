@@ -20,7 +20,7 @@ export function revalidateGames(): void {
   revalidateTag("home");
   revalidatePath("/");
   revalidatePath("/oyunlar");
-  revalidatePath("/oyunlar/[productId]", "page");
+  revalidatePath("/oyunlar/[slug]", "page");
   revalidatePath("/endirimler");
   revalidatePath("/kolleksiya/[slug]", "page");
 }

@@ -9,6 +9,7 @@ import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import GameCard, { type GameCardData } from "@/components/GameCard";
 import { SITE_URL, SITE_NAME } from "@/lib/site";
+import { gameDetailHref } from "@/lib/gameSlug";
 
 export const revalidate = 3600;
 
@@ -82,6 +83,7 @@ export default async function CollectionPage({
       return {
         id: game.id,
         productId: game.productId,
+        slug: game.slug,
         title: game.title,
         imageUrl: game.imageUrl,
         platform: game.platform,
@@ -107,7 +109,7 @@ export default async function CollectionPage({
     itemListElement: cards.slice(0, 24).map((c, i) => ({
       "@type": "ListItem",
       position: i + 1,
-      url: `${SITE_URL}/oyunlar/${encodeURIComponent(c.productId ?? "")}`,
+      url: `${SITE_URL}${gameDetailHref(c) ?? "/oyunlar"}`,
       name: c.title,
       offers: {
         "@type": "Offer",
