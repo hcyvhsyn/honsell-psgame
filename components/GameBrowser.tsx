@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Search,
   Loader2,
@@ -158,6 +159,7 @@ export default function GameBrowser({
   store = "PS",
   defaultSort = DEFAULT_SORT,
   categories = [],
+  categoryLinks = [],
   lockedFilters,
 }: {
   initial: ListingResponse;
@@ -167,6 +169,17 @@ export default function GameBrowser({
   defaultSort?: Sort;
   /** Epic genre/category names for the PC category filter. */
   categories?: string[];
+  /**
+   * Facet landing səhifələrinə keçidlər (`/ps5-oyunlari`, `/janr/aksiyon`, …).
+   *
+   * Bunlar filtr DEYİL, ayrı səhifələrdir — SEO üçün belə qurulub. Filtr
+   * panelində göstərilir, çünki istifadəçi kateqoriya seçimini burada axtarır,
+   * lakin klik naviqasiya edir və cari filtrlər sıfırlanır. Ona görə ayrıca
+   * başlıq altında verilir, filtr kontrolları ilə qarışmasın.
+   *
+   * Boş facet-lər siyahıya salınmır (bax: lib/facetCatalog.ts getFacetCounts).
+   */
+  categoryLinks?: { path: string; label: string }[];
   /**
    * Facet landing səhifələrinin sabit filtri (məs. `/ps5-oyunlari` üçün
    * `{ platform: "PS5" }`). İstifadəçinin dəyişdiyi filtrlərin ÜSTÜNƏ deyil,
@@ -730,6 +743,25 @@ export default function GameBrowser({
                 </div>
               </FilterField>
               </div>
+
+              {categoryLinks.length > 0 && (
+                <div className="border-t border-zinc-200 pt-4 dark:border-white/5">
+                  <FilterField label="Kateqoriyalar">
+                    <ul className="flex flex-wrap gap-2">
+                      {categoryLinks.map((c) => (
+                        <li key={c.path}>
+                          <Link
+                            href={`/${c.path}`}
+                            className="inline-flex items-center rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-white/10 dark:bg-black/25 dark:text-zinc-300 dark:hover:border-violet-400/30 dark:hover:bg-white/[0.055] dark:hover:text-violet-200"
+                          >
+                            {c.label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </FilterField>
+                </div>
+              )}
 
               {hasActiveFilter && (
                 <div className="flex justify-end border-t border-zinc-200 pt-3 dark:border-white/5">

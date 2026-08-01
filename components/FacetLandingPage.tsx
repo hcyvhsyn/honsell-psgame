@@ -8,13 +8,15 @@ import FaqAccordion from "@/components/FaqAccordion";
 import GameCard from "@/components/GameCard";
 import { SITE_URL, SITE_NAME } from "@/lib/site";
 import {
+  ALL_FACETS,
   getFacet,
   facetToApiParams,
   FACET_MIN_PRODUCTS_FOR_INDEX,
   type Facet,
 } from "@/lib/gameFacets";
-import { getFacetCatalog, FACET_PAGE_SIZE } from "@/lib/facetCatalog";
+import { getFacetCatalog, getFacetCounts, FACET_PAGE_SIZE } from "@/lib/facetCatalog";
 import { gameDetailHref } from "@/lib/gameSlug";
+import { getSettings } from "@/lib/pricing";
 
 function facetUrl(path: string, page = 1): string {
   return page > 1 ? `/${path}?page=${page}` : `/${path}`;
@@ -99,10 +101,14 @@ export default async function FacetLandingPage({
   const facet = getFacet(facetPath);
   if (!facet) notFound();
 
+  // `getSettings` React cache()-dir → sorğu əhatəsinə bağlıdır, ona görə
+  // unstable_cache-in İÇİNDƏ deyil, burada oxunur (bax: lib/facetCatalog.ts).
+  const settings = await getSettings();
   const { cards, total, totalPages } = await getFacetCatalog(
     facet.path,
     facet.filter,
-    page
+    page,
+    settings
   );
 
   // Mövcud olmayan səhifə nömrəsi → 404 (sonsuz boş səhifə seriyası
@@ -186,9 +192,21 @@ export default async function FacetLandingPage({
     totalPages,
   };
 
+  // Boş facet-ə keçid vermək istifadəçini boş səhifəyə aparır — həm "əlaqəli
+  // kateqoriyalar" bloku, həm də filtr panelindəki siyahı sayğaca görə süzülür.
+  const facetCounts = await getFacetCounts(ALL_FACETS, settings).catch(
+    () => ({}) as Record<string, number>
+  );
+  const hasProducts = (p: string) => (facetCounts[p] ?? 0) > 0;
+
   const relatedFacets = facet.related
     .map((p) => getFacet(p))
-    .filter((f): f is Facet => f !== null);
+    .filter((f): f is Facet => f !== null && hasProducts(f.path));
+
+  // Filtr panelindəki kateqoriya siyahısı — cari səhifə öz siyahısında görünmür.
+  const categoryLinks = ALL_FACETS.filter(
+    (f) => f.path !== facet.path && hasProducts(f.path)
+  ).map((f) => ({ path: f.path, label: f.h1 }));
 
   return (
     <main className="min-h-screen bg-zinc-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100">
@@ -251,7 +269,11 @@ export default async function FacetLandingPage({
       </noscript>
 
       <section className="mx-auto w-full max-w-7xl px-4 pb-10 pt-8 sm:px-6 lg:px-8">
-        <GameBrowser initial={initial} lockedFilters={lockedFilters} />
+        <GameBrowser
+          initial={initial}
+          lockedFilters={lockedFilters}
+          categoryLinks={categoryLinks}
+        />
       </section>
 
       {/* Səhifələmə — crawler üçün REAL <a> keçidləri. GameBrowser öz
@@ -334,7 +356,8 @@ export async function facetRobots(
 ): Promise<Metadata["robots"] | undefined> {
   const facet = getFacet(facetPath);
   if (!facet) return { index: false, follow: false };
-  const { total } = await getFacetCatalog(facet.path, facet.filter, 1);
+  const settings = await getSettings();
+  const { total } = await getFacetCatalog(facet.path, facet.filter, 1, settings);
   if (total < FACET_MIN_PRODUCTS_FOR_INDEX) {
     // Səhifə işləməyə davam edir (keçidlə gələn istifadəçi görür), amma
     // indeksə düşmür — az məhsullu səhifə bütün domenin qiymətini aşağı salır.

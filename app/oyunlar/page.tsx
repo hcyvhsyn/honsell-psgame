@@ -7,8 +7,8 @@ import { fetchPopularGames } from "@/lib/popularity";
 import GameBrowser from "@/components/GameBrowser";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import type { GameCardData } from "@/components/GameCard";
-import Link from "next/link";
 import { ALL_FACETS } from "@/lib/gameFacets";
+import { getFacetCounts } from "@/lib/facetCatalog";
 
 export const revalidate = 600;
 
@@ -103,6 +103,16 @@ export default async function OyunlarPage({
     };
   });
 
+  // Boş kateqoriyaları göstərmək istifadəçini boş səhifəyə aparır. Janr
+  // facet-ləri `scripts/enrichGameMetadata.ts` işləyənə qədər boş olur, ona
+  // görə onlar data gələnə qədər avtomatik gizlənir.
+  const facetCounts = await getFacetCounts(ALL_FACETS, settings).catch(
+    () => ({}) as Record<string, number>
+  );
+  const categoryLinks = ALL_FACETS.filter((f) => (facetCounts[f.path] ?? 0) > 0).map(
+    (f) => ({ path: f.path, label: f.h1 })
+  );
+
   const initial = {
     total: popularCount,
     totalAll: typeAllCount,
@@ -120,29 +130,8 @@ export default async function OyunlarPage({
       <SiteHeaderServer />
    
 
-      {/* Kateqoriya keçidləri. Facet landing səhifələri sitemap-da var, amma
-          crawler-in onları kataloqdan da tapması vacibdir — orfan səhifə
-          (heç bir daxili keçidi olmayan) çox zəif indekslənir. */}
-      <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-          Kateqoriyalar
-        </h2>
-        <ul className="flex flex-wrap gap-2">
-          {ALL_FACETS.map((f) => (
-            <li key={f.path}>
-              <Link
-                href={`/${f.path}`}
-                className="inline-flex rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-sm text-zinc-700 transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
-              >
-                {f.h1}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
-
       <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8 mt-12">
-        <GameBrowser initial={initial} />
+        <GameBrowser initial={initial} categoryLinks={categoryLinks} />
       </section>
     </main>
   );

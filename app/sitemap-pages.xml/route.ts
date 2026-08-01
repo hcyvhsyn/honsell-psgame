@@ -7,7 +7,8 @@ import { SITE_URL } from "@/lib/site";
 import { getAllGuides } from "@/lib/guides";
 import { buildUrlSet, xmlResponse, type UrlEntry } from "@/lib/sitemapXml";
 import { ALL_FACETS, FACET_MIN_PRODUCTS_FOR_INDEX } from "@/lib/gameFacets";
-import { getFacetCatalog } from "@/lib/facetCatalog";
+import { getFacetCounts } from "@/lib/facetCatalog";
+import { getSettings } from "@/lib/pricing";
 
 export const revalidate = 3600;
 
@@ -44,15 +45,12 @@ export async function GET() {
   // Google-a ziddiyyətli siqnal verər, ona görə süzülür.
   let facetEntries: UrlEntry[] = [];
   try {
-    const checked = await Promise.all(
-      ALL_FACETS.map(async (f) => {
-        const { total } = await getFacetCatalog(f.path, f.filter, 1);
-        return { facet: f, total };
-      })
-    );
-    facetEntries = checked
-      .filter(({ total }) => total >= FACET_MIN_PRODUCTS_FOR_INDEX)
-      .map(({ facet }) => ({
+    const settings = await getSettings();
+    // Yalnız sayğac — sitemap üçün sətirləri çəkməyə ehtiyac yoxdur.
+    const counts = await getFacetCounts(ALL_FACETS, settings);
+    facetEntries = ALL_FACETS
+      .filter((f) => (counts[f.path] ?? 0) >= FACET_MIN_PRODUCTS_FOR_INDEX)
+      .map((facet) => ({
         loc: `${SITE_URL}/${facet.path}`,
         lastModified: now,
         changeFrequency: "daily" as const,
