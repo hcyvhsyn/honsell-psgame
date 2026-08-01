@@ -17,10 +17,10 @@ import HomeProductMatrix, { type HomeProductMatrixItem } from "@/components/Home
 import HomeScrollTuning from "@/components/HomeScrollTuning";
 import ScrollAnimationManager from "@/components/ScrollAnimationManager";
 import HomeTrustBar from "@/components/HomeTrustBar";
-import HomeDiscountCarousel from "@/components/HomeDiscountCarousel";
+import HomeFlashDeals, { type FlashDealCard } from "@/components/HomeFlashDeals";
 import HomeTestimonials from "@/components/HomeTestimonials";
 import HomeGiveaways from "@/components/HomeGiveaways";
-import { type GameCardData } from "@/components/GameCard";
+import HomeLootBoxes from "@/components/HomeLootBoxes";
 import {
   HeroMotionOverlay,
   SectionFlowDivider,
@@ -48,6 +48,7 @@ import {
   readPlatformMeta,
 } from "@/lib/platformSubscriptions";
 import { gameDetailHref } from "@/lib/gameSlug";
+import { applyFlashDeal } from "@/lib/flashDeals";
 
 export const revalidate = 1800;
 
@@ -451,61 +452,66 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
     }));
 }
 
-async function fetchDiscountedGames(
+/**
+ * "Fürsətləri qaçırma" — `/admin/flash-deals`-dən əl ilə seçilmiş oyunlar.
+ * Qiymət/köhnə qiymət override-ı `applyFlashDeal` ilə tətbiq olunur ki, vitrin
+ * checkout-la eyni rəqəmi göstərsin.
+ */
+async function fetchFlashDeals(
   settings: Awaited<ReturnType<typeof getSettings>>,
-): Promise<{ cards: GameCardData[] }> {
+): Promise<FlashDealCard[]> {
   const now = new Date();
-  const games = await prisma.game
+  const deals = await prisma.flashDeal
     .findMany({
       where: {
         isActive: true,
-        discountTryCents: { not: null },
-        OR: [{ discountEndAt: null }, { discountEndAt: { gt: now } }],
+        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+        game: { isActive: true },
       },
-      orderBy: { lastScrapedAt: "desc" },
-      take: 60,
-      select: {
-        id: true,
-        productId: true,
-        slug: true,
-        title: true,
-        imageUrl: true,
-        platform: true,
-        productType: true,
-        store: true,
-        priceTryCents: true,
-        discountTryCents: true,
-        discountEndAt: true,
-        priceUsdCents: true,
-        discountUsdCents: true,
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      take: 12,
+      include: {
+        game: {
+          select: {
+            id: true,
+            productId: true,
+            slug: true,
+            title: true,
+            imageUrl: true,
+            platform: true,
+            productType: true,
+            store: true,
+            priceTryCents: true,
+            discountTryCents: true,
+            discountEndAt: true,
+            priceUsdCents: true,
+            discountUsdCents: true,
+          },
+        },
       },
     })
     .catch(() => []);
 
-  const enriched = games
-    .map((game) => ({ game, price: computeDisplayPrice(game, settings) }))
-    .filter((row) => row.price.discountPct != null && row.price.discountPct > 0)
-    .sort((a, b) => (b.price.discountPct ?? 0) - (a.price.discountPct ?? 0));
-
-  const cards: GameCardData[] = enriched.slice(0, 10).map(({ game, price }) => ({
-    id: game.id,
-    productId: game.productId,
-    slug: game.slug,
-    title: game.title,
-    imageUrl: game.imageUrl,
-    platform: game.platform,
-    productType: game.productType,
-    store: game.store,
-    finalAzn: price.finalAzn,
-    originalAzn: price.originalAzn,
-    discountPct: price.discountPct,
-    discountEndAt:
-      game.discountTryCents != null && game.discountEndAt
-        ? game.discountEndAt.toISOString()
-        : null,
-  }));
-
-  return { cards };
+  return deals.map((deal) => {
+    const price = applyFlashDeal(computeDisplayPrice(deal.game, settings), {
+      priceAznCents: deal.priceAznCents,
+      originalAznCents: deal.originalAznCents,
+      endsAt: deal.endsAt,
+    });
+    return {
+      id: deal.game.id,
+      title: deal.game.title,
+      href: gameDetailHref(deal.game),
+      imageUrl: deal.game.imageUrl,
+      productType: deal.game.productType,
+      store: deal.game.store,
+      platform: deal.game.platform,
+      finalAzn: price.finalAzn,
+      originalAzn: price.originalAzn,
+      discountPct: price.discountPct,
+      endsAt: deal.endsAt ? deal.endsAt.toISOString() : null,
+    };
+  });
 }
 
 /**
@@ -518,7 +524,7 @@ async function fetchDiscountedGames(
 const getHomePageData = unstable_cache(
   async () => {
   const settings = await getSettings();
-  const [banners, landingProducts, bestSellers, totalsArr, discounted, orderCount, testimonialAgg] = await Promise.all([
+  const [banners, landingProducts, bestSellers, totalsArr, orderCount, testimonialAgg, flashDeals] = await Promise.all([
     prisma.banner
       .findMany({
         where: { isActive: true, scope: "HOME" },
@@ -529,13 +535,13 @@ const getHomePageData = unstable_cache(
     fetchLandingProducts(),
     fetchBestSellers(settings),
     prisma.game.groupBy({ by: ["productType"], where: { isActive: true }, _count: { _all: true } }),
-    fetchDiscountedGames(settings),
     prisma.transaction
       .count({ where: { status: "SUCCESS", type: { in: ["PURCHASE", "SERVICE_PURCHASE"] } } })
       .catch(() => 0),
     prisma.testimonial
       .aggregate({ where: { isActive: true }, _avg: { rating: true }, _count: { _all: true } })
       .catch(() => null),
+    fetchFlashDeals(settings),
   ]);
 
   const totalsAll = totalsArr.reduce((sum, row) => sum + row._count._all, 0);
@@ -613,8 +619,8 @@ const getHomePageData = unstable_cache(
     bannerSlides,
     trustStats,
     landingProducts,
-    discounted,
     bestSellers,
+    flashDeals,
   };
   },
   ["home-page-data"],
@@ -626,8 +632,8 @@ export default async function HomePage() {
     bannerSlides,
     trustStats,
     landingProducts,
-    discounted,
     bestSellers,
+    flashDeals,
   } = await getHomePageData();
 
   const websiteJsonLd = {
@@ -725,14 +731,20 @@ export default async function HomePage() {
       <SectionFlowDivider text="Abunəlik paketləri" tone="violet" />
       <HomeProductMatrix products={landingProducts} />
 
-      <SectionFlowDivider text="Endirimdə olan oyunlar" tone="rose" flip />
-      <HomeDiscountCarousel games={discounted.cards} />
+      {/* Fürsətləri qaçırma — admin panelindən əl ilə seçilən kampaniya oyunları.
+          Əvvəlki avtomatik "Endirimdə olan oyunlar" karuselinin yerini tutur.
+          Öz başlığı olan bir panel olduğu üçün qabağına SectionFlowDivider qoyulmur. */}
+      <HomeFlashDeals deals={flashDeals} />
 
       <SectionFlowDivider text="Bu həftə ən çox alınanlar" tone="amber" />
       <BestSellersSection items={bestSellers} />
 
+      {/* Qutu açılışı (loot box) — client fetch, ana səhifə statik qalır */}
+      <SectionFlowDivider text="Qutu açılışı" tone="violet" flip />
+      <HomeLootBoxes />
+
       {/* Çəkilişlər (giveaway) — client fetch, ana səhifə statik qalır */}
-      <SectionFlowDivider text="Çəkilişlər" tone="violet" flip />
+      <SectionFlowDivider text="Çəkilişlər" tone="violet" />
       <HomeGiveaways />
 
       {/* Niyə biz */}

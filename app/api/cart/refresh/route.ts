@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
+import { applyFlashDeal, getFlashDealOverrides } from "@/lib/flashDeals";
 
 export const runtime = "nodejs";
 
@@ -51,11 +52,15 @@ export async function POST(req: Request) {
   // `store` is returned so the client can heal cart items that were added
   // without it (older carts in localStorage, or add-paths that omitted the
   // field). The cart UI uses it to pick the PSN vs Epic account selector.
+  // "Fürsətləri qaçırma" kampaniya qiymətləri — səbət də ana səhifədə görünən
+  // rəqəmi göstərsin deyə eyni override burada da tətbiq olunur.
+  const flashDeals = await getFlashDealOverrides(games.map((g) => g.id));
+
   const prices: { id: string; finalAzn: number; store?: string }[] = [];
   for (const g of games) {
     prices.push({
       id: g.id,
-      finalAzn: computeDisplayPrice(g, settings).finalAzn,
+      finalAzn: applyFlashDeal(computeDisplayPrice(g, settings), flashDeals.get(g.id)).finalAzn,
       store: g.store ?? "PS",
     });
   }

@@ -24,6 +24,10 @@ export async function GET(req: Request) {
   const q = (url.searchParams.get("q") ?? "").trim();
   if (q.length < 2) return NextResponse.json({ results: [] });
 
+  // `kind=GAME` — yalnız kataloq oyunları (flash deal picker xidmət məhsullarını
+  // seçə bilmir, ona görə onları heç axtarmırıq).
+  const gamesOnly = url.searchParams.get("kind") === "GAME";
+
   const [games, services, settings] = await Promise.all([
     prisma.game.findMany({
       where: { isActive: true, title: { contains: q, mode: "insensitive" } },
@@ -43,12 +47,14 @@ export async function GET(req: Request) {
         discountUsdCents: true,
       },
     }),
-    prisma.serviceProduct.findMany({
-      where: { isActive: true, title: { contains: q, mode: "insensitive" } },
-      orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
-      take: 8,
-      select: { id: true, title: true, imageUrl: true, type: true, priceAznCents: true, metadata: true },
-    }),
+    gamesOnly
+      ? Promise.resolve([])
+      : prisma.serviceProduct.findMany({
+          where: { isActive: true, title: { contains: q, mode: "insensitive" } },
+          orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
+          take: 8,
+          select: { id: true, title: true, imageUrl: true, type: true, priceAznCents: true, metadata: true },
+        }),
     getSettings(),
   ]);
 

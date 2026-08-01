@@ -16,6 +16,7 @@ import { awardReviewAffiliateCommission } from "@/lib/reviewAffiliate";
 import { resolveReferralRatePct, type ReferralRateDb } from "@/lib/referralRates";
 import { resolveEffectiveTierId } from "@/lib/customerTier";
 import { sendOrderApprovedWhatsApp } from "@/lib/orderNotifications";
+import { sellBackAmountCents } from "@/lib/lootBoxShared";
 
 export const runtime = "nodejs";
 
@@ -72,6 +73,20 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: "Oyun qeydi silinib." }, { status: 400 });
     }
 
+    // Qutu açılışından (loot box) çıxan hədiyyə sifarişi. Bunun məbləği 0-dır:
+    // müştəri qutunun qiymətini ödəyib, oyunun kataloq qiymətini yox. Ona görə
+    // referal komissiyası / cycle xalları / rəy affiliate kataloq qiymətindən
+    // hesablanmamalıdır — əks halda 5 AZN-lik qutuya 10 AZN-lik satış kimi
+    // komissiya ödəyərdik və qutunun marjası yeyilərdi.
+    const isLootBoxPrize = (() => {
+      if (!row.metadata) return false;
+      try {
+        return (JSON.parse(row.metadata) as { paymentSource?: string }).paymentSource === "LOOT_BOX";
+      } catch {
+        return false;
+      }
+    })();
+
     await prisma.$transaction(async (ptx) => {
       const needle = `"sourcePurchaseId":"${row.id}"`;
       const existingCommission = await ptx.transaction.findFirst({
@@ -109,7 +124,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       if (
         referredById &&
         referralRatePct > 0 &&
-        !existingCommission
+        !existingCommission &&
+        !isLootBoxPrize
       ) {
         const profitCents = Math.max(0, unitListCents - unitCostCents);
         const commissionCents = Math.round((unitListCents * referralRatePct) / 100);
@@ -143,7 +159,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       // and the marker transaction inside `recordSuccessfulInvite`):
       //   • buyer earns 1 pt / AZN they themselves spent
       //   • inviter (if any) earns +10 pts on the referee's first success
-      if (!existingCommission) {
+      if (!existingCommission && !isLootBoxPrize) {
         try {
           await recordPurchaseSpend(ptx, row.userId, unitListCents);
           if (referredById) {
@@ -158,7 +174,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       // və rəy APPROVED + alıcı != müəllif şərtləri ödənirsə, müəllifə yazılır.
       // Klassik referrer komissiyasından ayrı və əlavə olaraq işləyir.
       try {
-        if (row.metadata) {
+        if (row.metadata && !isLootBoxPrize) {
           const meta = JSON.parse(row.metadata) as {
             reviewAffiliateId?: string;
             reviewAffiliateLineCents?: number;
@@ -295,6 +311,61 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         where: { id: row.id },
         data: { status: "FAILED", metadata: JSON.stringify(nextMeta) },
       });
+
+      // Qutu hədiyyəsi çatdırıla bilmirsə müştəri əliboş qalmamalıdır: sifariş
+      // ləğv olunanda hədiyyə avtomatik geri satılır və kredit cüzdana yazılır.
+      // (Sifarişin öz məbləği 0-dır, ona görə yuxarıdakı refund heç nə vermir.)
+      const lootBoxOpeningId =
+        (existingMeta as { paymentSource?: string; lootBoxOpeningId?: string }).paymentSource === "LOOT_BOX"
+          ? (existingMeta as { lootBoxOpeningId?: string }).lootBoxOpeningId
+          : undefined;
+
+      if (lootBoxOpeningId) {
+        const opening = await ptx.lootBoxOpening.findUnique({
+          where: { id: lootBoxOpeningId },
+          include: { lootBox: { select: { sellBackPct: true, slug: true } } },
+        });
+
+        // Yalnız hələ oyun kimi götürülmüş açılışı geri satırıq (idempotent).
+        if (opening && opening.outcome === "CLAIMED_GAME") {
+          const credit = sellBackAmountCents(opening.valueAznCents, opening.lootBox.sellBackPct);
+          const creditTx = await ptx.transaction.create({
+            data: {
+              userId: opening.userId,
+              type: "DEPOSIT",
+              status: "SUCCESS",
+              amountAznCents: credit,
+              metadata: JSON.stringify({
+                kind: "LOOT_BOX_SELL_BACK",
+                reason: "PRIZE_ORDER_CANCELLED",
+                orderCode: opening.orderCode,
+                lootBoxOpeningId: opening.id,
+                lootBoxSlug: opening.lootBox.slug,
+                prizeGameId: opening.gameId,
+                prizeTitle: opening.titleSnap,
+                prizeValueCents: opening.valueAznCents,
+                sellBackPct: opening.lootBox.sellBackPct,
+                cancelledPurchaseId: row.id,
+              }),
+            },
+          });
+          if (credit > 0) {
+            await ptx.user.update({
+              where: { id: opening.userId },
+              data: { walletBalance: { increment: credit } },
+            });
+          }
+          await ptx.lootBoxOpening.update({
+            where: { id: opening.id },
+            data: {
+              outcome: "SOLD_BACK",
+              sellBackCents: credit,
+              sellBackTransactionId: creditTx.id,
+              chosenAt: new Date(),
+            },
+          });
+        }
+      }
     });
 
     return NextResponse.json({ ok: true });

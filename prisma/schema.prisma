@@ -123,6 +123,9 @@ model User {
   createdGiveaways Giveaway[]      @relation("GiveawayCreator")
   giveawayEntries  GiveawayEntry[] @relation("GiveawayEntries")
 
+  // Qutu açılışları (loot box).
+  lootBoxOpenings LootBoxOpening[] @relation("UserLootBoxOpenings")
+
   referralCycleResults ReferralCycleResult[]
 
   gameReviews     GameReview[]
@@ -398,6 +401,10 @@ model Game {
   collections  CollectionGame[]
   favorites    Favorite[]
   reviews      GameReview[]
+  flashDeal    FlashDeal?
+  // Qutu açılışı reseptləri. Bilet/açılış sətirləri snapshot olduğu üçün
+  // qəsdən relation qurmur (oyun silinsə maliyyə qeydi sağ qalmalıdır).
+  lootBoxTemplates LootBoxTemplate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -409,6 +416,205 @@ model Game {
   @@index([store])
   // "Enrich the least-recently-fetched rows" batch query.
   @@index([metadataFetchedAt])
+}
+
+/// Ana səhifədəki "Fürsətləri qaçırma" bölməsi — scraper deyil, admin tərəfindən
+/// əl ilə kürasiya olunan kampaniya təklifləri. Hər sətir kataloqdakı bir `Game`
+/// sətrinə bağlıdır (başlıq/şəkil oradan gəlir), qiymət və bitmə tarixi isə
+/// istəyə görə override oluna bilər:
+///   priceAznCents    → NULL: oyunun avtomatik hesablanmış qiyməti
+///   originalAznCents → NULL: computeDisplayPrice-ın verdiyi köhnə qiymət
+///   endsAt           → NULL: kartda geri sayım göstərilmir
+/// Qiymət override-ı yalnız DAHA UCUZ ola bilər və checkout/purchase yollarında
+/// da tətbiq olunur (lib/flashDeals.ts) — vitrində bir qiymət, kassada başqa
+/// qiymət olmasın deyə.
+model FlashDeal {
+  id     String @id @default(cuid())
+  gameId String @unique
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  priceAznCents    Int?
+  originalAznCents Int?
+  endsAt           DateTime?
+
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+  @@index([endsAt])
+}
+
+// ─── Qutu açılışı (loot box) ───────────────────────────────────────────────────
+//
+// Müştəri sabit qiymətə qutu alır və içindən təsadüfi bir oyun çıxır. Sistemin
+// bütün mahiyyəti mənfəətin təsadüfə buraxılmamasıdır:
+//
+//   Σ bilet.costAznCents ≤ poolSize × priceAznCents × (1 − targetMarginPct/100)
+//
+// Bu şərt hovuz YARADILMADAN əvvəl yoxlanır (lib/lootBoxShared.ts →
+// computePoolEconomics) və pozulursa hovuz ümumiyyətlə yaradılmır. Biletlər
+// geri qoyulmadan çəkildiyi üçün hovuz bitəndə realizə olunmuş maya planla
+// hərfən bərabər olur — yəni marja riyazi zəmanətlidir, sıçrayış sıfırdır.
+//
+// DİQQƏT: `targetMarginPct` GƏLİRƏ görə marjadır (mənfəət / qiymət). Bu,
+// `Settings.profitMarginGamesPct`-dan fərqlidir — o, mayanın üstünə əlavə
+// (markup) kimi tətbiq olunur (lib/pricing.ts).
+
+/// Qutu tipi (məs. "5 AZN qutu"). Qiymət və bütün zəmanət parametrləri buradadır.
+model LootBox {
+  id            String  @id @default(cuid())
+  slug          String  @unique
+  title         String
+  description   String?
+  imageUrl      String?
+  priceAznCents Int
+
+  /// Gəlirə görə hədəf marja, %. Hovuz büdcəsi bundan hesablanır.
+  targetMarginPct Float @default(23)
+  /// Hədiyyə dəyəri aralığı, qutu qiymətinin %-i ilə.
+  minPrizePct     Int   @default(60)
+  maxPrizePct     Int   @default(200)
+  /// Bir hovuzdaki bilet sayı. Marja zəmanəti bu ölçüdə realizə olunur.
+  poolSize        Int   @default(100)
+  /// İstənməyən hədiyyənin balansa satış faizi (dəyərin %-i).
+  sellBackPct     Int   @default(70)
+  /// Bu qədər bilet qalanda avtomatik yeni hovuz yaradılır (0 = avtomatik yox).
+  refillAtRemaining Int @default(20)
+  /// Bir istifadəçinin günlük açılış limiti. 0 = limitsiz.
+  dailyLimitPerUser Int @default(0)
+
+  isActive  Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  templates LootBoxTemplate[]
+  pools     LootBoxPool[]
+  openings  LootBoxOpening[]
+
+  @@index([isActive, sortOrder])
+}
+
+/// Hovuz resepti: hansı oyundan neçə bilet olacaq. Admin bunu redaktə edir,
+/// hovuz yaradılanda bu sətirlərdən dondurulmuş biletlər çıxarılır.
+model LootBoxTemplate {
+  id        String  @id @default(cuid())
+  lootBoxId String
+  lootBox   LootBox @relation(fields: [lootBoxId], references: [id], onDelete: Cascade)
+  gameId    String
+  game      Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  ticketCount Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([lootBoxId, gameId])
+  @@index([lootBoxId, isActive])
+}
+
+/// Konkret bilet dəsti — zəmanətin audit qeydi. `plannedCostCents` yaradılma
+/// anında dondurulur; hovuz bitəndə faktiki maya bununla üst-üstə düşməlidir.
+model LootBoxPool {
+  id        String  @id @default(cuid())
+  lootBoxId String
+  lootBox   LootBox @relation(fields: [lootBoxId], references: [id], onDelete: Cascade)
+
+  /// Hovuzun sıra nömrəsi (1, 2, 3…) — audit və "hansı hovuzdan çıxdı" üçün.
+  seq    Int
+  /// OPEN | EXHAUSTED | RETIRED
+  status String @default("OPEN")
+
+  totalTickets      Int
+  /// Yaradılma anında dondurulmuş plan.
+  plannedCostCents  Int
+  plannedValueCents Int
+  /// İcazə verilən maksimum maya: totalTickets × price × (1 − targetMarginPct/100).
+  budgetCostCents   Int
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tickets LootBoxTicket[]
+
+  @@unique([lootBoxId, seq])
+  @@index([lootBoxId, status])
+}
+
+/// Bir bilet = bir hədiyyə. Dəyər və maya YARADILANDA dondurulur ki, sonrakı
+/// valyuta kursu/endirim dəyişməsi hovuzun zəmanətini poza bilməsin.
+model LootBoxTicket {
+  id     String      @id @default(cuid())
+  poolId String
+  pool   LootBoxPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+
+  /// Hovuz daxilində sıra indeksi — yalnız unikallıq/audit üçün. Çəkiliş
+  /// təsadüfidir (crypto.randomInt), sıra ilə deyil.
+  slot   Int
+  /// Oyun snapshot-u — ProductGift kimi relation qurmadan id saxlanılır ki,
+  /// oyun kataloqdan silinsə bilet qeydi sağ qalsın.
+  gameId    String
+  titleSnap String
+  imageSnap String?
+  store     String?
+
+  /// Müştəriyə göstərilən dəyər.
+  valueAznCents Int
+  /// Bizim həqiqi mayamız (tryCentsToCostAzn).
+  costAznCents  Int
+
+  /// AVAILABLE | DRAWN
+  status    String   @default("AVAILABLE")
+  createdAt DateTime @default(now())
+
+  @@unique([poolId, slot])
+  @@index([poolId, status])
+}
+
+/// Bir qutu açılışı və nəticəsi. Bu repoda `Order` modeli olmadığı üçün
+/// (orderCode `Transaction.metadata` JSON string-inin içindədir) qutu üçün
+/// həmin naxış təkrarlanmır — real sütunlar, real indekslər.
+model LootBoxOpening {
+  id        String  @id @default(cuid())
+  lootBoxId String
+  lootBox   LootBox @relation(fields: [lootBoxId], references: [id])
+  userId    String
+  user      User    @relation("UserLootBoxOpenings", fields: [userId], references: [id])
+
+  /// Çəkilmiş bilet — @unique bir biletin iki açılış yaratmasını mümkünsüz edir.
+  poolId   String
+  ticketId String @unique
+
+  orderCode      String @unique
+  pricePaidCents Int
+
+  /// Qazanılan hədiyyə snapshot-u.
+  gameId        String
+  titleSnap     String
+  imageSnap     String?
+  store         String?
+  valueAznCents Int
+  costAznCents  Int
+
+  /// PENDING_CHOICE | CLAIMED_GAME | SOLD_BACK
+  outcome       String    @default("PENDING_CHOICE")
+  chosenAt      DateTime?
+  sellBackCents Int?
+
+  paymentTransactionId     String?
+  fulfillmentTransactionId String?
+  sellBackTransactionId    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([lootBoxId, createdAt])
+  @@index([outcome])
+  @@index([poolId])
 }
 
 // Caches LLM-generated "Bunu nəzərdə tutdunuz?" corrections so repeated typos

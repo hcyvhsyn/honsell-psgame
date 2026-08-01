@@ -12,6 +12,8 @@
     "seo:enrich": "tsx scripts/enrichGameMetadata.ts",
     "seo:descriptions": "tsx scripts/generateGameDescriptions.ts",
     "test:giveaway": "tsx scripts/giveawayWinners.test.ts",
+    "test:lootbox": "tsx scripts/lootBox.test.ts",
+    "lootbox:drain": "tsx scripts/lootBoxDrain.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

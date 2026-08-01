@@ -39,6 +39,8 @@ import {
   Star,
   Clapperboard,
   TicketPercent,
+  Zap,
+  Package,
   Moon,
   Sun,
 } from "lucide-react";
@@ -88,7 +90,9 @@ type IconName =
   | "Network"
   | "Star"
   | "Clapperboard"
-  | "TicketPercent";
+  | "TicketPercent"
+  | "Zap"
+  | "Package";
 
 export type NavItemSpec = {
   href: string;
@@ -137,6 +141,8 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   Star,
   Clapperboard,
   TicketPercent,
+  Zap,
+  Package,
 };
 
 export default function AdminSidebar({

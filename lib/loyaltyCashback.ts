@@ -28,13 +28,21 @@ type CashbackWriteDb = {
   };
 };
 
-/** PURCHASE + SERVICE_PURCHASE əsaslı ömür boyu xərc — loyalty tier üçün (cari ödəniş daxil deyil). */
+/**
+ * Ömür boyu xərc — loyalty tier üçün (cari ödəniş daxil deyil).
+ *
+ * LOOT_BOX da real gəlirdir (cüzdandan tutulur), ona görə tier hesabına daxildir.
+ * Qutu hədiyyəsinin çatdırılma sətri PURCHASE tipindədir, amma məbləği 0 olduğu
+ * üçün cəmi ikiqat artırmır.
+ */
+export const LOYALTY_SPEND_TYPES = ["PURCHASE", "SERVICE_PURCHASE", "LOOT_BOX"] as const;
+
 export async function getLifetimeSpendAznForLoyalty(
   db: SpendAggregateDb,
   userId: string
 ): Promise<number> {
   const agg = await db.transaction.aggregate({
-    where: { userId, type: { in: ["PURCHASE", "SERVICE_PURCHASE"] } },
+    where: { userId, type: { in: [...LOYALTY_SPEND_TYPES] } },
     _sum: { amountAznCents: true },
   });
   const raw = agg._sum?.amountAznCents ?? 0;

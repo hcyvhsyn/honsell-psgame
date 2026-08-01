@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
+import { applyFlashDeal, getFlashDealOverrides } from "@/lib/flashDeals";
 import { getEffectiveTier } from "@/lib/customerTier";
 import {
   applyCashbackToBalance,
@@ -30,7 +31,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   const settings = await getSettings();
-  const price = computeDisplayPrice(game, settings);
+  // Ana səhifədəki kampaniya (flash deal) qiyməti varsa, birbaşa alışda da o tutulur.
+  const flashDeals = await getFlashDealOverrides([game.id]);
+  const price = applyFlashDeal(computeDisplayPrice(game, settings), flashDeals.get(game.id));
   const priceCents = Math.round(price.finalAzn * 100);
   const savingsCents =
     price.originalAzn != null

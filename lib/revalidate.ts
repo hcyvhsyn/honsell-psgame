@@ -58,6 +58,21 @@ export function revalidateBanners(): void {
   revalidatePath("/playstation");
 }
 
+/** "Fürsətləri qaçırma" kampaniya kartları admin paneldən dəyişdirildikdə. */
+export function revalidateFlashDeals(): void {
+  revalidateTag("home");
+  revalidatePath("/");
+}
+
+/** Qutu açılışı (loot box) — admin CRUD və hovuz yaratma sonrası. */
+export function revalidateLootBoxes(): void {
+  revalidateTag("loot-boxes");
+  revalidateTag("home");
+  revalidatePath("/");
+  revalidatePath("/qutular");
+  revalidatePath("/qutu/[slug]", "page");
+}
+
 /** Reels feed (admin video CRUD) dəyişəndə — ilk səhifə RSC keşini sıfırlayır. */
 export function revalidateReels(): void {
   revalidateTag("reels");

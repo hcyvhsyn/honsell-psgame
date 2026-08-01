@@ -8,6 +8,7 @@ import {
   getSettings,
   tryCentsToCostAzn,
 } from "@/lib/pricing";
+import { applyFlashDeal, getFlashDealOverrides } from "@/lib/flashDeals";
 import { getEffectiveTier } from "@/lib/customerTier";
 import {
   applyCashbackToBalance,
@@ -430,13 +431,17 @@ export async function POST(req: Request) {
   const lines: LineUnion[] = [];
   const giftLines: GiftLine[] = [];
 
+  // "Fürsətləri qaçırma" kampaniya qiymətləri. Ana səhifədə göstərilən rəqəm
+  // burada da tutulmalıdır — yoxsa vitrində bir qiymət, kassada başqa qiymət olar.
+  const flashDeals = await getFlashDealOverrides(games.map((g) => g.id));
+
   for (const p of payloads) {
     const game = games.find((g) => g.id === p.id);
 
     // ─── HƏDİYYƏ sətri ────────────────────────────────────────────────────
     if (p.isGift) {
       if (game) {
-        const price = computeDisplayPrice(game, settings);
+        const price = applyFlashDeal(computeDisplayPrice(game, settings), flashDeals.get(game.id));
         giftLines.push({
           productKind: "GAME",
           gameId: game.id,
@@ -468,7 +473,7 @@ export async function POST(req: Request) {
     }
 
     if (game) {
-      const price = computeDisplayPrice(game, settings);
+      const price = applyFlashDeal(computeDisplayPrice(game, settings), flashDeals.get(game.id));
       const unitListCents = Math.round(price.finalAzn * 100);
       const unitSavingsCents =
         price.originalAzn != null
