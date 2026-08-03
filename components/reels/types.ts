@@ -5,9 +5,15 @@ export type ReelProduct = {
   title: string;
   imageUrl: string | null;
   finalAzn: number;
+  /** Endirimdən əvvəlki qiymət — aktiv endirim yoxdursa null. */
+  originalAzn: number | null;
+  discountPct: number | null;
   productType: string;
   store: string;
   href: string | null;
+  /** "Standart", "Ultimate Sürüm", … — sürüm çipinin adı. */
+  editionName: string | null;
+  platform: string | null;
 };
 
 export type ReelFeedItem = {
@@ -25,6 +31,8 @@ export type ReelFeedItem = {
     label: string;
     href: string | null;
     product: ReelProduct | null;
+    /** Oyunun bütün sürümləri — UCUZDAN BAHAYA sıralı, [0] default seçilir. */
+    editions: ReelProduct[];
   };
   counts: { likes: number; dislikes: number; views: number; comments: number };
 };

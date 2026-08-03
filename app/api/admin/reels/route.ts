@@ -39,6 +39,7 @@ export async function POST(req: Request) {
         ctaTargetId,
         ctaHref,
         ctaLabel,
+        editionGameIds,
         isPublished,
         sortOrder,
       } = body;
@@ -68,6 +69,16 @@ export async function POST(req: Request) {
         ctaTargetId: ctaTargetId ? String(ctaTargetId) : null,
         ctaHref: ctaHref ? String(ctaHref) : null,
         ctaLabel: ctaLabel ? String(ctaLabel) : null,
+        // Sürümlər yalnız GAME CTA-sında mənalıdır — tip dəyişəndə köhnə siyahı
+        // qalıb feed-də yad qiymətlər göstərməsin deyə burada təmizlənir.
+        editionGameIds:
+          finalCtaType === "GAME" && Array.isArray(editionGameIds)
+            ? Array.from(
+                new Set(
+                  (editionGameIds as unknown[]).filter((v): v is string => typeof v === "string" && v.length > 0),
+                ),
+              )
+            : [],
         isPublished: Boolean(isPublished ?? true),
         sortOrder: Number(sortOrder || 0),
       };

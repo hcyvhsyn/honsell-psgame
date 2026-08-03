@@ -30,6 +30,7 @@ import {
   POPULARITY_ORDER_BY_SQL,
 } from "@/lib/popularity";
 import { buildGameBaseWhereSql, buildGameWhere } from "@/lib/gameQuery";
+import { buildGameCard } from "@/lib/gameCardMapper";
 import type { FacetFilter } from "@/lib/gameFacets";
 import type { GameCardData } from "@/components/GameCard";
 
@@ -58,6 +59,14 @@ type FacetRow = {
   priceTryCents: number;
   discountTryCents: number | null;
   discountEndAt: Date | null;
+  // PS Store detal metadata-sı — kart janr/PEGI/reytinq sətrini bunlardan qurur.
+  genres: string[] | null;
+  contentRating: string | null;
+  psRatingAvg: number | null;
+  psRatingCount: number | null;
+  publisherName: string | null;
+  releaseDate: Date | null;
+  editionLabel: string | null;
 };
 
 /** Facet filtrini paylaşılan filtr qurucusunun gözlədiyi formaya salır. */
@@ -105,7 +114,9 @@ function getFacetRows(
         prisma.$queryRaw<FacetRow[]>(PrismaSql.sql`
           SELECT g."id", g."productId", g."slug", g."title", g."imageUrl",
                  g."platform", g."productType", g."store", g."priceTryCents",
-                 g."discountTryCents", g."discountEndAt"
+                 g."discountTryCents", g."discountEndAt", g."genres",
+                 g."contentRating", g."psRatingAvg", g."psRatingCount",
+                 g."publisherName", g."releaseDate", g."editionLabel"
           FROM "Game" g
           ${POPULARITY_JOINS_SQL}
           WHERE ${whereSql}
@@ -166,26 +177,9 @@ export async function getFacetCatalog(
 ): Promise<FacetCatalogResult> {
   const { rows, total } = await getFacetRows(facetPath, filter, page, settings);
 
-  const cards: GameCardData[] = rows.map((g) => {
-    const price = computeDisplayPrice(g, settings);
-    return {
-      id: g.id,
-      productId: g.productId,
-      slug: g.slug,
-      title: g.title,
-      imageUrl: g.imageUrl,
-      platform: g.platform,
-      productType: g.productType,
-      store: g.store,
-      finalAzn: price.finalAzn,
-      originalAzn: price.originalAzn,
-      discountPct: price.discountPct,
-      discountEndAt:
-        g.discountTryCents != null && g.discountEndAt
-          ? new Date(g.discountEndAt).toISOString()
-          : null,
-    };
-  });
+  const cards: GameCardData[] = rows.map((g) =>
+    buildGameCard(g, computeDisplayPrice(g, settings))
+  );
 
   return {
     cards,

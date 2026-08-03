@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { getPublicOdds, getRecentWinners } from "@/lib/lootBoxes";
+import { getPrizeShowcase, getPublicOdds, getRecentWinners } from "@/lib/lootBoxes";
 import { maskWinnerName } from "@/lib/giveawaysShared";
 
 export const runtime = "nodejs";
@@ -30,9 +30,10 @@ export async function GET(_req: Request, { params }: { params: { slug: string } 
     return NextResponse.json({ error: "Qutu tapılmadı." }, { status: 404 });
   }
 
-  const [odds, winners, available] = await Promise.all([
+  const [odds, winners, showcase, available] = await Promise.all([
     getPublicOdds(box.id),
     getRecentWinners(box.id, 12),
+    getPrizeShowcase(box.id),
     prisma.lootBoxTicket.count({
       where: { status: "AVAILABLE", pool: { lootBoxId: box.id, status: "OPEN" } },
     }),
@@ -53,6 +54,7 @@ export async function GET(_req: Request, { params }: { params: { slug: string } 
       inStock: available > 0,
     },
     odds,
+    showcase,
     winners: winners.map((w) => ({
       id: w.id,
       name: maskWinnerName(w.user?.name),

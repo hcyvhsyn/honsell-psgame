@@ -8,6 +8,7 @@ import {
   previewPoolEconomics,
   getLootBoxStats,
   getOdds,
+  detectPriceDrift,
   lootBoxConfigOf,
   validateLootBoxConfig,
   LootBoxError,
@@ -33,6 +34,13 @@ const BOX_SELECT = {
   isActive: true,
   sortOrder: true,
   createdAt: true,
+  maxSharePct: true,
+  maxTicketsPerGame: true,
+  discountGuardDays: true,
+  candidateStore: true,
+  uniquePrizePerUser: true,
+  lastRefillError: true,
+  lastRefillErrorAt: true,
 } as const;
 
 /** "12,99" / "12.99" → 1299 qəpik. Boş və ya keçərsizdirsə null. */
@@ -63,10 +71,11 @@ export async function GET() {
 
   const detailed = await Promise.all(
     boxes.map(async (box) => {
-      const [preview, stats, odds, pools] = await Promise.all([
+      const [preview, stats, odds, drift, pools] = await Promise.all([
         previewPoolEconomics(box),
         getLootBoxStats(box.id),
         getOdds(box.id),
+        detectPriceDrift(box).catch(() => []),
         prisma.lootBoxPool.findMany({
           where: { lootBoxId: box.id },
           orderBy: { seq: "desc" },
@@ -96,9 +105,14 @@ export async function GET() {
       return {
         ...box,
         createdAt: box.createdAt.toISOString(),
+        lastRefillErrorAt: box.lastRefillErrorAt?.toISOString() ?? null,
         config: lootBoxConfigOf(box),
-        templates: preview.specs,
+        // Resept artıq saxlanmır — hər dəfə canlı qiymətlərlə hesablanır.
+        recipe: preview.specs,
         economics: preview.economics,
+        candidateCount: preview.candidateCount,
+        recipeNotes: preview.notes,
+        drift,
         odds,
         stats,
         pools: pools.map((p) => ({
@@ -150,6 +164,14 @@ export async function POST(req: Request) {
       imageUrl: typeof body.imageUrl === "string" ? body.imageUrl.trim() || null : null,
       dailyLimitPerUser: Math.max(0, parseInt0(body.dailyLimitPerUser, 0)),
       sortOrder: parseInt0(body.sortOrder, 0),
+      maxSharePct: Math.min(100, Math.max(1, parseInt0(body.maxSharePct, 40))),
+      // 0 = limit yoxdur (yalnız faiz işləyir). Yuxarı hədd hovuz ölçüsüdür.
+      maxTicketsPerGame: Math.max(0, parseInt0(body.maxTicketsPerGame, 0)),
+      discountGuardDays: Math.min(90, Math.max(0, parseInt0(body.discountGuardDays, 7))),
+      uniquePrizePerUser: body.uniquePrizePerUser !== false,
+      // `candidateStore` admin tərəfindən dəyişdirilmir: hədiyyə həmişə
+      // PlayStation oyunudur (lib/lootBoxes.ts → findCandidates). Sütun yalnız
+      // texniki override kimi qalır (drenaj testi ondan istifadə edir).
     };
 
     // Slug unikallığını öncədən yoxlayıb aydın mesaj veririk.
@@ -207,34 +229,46 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  // ── Resept (template) ──────────────────────────────────────────────────────
-  if (action === "UPSERT_TEMPLATE") {
+  // ── Ulduzlar (sevimli oyunlar) ─────────────────────────────────────────────
+  // Admin oyun və bilet sayı yazmır — yalnız "bu oyun daha tez-tez çıxsın"
+  // deyir. Paylanmanı sistem hesablayır (allocateTickets).
+  if (action === "SET_STARS") {
     const lootBoxId = String(body.lootBoxId ?? "");
     const gameId = String(body.gameId ?? "");
-    const ticketCount = parseInt0(body.ticketCount, 0);
+    const stars = parseInt0(body.stars, 1);
 
     if (!lootBoxId || !gameId) {
       return NextResponse.json({ error: "Qutu və oyun seçilməlidir." }, { status: 400 });
     }
-    if (ticketCount < 1) {
-      return NextResponse.json({ error: "Bilet sayı ən azı 1 olmalıdır." }, { status: 400 });
+    // 0 = QADAĞAN: oyun bu qutunun hovuzuna heç vaxt düşmür. Kataloqda keyfiyyətsiz
+    // başlıqlar var və avtomatik seçim onları ayırd edə bilmir — bu, adminin
+    // əl ilə təmizləmə aləti.
+    if (stars < 0 || stars > 5) {
+      return NextResponse.json({ error: "Ulduz 0 – 5 arasında olmalıdır." }, { status: 400 });
     }
 
     const game = await prisma.game.findUnique({ where: { id: gameId }, select: { id: true } });
     if (!game) return NextResponse.json({ error: "Oyun tapılmadı." }, { status: 404 });
 
-    await prisma.lootBoxTemplate.upsert({
-      where: { lootBoxId_gameId: { lootBoxId, gameId } },
-      create: { lootBoxId, gameId, ticketCount },
-      update: { ticketCount, isActive: true },
-    });
+    if (stars === 1) {
+      // 1 ulduz = defaultdur, ayrıca sətir saxlamağa ehtiyac yoxdur.
+      await prisma.lootBoxTemplate
+        .delete({ where: { lootBoxId_gameId: { lootBoxId, gameId } } })
+        .catch(() => null);
+    } else {
+      await prisma.lootBoxTemplate.upsert({
+        where: { lootBoxId_gameId: { lootBoxId, gameId } },
+        create: { lootBoxId, gameId, stars },
+        update: { stars, isActive: true },
+      });
+    }
 
     return NextResponse.json({ ok: true });
   }
 
-  if (action === "DELETE_TEMPLATE") {
-    const id = String(body.id ?? "");
-    await prisma.lootBoxTemplate.delete({ where: { id } }).catch(() => null);
+  if (action === "CLEAR_STARS") {
+    const lootBoxId = String(body.lootBoxId ?? "");
+    await prisma.lootBoxTemplate.deleteMany({ where: { lootBoxId } });
     return NextResponse.json({ ok: true });
   }
 

@@ -50,6 +50,7 @@ type Reel = {
   ctaTargetId: string | null;
   ctaHref: string | null;
   ctaLabel: string | null;
+  editionGameIds: string[];
   viewCount: number;
   isPublished: boolean;
   sortOrder: number;
@@ -73,6 +74,8 @@ type FormState = {
   ctaTargetLabel: string;
   ctaHref: string;
   ctaLabel: string;
+  /** ctaType=GAME olduqda feed-də göstəriləcək sürümlər (Game.id). */
+  editionGameIds: string[];
   isPublished: boolean;
   sortOrder: number;
 };
@@ -93,6 +96,7 @@ const EMPTY: FormState = {
   ctaTargetLabel: "",
   ctaHref: "",
   ctaLabel: "Hesab al",
+  editionGameIds: [],
   isPublished: true,
   sortOrder: 0,
 };
@@ -148,6 +152,7 @@ export default function ReelsAdminClient() {
       ctaTargetLabel: "",
       ctaHref: r.ctaHref ?? "",
       ctaLabel: r.ctaLabel ?? "Hesab al",
+      editionGameIds: r.editionGameIds ?? [],
       isPublished: r.isPublished,
       sortOrder: r.sortOrder,
     });
@@ -723,13 +728,29 @@ function ReelFormModal({
                 </Field>
               </div>
             ) : (
-              <div className="mt-3">
+              <div className="mt-3 space-y-3">
                 <ProductPicker
                   type={form.ctaType}
                   value={form.ctaTargetId}
                   label={form.ctaTargetLabel}
-                  onPick={(id, label) => setForm((f) => ({ ...f, ctaTargetId: id, ctaTargetLabel: label }))}
+                  onPick={(id, label) =>
+                    setForm((f) => ({
+                      ...f,
+                      ctaTargetId: id,
+                      ctaTargetLabel: label,
+                      // Başqa oyun seçildi → köhnə sürüm siyahısı artıq yad oyuna aiddir.
+                      editionGameIds: id === f.ctaTargetId ? f.editionGameIds : [],
+                    }))
+                  }
                 />
+
+                {form.ctaType === "GAME" && form.ctaTargetId && (
+                  <EditionPicker
+                    gameId={form.ctaTargetId}
+                    selected={form.editionGameIds}
+                    onChange={(ids) => set("editionGameIds", ids)}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -792,6 +813,148 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <label className="mb-1 block text-xs font-semibold text-zinc-600">{label}</label>
       {children}
+    </div>
+  );
+}
+
+type EditionItem = {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  platform: string | null;
+  editionName: string;
+  finalAzn: number;
+  originalAzn: number | null;
+  discountPct: number | null;
+  isPrimary: boolean;
+};
+
+/**
+ * Sürüm seçicisi — seçilmiş oyunun sürüm NAMİZƏDLƏRİNİ gətirib admin təsdiqinə
+ * verir. Avtomatik tapılma başlıq evristikasıdır (lib/gameEditions.ts) və səhv
+ * ola bilər, ona görə feed-ə yalnız işarələnənlər çıxır.
+ *
+ * Namizədlər gələndə əvvəlcədən HEÇ NƏ işarələnmir (yeni reel) — admin şüurlu
+ * seçim etsin; mövcud reel redaktə olunanda isə saxlanmış siyahı qorunur.
+ */
+function EditionPicker({
+  gameId,
+  selected,
+  onChange,
+}: {
+  gameId: string;
+  selected: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [items, setItems] = useState<EditionItem[]>([]);
+  const [baseTitle, setBaseTitle] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setBusy(true);
+    fetch(`/api/admin/reels/editions?gameId=${encodeURIComponent(gameId)}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { items: [], baseTitle: "" }))
+      .then((d: { items?: EditionItem[]; baseTitle?: string }) => {
+        if (cancelled) return;
+        setItems(Array.isArray(d.items) ? d.items : []);
+        setBaseTitle(d.baseTitle ?? "");
+      })
+      .catch(() => !cancelled && setItems([]))
+      .finally(() => !cancelled && setBusy(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [gameId]);
+
+  function toggle(id: string) {
+    onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
+  }
+
+  if (busy) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-zinc-200 p-3 text-sm text-zinc-500">
+        <Loader2 className="h-4 w-4 animate-spin" /> Sürümlər axtarılır...
+      </div>
+    );
+  }
+
+  if (items.length <= 1) {
+    return (
+      <p className="rounded-lg border border-dashed border-zinc-300 p-3 text-xs text-zinc-500">
+        Bu oyun üçün başqa sürüm tapılmadı — feed-də tək qiymət göstəriləcək.
+      </p>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-zinc-200 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-zinc-700">
+            Sürümlər <span className="text-zinc-400">({selected.length}/{items.length} seçili)</span>
+          </p>
+          <p className="truncate text-[11px] text-zinc-400">
+            Baza başlıq: <b>{baseTitle}</b> — səhv sürüm varsa işarəni götür.
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <button
+            type="button"
+            onClick={() => onChange(items.map((i) => i.id))}
+            className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-semibold hover:bg-zinc-200"
+          >
+            Hamısı
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange([])}
+            className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-semibold hover:bg-zinc-200"
+          >
+            Heç biri
+          </button>
+        </div>
+      </div>
+
+      <div className="max-h-56 space-y-1 overflow-y-auto">
+        {items.map((it) => (
+          <label
+            key={it.id}
+            className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-zinc-50"
+          >
+            <input
+              type="checkbox"
+              checked={selected.includes(it.id)}
+              onChange={() => toggle(it.id)}
+              className="h-4 w-4 shrink-0"
+            />
+            {it.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={it.imageUrl} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
+            )}
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-1.5">
+                <span className="truncate text-sm font-medium">{it.editionName}</span>
+                {it.isPrimary && (
+                  <span className="shrink-0 rounded bg-violet-100 px-1.5 py-px text-[9px] font-bold text-violet-700">
+                    əsas
+                  </span>
+                )}
+              </span>
+              <span className="block truncate text-[11px] text-zinc-400">{it.title}</span>
+            </span>
+            <span className="shrink-0 text-right">
+              <span className="block text-sm font-bold">{it.finalAzn.toFixed(2)} ₼</span>
+              {it.discountPct != null && (
+                <span className="block text-[10px] font-semibold text-rose-600">
+                  −{it.discountPct}% ({it.originalAzn?.toFixed(2)} ₼)
+                </span>
+              )}
+              {it.platform && <span className="block text-[10px] text-zinc-400">{it.platform}</span>}
+            </span>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

@@ -15,6 +15,16 @@ import { cdnImageUrl } from "@/lib/cdnImage";
  *      keyfiyyətsiz hiss yaradırdı. İndi yüklənənə qədər animasiyalı **shimmer
  *      skeleton** göstərilir, şəkil hazır olanda **yumşaq fade-in** ilə açılır.
  *   3. `cdnImageUrl()` ilə Supabase → CDN yönləndirməsini avtomatik tətbiq edir.
+ *
+ * ⚠️ İSTİFADƏ QAYDASI — konteyner `position: relative` OLMALIDIR.
+ * Bu komponent `next/image`-i `fill` ilə render edir (`position: absolute;
+ * inset: 0`) və öz konteynerini YARATMIR. Ata elementdə `relative` yoxdursa
+ * şəkil ən yaxın pozisiyalı ata elementə yapışır və o blokun bütün
+ * məzmununu örtür — məsələn modalın içindəki mətn və düymələr görünməz olur.
+ *
+ * Düzgün:  <div className="relative h-20 w-16 overflow-hidden">
+ *            <ProductImage src={...} alt={...} className="h-full w-full object-cover" />
+ *          </div>
  */
 export default function ProductImage({
   src,

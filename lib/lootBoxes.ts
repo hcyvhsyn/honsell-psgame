@@ -1,17 +1,32 @@
 import { randomBytes, randomInt } from "crypto";
 
 import { prisma } from "./prisma";
-import { getSettings, computeDisplayPrice, computeEpicDisplayPrice, tryCentsToCostAzn } from "./pricing";
+import {
+  getSettings,
+  computeDisplayPrice,
+  computeEpicDisplayPrice,
+  tryCentsToCostAzn,
+  aznToTryCents,
+} from "./pricing";
 import type { PricingSettings } from "./pricing";
 import { getFlashDealOverrides, applyFlashDeal } from "./flashDeals";
 import {
-  computePoolEconomics,
+  allocateTickets,
+  minPrizeCentsFor,
+  maxPrizeCentsFor,
   buildOddsTable,
   toPublicOdds,
   sellBackAmountCents,
   prizeTierFor,
 } from "./lootBoxShared";
-import type { LootBoxConfig, LootBoxTicketSpec, PoolEconomics, OddsRow, PublicOddsRow } from "./lootBoxShared";
+import type {
+  LootBoxConfig,
+  LootBoxTicketSpec,
+  PoolEconomics,
+  OddsRow,
+  PublicOddsRow,
+  CandidateGame,
+} from "./lootBoxShared";
 
 export * from "./lootBoxShared";
 
@@ -36,6 +51,7 @@ export type LootBoxErrorCode =
   | "BOX_INACTIVE"
   | "BUDGET_VIOLATION"
   | "NO_TICKETS"
+  | "NO_NEW_PRIZES"
   | "TICKET_CONCURRENT_DRAW"
   | "INSUFFICIENT_BALANCE"
   | "DAILY_LIMIT"
@@ -130,6 +146,11 @@ export type LootBoxRow = {
   refillAtRemaining: number;
   dailyLimitPerUser: number;
   isActive: boolean;
+  maxSharePct: number;
+  maxTicketsPerGame: number;
+  discountGuardDays: number;
+  candidateStore: string | null;
+  uniquePrizePerUser: boolean;
 };
 
 export function lootBoxConfigOf(box: LootBoxRow): LootBoxConfig {
@@ -144,69 +165,298 @@ export function lootBoxConfigOf(box: LootBoxRow): LootBoxConfig {
 
 // ─── Resept (template) → canlı bilet spesifikasiyaları ────────────────────────
 
-export type TemplateSpec = LootBoxTicketSpec & {
-  templateId: string;
+export type CandidateRow = CandidateGame & {
   imageUrl: string | null;
   store: string | null;
-  /** Oyun kataloqdan silinib/deaktiv olubsa doldurulur. */
-  missing?: boolean;
+  /** Endirim bitmə tarixi — "tezliklə bitir" xəbərdarlığı üçün. */
+  discountEndAt: string | null;
+  /** Adminin ulduz sətri varmı (yoxdursa default 1 ulduz sayılır). */
+  starred: boolean;
+};
+
+export type RecipeSpec = LootBoxTicketSpec & {
+  imageUrl: string | null;
+  store: string | null;
+  stars: number;
 };
 
 /**
- * Qutunun aktiv reseptini CANLI qiymətlərlə oxuyur. Admin UI proqnoz üçün,
- * `generatePool` isə hovuz yaratmaq üçün bunu çağırır.
+ * Kataloqdan bu qutuya uyğun namizəd oyunları tapır.
+ *
+ * Filtrlər:
+ *  • aktiv oyunlar, qiyməti qutunun icazəli aralığında
+ *  • endirimi `discountGuardDays` içində bitənlər KƏNARDA qalır — hovuz hələ
+ *    satılarkən kataloq qiyməti dəyişsə, biletdə vəd etdiyimiz dəyər köhnəlir
+ *    və geri satmada real dəyərdən çox ödəyə bilərik
+ *  • `candidateStore` verilibsə yalnız həmin storefront
+ *
+ * SQL tərəfdə TRY qiymətinə görə kobud süzgəc qoyulur (`aznToTryCents`), sonra
+ * dəqiq AZN dəyəri hesablanıb yenidən yoxlanılır — kataloq böyükdür (14k+ oyun),
+ * hamısını yaddaşa çəkmək olmaz.
  */
-export async function resolveTemplateSpecs(lootBoxId: string): Promise<TemplateSpec[]> {
-  const templates = await prisma.lootBoxTemplate.findMany({
-    where: { lootBoxId, isActive: true },
-    orderBy: { createdAt: "asc" },
-  });
-  if (templates.length === 0) return [];
+export async function findCandidates(box: LootBoxRow, opts?: { search?: string; take?: number }): Promise<CandidateRow[]> {
+  const settings = await getSettings();
+  const cfg = lootBoxConfigOf(box);
+  const minCents = minPrizeCentsFor(cfg);
+  const maxCents = maxPrizeCentsFor(cfg);
 
-  const gameIds = templates.map((t) => t.gameId);
-  const [settings, games, flash] = await Promise.all([
-    getSettings(),
-    prisma.game.findMany({ where: { id: { in: gameIds } }, select: PRICED_GAME_SELECT }),
-    getFlashDealOverrides(gameIds),
+  const guardUntil = new Date(Date.now() + Math.max(0, box.discountGuardDays) * 24 * 60 * 60 * 1000);
+  const search = opts?.search?.trim();
+  /*
+    Namizəd sayı hovuz ölçüsü ilə birlikdə böyüməlidir. Sabit 360-da qalsaydı,
+    300 biletlik hovuzda "hər bilet fərqli oyun" mümkün olmazdı — seçim çatmazdı.
+
+    4× götürülür, 2× yox: büdcə biletlərin böyük hissəsini aralığın ALT
+    yarısından almağa məcbur edir, ona görə ucuz namizədlərin sayı təkbaşına
+    hovuz ölçüsündən çox olmalıdır. 2× ilə 200 biletlik 25 AZN qutusu heç
+    qurula bilmirdi (ölçüldü: 0 bilet).
+  */
+  const cap = opts?.take ?? Math.min(2000, Math.max(360, box.poolSize * 4));
+
+  const baseWhere = {
+    isActive: true,
+    // Qutuya YALNIZ PlayStation Store oyunları düşür. Epic ayrı çatdırılma
+    // axını (Epic hesabı) tələb edir və qutu hədiyyəsi kimi satılmır.
+    // `candidateStore` yalnız texniki override-dır (drenaj testi öz sintetik
+    // oyunlarını kataloqdan təcrid etmək üçün istifadə edir).
+    store: box.candidateStore ?? "PS",
+    // DLC / addon / valyuta paketi hədiyyə kimi verilmir — müştəri "oyun
+    // qazandım" gözləyir, əlində isə əsas oyun olmadan işləməyən DLC qalır.
+    productType: "GAME",
+    ...(search ? { title: { contains: search, mode: "insensitive" as const } } : {}),
+    /**
+     * ENDİRİMLİ oyun hovuza yalnız bitmə tarixi MƏLUM və qoruma pəncərəsindən
+     * uzaq olduqda düşür. Endirimsiz oyunlar həmişə qəbul olunur.
+     *
+     * Niyə `discountEndAt = null` qəbul edilmir:
+     * PS Store endirimin bitmə tarixini çox vaxt vermir, ona görə skreyper belə
+     * sətirləri `discountEndAt = null` ilə yazır (app/api/scrape-ps-store).
+     * Orada təmizləmə mərhələsi var — hər geniş skreypdən sonra o skreyplə
+     * təsdiqlənməyən endirimlər silinir — yəni TƏZƏ skreypdən sonra belə
+     * endirim canlıdır. LAKİN bilet mayası hovuz yaradılanda DONDURULUR və
+     * hovuz həftələr yaşayır: bitmə tarixi bilinmirsə endirimin sabah
+     * bitməyəcəyinə zəmanət yoxdur. Endirim bitəndən sonra oyunu kataloq
+     * qiymətinə alırıq, maya isə aşağı dondurulmuş qalır → marja səssizcə
+     * pozulur.
+     *
+     * Qərar: təhlükəsiz tərəf seçilir. Bu, kataloqun ~11%-ini (endirimli
+     * oyunları) hovuzdan kənarda saxlayır; qalan minlərlə oyun kifayət edir.
+     * Kommersiya baxımından endirimli oyunları da daxil etmək istəsəniz, bu
+     * şərti `{ discountTryCents: null }` → `{}` etmək kifayətdir, amma yuxarıdaki
+     * risk qəbul edilmiş olur.
+     */
+    OR: [{ discountTryCents: null }, { discountEndAt: { gt: guardUntil } }],
+  };
+
+  /** AZN həddini TRY-kuruş həddinə çevirir (sərhədlər inklüziv qalsın deyə). */
+  const tryBound = (cents: number, mode: "floor" | "ceil") =>
+    Math.max(0, aznToTryCents(cents / 100, settings, mode));
+
+  const select = { ...PRICED_GAME_SELECT, title: true } as const;
+
+  /**
+   * Namizədləri qiymət ZOLAQLARINA bölüb hər zolaqdan ayrıca götürürük.
+   *
+   * Niyə: tək sorğuda `orderBy: priceTryCents asc` + `take` yalnız ƏN UCUZ
+   * oyunları qaytarır. Kataloqda minlərlə uyğun oyun olanda bahalı pillələr
+   * heç vaxt seçimə düşmür — nəticədə ya "uyğun oyun tapılmadı" xətası çıxır
+   * (bütün nümunə minimum həddin altında qalanda), ya da hovuz yalnız ən ucuz
+   * hədiyyələrdən qurulur. Zolaqlı seçim bütün qiymət spektrini təmsil edir.
+   */
+  const BANDS = 6;
+  const perBand = Math.max(10, Math.ceil(cap / BANDS));
+  const bandStep = (maxCents - minCents) / BANDS;
+
+  const collected = new Map<string, PricedGame>();
+
+  if (search || bandStep <= 0) {
+    // Axtarış rejimində zolaqlamanın mənası yoxdur — admin konkret oyun axtarır.
+    const rows = await prisma.game.findMany({
+      where: { ...baseWhere, priceTryCents: { gte: tryBound(minCents, "floor"), lte: tryBound(maxCents, "ceil") } },
+      select,
+      take: cap,
+    });
+    for (const r of rows) collected.set(r.id, r);
+  } else {
+    /*
+      Zolaq daxilində HƏM ucuzdan, HƏM bahadan götürürük.
+      Əvvəl yalnız `desc` idi — hər zolaq öz yuxarı kənarına yığılırdı, yəni
+      faktiki namizəd qiyməti bir zolaq boyu yuxarı sürüşürdü. Nəticədə büdcənin
+      tələb etdiyi ucuz oyunlar seçimə düşmürdü və böyük hovuzlar qurula
+      bilmirdi. İki istiqamət zolağın hər iki ucunu təmsil edir.
+    */
+    const half = Math.max(5, Math.ceil(perBand / 2));
+    const bands = await Promise.all(
+      Array.from({ length: BANDS }, (_, i) => {
+        const lo = minCents + bandStep * i;
+        const hi = i === BANDS - 1 ? maxCents : minCents + bandStep * (i + 1);
+        const where = {
+          ...baseWhere,
+          priceTryCents: { gte: tryBound(lo, "floor"), lte: tryBound(hi, "ceil") },
+        };
+        return Promise.all([
+          prisma.game.findMany({ where, select, orderBy: { priceTryCents: "asc" as const }, take: half }),
+          prisma.game.findMany({ where, select, orderBy: { priceTryCents: "desc" as const }, take: half }),
+        ]);
+      })
+    );
+    for (const pair of bands) for (const rows of pair) for (const r of rows) collected.set(r.id, r);
+  }
+
+  const games = Array.from(collected.values());
+
+  if (games.length === 0) return [];
+
+  const ids = games.map((g) => g.id);
+  const [flash, stars] = await Promise.all([
+    getFlashDealOverrides(ids),
+    prisma.lootBoxTemplate.findMany({
+      where: { lootBoxId: box.id, gameId: { in: ids }, isActive: true },
+      select: { gameId: true, stars: true },
+    }),
   ]);
+  const starsByGame = new Map(stars.map((s) => [s.gameId, s.stars]));
 
-  const byId = new Map(games.map((g) => [g.id, g as PricedGame]));
-
-  return templates.map((t) => {
-    const game = byId.get(t.gameId);
-    if (!game) {
+  return games
+    .map((g) => {
+      const econ = resolveTicketEconomics(g as PricedGame, settings, flash.get(g.id));
       return {
-        templateId: t.id,
-        gameId: t.gameId,
-        title: "(silinmiş oyun)",
-        imageUrl: null,
-        store: null,
-        ticketCount: t.ticketCount,
-        valueAznCents: 0,
-        costAznCents: 0,
-        missing: true,
+        gameId: g.id,
+        title: g.title,
+        imageUrl: g.imageUrl,
+        store: g.store,
+        discountEndAt: g.discountEndAt ? g.discountEndAt.toISOString() : null,
+        valueAznCents: econ.valueAznCents,
+        costAznCents: econ.costAznCents,
+        stars: starsByGame.get(g.id) ?? 1,
+        starred: starsByGame.has(g.id),
       };
-    }
-    const econ = resolveTicketEconomics(game, settings, flash.get(game.id));
-    return {
-      templateId: t.id,
-      gameId: game.id,
-      title: game.title,
-      imageUrl: game.imageUrl,
-      store: game.store,
-      ticketCount: t.ticketCount,
-      valueAznCents: econ.valueAznCents,
-      costAznCents: econ.costAznCents,
-    };
-  });
+    })
+    // QEYD: 0 ulduzlu (qadağan) oyunlar BURADA süzülmür — admin namizəd
+    // siyahısında onları görüb qadağanı geri götürə bilməlidir. Hovuza
+    // düşməmələri `buildAutoRecipe`-də təmin olunur.
+    .filter((c) => c.valueAznCents >= minCents && c.valueAznCents <= maxCents && c.costAznCents > 0);
 }
 
-/** Reseptin cari iqtisadiyyatı — admin panelindəki canlı kalkulyator üçün. */
-export async function previewPoolEconomics(
-  box: LootBoxRow
-): Promise<{ specs: TemplateSpec[]; economics: PoolEconomics }> {
-  const specs = await resolveTemplateSpecs(box.id);
-  return { specs, economics: computePoolEconomics(specs, lootBoxConfigOf(box)) };
+/**
+ * Bu qutu üçün avtomatik resept qurur: namizədləri tapır və `allocateTickets`
+ * ilə büdcəyə sığan bilet paylanmasını hesablayır.
+ */
+export async function buildAutoRecipe(box: LootBoxRow): Promise<{
+  specs: RecipeSpec[];
+  economics: PoolEconomics;
+  candidateCount: number;
+  notes: string[];
+}> {
+  const all = await findCandidates(box);
+  // 0 ulduz = admin qadağan edib. Kataloqda avtomatik ayırd edilə bilməyən
+  // keyfiyyətsiz başlıqlar var; bu, onları hovuzdan kənarda saxlayan süzgəcdir.
+  const candidates = all.filter((c) => c.stars > 0);
+  const allocation = allocateTickets(candidates, lootBoxConfigOf(box), {
+    maxSharePct: box.maxSharePct,
+    maxTicketsPerGame: box.maxTicketsPerGame,
+  });
+
+  const meta = new Map(candidates.map((c) => [c.gameId, c]));
+  const specs: RecipeSpec[] = allocation.tickets.map((t) => {
+    const c = meta.get(t.gameId);
+    return {
+      ...t,
+      imageUrl: c?.imageUrl ?? null,
+      store: c?.store ?? null,
+      stars: c?.stars ?? 1,
+    };
+  });
+
+  return {
+    specs,
+    economics: allocation.economics,
+    candidateCount: candidates.length,
+    notes:
+      all.length > candidates.length
+        ? [...allocation.notes, `${all.length - candidates.length} oyun admin tərəfindən qadağan edilib (🚫).`]
+        : allocation.notes,
+  };
+}
+
+/** Admin panelindəki canlı kalkulyator üçün proqnoz. */
+export async function previewPoolEconomics(box: LootBoxRow) {
+  return buildAutoRecipe(box);
+}
+
+/**
+ * Aktiv hovuzdaki biletlərin DONDURULMUŞ dəyəri ilə kataloqun CARİ qiyməti
+ * arasındakı fərqi tapır.
+ *
+ * Mövcud hovuzun marjası təhlükədə deyil (maya da dondurulub), amma:
+ *  • kataloqda ucuzlaşan oyun üçün biletdə vəd etdiyimiz dəyər şişik qalır və
+ *    geri satmada real dəyərdən çox ödəyirik;
+ *  • bahalaşan oyun növbəti hovuzun büdcədən keçməməsinə səbəb ola bilər.
+ * Hər ikisi admin panelində xəbərdarlıq kimi göstərilir.
+ */
+export async function detectPriceDrift(box: LootBoxRow, thresholdPct = 10) {
+  const tickets = await prisma.lootBoxTicket.groupBy({
+    by: ["gameId", "titleSnap", "valueAznCents", "costAznCents"],
+    where: { status: "AVAILABLE", pool: { lootBoxId: box.id, status: "OPEN" } },
+    _count: { _all: true },
+  });
+  if (tickets.length === 0) return [];
+
+  const ids = tickets.map((t) => t.gameId);
+  const [settings, games, flash] = await Promise.all([
+    getSettings(),
+    prisma.game.findMany({ where: { id: { in: ids } }, select: PRICED_GAME_SELECT }),
+    getFlashDealOverrides(ids),
+  ]);
+  const byId = new Map(games.map((g) => [g.id, g as PricedGame]));
+
+  const drifted: Array<{
+    gameId: string;
+    title: string;
+    remainingTickets: number;
+    snapValueCents: number;
+    liveValueCents: number | null;
+    snapCostCents: number;
+    liveCostCents: number | null;
+    driftPct: number | null;
+    missing: boolean;
+  }> = [];
+
+  for (const t of tickets) {
+    const game = byId.get(t.gameId);
+    if (!game) {
+      drifted.push({
+        gameId: t.gameId,
+        title: t.titleSnap,
+        remainingTickets: t._count._all,
+        snapValueCents: t.valueAznCents,
+        liveValueCents: null,
+        snapCostCents: t.costAznCents,
+        liveCostCents: null,
+        driftPct: null,
+        missing: true,
+      });
+      continue;
+    }
+    const live = resolveTicketEconomics(game, settings, flash.get(game.id));
+    const driftPct =
+      t.valueAznCents > 0 ? ((live.valueAznCents - t.valueAznCents) / t.valueAznCents) * 100 : 0;
+    if (Math.abs(driftPct) >= thresholdPct) {
+      drifted.push({
+        gameId: t.gameId,
+        title: t.titleSnap,
+        remainingTickets: t._count._all,
+        snapValueCents: t.valueAznCents,
+        liveValueCents: live.valueAznCents,
+        snapCostCents: t.costAznCents,
+        liveCostCents: live.costAznCents,
+        driftPct,
+        missing: false,
+      });
+    }
+  }
+
+  return drifted.sort((a, b) => Math.abs(b.driftPct ?? 999) - Math.abs(a.driftPct ?? 999));
 }
 
 // ─── Hovuz yaratma ────────────────────────────────────────────────────────────
@@ -219,13 +469,16 @@ export async function generatePool(opts: { lootBoxId: string; adminId?: string |
   const box = await prisma.lootBox.findUnique({ where: { id: opts.lootBoxId } });
   if (!box) throw new LootBoxError("BOX_NOT_FOUND", "Qutu tapılmadı.");
 
-  const specs = await resolveTemplateSpecs(box.id);
-  const economics = computePoolEconomics(specs, lootBoxConfigOf(box));
+  const { specs, economics, notes } = await buildAutoRecipe(box);
+  void notes;
+  // Allokator yalnız təklif verir — son söz burada. Alqoritmdə səhv olsa belə
+  // büdcəni aşan hovuz yaradıla bilməz.
   if (!economics.ok) {
+    const reasons = [...economics.violations, ...notes];
     throw new LootBoxError(
       "BUDGET_VIOLATION",
-      economics.violations.join(" ") || "Hovuz yaradıla bilməz.",
-      economics.violations
+      reasons.join(" ") || "Hovuz yaradıla bilməz.",
+      reasons
     );
   }
 
@@ -291,11 +544,23 @@ export async function maybeRefillPool(box: LootBoxRow): Promise<boolean> {
 
   try {
     await generatePool({ lootBoxId: box.id, adminId: null });
+    // Uğurlu doldurmadan sonra köhnə xəbərdarlıq təmizlənir.
+    await prisma.lootBox
+      .update({ where: { id: box.id }, data: { lastRefillError: null, lastRefillErrorAt: null } })
+      .catch(() => null);
     return true;
   } catch (err) {
-    // Resept büdcəni pozursa avtomatik doldurma dayanır — açılışı bloklamırıq,
-    // mövcud biletlər bitənə qədər işləyir, admin panelində xəbərdarlıq görünür.
+    // Kataloqda uyğun oyun qalmayıbsa (məs. endirimlər bitib mayalar qalxıb)
+    // avtomatik doldurma alınmır. Açılışı bloklamırıq — mövcud biletlər bitənə
+    // qədər işləyir — amma səbəbi YAZIRIQ ki, qutu səssizcə boşalmasın.
+    const reason = err instanceof LootBoxError ? err.message : (err as Error).message;
     console.error("loot box auto-refill failed", box.slug, err);
+    await prisma.lootBox
+      .update({
+        where: { id: box.id },
+        data: { lastRefillError: reason.slice(0, 1000), lastRefillErrorAt: new Date() },
+      })
+      .catch(() => null);
     return false;
   }
 }
@@ -348,11 +613,33 @@ type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
  * proqnozlaşdırıla bilərdi. Bütün açıq hovuzlardan təsadüfi seçəndə hovuzun
  * "sonu" heç vaxt müşahidə edilə bilmir — "bilet sayma" mümkünsüz olur.
  */
-export async function drawTicket(tx: TxClient, lootBoxId: string): Promise<DrawnTicket> {
-  const where = { status: "AVAILABLE", pool: { lootBoxId, status: "OPEN" } } as const;
+export async function drawTicket(
+  tx: TxClient,
+  lootBoxId: string,
+  /** Müştərinin əvvəl qazandığı oyunlar — təkrar hədiyyə verilmir. */
+  excludeGameIds: string[] = []
+): Promise<DrawnTicket> {
+  const where = {
+    status: "AVAILABLE",
+    pool: { lootBoxId, status: "OPEN" },
+    ...(excludeGameIds.length > 0 ? { gameId: { notIn: excludeGameIds } } : {}),
+  };
 
   const available = await tx.lootBoxTicket.count({ where });
   if (available === 0) {
+    // Bilet ümumiyyətlə yoxdur, yoxsa yalnız BU müştəri üçün yeni oyun qalmayıb?
+    // İki hal fərqli mesaj tələb edir — müştəri nə baş verdiyini anlamalıdır.
+    if (excludeGameIds.length > 0) {
+      const anyLeft = await tx.lootBoxTicket.count({
+        where: { status: "AVAILABLE", pool: { lootBoxId, status: "OPEN" } },
+      });
+      if (anyLeft > 0) {
+        throw new LootBoxError(
+          "NO_NEW_PRIZES",
+          "Bu qutudaki bütün oyunları artıq qazanmısınız — sizin üçün yeni hədiyyə qalmayıb."
+        );
+      }
+    }
     throw new LootBoxError("NO_TICKETS", "Bu qutuda hazırda bilet qalmayıb. Bir az sonra yenidən yoxlayın.");
   }
 
@@ -431,6 +718,41 @@ export async function openLootBox(params: { userId: string; box: LootBoxRow }): 
     }
   }
 
+  /**
+   * Müştərinin bu qutuda əvvəl qazandığı oyunlar — təkrar hədiyyə verilmir.
+   *
+   * Bütün nəticələr sayılır (seçim gözləyən, oyunu götürən, balansa satan):
+   * müştəri o oyunu artıq görmüşdür və təkrarı həyəcan yaratmır.
+   */
+  let excludeGameIds: string[] = [];
+  if (box.uniquePrizePerUser) {
+    const won = await prisma.lootBoxOpening.findMany({
+      where: { userId, lootBoxId: box.id },
+      select: { gameId: true },
+      distinct: ["gameId"],
+    });
+    excludeGameIds = won.map((w) => w.gameId);
+
+    // Balansı tutmadan ƏVVƏL yoxlayırıq: müştəri pul verib "sizin üçün yeni
+    // hədiyyə yoxdur" xətası almasın. (Transaction onsuz da geri qaytarardı,
+    // amma bu, təmiz mesaj və gərəksiz əməliyyat olmaması deməkdir.)
+    if (excludeGameIds.length > 0) {
+      const eligible = await prisma.lootBoxTicket.count({
+        where: {
+          status: "AVAILABLE",
+          pool: { lootBoxId: box.id, status: "OPEN" },
+          gameId: { notIn: excludeGameIds },
+        },
+      });
+      if (eligible === 0) {
+        throw new LootBoxError(
+          "NO_NEW_PRIZES",
+          "Bu qutudaki bütün oyunları artıq qazanmısınız — sizin üçün yeni hədiyyə qalmayıb."
+        );
+      }
+    }
+  }
+
   // Sifariş kodu transaction-dan KƏNARDA hazırlanır (unikallıq yoxlaması öz
   // sorğusunu tələb edir; checkout da belə edir).
   const orderCode = `BOX-${randomBytes(3).toString("hex").toUpperCase()}`;
@@ -446,7 +768,7 @@ export async function openLootBox(params: { userId: string; box: LootBoxRow }): 
       throw new LootBoxError("INSUFFICIENT_BALANCE", "Balansınız kifayət etmir.");
     }
 
-    const ticket = await drawTicket(tx, box.id);
+    const ticket = await drawTicket(tx, box.id, excludeGameIds);
 
     const payment = await tx.transaction.create({
       data: {
@@ -525,6 +847,8 @@ export type ChoiceResult = {
   sellBackCents?: number;
   walletBalanceAfter?: number;
   fulfillmentTransactionId?: string;
+  /** PSN hesabı yox idi — operator müştəridən məlumatı soruşacaq. */
+  needsAccountInfo?: boolean;
 };
 
 /**
@@ -552,31 +876,38 @@ export async function resolveOpeningChoice(params: {
     throw new LootBoxError("ALREADY_RESOLVED", "Bu hədiyyə üçün seçim artıq edilib.");
   }
 
-  // Oyun götürülürsə çatdırılma hesabı lazımdır (hədiyyə açma axını ilə eyni).
+  /**
+   * Çatdırılma hesabı: VARSA bağlanır, yoxdursa açılış BLOKLANMIR.
+   *
+   * Müştəri qutunu artıq ödəyib — hesabı olmadığı üçün hədiyyəni ala bilməmək
+   * qəbuledilməzdir. Oyun sifarişi onsuz da manual çatdırılır (operator
+   * `NEW → CONTACTED → ACCOUNT_ACCESS` mərhələləri ilə əlaqə saxlayır), ona
+   * görə hesab məlumatını sonra almaq tam mümkündür. Bu halda sifariş
+   * metadata-sına `needsAccountInfo` işarəsi qoyulur.
+   */
   let psnAccountId: string | null = null;
   let epicAccountId: string | null = null;
+  let needsAccountInfo = false;
 
   if (choice === "GAME") {
+    // Qutuya yalnız PS oyunları düşür; EPIC yolu köhnə (dondurulmuş) biletlər
+    // üçün ehtiyat kimi saxlanılır.
     if (opening.store === "EPIC") {
       const accounts = await prisma.epicAccount.findMany({ where: { userId } });
-      if (accounts.length === 0) {
-        throw new LootBoxError("NO_EPIC_ACCOUNT", "Oyunu götürmək üçün Epic hesabı əlavə etməlisiniz.");
-      }
       const chosen =
         (params.epicAccountId && accounts.find((a) => a.id === params.epicAccountId)) ||
         accounts.find((a) => a.isDefault) ||
         accounts[0];
-      epicAccountId = chosen.id;
+      epicAccountId = chosen?.id ?? null;
+      needsAccountInfo = chosen == null;
     } else {
       const accounts = await prisma.psnAccount.findMany({ where: { userId } });
-      if (accounts.length === 0) {
-        throw new LootBoxError("NO_PSN_ACCOUNT", "Oyunu götürmək üçün PSN hesabı əlavə etməlisiniz.");
-      }
       const chosen =
         (params.psnAccountId && accounts.find((a) => a.id === params.psnAccountId)) ||
         accounts.find((a) => a.isDefault) ||
         accounts[0];
-      psnAccountId = chosen.id;
+      psnAccountId = chosen?.id ?? null;
+      needsAccountInfo = chosen == null;
     }
   }
 
@@ -614,6 +945,8 @@ export async function resolveOpeningChoice(params: {
             lootBoxOpeningId: opening.id,
             lootBoxSlug: opening.lootBox.slug,
             prizeValueCents: opening.valueAznCents,
+            // Operator bunu görüb müştəridən hesab məlumatını istəyir.
+            ...(needsAccountInfo ? { needsAccountInfo: true } : {}),
           }),
         },
       });
@@ -623,7 +956,11 @@ export async function resolveOpeningChoice(params: {
         data: { fulfillmentTransactionId: fulfillment.id },
       });
 
-      return { outcome: "CLAIMED_GAME" as const, fulfillmentTransactionId: fulfillment.id };
+      return {
+        outcome: "CLAIMED_GAME" as const,
+        fulfillmentTransactionId: fulfillment.id,
+        needsAccountInfo,
+      };
     }
 
     const credit = sellBackAmountCents(opening.valueAznCents, opening.lootBox.sellBackPct);
@@ -687,8 +1024,11 @@ export async function getOdds(lootBoxId: string): Promise<OddsRow[]> {
     return buildOddsTable(rows.map((r) => ({ valueAznCents: r.valueAznCents, ticketCount: r._count._all })));
   }
 
-  // Hələ hovuz yaradılmayıbsa reseptin nəzərdə tutduğu paylanmanı göstəririk.
-  const specs = await resolveTemplateSpecs(lootBoxId);
+  // Hələ hovuz yaradılmayıbsa avtomatik reseptin nəzərdə tutduğu paylanmanı
+  // göstəririk (yalnız proqnoz — real çəkiliş həmişə hovuzdan gedir).
+  const box = await prisma.lootBox.findUnique({ where: { id: lootBoxId } });
+  if (!box) return [];
+  const { specs } = await buildAutoRecipe(box);
   return buildOddsTable(specs);
 }
 
@@ -717,6 +1057,175 @@ export async function getRecentWinners(lootBoxId: string, take = 12) {
       user: { select: { name: true } },
     },
   });
+}
+
+export type ShowcasePrize = {
+  gameId: string;
+  title: string;
+  imageUrl: string | null;
+  valueAznCents: number;
+};
+
+/**
+ * Rulet lentini dolduran real nümunə hədiyyələr.
+ *
+ * Əvvəl lent qutunun öz adı və şəkli ilə doldurulurdu — nəticədə eyni "100 azn
+ * qutu" kartı təkrarlanır, şəkillər boş görünürdü. Lentdə real oyunlar olmalıdır.
+ *
+ * `status` filtri QƏSDƏN yoxdur: yalnız `AVAILABLE` biletlərə baxsaydıq, vitrin
+ * hovuz boşaldıqca daralar və müştəri hansı hədiyyələrin qaldığını hesablaya
+ * bilərdi. `distinct` yalnız unikal oyun qaytarır — bilet sayı sızmır.
+ */
+export async function getPrizeShowcase(lootBoxId: string, take = 24): Promise<ShowcasePrize[]> {
+  const rows = await prisma.lootBoxTicket.findMany({
+    where: { pool: { lootBoxId, status: "OPEN" } },
+    distinct: ["gameId"],
+    orderBy: { valueAznCents: "desc" },
+    take: 150,
+    select: { gameId: true, titleSnap: true, imageSnap: true, valueAznCents: true },
+  });
+
+  if (rows.length === 0) return [];
+
+  // Bütün dəyər diapazonu təmsil olunsun: sadəcə ilk N-i götürsək lentdə yalnız
+  // ən bahalı oyunlar görünər və müştəridə real olmayan gözlənti yaranar.
+  const step = Math.max(1, Math.floor(rows.length / take));
+  const picked: ShowcasePrize[] = [];
+  for (let i = 0; i < rows.length && picked.length < take; i += step) {
+    const row = rows[i];
+    picked.push({
+      gameId: row.gameId,
+      title: row.titleSnap,
+      imageUrl: row.imageSnap,
+      valueAznCents: row.valueAznCents,
+    });
+  }
+  return picked;
+}
+
+/**
+ * Hovuzdaki BÜTÜN fərqli oyunlar — "nə qazana bilərəm?" siyahısı.
+ *
+ * Bilet sayı qaytarılmır (o, qalan tərkibi açıqlayardı), yalnız oyunun özü və
+ * dəyəri. Ehtimallar onsuz da ayrıca cədvəldə açıq göstərilir, ona görə bu,
+ * gizli məlumat açmır — əksinə, müştərinin əsas sualına cavab verir.
+ */
+export async function getPrizeCatalog(lootBoxId: string): Promise<ShowcasePrize[]> {
+  const rows = await prisma.lootBoxTicket.findMany({
+    where: { pool: { lootBoxId, status: "OPEN" } },
+    distinct: ["gameId"],
+    orderBy: { valueAznCents: "desc" },
+    select: { gameId: true, titleSnap: true, imageSnap: true, valueAznCents: true },
+  });
+
+  return rows.map((r) => ({
+    gameId: r.gameId,
+    title: r.titleSnap,
+    imageUrl: r.imageSnap,
+    valueAznCents: r.valueAznCents,
+  }));
+}
+
+// ─── Admin: kim nə qazandı ────────────────────────────────────────────────────
+
+export type AdminOpeningRow = {
+  id: string;
+  orderCode: string;
+  createdAt: string;
+  chosenAt: string | null;
+  user: { id: string; name: string | null; email: string; phone: string | null };
+  title: string;
+  imageUrl: string | null;
+  store: string | null;
+  pricePaidCents: number;
+  valueAznCents: number;
+  costAznCents: number;
+  outcome: string;
+  sellBackCents: number | null;
+  /** Bu açılışda bizim faktiki mənfəətimiz (qəpik). */
+  profitCents: number;
+  fulfillmentTransactionId: string | null;
+};
+
+/**
+ * Açılışların admin siyahısı: hansı müştəri hansı oyunu, hansı dəyərə qazandı.
+ *
+ * Sətir başına mənfəət də hesablanır: geri satılan hədiyyə TAM nominalla maya
+ * sayılır (konservativ — `getLootBoxStats` ilə eyni qayda), oyun götürüləndə isə
+ * biletin dondurulmuş mayası.
+ */
+export async function getAdminOpenings(params: {
+  lootBoxId: string;
+  outcome?: string;
+  search?: string;
+  take?: number;
+  skip?: number;
+}): Promise<{ rows: AdminOpeningRow[]; total: number }> {
+  const search = params.search?.trim();
+  const where = {
+    lootBoxId: params.lootBoxId,
+    ...(params.outcome ? { outcome: params.outcome } : {}),
+    ...(search
+      ? {
+          OR: [
+            { titleSnap: { contains: search, mode: "insensitive" as const } },
+            { orderCode: { contains: search.toUpperCase() } },
+            { user: { name: { contains: search, mode: "insensitive" as const } } },
+            { user: { email: { contains: search, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+
+  const [total, openings] = await Promise.all([
+    prisma.lootBoxOpening.count({ where }),
+    prisma.lootBoxOpening.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: Math.min(200, params.take ?? 50),
+      skip: params.skip ?? 0,
+      select: {
+        id: true,
+        orderCode: true,
+        createdAt: true,
+        chosenAt: true,
+        titleSnap: true,
+        imageSnap: true,
+        store: true,
+        pricePaidCents: true,
+        valueAznCents: true,
+        costAznCents: true,
+        outcome: true,
+        sellBackCents: true,
+        fulfillmentTransactionId: true,
+        user: { select: { id: true, name: true, email: true, phone: true } },
+      },
+    }),
+  ]);
+
+  return {
+    total,
+    rows: openings.map((o) => {
+      const realizedCost = o.outcome === "SOLD_BACK" ? o.sellBackCents ?? 0 : o.costAznCents;
+      return {
+        id: o.id,
+        orderCode: o.orderCode,
+        createdAt: o.createdAt.toISOString(),
+        chosenAt: o.chosenAt?.toISOString() ?? null,
+        user: o.user,
+        title: o.titleSnap,
+        imageUrl: o.imageSnap,
+        store: o.store,
+        pricePaidCents: o.pricePaidCents,
+        valueAznCents: o.valueAznCents,
+        costAznCents: o.costAznCents,
+        outcome: o.outcome,
+        sellBackCents: o.sellBackCents,
+        profitCents: o.pricePaidCents - realizedCost,
+        fulfillmentTransactionId: o.fulfillmentTransactionId,
+      };
+    }),
+  };
 }
 
 // ─── Admin statistikası ───────────────────────────────────────────────────────

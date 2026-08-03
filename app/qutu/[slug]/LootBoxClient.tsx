@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Package, Sparkles, Wallet } from "lucide-react";
+import { Gamepad2, Loader2, Package, Sparkles, Wallet } from "lucide-react";
 
+import Modal from "@/components/Modal";
 import ProductImage from "@/components/ProductImage";
 import LootBoxPrizeModal, { type OpenedPrize } from "@/components/LootBoxPrizeModal";
+import type { ShowcasePrizeData } from "@/components/LootBoxCard";
 import type { RevealPrize } from "@/components/LootBoxReveal";
 import { useSession } from "@/components/SessionProvider";
 import { formatAzn, type PublicOddsRow } from "@/lib/lootBoxShared";
@@ -43,10 +45,17 @@ export default function LootBoxClient({
   box,
   odds,
   winners: initialWinners,
+  // Köhnə ISR keşindən gələn cavabda bu sahə olmaya bilər — səhifə çökməsin.
+  showcase = [],
+  catalog = [],
 }: {
   box: LootBoxDetail;
   odds: PublicOddsRow[];
   winners: WinnerRow[];
+  /** Hovuzdaki real oyun nümunələri — rulet lenti bununla dolur. */
+  showcase?: ShowcasePrizeData[];
+  /** Hovuzdaki BÜTÜN oyunlar — "nə qazana bilərəm?" siyahısı. */
+  catalog?: ShowcasePrizeData[];
 }) {
   const { user, loading: sessionLoading } = useSession();
   const router = useRouter();
@@ -55,18 +64,27 @@ export default function LootBoxClient({
   const [error, setError] = useState<string | null>(null);
   const [winners, setWinners] = useState(initialWinners);
   const [balanceCents, setBalanceCents] = useState<number | null>(null);
+  const [showAllCatalog, setShowAllCatalog] = useState(false);
 
   useEffect(() => {
     if (user) setBalanceCents(user.walletBalanceCents ?? 0);
   }, [user]);
 
-  // Reveal lentini doldurmaq üçün son qazananların şəkillərindən istifadə edirik.
-  const fillers: RevealPrize[] = winners.slice(0, 12).map((w) => ({
-    gameId: w.id,
-    title: w.title,
-    imageUrl: w.imageUrl,
-    valueAznCents: w.valueAznCents,
-  }));
+  // Lent hovuzdaki real oyunlarla dolur; hovuz hələ yoxdursa son qazananlarla.
+  const fillers: RevealPrize[] =
+    showcase.length > 0
+      ? showcase.map((s) => ({
+          gameId: s.gameId,
+          title: s.title,
+          imageUrl: s.imageUrl,
+          valueAznCents: s.valueAznCents,
+        }))
+      : winners.slice(0, 12).map((w) => ({
+          gameId: w.id,
+          title: w.title,
+          imageUrl: w.imageUrl,
+          valueAznCents: w.valueAznCents,
+        }));
 
   const refreshWinners = useCallback(() => {
     fetch(`/api/loot-boxes/${box.slug}`, { cache: "no-store" })
@@ -80,15 +98,19 @@ export default function LootBoxClient({
       router.push(`/login?next=/qutu/${box.slug}`);
       return;
     }
+    // Təkrar açılışda köhnə hədiyyə modalı dərhal bağlanmalıdır, yoxsa yeni
+    // nəticə gələnə qədər müştəri əvvəlki hədiyyəyə baxmağa davam edir.
+    setOpened(null);
     setOpening(true);
     setError(null);
     try {
       const res = await fetch(`/api/loot-boxes/${box.slug}/open`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Qutu açıla bilmədi.");
+      if (!res.ok) throw new Error(data.error ?? `Qutu açıla bilmədi (HTTP ${res.status}).`);
 
       setOpened({
         openingId: data.openingId,
+        orderCode: data.orderCode,
         prize: data.prize,
         sellBackCents: data.sellBackCents,
         pricePaidCents: data.pricePaidCents,
@@ -109,7 +131,8 @@ export default function LootBoxClient({
         {/* Sol: qutu */}
         <div>
           <div className="overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-b from-slate-900 to-slate-950 dark:border-slate-800">
-            <div className="flex h-64 items-center justify-center">
+            {/* `relative` məcburidir — ProductImage `fill` işlədir. */}
+            <div className="relative flex h-64 items-center justify-center">
               {box.imageUrl ? (
                 <ProductImage src={box.imageUrl} alt={box.title} className="h-full w-full object-cover" />
               ) : (
@@ -181,6 +204,47 @@ export default function LootBoxClient({
             </div>
           </div>
 
+          {/* Hovuzdaki bütün oyunlar — müştərinin əsas sualı: "nə qazana bilərəm?" */}
+          {catalog.length > 0 && (
+            <div className="mt-8">
+              <h2 className="flex items-center gap-2 text-lg font-black text-slate-900 dark:text-white">
+                <Gamepad2 className="h-5 w-5 text-fuchsia-500" /> Bu qutudan çıxa bilən oyunlar
+              </h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                Hovuzdakı <strong>{catalog.length}</strong> oyunun hamısı burada. Qutunu açanda
+                yalnız bu siyahıdan bir oyun çıxa bilər.
+              </p>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {(showAllCatalog ? catalog : catalog.slice(0, 12)).map((g) => (
+                  <div
+                    key={g.gameId}
+                    className="flex items-center gap-3 rounded-2xl border border-slate-200 px-3 py-2 dark:border-slate-800"
+                  >
+                    {/* `relative` məcburidir — ProductImage `fill` işlədir. */}
+                    <div className="relative h-14 w-11 shrink-0 overflow-hidden rounded-lg">
+                      <ProductImage src={g.imageUrl} alt={g.title} className="h-full w-full object-cover" sizes="44px" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-bold text-slate-900 dark:text-white">{g.title}</div>
+                      <div className="text-sm font-black text-amber-500">{formatAzn(g.valueAznCents)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {catalog.length > 12 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllCatalog((v) => !v)}
+                  className="mt-3 rounded-full border border-slate-300 px-5 py-2 text-sm font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200"
+                >
+                  {showAllCatalog ? "Yığ" : `Hamısını göstər (${catalog.length})`}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Son qazananlar */}
           {winners.length > 0 && (
             <div className="mt-8">
@@ -191,7 +255,7 @@ export default function LootBoxClient({
                     key={w.id}
                     className="flex items-center gap-3 rounded-2xl border border-slate-200 px-3 py-2 dark:border-slate-800"
                   >
-                    <div className="h-12 w-10 shrink-0 overflow-hidden rounded-lg">
+                    <div className="relative h-12 w-10 shrink-0 overflow-hidden rounded-lg">
                       <ProductImage src={w.imageUrl} alt={w.title} className="h-full w-full object-cover" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -268,6 +332,21 @@ export default function LootBoxClient({
         </div>
       </div>
 
+      {/* Təkrar açılışda ekran boş qalmasın — nəticə gələnə qədər gözləmə. */}
+      {opening && (
+        <Modal open onClose={() => undefined} size="sm">
+          <div className="relative overflow-hidden p-7 text-center">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-amber-400 to-fuchsia-600 text-white shadow-lg shadow-fuchsia-500/25">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+            <h2 className="mt-4 text-xl font-black text-slate-900 dark:text-white">Qutu hazırlanır…</h2>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+              {box.title} üçün şansın seçilir. Bir az gözlə.
+            </p>
+          </div>
+        </Modal>
+      )}
+
       <LootBoxPrizeModal
         opened={opened}
         fillers={fillers}
@@ -281,6 +360,7 @@ export default function LootBoxClient({
             setBalanceCents((b) => (b == null ? b : b + opened.sellBackCents));
           }
         }}
+        onOpenAgain={box.inStock ? () => void open() : undefined}
       />
     </div>
   );

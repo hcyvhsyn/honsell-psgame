@@ -61,7 +61,7 @@ export default function LootBoxHistory() {
         body: JSON.stringify({ choice }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Əməliyyat alınmadı.");
+      if (!res.ok) throw new Error(data.error ?? `Əməliyyat alınmadı (HTTP ${res.status}).`);
       load();
     } catch (err) {
       setError((err as Error).message);
@@ -111,7 +111,8 @@ export default function LootBoxHistory() {
             key={o.id}
             className="flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 p-3 dark:border-slate-800"
           >
-            <div className="h-20 w-16 shrink-0 overflow-hidden rounded-xl">
+            {/* `relative` məcburidir — ProductImage `fill` işlədir. */}
+            <div className="relative h-20 w-16 shrink-0 overflow-hidden rounded-xl">
               <ProductImage src={o.imageUrl} alt={o.title} className="h-full w-full object-cover" />
             </div>
 

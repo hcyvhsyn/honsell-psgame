@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
-import { getPublicOdds } from "@/lib/lootBoxes";
+import { getPrizeShowcase, getPublicOdds } from "@/lib/lootBoxes";
 import { SITE_URL } from "@/lib/site";
 import LootBoxCard, { type LootBoxCardData } from "@/components/LootBoxCard";
 
@@ -45,10 +45,12 @@ const getBoxes = unstable_cache(
         maxPrizeCents: Math.round((box.priceAznCents * box.maxPrizePct) / 100),
         sellBackPct: box.sellBackPct,
         odds: await getPublicOdds(box.id).catch(() => []),
+        showcase: await getPrizeShowcase(box.id).catch(() => []),
       }))
     );
   },
-  ["loot-boxes-list"],
+  // Açar dəyişdi — köhnə keşdə `showcase` sahəsi yoxdur.
+  ["loot-boxes-list-v2"],
   { tags: ["loot-boxes"], revalidate: 300 }
 );
 

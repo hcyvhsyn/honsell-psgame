@@ -19,7 +19,17 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import GameCard, { GameCardData } from "./GameCard";
+import { genreLabelAz } from "@/lib/gameCardShared";
 import PlatformInfoButton from "./PlatformInfoButton";
+
+/** `/api/games/facets` cavabı — filtr panelinin seçim siyahıları. */
+type FacetOption = { value: string; count: number };
+type FilterFacets = {
+  genres: FacetOption[];
+  contentRatings: FacetOption[];
+  publishers: FacetOption[];
+  releaseYears: { min: number; max: number } | null;
+};
 
 type ListingResponse = {
   total: number;
@@ -33,7 +43,17 @@ type ListingResponse = {
   totalPages?: number;
 };
 
-type Sort = "newest" | "popular" | "priceAsc" | "priceDesc" | "discount" | "discountAsc" | "alpha";
+type Sort =
+  | "newest"
+  | "popular"
+  | "priceAsc"
+  | "priceDesc"
+  | "discount"
+  | "discountAsc"
+  | "alpha"
+  | "rating"
+  | "releaseNew"
+  | "releaseOld";
 type Platform = "ALL" | "PS4" | "PS5";
 type ProductType = "ALL" | "GAME" | "ADDON" | "CURRENCY" | "OTHER";
 
@@ -49,7 +69,26 @@ const SORT_OPTIONS: { value: Sort; label: string }[] = [
   { value: "priceDesc", label: "Qiymət: bahadan ucuza" },
   { value: "discount", label: "Endirim faizi: çoxdan aza" },
   { value: "discountAsc", label: "Endirim faizi: azdan çoxa" },
+  // PS Store detal metadata-sına söykənən sıralamalar. Metadata-sı olmayan
+  // sətirlər siyahının sonuna düşür, kataloqdan çıxarılmır.
+  { value: "rating", label: "Reytinq: yüksəkdən aşağıya" },
+  { value: "releaseNew", label: "Çıxış tarixi: yenidən köhnəyə" },
+  { value: "releaseOld", label: "Çıxış tarixi: köhnədən yeniyə" },
   { value: "alpha", label: "Əlifba sırası" },
+];
+
+/**
+ * PS Store istifadəçi reytinqi üçün aşağı hədd seçimləri.
+ *
+ * Sərbəst rəqəm daxil etməkdənsə hazır pillələr verilir: "4.2+" kimi dəqiqlik
+ * heç kimə lazım deyil, istifadəçi "yaxşı olsun" / "çox yaxşı olsun" deyir.
+ */
+const MIN_RATING_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "Fərqi yoxdur" },
+  { value: "4.5", label: "4.5+ ulduz" },
+  { value: "4", label: "4.0+ ulduz" },
+  { value: "3.5", label: "3.5+ ulduz" },
+  { value: "3", label: "3.0+ ulduz" },
 ];
 
 type Accent = "violet" | "indigo" | "fuchsia" | "emerald" | "sky";
@@ -134,9 +173,17 @@ type SavedFilters = {
   priceMin?: string;
   priceMax?: string;
   page?: number;
+  contentRating?: string;
+  minRating?: string;
+  publisher?: string;
+  yearMin?: string;
+  yearMax?: string;
 };
 
-const FILTERS_STORAGE_VERSION = "v1";
+// v2: PS Store metadata filtrləri (janr/PEGI/reytinq/nəşriyyatçı/il) əlavə
+// olundu. Versiyanı artırmaq köhnə sessiyalarda qalmış natamam obyektin
+// bərpasını kəsir.
+const FILTERS_STORAGE_VERSION = "v2";
 function filtersStorageKey(store: "PS" | "EPIC") {
   return `honsell.gameBrowser.${store}.${FILTERS_STORAGE_VERSION}`;
 }
@@ -203,6 +250,16 @@ export default function GameBrowser({
   // only when building the request.
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
+  // ─── PS Store metadata filtrləri ──────────────────────────────────────────
+  // Seçim siyahıları `/api/games/facets`-dən gəlir. Enricher hələ işləməyibsə
+  // siyahılar boş qayıdır və müvafiq kontrol ÜMUMİYYƏTLƏ render olunmur —
+  // istifadəçiyə heç vaxt nəticəsiz filtr göstərilmir.
+  const [contentRating, setContentRating] = useState("");
+  const [minRating, setMinRating] = useState("");
+  const [publisher, setPublisher] = useState("");
+  const [yearMin, setYearMin] = useState("");
+  const [yearMax, setYearMax] = useState("");
+  const [facets, setFacets] = useState<FilterFacets | null>(null);
   const [loading, setLoading] = useState(false);
   const [aiSemantic, setAiSemantic] = useState(false);
   const [interpretedAs, setInterpretedAs] = useState<string | null>(null);
@@ -238,9 +295,16 @@ export default function GameBrowser({
       if (isSearching) params.set("q", q);
       params.set("type", productType);
       if (store !== "PS") params.set("store", store);
-      if (isEpic && genre) params.set("genre", genre);
+      // Janr filtri artıq hər iki mağaza üçün işləyir: PS sətirlərinin janrları
+      // scripts/enrichGameMetadata.ts ilə dolur (əvvəl yalnız Epic-də var idi).
+      if (genre) params.set("genre", genre);
       if (!isEpic && platform !== "ALL") params.set("platform", platform);
       if (onSale) params.set("onSale", "1");
+      if (contentRating) params.set("rating", contentRating);
+      if (minRating) params.set("minRating", minRating);
+      if (publisher) params.set("publisher", publisher);
+      if (yearMin) params.set("yearMin", yearMin);
+      if (yearMax) params.set("yearMax", yearMax);
       const pMin = Number(priceMin);
       const pMax = Number(priceMax);
       if (Number.isFinite(pMin) && pMin > 0) params.set("priceMin", String(pMin));
@@ -287,7 +351,28 @@ export default function GameBrowser({
     }, 250);
 
     return () => clearTimeout(handle);
-  }, [query, sort, platform, onSale, productType, page, pageSize, priceMin, priceMax, store, genre, isEpic, lockedKey]);
+  }, [
+    query, sort, platform, onSale, productType, page, pageSize, priceMin, priceMax,
+    store, genre, isEpic, lockedKey,
+    contentRating, minRating, publisher, yearMin, yearMax,
+  ]);
+
+  // Filtr seçim siyahılarını bir dəfə yüklə. Sorğu sınsa `facets` null qalır və
+  // metadata kontrolları render olunmur — kataloq normal işləməyə davam edir.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/games/facets${store === "PS" ? "" : `?store=${store}`}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: FilterFacets | null) => {
+        if (!cancelled && json) setFacets(json);
+      })
+      .catch(() => {
+        /* filtr siyahıları olmadan da kataloq işləyir */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [store]);
 
   // Filtrlər dəyişəndə ilk səhifəyə qayıt. İlk mount-da skip edirik ki,
   // sessionStorage-dan restore olunan səhifə nömrəsi sıfırlanmasın.
@@ -298,7 +383,10 @@ export default function GameBrowser({
       return;
     }
     setPage(1);
-  }, [query, sort, platform, onSale, productType, priceMin, priceMax, genre]);
+  }, [
+    query, sort, platform, onSale, productType, priceMin, priceMax, genre,
+    contentRating, minRating, publisher, yearMin, yearMax,
+  ]);
 
   // Mount-dan sonra sessionStorage-dan filterləri restore et. SSR/hidrasiya
   // uyğunsuzluğunu önləmək üçün state lazy-initializer-də yox, mount effekt-ində
@@ -315,6 +403,11 @@ export default function GameBrowser({
     if (typeof saved.onSale === "boolean") setOnSale(saved.onSale);
     if (typeof saved.priceMin === "string") setPriceMin(saved.priceMin);
     if (typeof saved.priceMax === "string") setPriceMax(saved.priceMax);
+    if (typeof saved.contentRating === "string") setContentRating(saved.contentRating);
+    if (typeof saved.minRating === "string") setMinRating(saved.minRating);
+    if (typeof saved.publisher === "string") setPublisher(saved.publisher);
+    if (typeof saved.yearMin === "string") setYearMin(saved.yearMin);
+    if (typeof saved.yearMax === "string") setYearMax(saved.yearMax);
     if (typeof saved.page === "number" && saved.page >= 1) setPage(saved.page);
     // store dəyişməz: yalnız mount-da bir dəfə işləməlidir.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -334,6 +427,11 @@ export default function GameBrowser({
       onSale === false &&
       priceMin === "" &&
       priceMax === "" &&
+      contentRating === "" &&
+      minRating === "" &&
+      publisher === "" &&
+      yearMin === "" &&
+      yearMax === "" &&
       page === 1;
     try {
       if (isDefault) {
@@ -350,6 +448,11 @@ export default function GameBrowser({
             onSale,
             priceMin,
             priceMax,
+            contentRating,
+            minRating,
+            publisher,
+            yearMin,
+            yearMax,
             page,
           } satisfies SavedFilters),
         );
@@ -357,7 +460,10 @@ export default function GameBrowser({
     } catch {
       /* quota / private mode — səssizcə keç */
     }
-  }, [productType, query, sort, genre, platform, onSale, priceMin, priceMax, page, store, defaultSort]);
+  }, [
+    productType, query, sort, genre, platform, onSale, priceMin, priceMax, page,
+    store, defaultSort, contentRating, minRating, publisher, yearMin, yearMax,
+  ]);
 
   const priceMinNum = Number(priceMin);
   const priceMaxNum = Number(priceMax);
@@ -377,7 +483,12 @@ export default function GameBrowser({
     sort !== defaultSort ||
     hasPriceMin ||
     hasPriceMax ||
-    genre !== "";
+    genre !== "" ||
+    contentRating !== "" ||
+    minRating !== "" ||
+    publisher !== "" ||
+    yearMin !== "" ||
+    yearMax !== "";
 
   const clearFilters = () => {
     setQuery("");
@@ -387,6 +498,11 @@ export default function GameBrowser({
     setPriceMin("");
     setPriceMax("");
     setGenre("");
+    setContentRating("");
+    setMinRating("");
+    setPublisher("");
+    setYearMin("");
+    setYearMax("");
     // Save effekti default vəziyyəti onsuz da silir, amma burada explicit
     // silmək gec-tezliyi aradan qaldırır (back nav-ı dərhal təmiz başladır).
     if (typeof window !== "undefined") {
@@ -420,11 +536,43 @@ export default function GameBrowser({
       onRemove: () => setPlatform(DEFAULT_PLATFORM),
     });
   }
-  if (isEpic && genre) {
+  if (genre) {
     activeFilterChips.push({
       key: "genre",
-      label: genre,
+      // PS janrları DB-də türkcədir (TR mağazasından gəlir) — çipdə AZ adı.
+      label: isEpic ? genre : genreLabelAz(genre),
       onRemove: () => setGenre(""),
+    });
+  }
+  if (contentRating) {
+    activeFilterChips.push({
+      key: "rating",
+      label: contentRating,
+      onRemove: () => setContentRating(""),
+    });
+  }
+  if (minRating) {
+    activeFilterChips.push({
+      key: "minRating",
+      label: `${minRating}+ ulduz`,
+      onRemove: () => setMinRating(""),
+    });
+  }
+  if (publisher) {
+    activeFilterChips.push({
+      key: "publisher",
+      label: publisher,
+      onRemove: () => setPublisher(""),
+    });
+  }
+  if (yearMin || yearMax) {
+    activeFilterChips.push({
+      key: "year",
+      label: `${yearMin || "…"} – ${yearMax || "…"}`,
+      onRemove: () => {
+        setYearMin("");
+        setYearMax("");
+      },
     });
   }
   if (onSale) {
@@ -457,11 +605,25 @@ export default function GameBrowser({
   }
   const advancedFilterCount = [
     !isEpic && platform !== DEFAULT_PLATFORM,
-    isEpic && genre !== "",
+    genre !== "",
     onSale,
     sort !== defaultSort,
     hasPriceMin || hasPriceMax,
+    contentRating !== "",
+    minRating !== "",
+    publisher !== "",
+    yearMin !== "" || yearMax !== "",
   ].filter(Boolean).length;
+
+  // Janr siyahısı: Epic-də prop ilə gələn kateqoriyalar, PS-də isə
+  // `/api/games/facets`-dən (DB-də real mövcud janrlar + sayları).
+  const genreOptions = isEpic
+    ? categories.map((c) => ({ value: c, label: c, count: null as number | null }))
+    : (facets?.genres ?? []).map((g) => ({
+        value: g.value,
+        label: genreLabelAz(g.value),
+        count: g.count,
+      }));
 
   return (
     <>
@@ -621,6 +783,25 @@ export default function GameBrowser({
                   {item}
                 </button>
               ))}
+              {/* Ən böyük 4 janr sürətli seçim kimi. Dropdown-u açmadan bir
+                  klikə kataloqu daraltmağa imkan verir — janr datası indi
+                  onsuz da kartlarda görünür, filtr də əlçatan olmalıdır. */}
+              {genreOptions.slice(0, 4).map((g) => (
+                <button
+                  key={g.value}
+                  type="button"
+                  onClick={() => setGenre(genre === g.value ? "" : g.value)}
+                  aria-pressed={genre === g.value}
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition ${
+                    genre === g.value
+                      ? "border-indigo-400/50 bg-indigo-500/15 text-indigo-700 dark:text-indigo-200"
+                      : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-indigo-300 hover:bg-indigo-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:border-indigo-400/30 dark:hover:bg-indigo-500/[0.1]"
+                  }`}
+                >
+                  {g.label}
+                  {genre === g.value && <Check className="h-3.5 w-3.5" />}
+                </button>
+              ))}
               {aiSemantic && isSearching && (
                 <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-violet-500/[0.1] px-3 text-xs font-medium text-violet-700 dark:text-violet-200">
                   <Sparkles className="h-3.5 w-3.5" /> AI uyğunluğu
@@ -663,20 +844,7 @@ export default function GameBrowser({
                   first-time visitor doesn't have to guess what each dropdown
                   does. The label-on-top layout also reads well on mobile. */}
               <div className="grid gap-4 md:grid-cols-2">
-                {isEpic ? (
-                  <FilterField label="Kateqoriya">
-                    <Dropdown
-                      value={genre}
-                      onChange={(v) => setGenre(v)}
-                      options={[
-                        { value: "", label: "Bütün kateqoriyalar" },
-                        ...categories.map((c) => ({ value: c, label: c })),
-                      ]}
-                      ariaLabel="Kateqoriya"
-                      align="end"
-                    />
-                  </FilterField>
-                ) : (
+                {!isEpic && (
                   <FilterField label="Platforma">
                     <div className="grid grid-cols-[1fr_auto] gap-2">
                       <Dropdown
@@ -692,6 +860,31 @@ export default function GameBrowser({
                       />
                       <PlatformInfoButton className="h-11 w-11 rounded-xl border-zinc-200 bg-white text-zinc-600 hover:bg-violet-50 hover:text-violet-700 dark:border-white/10 dark:bg-black/25 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white" />
                     </div>
+                  </FilterField>
+                )}
+
+                {/* Janr — PS tərəfdə siyahı DB-dəki real janrlardan qurulur
+                    (scripts/enrichGameMetadata.ts doldurur). Data yoxdursa
+                    kontrol ümumiyyətlə göstərilmir ki, istifadəçi boş nəticə
+                    verən filtrlə üz-üzə qalmasın. */}
+                {genreOptions.length > 0 && (
+                  <FilterField label={isEpic ? "Kateqoriya" : "Janr"}>
+                    <Dropdown
+                      value={genre}
+                      onChange={(v) => setGenre(v)}
+                      options={[
+                        { value: "", label: isEpic ? "Bütün kateqoriyalar" : "Bütün janrlar" },
+                        ...genreOptions.map((g) => ({
+                          value: g.value,
+                          label:
+                            g.count != null
+                              ? `${g.label} (${g.count.toLocaleString("en-US")})`
+                              : g.label,
+                        })),
+                      ]}
+                      ariaLabel={isEpic ? "Kateqoriya" : "Janr"}
+                      align="end"
+                    />
                   </FilterField>
                 )}
 
@@ -742,7 +935,95 @@ export default function GameBrowser({
                   )}
                 </div>
               </FilterField>
+
+              {/* Yaş həddi (PEGI). Valideynlər üçün kataloqun ən çox soruşulan
+                  filtridir və data indiyədək yalnız oyunun daxili səhifəsində
+                  görünürdü. */}
+              {(facets?.contentRatings.length ?? 0) > 0 && (
+                <FilterField label="Yaş həddi (PEGI)">
+                  <Dropdown
+                    value={contentRating}
+                    onChange={setContentRating}
+                    options={[
+                      { value: "", label: "Bütün yaş qrupları" },
+                      ...facets!.contentRatings.map((r) => ({
+                        value: r.value,
+                        label: `${r.value} (${r.count.toLocaleString("en-US")})`,
+                      })),
+                    ]}
+                    ariaLabel="Yaş həddi"
+                    align="end"
+                  />
+                </FilterField>
+              )}
               </div>
+
+              {/* PS Store reytinqi + nəşriyyatçı + çıxış ili. Üçü də detal
+                  səhifəsi metadata-sıdır; sətir zənginləşdirilməyibsə həmin
+                  filtr onu KƏNARLAŞDIRIR (bax: lib/gameQuery.ts). */}
+              {(facets?.publishers.length ?? 0) > 0 || facets?.releaseYears ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FilterField label="Minimum PS Store reytinqi">
+                    <Dropdown
+                      value={minRating}
+                      onChange={setMinRating}
+                      options={MIN_RATING_OPTIONS}
+                      ariaLabel="Minimum reytinq"
+                      align="end"
+                    />
+                  </FilterField>
+
+                  {(facets?.publishers.length ?? 0) > 0 && (
+                    <FilterField label="Nəşriyyatçı">
+                      <Dropdown
+                        value={publisher}
+                        onChange={setPublisher}
+                        options={[
+                          { value: "", label: "Bütün nəşriyyatçılar" },
+                          ...facets!.publishers.map((p) => ({
+                            value: p.value,
+                            label: `${p.value} (${p.count.toLocaleString("en-US")})`,
+                          })),
+                        ]}
+                        ariaLabel="Nəşriyyatçı"
+                        align="end"
+                      />
+                    </FilterField>
+                  )}
+
+                  {facets?.releaseYears && (
+                    <FilterField label="Çıxış ili">
+                      <div className="flex items-center gap-2">
+                        <YearInput
+                          value={yearMin}
+                          onChange={setYearMin}
+                          placeholder={String(facets.releaseYears.min)}
+                          ariaLabel="Ən erkən çıxış ili"
+                        />
+                        <span className="text-zinc-400 dark:text-zinc-600">–</span>
+                        <YearInput
+                          value={yearMax}
+                          onChange={setYearMax}
+                          placeholder={String(facets.releaseYears.max)}
+                          ariaLabel="Ən son çıxış ili"
+                        />
+                        {(yearMin || yearMax) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setYearMin("");
+                              setYearMax("");
+                            }}
+                            className="rounded-lg px-2 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-200"
+                          >
+                            Sıfırla
+                          </button>
+                        )}
+                      </div>
+                    </FilterField>
+                  )}
+                </div>
+              ) : null}
 
               {categoryLinks.length > 0 && (
                 <div className="border-t border-zinc-200 pt-4 dark:border-white/5">
@@ -900,6 +1181,35 @@ function PriceInput({
         const clean = parts.length > 1 ? `${parts[0]}.${parts.slice(1).join("")}` : raw;
         onChange(clean);
       }}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      className="h-10 w-24 rounded-xl border border-zinc-200 bg-white px-3 text-sm tabular-nums text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-violet-400/70 focus:bg-white focus:ring-4 focus:ring-violet-500/10 dark:border-white/10 dark:bg-black/25 dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:border-violet-400/60 dark:focus:bg-black/[0.35]"
+    />
+  );
+}
+
+/**
+ * Çıxış ili üçün 4 rəqəmli giriş. Qiymət sahəsi ilə eyni məntiq: dəyər sətir
+ * kimi saxlanılır ki, istifadəçi yazarkən (məs. "20") sahə sıfırlanmasın.
+ */
+function YearInput({
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  ariaLabel: string;
+}) {
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      maxLength={4}
+      value={value}
+      onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, "").slice(0, 4))}
       placeholder={placeholder}
       aria-label={ariaLabel}
       className="h-10 w-24 rounded-xl border border-zinc-200 bg-white px-3 text-sm tabular-nums text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-violet-400/70 focus:bg-white focus:ring-4 focus:ring-violet-500/10 dark:border-white/10 dark:bg-black/25 dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:border-violet-400/60 dark:focus:bg-black/[0.35]"

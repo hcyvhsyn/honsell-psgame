@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { getPublicOdds } from "@/lib/lootBoxes";
+import { getPrizeShowcase, getPublicOdds } from "@/lib/lootBoxes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +42,8 @@ export async function GET() {
       maxPrizeCents: Math.round((box.priceAznCents * box.maxPrizePct) / 100),
       sellBackPct: box.sellBackPct,
       odds: await getPublicOdds(box.id).catch(() => []),
+      // Rulet lenti bununla dolur — qutu şəkli deyil, hovuzdaki real oyunlar.
+      showcase: await getPrizeShowcase(box.id).catch(() => []),
     }))
   );
 

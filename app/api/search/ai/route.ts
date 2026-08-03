@@ -5,6 +5,8 @@ import type { Game } from "@/lib/generated/prisma/client";
 import { semanticSearchIds } from "@/lib/semantic-search";
 import { getOpenAI, isOpenAIConfigured } from "@/lib/openai";
 import { expandAliases } from "@/lib/search-aliases";
+import { buildGameCard } from "@/lib/gameCardMapper";
+import { buildMetadataWhereClauses } from "@/lib/gameQuery";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,6 +71,20 @@ type Filters = {
   /** TRY-cent thresholds derived from the AZN UI inputs. null = no bound. */
   priceMinTryCents: number | null;
   priceMaxTryCents: number | null;
+  /**
+   * PS Store detal metadata filtrləri (janr, PEGI, reytinq, nəşriyyatçı, il).
+   *
+   * NİYƏ BURADA DA: axtarış qutusuna 2 simvol yazan kimi GameBrowser bu
+   * endpoint-ə keçir. Bu filtrlər burada dəstəklənməsəydi, istifadəçi
+   * "PEGI 18 + reytinq 4.5+" seçib axtarış yazan anda filtrlər səssizcə
+   * yox olardı — kataloqda ən çox şikayət doğuran davranış budur.
+   */
+  genres: string[] | null;
+  contentRatings: string[] | null;
+  minPsRating: number | null;
+  publisher: string | null;
+  releaseYearMin: number | null;
+  releaseYearMax: number | null;
 };
 
 export async function GET(req: Request) {
@@ -107,6 +123,21 @@ export async function GET(req: Request) {
   const priceMaxTryCents =
     priceMaxAzn != null ? aznToTryCents(priceMaxAzn, settings, "floor") : null;
 
+  // Metadata filtrləri `/api/games` ilə EYNİ query parametr adlarını işlədir —
+  // GameBrowser hər iki endpoint-ə eyni URLSearchParams-i göndərir.
+  const genreList = (url.searchParams.get("genre") ?? "")
+    .split(",")
+    .map((g) => g.trim())
+    .filter(Boolean);
+  const ratingList = (url.searchParams.get("rating") ?? "")
+    .split(",")
+    .map((r) => r.trim())
+    .filter(Boolean);
+  const minRatingRaw = Number(url.searchParams.get("minRating"));
+  const yearMinRaw = Number(url.searchParams.get("yearMin"));
+  const yearMaxRaw = Number(url.searchParams.get("yearMax"));
+  const isYear = (n: number) => Number.isInteger(n) && n >= 1990 && n <= 2100;
+
   const filters: Filters = {
     store,
     filterByType,
@@ -115,6 +146,15 @@ export async function GET(req: Request) {
     onSale,
     priceMinTryCents,
     priceMaxTryCents,
+    genres: genreList.length > 0 ? genreList : null,
+    contentRatings: ratingList.length > 0 ? ratingList : null,
+    minPsRating:
+      Number.isFinite(minRatingRaw) && minRatingRaw > 0 && minRatingRaw <= 5
+        ? minRatingRaw
+        : null,
+    publisher: (url.searchParams.get("publisher") ?? "").trim() || null,
+    releaseYearMin: isYear(yearMinRaw) ? yearMinRaw : null,
+    releaseYearMax: isYear(yearMaxRaw) ? yearMaxRaw : null,
   };
 
   // Stage 1 — deterministic alias expansion. Handles franchise rebrands
@@ -168,24 +208,9 @@ export async function GET(req: Request) {
   const pageRows = merged.slice(offset, offset + limit);
 
   // `settings` was already fetched above for the AZN→TRY conversion.
-  const results = pageRows.map((g) => {
-    const price = computeDisplayPrice(g, settings);
-    return {
-      id: g.id,
-      productId: g.productId,
-      title: g.title,
-      imageUrl: g.imageUrl,
-      platform: g.platform,
-      productType: g.productType,
-      finalAzn: price.finalAzn,
-      originalAzn: price.originalAzn,
-      discountPct: price.discountPct,
-      discountEndAt:
-        g.discountTryCents != null && g.discountEndAt
-          ? g.discountEndAt.toISOString()
-          : null,
-    };
-  });
+  const results = pageRows.map((g) =>
+    buildGameCard(g, computeDisplayPrice(g, settings))
+  );
 
   return NextResponse.json({
     total,
@@ -331,6 +356,10 @@ async function hybridSearch(
     });
   }
 
+  // PEGI / reytinq / nəşriyyatçı / çıxış ili — qiymət kimi, bunlar da sərt
+  // hədddir və mətn uyğunluğu skoruna qarışmır.
+  const metadataConds = buildMetadataWhereClauses(filters);
+
   const idFiltered = await prisma.game.findMany({
     where: {
       id: { in: orderedIds },
@@ -341,7 +370,12 @@ async function hybridSearch(
       ...(filters.platform === "PS4" || filters.platform === "PS5"
         ? { OR: [{ platform: { contains: filters.platform } }, { platform: null }] }
         : {}),
-      ...(priceConds.length > 0 ? { AND: priceConds } : {}),
+      ...(filters.genres ? { genres: { hasSome: filters.genres } } : {}),
+      // Metadata filtrləri `/api/games` ilə eyni qurucudan keçir ki, eyni
+      // seçim hər iki endpoint-də eyni nəticəni versin.
+      ...(priceConds.length > 0 || metadataConds.length > 0
+        ? { AND: [...priceConds, ...metadataConds] }
+        : {}),
     },
   });
   const byId = new Map(idFiltered.map((g) => [g.id, g]));

@@ -1397,6 +1397,15 @@ function GameOrderCard({
             {meta.orderCode ? (
               <p className="text-[11px] font-mono text-amber-700/90">Kod: {meta.orderCode}</p>
             ) : null}
+            {meta.paymentSource === "LOOT_BOX" && (
+              <p className="text-[11px] font-bold text-violet-700">🎁 Qutu açılışı hədiyyəsi</p>
+            )}
+            {/* Hesab yoxdursa operator əvvəlcə müştəridən məlumatı almalıdır. */}
+            {meta.needsAccountInfo && (
+              <p className="text-[11px] font-bold text-rose-600">
+                ⚠ PSN hesabı qeydə alınmayıb — müştəridən soruşun
+              </p>
+            )}
             {o.user.phone && <p className="text-[11px] text-zinc-500">Tel: {o.user.phone}</p>}
           </div>
         </div>

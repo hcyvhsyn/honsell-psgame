@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { gameDetailHref } from "@/lib/gameSlug";
+import { editionSuffixLabel } from "@/lib/gameEditions";
 
 /**
  * Reels feed data qatı — TƏK mənbə.
@@ -22,10 +23,18 @@ export type ReelProduct = {
   title: string;
   imageUrl: string | null;
   finalAzn: number;
+  /** Endirimdən ƏVVƏLKİ qiymət — yalnız aktiv endirim varsa dolu, yoxsa null. */
+  originalAzn: number | null;
+  /** Endirim faizi (məs. 35) — endirim yoxdursa/bitibsə null. */
+  discountPct: number | null;
   productType: string;
   store: string;
   /** Məhsul səhifəsinə keçid (varsa). */
   href: string | null;
+  /** Çipdə görünən sürüm adı — "Standart", "Ultimate Sürüm", … (yalnız oyunlarda). */
+  editionName: string | null;
+  /** "PS5" | "PS4" | "PS5,PS4" — sürümlər platformaya görə də fərqlənə bilir. */
+  platform: string | null;
 };
 
 export type ReelFeedItem = {
@@ -42,7 +51,15 @@ export type ReelFeedItem = {
     type: string; // GAME | SERVICE | URL
     label: string;
     href: string | null;
+    /** Əsas məhsul (admin seçdiyi `ctaTargetId`). */
     product: ReelProduct | null;
+    /**
+     * Oyunun bütün SÜRÜMLƏRİ — UCUZDAN BAHAYA sıralı, ona görə feed `[0]`-ı
+     * default seçir (müştəri ən ucuzu dərhal görür). Əsas məhsul da bu siyahının
+     * içindədir. Yalnız `ctaType=GAME` və admin sürüm təsdiqləyibsə 1-dən çox
+     * element olur; əks halda ya boş, ya tək elementlidir.
+     */
+    editions: ReelProduct[];
   };
   counts: { likes: number; dislikes: number; views: number; comments: number };
 };
@@ -63,6 +80,7 @@ type ReelRow = {
   ctaTargetId: string | null;
   ctaHref: string | null;
   ctaLabel: string | null;
+  editionGameIds: string[];
   viewCount: number;
 };
 
@@ -70,7 +88,15 @@ type ReelRow = {
 async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
   if (rows.length === 0) return [];
 
-  const gameIds = rows.filter((r) => r.ctaType === "GAME" && r.ctaTargetId).map((r) => r.ctaTargetId!);
+  // Əsas oyun + admin təsdiqlədiyi sürümlər BİR sorğuda gəlir (reel başına sorğu
+  // açmaq feed-i N+1-ə salardı).
+  const gameIds = Array.from(
+    new Set(
+      rows.flatMap((r) =>
+        r.ctaType === "GAME" ? [...(r.ctaTargetId ? [r.ctaTargetId] : []), ...r.editionGameIds] : [],
+      ),
+    ),
+  );
   const serviceIds = rows
     .filter((r) => r.ctaType === "SERVICE" && r.ctaTargetId)
     .map((r) => r.ctaTargetId!);
@@ -79,11 +105,12 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
   const [games, services, settings, likeGroups, dislikeGroups, commentGroups] = await Promise.all([
     gameIds.length
       ? prisma.game.findMany({
-          where: { id: { in: gameIds } },
+          // isActive: kataloqdan çıxarılmış sürüm səbətə atıla bilməməlidir.
+          where: { id: { in: gameIds }, isActive: true },
           select: {
             id: true,
             productId: true,
-        slug: true,
+            slug: true,
             title: true,
             imageUrl: true,
             store: true,
@@ -127,21 +154,44 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
   const dislikeById = new Map(dislikeGroups.map((g) => [g.reelId, g._count._all]));
   const commentById = new Map(commentGroups.map((g) => [g.reelId, g._count._all]));
 
+  /** Game sətrini feed məhsuluna çevirir — qiymət + endirim burada hesablanır. */
+  function toGameProduct(g: (typeof games)[number]): ReelProduct {
+    // computeDisplayPrice BİTMİŞ endirimləri özü ləğv edir (discountEndAt keçibsə
+    // tam qiymət qaytarır) — "endirim bitəndə endirimsiz qiymət görünsün"
+    // tələbi buradan gəlir, ayrıca yoxlama lazım deyil.
+    const d = computeDisplayPrice(g, settings);
+    const discounted = d.discountPct != null && d.discountPct > 0;
+    return {
+      id: g.id,
+      title: g.title,
+      imageUrl: g.imageUrl,
+      finalAzn: d.finalAzn,
+      originalAzn: discounted ? d.originalAzn : null,
+      discountPct: discounted ? d.discountPct : null,
+      productType: g.productType,
+      store: g.store === "EPIC" || g.platform === "PC" ? "EPIC" : "PS",
+      href: gameDetailHref(g) ?? "/oyunlar",
+      editionName: editionSuffixLabel(g.title),
+      platform: g.platform,
+    };
+  }
+
   return rows.map((r) => {
     let product: ReelProduct | null = null;
+    let editions: ReelProduct[] = [];
+
     if (r.ctaType === "GAME" && r.ctaTargetId) {
       const g = gameById.get(r.ctaTargetId);
-      if (g) {
-        product = {
-          id: g.id,
-          title: g.title,
-          imageUrl: g.imageUrl,
-          finalAzn: computeDisplayPrice(g, settings).finalAzn,
-          productType: g.productType,
-          store: g.store === "EPIC" || g.platform === "PC" ? "EPIC" : "PS",
-          href: gameDetailHref(g) ?? "/oyunlar",
-        };
-      }
+      if (g) product = toGameProduct(g);
+
+      // Sürüm siyahısı = əsas oyun + admin təsdiqlədikləri, UCUZDAN BAHAYA.
+      // Feed [0]-ı default seçir, ona görə sıralama məhsul qərarıdır, kosmetika deyil.
+      const ids = Array.from(new Set([r.ctaTargetId, ...r.editionGameIds]));
+      editions = ids
+        .map((id) => gameById.get(id))
+        .filter((g): g is NonNullable<typeof g> => Boolean(g))
+        .map(toGameProduct)
+        .sort((a, b) => a.finalAzn - b.finalAzn);
     } else if (r.ctaType === "SERVICE" && r.ctaTargetId) {
       const s = serviceById.get(r.ctaTargetId);
       if (s) {
@@ -150,10 +200,15 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
           title: s.title,
           imageUrl: s.imageUrl,
           finalAzn: s.priceAznCents / 100,
+          originalAzn: null,
+          discountPct: null,
           productType: s.type,
           store: "SERVICE",
           href: null,
+          editionName: null,
+          platform: null,
         };
+        editions = [product];
       }
     }
 
@@ -176,6 +231,7 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
         label: r.ctaLabel || (product ? "Al" : "Bax"),
         href: r.ctaType === "URL" ? r.ctaHref : (product?.href ?? null),
         product,
+        editions,
       },
       counts: {
         likes: likeById.get(r.id) ?? 0,

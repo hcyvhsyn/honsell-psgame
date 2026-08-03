@@ -25,7 +25,32 @@ export type GameFilterInput = {
   titleContains?: string | null;
   priceMinTryCents?: number | null;
   priceMaxTryCents?: number | null;
+
+  // ─── PS Store detal metadata filtrləri ────────────────────────────────────
+  // Mənbə: scripts/enrichGameMetadata.ts. Sətir hələ zənginləşdirilməyibsə
+  // dəyər NULL olur və bu filtrlərin hər biri onu KƏNARLAŞDIRIR — bu qəsdəndir:
+  // "PEGI 18 göstər" deyən istifadəçiyə reytinqi bilinməyən oyunu vermək
+  // filtri mənasız edərdi.
+  /** PEGI etiketləri ("PEGI 18"). Bir neçəsindən hər hansı biri. */
+  contentRatings?: string[] | null;
+  /** PS Store istifadəçi reytinqi üçün aşağı hədd (məs. 4.0). */
+  minPsRating?: number | null;
+  /** Nəşriyyatçı adı — dəqiq uyğunluq (siyahı DB-dəki dəyərlərdən qurulur). */
+  publisher?: string | null;
+  /** Çıxış ili aralığı. */
+  releaseYearMin?: number | null;
+  releaseYearMax?: number | null;
 };
+
+/**
+ * Reytinq filtri üçün minimum səs sayı.
+ *
+ * 2 nəfərin 5 ulduz verdiyi oyun "4.5+" filtrində birinci çıxsaydı, filtr
+ * keyfiyyət yox, təsadüf sıralayardı. Kartdakı göstərim həddi ilə eynidir
+ * (bax: MIN_RATING_COUNT_TO_SHOW), yəni filtrdən keçən hər sətirdə reytinq
+ * həm də görünür.
+ */
+export const MIN_RATING_COUNT_FOR_FILTER = 10;
 
 /** Raw SQL variantı — populyarlıq sıralaması bu yolu işlədir. */
 export function buildGameBaseWhereSql(input: GameFilterInput): PrismaSql.Sql {
@@ -39,6 +64,11 @@ export function buildGameBaseWhereSql(input: GameFilterInput): PrismaSql.Sql {
     titleContains = null,
     priceMinTryCents = null,
     priceMaxTryCents = null,
+    contentRatings = null,
+    minPsRating = null,
+    publisher = null,
+    releaseYearMin = null,
+    releaseYearMax = null,
   } = input;
 
   const parts: PrismaSql.Sql[] = [
@@ -80,6 +110,32 @@ export function buildGameBaseWhereSql(input: GameFilterInput): PrismaSql.Sql {
       PrismaSql.sql`COALESCE(g."discountTryCents", g."priceTryCents") <= ${priceMaxTryCents}`
     );
   }
+  if (contentRatings && contentRatings.length > 0) {
+    parts.push(
+      PrismaSql.sql`(${PrismaSql.join(
+        contentRatings.map((r) => PrismaSql.sql`g."contentRating" = ${r}`),
+        " OR "
+      )})`
+    );
+  }
+  if (minPsRating != null) {
+    parts.push(
+      PrismaSql.sql`(g."psRatingAvg" >= ${minPsRating} AND COALESCE(g."psRatingCount", 0) >= ${MIN_RATING_COUNT_FOR_FILTER})`
+    );
+  }
+  if (publisher) parts.push(PrismaSql.sql`g."publisherName" = ${publisher}`);
+  // Çıxış ilini DB tərəfdə EXTRACT ilə deyil, tarix aralığı ilə müqayisə
+  // edirik — belədə `releaseDate` üzərində indeks/planlayıcı işləyə bilir.
+  if (releaseYearMin != null) {
+    parts.push(
+      PrismaSql.sql`g."releaseDate" >= ${new Date(Date.UTC(releaseYearMin, 0, 1))}`
+    );
+  }
+  if (releaseYearMax != null) {
+    parts.push(
+      PrismaSql.sql`g."releaseDate" < ${new Date(Date.UTC(releaseYearMax + 1, 0, 1))}`
+    );
+  }
   return PrismaSql.join(parts, " AND ");
 }
 
@@ -98,6 +154,11 @@ export function buildGameWhere(input: GameFilterInput): Prisma.GameWhereInput {
     titleContains = null,
     priceMinTryCents = null,
     priceMaxTryCents = null,
+    contentRatings = null,
+    minPsRating = null,
+    publisher = null,
+    releaseYearMin = null,
+    releaseYearMax = null,
   } = input;
 
   const and: Prisma.GameWhereInput[] = [];
@@ -117,8 +178,51 @@ export function buildGameWhere(input: GameFilterInput): Prisma.GameWhereInput {
   const priceFilter = buildPriceFilter(priceMinTryCents, priceMaxTryCents);
   if (priceFilter) and.push(priceFilter);
 
+  and.push(
+    ...buildMetadataWhereClauses({
+      contentRatings,
+      minPsRating,
+      publisher,
+      releaseYearMin,
+      releaseYearMax,
+    })
+  );
+
   if (and.length > 0) where.AND = and;
   return where;
+}
+
+/**
+ * PS Store detal metadata filtrlərinin Prisma `AND` fraqmentləri.
+ *
+ * Ayrıca ixrac olunur, çünki `/api/games` `where` obyektini tarixən öz içində
+ * qurur (axtarış `q`-sunu da oraya yazır) və `buildGameWhere`-i bütövlükdə
+ * işlədə bilmir. Məntiqi iki yerdə saxlamamaq üçün yalnız bu hissə paylaşılır.
+ */
+export function buildMetadataWhereClauses(
+  input: Pick<
+    GameFilterInput,
+    "contentRatings" | "minPsRating" | "publisher" | "releaseYearMin" | "releaseYearMax"
+  >
+): Prisma.GameWhereInput[] {
+  const out: Prisma.GameWhereInput[] = [];
+  if (input.contentRatings && input.contentRatings.length > 0) {
+    out.push({ contentRating: { in: input.contentRatings } });
+  }
+  if (input.minPsRating != null) {
+    out.push({
+      psRatingAvg: { gte: input.minPsRating },
+      psRatingCount: { gte: MIN_RATING_COUNT_FOR_FILTER },
+    });
+  }
+  if (input.publisher) out.push({ publisherName: input.publisher });
+  if (input.releaseYearMin != null) {
+    out.push({ releaseDate: { gte: new Date(Date.UTC(input.releaseYearMin, 0, 1)) } });
+  }
+  if (input.releaseYearMax != null) {
+    out.push({ releaseDate: { lt: new Date(Date.UTC(input.releaseYearMax + 1, 0, 1)) } });
+  }
+  return out;
 }
 
 /**

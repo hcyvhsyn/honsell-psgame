@@ -7,77 +7,78 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   Check,
+  Clock,
   Gamepad2,
   Gift,
   Plus,
   ShoppingCart,
+  Star,
   Trash2,
 } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { gameDetailHref } from "@/lib/gameSlug";
+import {
+  addonKindLabel,
+  editionTierLabel,
+  formatDiscountDeadline,
+  formatRatingCount,
+  genreLabelAz,
+  savingsAzn,
+  shouldShowRating,
+  type DiscountDeadline,
+  type GameCardData,
+} from "@/lib/gameCardShared";
 import FavoriteButton from "./FavoriteButton";
 import PlatformInfoButton from "./PlatformInfoButton";
 import ReferralBadge from "./ReferralBadge";
 
-export type GameCardData = {
-  id: string;
-  title: string;
-  imageUrl: string | null;
-  /** "PS5", "PS4", or "PS5,PS4" for cross-gen titles. NULL for concepts. */
-  platform: string | null;
-  productType: string;
-  finalAzn: number;
-  originalAzn: number | null;
-  discountPct: number | null;
-  /** ISO timestamp of when the active discount expires; null if no discount or unknown. */
-  discountEndAt: string | null;
-  /** PS Store productId — legacy link target, used when `slug` is not set yet. */
-  productId?: string | null;
-  /** SEO slug — the canonical detail URL. Preferred over productId when present. */
-  slug?: string | null;
-  /** Storefront: "PS" (default) or "EPIC". Epic cards swap PS chrome for Epic branding. */
-  store?: string | null;
-};
+// Tip lib/gameCardShared.ts-ə köçürülüb (server modulları oradan götürür ki,
+// client komponentə asılılıq yaranmasın). Mövcud `import { GameCardData } from
+// "./GameCard"` çağırışları sınmasın deyə buradan da ixrac olunur.
+export type { GameCardData };
 
-function pad(n: number) {
-  return n.toString().padStart(2, "0");
-}
-
-function useCountdown(iso: string | null) {
+/**
+ * Endirimin bitişini saniyəlik yeniləyən hook.
+ *
+ * Son 24 saatda geri sayım, ondan uzaqda isə sabit tarix qaytarır — ona görə
+ * uzaq tarixlərdə interval qurmuruq (hər saniyə re-render etməyin mənası yoxdur,
+ * kataloqda eyni anda 24 kart var).
+ */
+function useDiscountDeadline(iso: string | null): DiscountDeadline | null {
   const [now, setNow] = useState<number | null>(null);
+
   useEffect(() => {
-    if (!iso) return;
+    if (!iso) {
+      setNow(null);
+      return;
+    }
+    // SSR/hidrasiya uyğunsuzluğunu önləmək üçün ilk dəyər mount-dan sonra
+    // qoyulur — server "12 avqusta qədər", client isə eyni mətni render edir.
     setNow(Date.now());
-    const tick = () => setNow(Date.now());
-    const id = window.setInterval(tick, 1000);
+    const end = new Date(iso).getTime();
+    if (Number.isNaN(end)) return;
+    if (end - Date.now() >= 86_400_000) return; // uzaq tarix — tick lazım deyil
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [iso]);
 
   if (!iso || now === null) return null;
-  const end = new Date(iso).getTime();
-  if (Number.isNaN(end)) return null;
-  const diff = end - now;
-  if (diff <= 0) return { expired: true, text: "Bitdi" };
-
-  const totalSec = Math.floor(diff / 1000);
-  const days = Math.floor(totalSec / 86400);
-  const hours = Math.floor((totalSec % 86400) / 3600);
-  const minutes = Math.floor((totalSec % 3600) / 60);
-  const seconds = totalSec % 60;
-
-  const hms = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-  const text = days > 0 ? `${days} gün ${hms}` : hms;
-  return { expired: false, text };
+  return formatDiscountDeadline(iso, now);
 }
 
-// Maps productType to a small "DLC / Pul kartı / Digər" chip rendered over the
-// card cover. GAME deliberately renders no chip — base games are the default
-// expectation and a "GAME" tag would be noise on every card.
-function getProductTypeBadge(productType: string) {
+/**
+ * Kapaq çipi. ADDON sətirlərində ümumi "DLC" əvəzinə PS Store-dan gələn konkret
+ * təsnifatı ("Kostyum", "Sezon bileti", "Xəritə") göstəririk — bu, kataloqda
+ * onsuz da mövcud olan, sadəcə indiyədək işlədilməyən datadır.
+ *
+ * GAME qəsdən çipsiz qalır: baza oyun default gözləntidir və hər kartda "Oyun"
+ * yazmaq şumdan başqa bir şey deyil.
+ */
+function getProductTypeBadge(productType: string, editionLabel?: string | null) {
   switch (productType) {
     case "ADDON":
       return {
-        label: "DLC",
+        label: addonKindLabel(editionLabel) ?? "DLC",
         className: "border-fuchsia-300/60 bg-fuchsia-600/70",
       };
     case "CURRENCY":
@@ -87,7 +88,7 @@ function getProductTypeBadge(productType: string) {
       };
     case "OTHER":
       return {
-        label: "Digər",
+        label: addonKindLabel(editionLabel) ?? "Digər",
         className: "border-sky-300/60 bg-sky-600/70",
       };
     default:
@@ -122,7 +123,7 @@ export default function GameCard({
   const { add, addGift, remove, has, hasGift, hydrated } = useCart();
   const inCart = hydrated && has(game.id);
   const giftInCart = hydrated && hasGift(game.id);
-  const countdown = useCountdown(game.discountEndAt);
+  const deadline = useDiscountDeadline(game.discountEndAt);
   const compact = variant === "compact";
   // Uzaq şəkil 404/şəbəkə xətası verəndə boş qutu yox, fallback ikon göstər.
   const [imgFailed, setImgFailed] = useState(false);
@@ -152,7 +153,25 @@ export default function GameCard({
   const isDiscounted = game.discountPct != null;
   const platforms = game.platform ? game.platform.split(",").map((p) => p.trim()).filter(Boolean) : [];
   const detailHref = gameDetailHref(game);
-  const productTypeBadge = getProductTypeBadge(game.productType);
+  const productTypeBadge = getProductTypeBadge(game.productType, game.editionLabel);
+
+  // ─── PS Store detal metadata-sı ────────────────────────────────────────────
+  // Enricher (scripts/enrichGameMetadata.ts) hələ sətrə çatmayıbsa hamısı NULL
+  // gəlir və aşağıdakı bloklar sadəcə render olunmur — kart heç vaxt boş sətir
+  // və ya "—" göstərmir.
+  const editionTier = editionTierLabel(game.editionLabel);
+  const primaryGenre = game.genres?.[0] ? genreLabelAz(game.genres[0]) : null;
+  const hasRating = shouldShowRating(game.psRatingAvg, game.psRatingCount);
+  const saved = savingsAzn(game.originalAzn, game.finalAzn);
+  // Nəşriyyatçı + çıxış ili eyni alt sətri paylaşır: ikisi də "kimin, nə vaxt"
+  // sualına cavabdır və ayrı-ayrı sətir tutmağa dəyməz.
+  const footerBits = [game.publisherName, game.releaseYear ? String(game.releaseYear) : null]
+    .filter((v): v is string => Boolean(v));
+  // Janr · PEGI · reytinq sətri yalnız kompakt olmayan kartda var — kompakt
+  // variant oyun detal səhifəsində dar sütunda işlənir.
+  const metaBits = !compact
+    ? [primaryGenre, game.contentRating].filter((v): v is string => Boolean(v))
+    : [];
 
   const coverVisual = (
     <div className="relative aspect-square w-full overflow-hidden rounded-[18px] bg-zinc-100 dark:bg-zinc-900">
@@ -275,7 +294,15 @@ export default function GameCard({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col px-3 pb-3 pt-3 text-center sm:px-5 sm:pb-5 sm:pt-4">
+      <div className="flex flex-1 flex-col px-3 pb-3 pt-3 text-left sm:px-5 sm:pb-5 sm:pt-4">
+        {/* Sürüm etiketi (Premium / Oyun paketi). Yalnız fərqləndirici
+            sürümlərdə görünür — "Tam Sürüm Oyun" hər kartda təkrarlanardı. */}
+        {editionTier && (
+          <p className="mb-1 truncate text-[10px] font-bold uppercase tracking-[0.12em] text-violet-600 dark:text-violet-300 sm:text-[11px]">
+            {editionTier}
+          </p>
+        )}
+
         {detailHref ? (
           <Link
             href={detailHref}
@@ -289,17 +316,51 @@ export default function GameCard({
           </h3>
         )}
 
+        {/* Reytinq · janr · yaş həddi. Üçü də PS Store detal səhifəsindən gəlir
+            və indiyədək yalnız oyunun daxili səhifəsində göstərilirdi. */}
+        {(hasRating || metaBits.length > 0) && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-400 sm:text-xs">
+            {hasRating && (
+              <span
+                className="inline-flex items-center gap-1 text-zinc-800 dark:text-zinc-200"
+                title={`PS Store istifadəçi reytinqi: ${game.psRatingAvg!.toFixed(1)} / 5`}
+              >
+                <Star className="h-3.5 w-3.5 fill-violet-500 text-violet-500 dark:fill-violet-400 dark:text-violet-400" />
+                <span className="font-bold tabular-nums">{game.psRatingAvg!.toFixed(1)}</span>
+                {game.psRatingCount != null && (
+                  <span className="text-zinc-500 dark:text-zinc-500">
+                    ({formatRatingCount(game.psRatingCount)})
+                  </span>
+                )}
+              </span>
+            )}
+            {metaBits.map((bit, i) => (
+              <span key={bit} className="inline-flex items-center gap-1.5">
+                {(hasRating || i > 0) && (
+                  <span aria-hidden className="text-zinc-300 dark:text-zinc-700">
+                    •
+                  </span>
+                )}
+                <span className="truncate">{bit}</span>
+              </span>
+            ))}
+          </div>
+        )}
+
         {detailHref && !compact && (
           <Link
             href={detailHref}
-            className="mx-auto mt-2 hidden items-center gap-1 text-xs font-bold text-violet-600 transition hover:text-violet-800 dark:text-violet-300 dark:hover:text-violet-200 sm:inline-flex"
+            className="mt-2 hidden items-center gap-1 text-xs font-bold text-violet-600 transition hover:text-violet-800 dark:text-violet-300 dark:hover:text-violet-200 sm:inline-flex"
           >
             Daxili səhifəyə keç
             <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         )}
 
-        <div className="mt-2 flex flex-wrap items-baseline justify-center gap-x-2 gap-y-0.5 sm:mt-3 sm:gap-3">
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 sm:mt-3">
+          <span className="text-lg font-bold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
+            {game.finalAzn.toFixed(2)}₼
+          </span>
           {game.originalAzn != null && (
             <span className="relative text-xs font-medium text-zinc-600 dark:text-zinc-300 sm:text-base">
               {game.originalAzn.toFixed(2)}₼
@@ -309,22 +370,29 @@ export default function GameCard({
               />
             </span>
           )}
-          <span className="text-lg font-bold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
-            {game.finalAzn.toFixed(2)}₼
-          </span>
+          {/* Faiz nişanı nisbi faydanı, bu rozet isə mütləq faydanı göstərir —
+              "-90%" ilə "17.01₼ qənaət" birlikdə daha güclü siqnaldır. */}
+          {saved != null && (
+            <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 sm:text-xs">
+              {saved.toFixed(2)}₼ qənaət
+            </span>
+          )}
         </div>
 
-        <div className="mt-1 flex justify-center">
+        <div className="mt-1 flex">
           <ReferralBadge category="games" productName={game.title} compact />
         </div>
 
-        <div className="mt-1 min-h-[18px] text-[11px] sm:mt-2 sm:min-h-[20px] sm:text-sm">
-          {countdown ? (
-            <span className="text-zinc-500 dark:text-zinc-400">
-              <span className="hidden sm:inline">Kampaniyanın bitişinə: </span>
-              <span className="sm:hidden">Bitir: </span>
-              <span className="font-semibold text-indigo-300 tabular-nums">
-                {countdown.text}
+        {/* Endirim müddəti: son 24 saatda saniyəli geri sayım, ondan uzaqda
+            sadə tarix ("12 avqusta qədər"). */}
+        <div className="mt-1.5 min-h-[24px] sm:mt-2 sm:min-h-[28px]">
+          {deadline && deadline.kind !== "expired" ? (
+            <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-violet-500/25 bg-violet-500/[0.08] px-2 py-1 text-[10px] font-semibold text-violet-700 dark:text-violet-200 sm:text-xs">
+              <Clock className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+              <span className={`truncate ${deadline.kind === "countdown" ? "tabular-nums" : ""}`}>
+                {deadline.kind === "countdown"
+                  ? `Bitişinə ${deadline.text} qalıb`
+                  : `Endirim ${deadline.text}`}
               </span>
             </span>
           ) : null}
@@ -416,6 +484,15 @@ export default function GameCard({
             </>
           )}
         </div>
+
+        {/* Nəşriyyatçı + çıxış ili. Alış qərarına birbaşa təsir edən, amma
+            kartda yer tutmayan siqnal: tanınmış nəşriyyatçı etibar, il isə
+            oyunun nə qədər köhnə olduğunu bildirir. */}
+        {!compact && footerBits.length > 0 && (
+          <p className="mt-2.5 truncate border-t border-zinc-100 pt-2 text-[10px] font-medium text-zinc-500 dark:border-white/[0.06] dark:text-zinc-500 sm:mt-3 sm:pt-2.5 sm:text-[11px]">
+            {footerBits.join(" · ")}
+          </p>
+        )}
       </div>
     </li>
   );

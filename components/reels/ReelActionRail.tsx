@@ -25,6 +25,7 @@ export default function ReelActionRail({
   onComments,
   onBuy,
   onToggleMute,
+  hideBuy = false,
 }: {
   item: ReelFeedItem;
   myReaction: number;
@@ -37,6 +38,8 @@ export default function ReelActionRail({
   onComments: () => void;
   onBuy: () => void;
   onToggleMute: () => void;
+  /** Altdakı alış paneli göstərilirsə true — rail-dəki səbət düyməsi təkrar olur. */
+  hideBuy?: boolean;
 }) {
   return (
     <div className="flex flex-col items-center gap-5 text-white">
@@ -67,7 +70,7 @@ export default function ReelActionRail({
         <span className="text-xs font-semibold">{fmtCount(item.counts.views)}</span>
       </div>
 
-      {(item.cta.product || item.cta.href) && (
+      {!hideBuy && (item.cta.product || item.cta.href) && (
         <button
           onClick={onBuy}
           className="flex flex-col items-center gap-1"

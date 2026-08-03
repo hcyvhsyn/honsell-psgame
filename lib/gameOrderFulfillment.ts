@@ -16,6 +16,11 @@ export function parseGameOrderMeta(raw: string | null): {
   fromCart?: boolean;
   /** Səbət / birbaşa alışda verilən qısa kod (məs. HON-ABC123). */
   orderCode?: string;
+  /**
+   * Qutu açılışı hədiyyəsində müştərinin PSN hesabı qeydə alınmayıb.
+   * Sifariş bloklanmır — operator müştəri ilə əlaqə saxlayıb məlumatı alır.
+   */
+  needsAccountInfo?: boolean;
 } {
   if (!raw) return {};
   try {
@@ -32,6 +37,7 @@ export function parseGameOrderMeta(raw: string | null): {
       paymentSource: typeof o.paymentSource === "string" ? o.paymentSource : undefined,
       fromCart: o.fromCart === true,
       orderCode: typeof o.orderCode === "string" ? o.orderCode : undefined,
+      needsAccountInfo: o.needsAccountInfo === true,
     };
   } catch {
     return {};

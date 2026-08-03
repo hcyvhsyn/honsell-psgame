@@ -9,6 +9,7 @@ import SiteHeaderServer from "@/components/SiteHeaderServer";
 import type { GameCardData } from "@/components/GameCard";
 import { ALL_FACETS } from "@/lib/gameFacets";
 import { getFacetCounts } from "@/lib/facetCatalog";
+import { buildGameCard } from "@/lib/gameCardMapper";
 
 export const revalidate = 600;
 
@@ -83,25 +84,9 @@ export default async function OyunlarPage({
   const totals: Record<string, number> = { GAME: 0, ADDON: 0, CURRENCY: 0, OTHER: 0 };
   for (const row of totalsArr) totals[row.productType] = row._count._all;
 
-  const results: GameCardData[] = games.map((g) => {
-    const price = computeDisplayPrice(g, settings);
-    return {
-      id: g.id,
-      productId: g.productId,
-      slug: g.slug,
-      title: g.title,
-      imageUrl: g.imageUrl,
-      platform: g.platform,
-      productType: g.productType,
-      finalAzn: price.finalAzn,
-      originalAzn: price.originalAzn,
-      discountPct: price.discountPct,
-      discountEndAt:
-        g.discountTryCents != null && g.discountEndAt
-          ? (g.discountEndAt instanceof Date ? g.discountEndAt.toISOString() : new Date(g.discountEndAt).toISOString())
-          : null,
-    };
-  });
+  const results: GameCardData[] = games.map((g) =>
+    buildGameCard(g, computeDisplayPrice(g, settings))
+  );
 
   // Boş kateqoriyaları göstərmək istifadəçini boş səhifəyə aparır. Janr
   // facet-ləri `scripts/enrichGameMetadata.ts` işləyənə qədər boş olur, ona

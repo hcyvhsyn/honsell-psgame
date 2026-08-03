@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { unstable_cache } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
-import { getPublicOdds, getRecentWinners } from "@/lib/lootBoxes";
+import { getPrizeCatalog, getPrizeShowcase, getPublicOdds, getRecentWinners } from "@/lib/lootBoxes";
 import { formatAzn } from "@/lib/lootBoxShared";
 import { maskWinnerName } from "@/lib/giveawaysShared";
 import { SITE_URL } from "@/lib/site";
@@ -38,9 +38,11 @@ const getBoxPageData = unstable_cache(
     });
     if (!box || !box.isActive) return null;
 
-    const [odds, winners, available] = await Promise.all([
+    const [odds, winners, showcase, catalog, available] = await Promise.all([
       getPublicOdds(box.id),
       getRecentWinners(box.id, 12),
+      getPrizeShowcase(box.id),
+      getPrizeCatalog(box.id),
       prisma.lootBoxTicket.count({
         where: { status: "AVAILABLE", pool: { lootBoxId: box.id, status: "OPEN" } },
       }),
@@ -60,6 +62,8 @@ const getBoxPageData = unstable_cache(
         inStock: available > 0,
       },
       odds,
+      showcase,
+      catalog,
       winners: winners.map((w) => ({
         id: w.id,
         name: maskWinnerName(w.user?.name),
@@ -70,7 +74,9 @@ const getBoxPageData = unstable_cache(
       })),
     };
   },
-  ["loot-box-page"],
+  // Açar dəyişdi: köhnə keşdə `showcase` sahəsi yox idi və rulet lenti qutunun
+  // öz adı ilə dolurdu. Sxem dəyişəndə açar da dəyişməlidir.
+  ["loot-box-page-v3"],
   { tags: ["loot-boxes"], revalidate: 300 }
 );
 
@@ -111,5 +117,13 @@ export default async function LootBoxPage({ params }: { params: { slug: string }
   const data = await getBoxPageData(params.slug).catch(() => null);
   if (!data) notFound();
 
-  return <LootBoxClient box={data.box} odds={data.odds} winners={data.winners} />;
+  return (
+    <LootBoxClient
+      box={data.box}
+      odds={data.odds}
+      winners={data.winners}
+      showcase={data.showcase}
+      catalog={data.catalog}
+    />
+  );
 }

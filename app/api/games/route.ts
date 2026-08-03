@@ -11,13 +11,27 @@ import { Prisma as PrismaSql } from "@/lib/generated/prisma/client";
 import { fetchPopularGames } from "@/lib/popularity";
 import {
   buildGameBaseWhereSql,
+  buildMetadataWhereClauses,
   buildPriceFilter,
 } from "@/lib/gameQuery";
+import { buildGameCard } from "@/lib/gameCardMapper";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Sort = "newest" | "priceAsc" | "priceDesc" | "discount" | "discountAsc" | "alpha" | "popular";
+type Sort =
+  | "newest"
+  | "priceAsc"
+  | "priceDesc"
+  | "discount"
+  | "discountAsc"
+  | "alpha"
+  | "popular"
+  // PS Store metadata-sına söykənən sıralamalar. Metadata olmayan sətirlər
+  // sona düşür (NULLS LAST) — kataloqdan çıxarılmır.
+  | "rating"
+  | "releaseNew"
+  | "releaseOld";
 
 const SORTS = new Set<Sort>([
   "newest",
@@ -27,9 +41,25 @@ const SORTS = new Set<Sort>([
   "discountAsc",
   "alpha",
   "popular",
+  "rating",
+  "releaseNew",
+  "releaseOld",
 ]);
 
 const PRODUCT_TYPES = new Set(["ALL", "GAME", "ADDON", "CURRENCY", "OTHER"]);
+
+/**
+ * PS Store detal metadata filtrləri. Sorğu yollarının hər üçündən (Prisma
+ * `where`, populyarlıq SQL-i, fuzzy SQL-i) eyni obyekt keçir ki, filtr yalnız
+ * bir yolda işləyib digərində itməsin.
+ */
+type MetadataFilters = {
+  contentRatings: string[] | null;
+  minPsRating: number | null;
+  publisher: string | null;
+  releaseYearMin: number | null;
+  releaseYearMax: number | null;
+};
 
 /**
  * Unified games listing.
@@ -38,8 +68,18 @@ const PRODUCT_TYPES = new Set(["ALL", "GAME", "ADDON", "CURRENCY", "OTHER"]);
  *   type          ALL | GAME | ADDON | CURRENCY | OTHER  (default: ALL)
  *   platform      PS4 | PS5
  *   onSale        "1" → only items with an active discount
+ *   genre         comma-separated PS Store genre names ("Aksiyon,Nişancı")
+ *   rating        comma-separated PEGI labels ("PEGI 18,PEGI 16")
+ *   minRating     PS Store user score lower bound (e.g. 4 → 4.0+)
+ *   publisher     exact publisher name
+ *   yearMin/Max   release-year range
  *   limit         default 100, max 200
  *   offset        for pagination
+ *
+ * The metadata params above come from the PS Store *detail* page
+ * (scripts/enrichGameMetadata.ts). Rows the enricher hasn't reached yet have
+ * NULLs and are excluded by those filters — see lib/gameQuery.ts. Option lists
+ * for the UI are served by /api/games/facets.
  *
  * Returns:
  *   { total, totalAll, totalOnSale, totals: {GAME, ADDON, CURRENCY, OTHER},
@@ -84,6 +124,34 @@ export async function GET(req: Request) {
   // endpoint-inə keçid edir, bu isə sırf filtrdir və sıralamanı dəyişmir.
   const franchise = (url.searchParams.get("franchise") ?? "").trim();
 
+  // ─── PS Store detal metadata filtrləri ────────────────────────────────────
+  // Seçimlərin siyahısı `/api/games/facets`-dən gəlir (DB-də real mövcud
+  // dəyərlər), ona görə burada sərt whitelist saxlamırıq — dəyər tapılmasa
+  // sadəcə 0 nəticə qayıdır.
+  const contentRatings = (url.searchParams.get("rating") ?? "")
+    .split(",")
+    .map((r) => r.trim())
+    .filter(Boolean);
+  const minRatingRaw = Number(url.searchParams.get("minRating"));
+  const minPsRating =
+    Number.isFinite(minRatingRaw) && minRatingRaw > 0 && minRatingRaw <= 5
+      ? minRatingRaw
+      : null;
+  const publisher = (url.searchParams.get("publisher") ?? "").trim() || null;
+  const yearMinRaw = Number(url.searchParams.get("yearMin"));
+  const yearMaxRaw = Number(url.searchParams.get("yearMax"));
+  const isYear = (n: number) => Number.isInteger(n) && n >= 1990 && n <= 2100;
+  const releaseYearMin = isYear(yearMinRaw) ? yearMinRaw : null;
+  const releaseYearMax = isYear(yearMaxRaw) ? yearMaxRaw : null;
+
+  const metadataFilters = {
+    contentRatings: contentRatings.length > 0 ? contentRatings : null,
+    minPsRating,
+    publisher,
+    releaseYearMin,
+    releaseYearMax,
+  };
+
   const priceMinRaw = Number(url.searchParams.get("priceMin"));
   const priceMaxRaw = Number(url.searchParams.get("priceMax"));
   const priceMinAzn = Number.isFinite(priceMinRaw) && priceMinRaw > 0 ? priceMinRaw : null;
@@ -124,6 +192,13 @@ export async function GET(req: Request) {
     where.AND = [
       ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
       franchiseClause,
+    ];
+  }
+  const metadataClauses = buildMetadataWhereClauses(metadataFilters);
+  if (metadataClauses.length > 0) {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      ...metadataClauses,
     ];
   }
   // Qeyd: "popular" sort artıq bütün kataloq üzərində işləyir (məhsul real
@@ -179,6 +254,7 @@ export async function GET(req: Request) {
       offset,
       priceMinTryCents,
       priceMaxTryCents,
+      ...metadataFilters,
     }));
   } else if (sort === "popular") {
     // Populyarlıq sıralaması — bütün aktiv kataloq üzrə, real davranış
@@ -193,6 +269,7 @@ export async function GET(req: Request) {
       titleContains: franchise || null,
       priceMinTryCents,
       priceMaxTryCents,
+      ...metadataFilters,
     });
     [filteredCount, rows] = await Promise.all([
       prisma.game.count({ where }),
@@ -216,27 +293,14 @@ export async function GET(req: Request) {
     const price = isEpic
       ? computeEpicDisplayPrice(g, settings)
       : computeDisplayPrice(g, settings);
-    return {
-      id: g.id,
-      store: g.store,
+    return buildGameCard(g, price, {
       // Epic rows have no detail page yet, so don't surface a productId the
       // card would turn into a /oyunlar/[productId] link.
-      productId: isEpic ? null : g.productId,
-      slug: isEpic ? null : g.slug,
-      title: g.title,
-      imageUrl: g.imageUrl,
-      platform: g.platform,
-      productType: g.productType,
-      finalAzn: price.finalAzn,
-      originalAzn: price.originalAzn,
-      discountPct: price.discountPct,
       // Epic's struck-through price is the AZ reference (structural saving), not
-      // a timed sale → no countdown for Epic rows.
-      discountEndAt:
-        !isEpic && g.discountTryCents != null && g.discountEndAt
-          ? g.discountEndAt.toISOString()
-          : null,
-    };
+      // a timed sale → no countdown for Epic rows either.
+      suppressLinks: isEpic,
+      suppressDiscountEnd: isEpic,
+    });
   });
 
   return NextResponse.json({
@@ -300,6 +364,34 @@ async function fetchSorted(
         take,
         skip,
       });
+    case "rating":
+      // Metadata-sı olmayan sətirlər NULLS LAST ilə sona düşür — kataloqdan
+      // çıxarılmır, sadəcə reytinqi bilinənlərdən sonra gəlir. İkinci açar səs
+      // sayıdır: 4.8 (12 səs) ilə 4.8 (80K səs) eyni deyil.
+      return prisma.game.findMany({
+        where,
+        orderBy: [
+          { psRatingAvg: { sort: "desc", nulls: "last" } },
+          { psRatingCount: { sort: "desc", nulls: "last" } },
+          { title: "asc" },
+        ],
+        take,
+        skip,
+      });
+    case "releaseNew":
+      return prisma.game.findMany({
+        where,
+        orderBy: [{ releaseDate: { sort: "desc", nulls: "last" } }, { title: "asc" }],
+        take,
+        skip,
+      });
+    case "releaseOld":
+      return prisma.game.findMany({
+        where,
+        orderBy: [{ releaseDate: { sort: "asc", nulls: "last" } }, { title: "asc" }],
+        take,
+        skip,
+      });
     case "discount":
     case "discountAsc": {
       const all = await prisma.game.findMany({
@@ -328,6 +420,7 @@ async function fetchFuzzy({
   offset,
   priceMinTryCents,
   priceMaxTryCents,
+  ...metadata
 }: {
   q: string;
   sort: Sort;
@@ -344,7 +437,7 @@ async function fetchFuzzy({
   offset: number;
   priceMinTryCents: number | null;
   priceMaxTryCents: number | null;
-}): Promise<{ filteredCount: number; rows: Game[] }> {
+} & MetadataFilters): Promise<{ filteredCount: number; rows: Game[] }> {
   // Prefer typo-tolerant fuzzy search on Postgres when available (pg_trgm).
   // If the extension is not enabled (or the DB blocks it), fall back to
   // the original `contains` behavior so search still works.
@@ -359,6 +452,7 @@ async function fetchFuzzy({
       onSale,
       priceMinTryCents,
       priceMaxTryCents,
+      ...metadata,
     });
     // Axtarış həm fuzzy həm AI semantic ilə işləyir; relevance bütün kataloqu
     // əhatə edir. Popular filter-i artıq tətbiq olunmur (popular bütün
@@ -403,8 +497,10 @@ async function fetchFuzzy({
       where.OR = [{ platform: { contains: platform } }, { platform: null }];
     }
     if (onSale) where.discountTryCents = { not: null };
+    const and = buildMetadataWhereClauses(metadata);
     const priceFilter = buildPriceFilter(priceMinTryCents, priceMaxTryCents);
-    if (priceFilter) where.AND = [priceFilter];
+    if (priceFilter) and.unshift(priceFilter);
+    if (and.length > 0) where.AND = and;
 
     const [filteredCount, rows] = await Promise.all([
       prisma.game.count({ where }),
@@ -428,6 +524,7 @@ function buildGameWhereSql({
   onSale,
   priceMinTryCents,
   priceMaxTryCents,
+  ...metadata
 }: {
   q: string;
   store: string;
@@ -439,7 +536,7 @@ function buildGameWhereSql({
   onSale: boolean;
   priceMinTryCents: number | null;
   priceMaxTryCents: number | null;
-}) {
+} & MetadataFilters) {
   const baseSql = buildGameBaseWhereSql({
     store,
     genres,
@@ -449,6 +546,7 @@ function buildGameWhereSql({
     onSale,
     priceMinTryCents,
     priceMaxTryCents,
+    ...metadata,
   });
   // Fuzzy match:
   // - keep a permissive similarity threshold so short queries like "gta" still work
@@ -481,6 +579,14 @@ function buildFuzzyOrderSql(sort: Sort, q: string) {
       return PrismaSql.sql`${relevance}, g."lastScrapedAt" DESC, g."id" ASC`;
     case "popular":
       return PrismaSql.sql`${relevance}, g."lastScrapedAt" DESC, g."title" ASC`;
+    case "rating":
+      return PrismaSql.sql`${relevance},
+        g."psRatingAvg" DESC NULLS LAST,
+        g."psRatingCount" DESC NULLS LAST`;
+    case "releaseNew":
+      return PrismaSql.sql`${relevance}, g."releaseDate" DESC NULLS LAST`;
+    case "releaseOld":
+      return PrismaSql.sql`${relevance}, g."releaseDate" ASC NULLS LAST`;
     case "discount":
     case "discountAsc":
       // handled above

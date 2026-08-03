@@ -66,7 +66,7 @@ export function htmlToPlainText(html: string): string {
 }
 
 /** Naməlum formalı JSON-dan təhlükəsiz sahə oxuma. */
-function prop(value: unknown, key: string): unknown {
+export function prop(value: unknown, key: string): unknown {
   if (!value || typeof value !== "object") return undefined;
   return (value as Record<string, unknown>)[key];
 }
@@ -78,9 +78,18 @@ function path(value: unknown, ...keys: string[]): unknown {
   return cur;
 }
 
-/** Bütün batarang bloklarındakı Apollo cache obyektlərini bir siyahıya yığır. */
-function collectProductCaches(html: string): Record<string, unknown>[] {
-  const out: Record<string, unknown>[] = [];
+/**
+ * Bütün batarang bloklarındakı Apollo cache girişlərini BİR obyektə yığır
+ * (açar → dəyər). Açarlar `Concept:`, `Product:`, `Sku:`, `GameCTA:` və
+ * `ROOT_QUERY` prefiksləri ilə gəlir.
+ *
+ * Metadata parseri buradan yalnız `Product:` girişlərini götürür, qiymət/endirim
+ * parseri (lib/psStoreOffer.ts) isə `GameCTA:` girişlərinə baxır. İkisi eyni
+ * traversal-ı paylaşır ki, PS Store səhifə strukturunu dəyişdirəndə düzəliş
+ * bir yerdə edilsin.
+ */
+export function collectBatarangCaches(html: string): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
 
   const nextDataMatch = html.match(
     /id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/
@@ -114,11 +123,36 @@ function collectProductCaches(html: string): Record<string, unknown>[] {
       const cache = prop(parsed, "cache");
       if (!cache || typeof cache !== "object") continue;
       for (const [key, value] of Object.entries(cache as Record<string, unknown>)) {
-        if (key.startsWith("Product:") && value && typeof value === "object") {
-          out.push(value as Record<string, unknown>);
+        if (!value || typeof value !== "object") continue;
+        const existing = out[key] as Record<string, unknown> | undefined;
+        if (!existing) {
+          out[key] = { ...(value as Record<string, unknown>) };
+          continue;
+        }
+        // DİQQƏT — bloklar EYNİ açarı FƏRQLİ sahə dəstləri ilə daşıyır. Məsələn
+        // `GameCTA:…:OUTRIGHT` açarı `cta` blokunda yalnız {id, type, action,
+        // meta} kimi gəlir, qiymət (`price`) və CTA mətnləri (`local`) isə başqa
+        // blokdadır. Ona görə "ilk açarı götür" YARAMIR — sahə-sahə birləşdirmək
+        // lazımdır, əks halda parser qiyməti heç vaxt görməz.
+        for (const [field, fieldValue] of Object.entries(
+          value as Record<string, unknown>
+        )) {
+          const cur = existing[field];
+          if (cur === undefined || cur === null || cur === "") {
+            existing[field] = fieldValue;
+          }
         }
       }
     }
+  }
+  return out;
+}
+
+/** Yalnız `Product:` cache girişləri — metadata sahələri buradadır. */
+function collectProductCaches(html: string): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  for (const [key, value] of Object.entries(collectBatarangCaches(html))) {
+    if (key.startsWith("Product:")) out.push(value as Record<string, unknown>);
   }
   return out;
 }

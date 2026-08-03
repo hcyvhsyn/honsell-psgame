@@ -485,6 +485,30 @@ model LootBox {
   /// Bir istifadəçinin günlük açılış limiti. 0 = limitsiz.
   dailyLimitPerUser Int @default(0)
 
+  /// true = eyni müştəri eyni oyunu yalnız BİR dəfə qazana bilər (təkrar
+  /// hədiyyənin mənası yoxdur). Kataloq kiçikdirsə söndürmək lazım gələ bilər:
+  /// müştəri bütün uyğun oyunları qazandıqdan sonra qutu onun üçün bağlanır.
+  uniquePrizePerUser Boolean @default(true)
+
+  /// Bir oyunun hovuzda tuta biləcəyi maksimum pay (%) — biri hər şeyi udmasın.
+  maxSharePct Int @default(40)
+  /// Bir oyundan MÜTLƏQ maksimum bilet sayı. 0 = yalnız faiz limiti işləyir.
+  /// Faiz limiti böyük hovuzlarda kobuddur (300 biletin 1%-i = 3 bilet), bu isə
+  /// birbaşa çeşidi idarə edir: 1 qoyulsa hər bilet fərqli oyun olur.
+  maxTicketsPerGame Int @default(0)
+  /// Endirimi bu qədər gün içində bitən oyun yeni hovuza SALINMIR: hovuz
+  /// bitənə qədər kataloq qiyməti dəyişsə, müştəriyə vəd etdiyimiz dəyər
+  /// köhnələr və geri satmada real dəyərdən çox ödəyə bilərik.
+  discountGuardDays Int @default(7)
+  /// Namizədləri məhdudlaşdırmaq üçün storefront filtri: "PS" | "EPIC" | null (hamısı).
+  candidateStore String?
+
+  /// Avtomatik hovuz doldurma uğursuz olarsa səbəb burada saxlanılır və admin
+  /// panelində xəbərdarlıq kimi göstərilir. Əvvəllər yalnız konsola yazılırdı,
+  /// yəni qutu səssizcə boşalırdı.
+  lastRefillError   String?
+  lastRefillErrorAt DateTime?
+
   isActive  Boolean  @default(false)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -497,8 +521,12 @@ model LootBox {
   @@index([isActive, sortOrder])
 }
 
-/// Hovuz resepti: hansı oyundan neçə bilet olacaq. Admin bunu redaktə edir,
-/// hovuz yaradılanda bu sətirlərdən dondurulmuş biletlər çıxarılır.
+/// Adminin oyun üzərindəki ULDUZ seçimi (sevimli/gücləndirilmiş oyunlar).
+///
+/// Resept artıq əl ilə qurulmur: hovuz yaradılanda sistem kataloqdan qiymət
+/// aralığına uyğun oyunları özü tapır və bilet paylanmasını hesablayır
+/// (lib/lootBoxShared.ts → allocateTickets). Bu cədvəl yalnız "bu oyun daha
+/// tez-tez çıxsın" göstərişini saxlayır — sətri olmayan oyun 1 ulduz sayılır.
 model LootBoxTemplate {
   id        String  @id @default(cuid())
   lootBoxId String
@@ -506,7 +534,10 @@ model LootBoxTemplate {
   gameId    String
   game      Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
-  ticketCount Int
+  /// 1 = adi, 5 = ən tez-tez. Paylanma buna proporsional qurulur.
+  stars       Int      @default(3)
+  /// Köhnə əl ilə resept modelindən qalıb — artıq istifadə olunmur.
+  ticketCount Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -2194,6 +2225,12 @@ model Reel {
   ctaTargetId String?
   ctaHref     String?
   ctaLabel    String? @default("Hesab al")
+
+  // ctaType=GAME olduqda feed-də göstərilən SÜRÜMLƏR (Game.id siyahısı) — müştəri
+  // hansının ucuz olduğunu görüb birbaşa onu səbətə atır. Admin avto təkliflərdən
+  // (lib/gameEditions.ts) təsdiqləyir; boşdursa yalnız ctaTargetId göstərilir.
+  // Skalyar siyahı @default([]) OLMADAN NOT NULL olur və upsert-lər səssiz sınır.
+  editionGameIds String[] @default([])
 
   viewCount   Int     @default(0)
   isPublished Boolean @default(true)

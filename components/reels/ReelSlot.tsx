@@ -4,6 +4,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { Play, Pause } from "lucide-react";
 import { useReelState } from "./ReelStateProvider";
 import ReelActionRail from "./ReelActionRail";
+import ReelBuyPanel, { hasBuyPanel } from "./ReelBuyPanel";
 import { useReelInteractions } from "./useReelInteractions";
 import type { ReelFeedItem, ReelRole } from "./types";
 
@@ -30,6 +31,7 @@ function ReelSlotImpl({
 }) {
   const { ensure } = useReelState();
   const { myReaction, displayLikes, displayDislikes, react, buy } = useReelInteractions(item);
+  const showBuyPanel = hasBuyPanel(item);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [posterHidden, setPosterHidden] = useState(false);
@@ -194,29 +196,40 @@ function ReelSlotImpl({
       )}
 
       {/* Başlıq (hər ölçüdə) + mobil overlay rail (yalnız mobil; desktop-da yan panel var). */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-3 p-4 pr-2">
-        <div className="min-w-0 flex-1 pb-2 text-white">
-          <h2 className="text-base font-bold drop-shadow">{item.title}</h2>
-          {item.caption && (
-            <p className="mt-1 line-clamp-2 text-sm text-white/85 drop-shadow">{item.caption}</p>
-          )}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-4 pr-2">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0 flex-1 pb-2 text-white">
+            <h2 className="text-base font-bold drop-shadow">{item.title}</h2>
+            {item.caption && (
+              <p className="mt-1 line-clamp-2 text-sm text-white/85 drop-shadow">{item.caption}</p>
+            )}
+          </div>
+
+          <div className="pointer-events-auto xl:hidden">
+            <ReelActionRail
+              item={item}
+              myReaction={myReaction}
+              likes={displayLikes}
+              dislikes={displayDislikes}
+              comments={item.counts.comments + commentDelta}
+              muted={globalMuted}
+              onLike={() => react(1)}
+              onDislike={() => react(-1)}
+              onComments={() => onOpenComments(item.id)}
+              onBuy={buy}
+              onToggleMute={onToggleMute}
+              // Panel varkən rail-dəki səbət düyməsi eyni işi görür — təkrarı gizlət.
+              hideBuy={showBuyPanel}
+            />
+          </div>
         </div>
 
-        <div className="pointer-events-auto xl:hidden">
-          <ReelActionRail
-            item={item}
-            myReaction={myReaction}
-            likes={displayLikes}
-            dislikes={displayDislikes}
-            comments={item.counts.comments + commentDelta}
-            muted={globalMuted}
-            onLike={() => react(1)}
-            onDislike={() => react(-1)}
-            onComments={() => onOpenComments(item.id)}
-            onBuy={buy}
-            onToggleMute={onToggleMute}
-          />
-        </div>
+        {/* Alış paneli — videonun altında, sürüm çipləri + canlı qiymət. */}
+        {showBuyPanel && (
+          <div className="mt-2.5">
+            <ReelBuyPanel item={item} />
+          </div>
+        )}
       </div>
     </div>
   );

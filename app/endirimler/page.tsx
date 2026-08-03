@@ -8,6 +8,7 @@ import SiteHeaderServer from "@/components/SiteHeaderServer";
 import GameCard, { type GameCardData } from "@/components/GameCard";
 import { SITE_URL, SITE_NAME } from "@/lib/site";
 import { gameDetailHref } from "@/lib/gameSlug";
+import { buildGameCard } from "@/lib/gameCardMapper";
 
 export const revalidate = 600;
 
@@ -70,23 +71,9 @@ export default async function EndirimlerPage({
   const offset = (safePage - 1) * PAGE_SIZE;
   const slice = enriched.slice(offset, offset + PAGE_SIZE);
 
-  const cards: GameCardData[] = slice.map(({ game, price }) => ({
-    id: game.id,
-    productId: game.productId,
-    slug: game.slug,
-    title: game.title,
-    imageUrl: game.imageUrl,
-    platform: game.platform,
-    productType: game.productType,
-    finalAzn: price.finalAzn,
-    originalAzn: price.originalAzn,
-    discountPct: price.discountPct,
-    discountEndAt: game.discountEndAt
-      ? (game.discountEndAt instanceof Date
-          ? game.discountEndAt.toISOString()
-          : new Date(game.discountEndAt).toISOString())
-      : null,
-  }));
+  const cards: GameCardData[] = slice.map(({ game, price }) =>
+    buildGameCard(game, price)
+  );
 
   const maxDiscount = enriched[0]?.price.discountPct ?? 0;
 

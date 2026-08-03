@@ -53,6 +53,11 @@ const nextConfig = {
       { protocol: "https", hostname: "**.supabase.in" },
       { protocol: "https", hostname: "image.tmdb.org" },
       { protocol: "https", hostname: "images.justwatch.com" },
+      // Epic kataloqu (~5.9k oyun) şəkilləri bu hostlarda saxlayır. Siyahıda
+      // olmadıqları üçün `unoptimized` verilməyən hər <Image> Epic oyununda
+      // "Invalid src prop … hostname is not configured" ilə çökürdü.
+      { protocol: "https", hostname: "**.epicgames.com" },
+      { protocol: "https", hostname: "**.unrealengine.com" },
     ],
   },
 };

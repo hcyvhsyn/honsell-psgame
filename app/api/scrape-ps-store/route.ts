@@ -10,6 +10,7 @@ import {
   embedBatch,
 } from "@/lib/embeddings";
 import { isOpenAIConfigured } from "@/lib/openai";
+import { parsePsStoreOffer } from "@/lib/psStoreOffer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -469,20 +470,21 @@ async function fetchPage(url: string): Promise<ScrapedGame[]> {
   }
 }
 
+type RefreshedPrice = {
+  priceTryCents: number;
+  discountTryCents: number | null;
+  discountEndAt: Date | null;
+};
+
 /**
- * Fetches a single product page and extracts the discount end timestamp.
+ * Fetches a product's detail page and parses the storefront offer for THAT
+ * product (see lib/psStoreOffer.ts for why SKU anchoring matters — a single
+ * page carries offers for up to a dozen unrelated SKUs).
  *
- * A product page lists multiple offer rows (base SKU, deluxe edition, EA Play
- * subscription discount, …). Each row carries its own `priceOrText` and
- * `offerAvailability`. We pick the row whose price matches the discounted
- * price we already scraped from the listing — that's the offer the storefront
- * is actually showing the user. If nothing matches exactly, fall back to the
- * earliest end date (most-likely the active sale, not a long-lived sub price).
+ * Returns null on network failure or when the page has no TRY purchase offer
+ * for this productId (delisted / region-locked).
  */
-async function fetchProductDiscountEnd(
-  productId: string,
-  discountTryCents: number
-): Promise<Date | null> {
+async function fetchProductOffer(productId: string): Promise<RefreshedPrice | null> {
   try {
     const res = await fetch(
       `https://store.playstation.com/tr-tr/product/${encodeURIComponent(productId)}`,
@@ -495,63 +497,28 @@ async function fetchProductDiscountEnd(
       }
     );
     if (!res.ok) return null;
-    const html = await res.text();
-
-    type Candidate = { priceCents: number | null; iso: string };
-    const candidates: Candidate[] = [];
-
-    // priceOrText and offerAvailability live in the same offer object, ~100
-    // chars apart. The non-greedy gap caps runaway matches.
-    const pairRe =
-      /"priceOrText"\s*:\s*"([^"]*)"[\s\S]{0,400}?"offerAvailability"\s*:\s*"([^"]+)"/g;
-    let m: RegExpExecArray | null;
-    while ((m = pairRe.exec(html)) !== null) {
-      candidates.push({ priceCents: parseTryToCents(m[1]), iso: m[2] });
-    }
-
-    const toDate = (iso: string): Date | null => {
-      const d = new Date(iso);
-      return Number.isNaN(d.getTime()) ? null : d;
-    };
-
-    if (candidates.length > 0) {
-      const exact = candidates.find((c) => c.priceCents === discountTryCents);
-      if (exact) return toDate(exact.iso);
-      // Prefer the soonest end among future candidates — sale offers expire
-      // before subscription tiers in practice.
-      const now = Date.now();
-      const future = candidates
-        .map((c) => toDate(c.iso))
-        .filter((d): d is Date => d != null && d.getTime() > now)
-        .sort((a, b) => a.getTime() - b.getTime());
-      if (future.length > 0) return future[0];
-    }
-
-    // Last-ditch fallback: any standalone offerAvailability or endTime.
-    const isoMatch = html.match(/"offerAvailability"\s*:\s*"([^"]+)"/);
-    if (isoMatch) {
-      const d = toDate(isoMatch[1]);
-      if (d) return d;
-    }
-    const tsMatch = html.match(/"endTime"\s*:\s*"?(\d{10,13})"?/);
-    if (tsMatch) {
-      const ms = Number(tsMatch[1]);
-      if (Number.isFinite(ms) && ms > 0) {
-        const date = new Date(tsMatch[1].length >= 13 ? ms : ms * 1000);
-        if (!Number.isNaN(date.getTime())) return date;
-      }
-    }
-    return null;
+    return parsePsStoreOffer(await res.text(), productId);
   } catch {
     return null;
   }
 }
 
-type RefreshedPrice = {
-  priceTryCents: number;
-  discountTryCents: number | null;
-  discountEndAt: Date | null;
-};
+/**
+ * Endirimin bitmə anı — listinq fazası üçün.
+ *
+ * Listinq səhifələri bitmə tarixini vermir, ona görə endirimli hər məhsulun
+ * detal səhifəsi ayrıca açılır. Əvvəl burada listinqdən gələn endirimli qiymətlə
+ * səhifədəki `priceOrText` dəyərlərini tutuşdurub uyğun sətri seçmək lazım idi;
+ * SKU çəngəlləməsindən sonra buna ehtiyac yoxdur — parser onsuz da yalnız bu
+ * məhsulun təklifini qaytarır.
+ */
+async function fetchProductDiscountEnd(productId: string): Promise<Date | null> {
+  const offer = await fetchProductOffer(productId);
+  // Detal səhifəsində endirim yoxdursa, listinqdəki endirim artıq bitib —
+  // tarix uydurmuruq.
+  if (!offer || offer.discountTryCents == null) return null;
+  return offer.discountEndAt;
+}
 
 /**
  * Re-fetches the canonical purchase price for a single product straight from
@@ -561,67 +528,15 @@ type RefreshedPrice = {
  * surface it captured, so a sale that starts afterwards is never seen (this is
  * why a franchise with no seed showed phantom full-price).
  *
- * Unlike the listing/search pages, the product page has no `walkProducts`-shaped
- * objects; the price lives in an Apollo state blob with one `Price` object per
- * offer (base SKU, deluxe edition, EA Play / PS Plus subscription tiers). Each
- * carries integer-cent `basePriceValue`/`discountedValue`, an `endTime` epoch
- * (ms, or unquoted `null`), and a `serviceBranding` array. We take the first
- * non-subscription ("NONE") offer with a positive base — that's the primary
- * buy-button price — and skip subscription "included" rows (discountedValue 0).
- *
- * Returns null on network failure or when no parseable offer is present
- * (delisted / region-locked); a returned object is treated as authoritative.
+ * A returned object is treated as authoritative, which is exactly why the
+ * parser anchors on the requested SKU: the previous regex took the first
+ * `["NONE"]` offer on the page and could therefore write a DIFFERENT product's
+ * price, discount and deadline onto this row.
  */
 async function fetchProductPrice(
   productId: string
 ): Promise<RefreshedPrice | null> {
-  try {
-    const res = await fetch(
-      `https://store.playstation.com/tr-tr/product/${encodeURIComponent(productId)}`,
-      {
-        headers: {
-          "User-Agent": USER_AGENT,
-          "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
-        },
-        cache: "no-store",
-      }
-    );
-    if (!res.ok) return null;
-    const html = await res.text();
-
-    // serviceBranding → endTime → displayUpsellText → basePriceValue →
-    // discountedValue appear in this fixed order inside each Price object.
-    // endTime is unquoted `null` when there's no active offer window.
-    const re =
-      /"serviceBranding":\[([^\]]*)\],"endTime":(null|"\d+"),"displayUpsellText":[^,]*?,"basePriceValue":(\d+),"discountedValue":(\d+),"currencyCode":"TRY"/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(html)) !== null) {
-      // Skip subscription tiers (EA_ACCESS, PS_PLUS, …) — only the standalone
-      // purchase offer ("NONE") is the price a buyer actually pays.
-      if (!m[1].includes('"NONE"')) continue;
-      const base = Number(m[3]);
-      if (!Number.isFinite(base) || base <= 0) continue;
-      const discounted = Number(m[4]);
-      const hasDiscount =
-        Number.isFinite(discounted) && discounted > 0 && discounted < base;
-      let discountEndAt: Date | null = null;
-      if (hasDiscount && m[2] !== "null") {
-        const ms = Number(m[2].replace(/"/g, ""));
-        if (Number.isFinite(ms) && ms > 0) {
-          const d = new Date(ms);
-          if (!Number.isNaN(d.getTime())) discountEndAt = d;
-        }
-      }
-      return {
-        priceTryCents: base,
-        discountTryCents: hasDiscount ? discounted : null,
-        discountEndAt,
-      };
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  return fetchProductOffer(productId);
 }
 
 function categoryPageUrl(base: string, page: number): string {
@@ -851,10 +766,7 @@ export async function GET(req: Request) {
               const idx = cursor++;
               if (idx >= discounted.length) return;
               const g = discounted[idx];
-              const end = await fetchProductDiscountEnd(
-                g.productId,
-                g.discountTryCents
-              );
+              const end = await fetchProductDiscountEnd(g.productId);
               if (end) g.discountEndAt = end;
               done++;
               if (done % 10 === 0 || done === discounted.length) {

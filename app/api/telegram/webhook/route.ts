@@ -151,6 +151,11 @@ async function handlePlatformCallback(cb: TgCallbackQuery) {
     await telegramAnswerCallback(cb.id);
     return;
   }
+  // Spinner-i DƏRHAL söndür. Qalan iş (platforma axtarışı + DB + revalidate) uzun
+  // çəksə və ya sınsa belə düymə "ilişib" qalmasın — nəticə aşağıda editMessageText
+  // ilə bildirilir.
+  await telegramAnswerCallback(cb.id);
+
   const reelId = parts[1];
   const code = parts[2];
 
@@ -176,12 +181,13 @@ async function handlePlatformCallback(cb: TgCallbackQuery) {
       },
     });
   } catch {
-    await telegramAnswerCallback(cb.id, "Reel tapılmadı");
+    if (messageId != null) {
+      await telegramEditMessageText(chatId, messageId, "⚠️ Reel tapılmadı — yayımlanmadı.");
+    }
     return;
   }
 
   revalidateReels();
-  await telegramAnswerCallback(cb.id, platform ? `${platform.label} seçildi` : "Yayımlandı");
   if (messageId != null) {
     await telegramEditMessageText(
       chatId,
@@ -205,7 +211,13 @@ export async function POST(req: Request) {
   if (cb) {
     const cbChat = cb.message?.chat?.id;
     if (cbChat != null && isTelegramSenderAllowed(cb.from?.id, cbChat)) {
-      await handlePlatformCallback(cb);
+      // Callback budağının öz try/catch-i var (aşağıdakı böyük try yalnız mesaj
+      // axını üçündür) — burada sınsa düymə cavabsız qalmasın.
+      try {
+        await handlePlatformCallback(cb);
+      } catch {
+        await telegramAnswerCallback(cb.id, "Xəta baş verdi");
+      }
     } else {
       await telegramAnswerCallback(cb.id);
     }

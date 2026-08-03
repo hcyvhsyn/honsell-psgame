@@ -13,6 +13,7 @@
     "seo:descriptions": "tsx scripts/generateGameDescriptions.ts",
     "test:giveaway": "tsx scripts/giveawayWinners.test.ts",
     "test:lootbox": "tsx scripts/lootBox.test.ts",
+    "test:editions": "tsx scripts/gameEditions.test.ts",
     "lootbox:drain": "tsx scripts/lootBoxDrain.ts",
     "postinstall": "prisma generate"
   },

@@ -313,6 +313,358 @@ export function validateLootBoxConfig(cfg: {
   return errors;
 }
 
+// ─── Avtomatik oyun seçimi (allokator) ───────────────────────────────────────
+//
+// Admin oyunları əl ilə seçmir: sistem kataloqdan qiymət aralığına uyğun
+// oyunları özü tapır və bilet paylanmasını hesablayır. Adminin yeganə girişi
+// ULDUZDUR (1–5) — ulduz nə qədər çoxdursa, oyun bir o qədər tez-tez çıxır.
+//
+// DİQQƏT: bu funksiya yalnız TƏKLİF verir. Son yoxlama həmişə
+// `computePoolEconomics`-dədir — yəni allokatorda səhv olsa belə büdcəni aşan
+// hovuz yaradıla bilməz.
+
+/** Kataloqdan gələn namizəd oyun. */
+export type CandidateGame = {
+  gameId: string;
+  title: string;
+  valueAznCents: number;
+  costAznCents: number;
+  /** Adminin verdiyi ulduz: 1 = adi, 5 = ən tez-tez. */
+  stars: number;
+};
+
+/** Bir oyunun hovuzda tuta biləcəyi maksimum pay (%) — biri hər şeyi udmasın. */
+export const DEFAULT_MAX_SHARE_PCT = 40;
+
+export type AllocationResult = {
+  tickets: LootBoxTicketSpec[];
+  economics: PoolEconomics;
+  /** Namizədlərdən neçəsi hansı səbəbdən kənarda qaldı. */
+  excluded: { outOfRange: number; noCost: number; lossMaking: number };
+  /** Admin panelində göstərilən izah. */
+  notes: string[];
+};
+
+/** Namizəd hovuza qoyula bilərmi (dəyər aralığı + maya sağlamlığı). */
+function candidateIssue(
+  c: CandidateGame,
+  minPrizeCents: number,
+  maxPrizeCents: number
+): "outOfRange" | "noCost" | "lossMaking" | null {
+  if (!Number.isFinite(c.costAznCents) || c.costAznCents <= 0) return "noCost";
+  if (!Number.isFinite(c.valueAznCents) || c.valueAznCents <= 0) return "noCost";
+  if (c.costAznCents >= c.valueAznCents) return "lossMaking";
+  if (c.valueAznCents < minPrizeCents || c.valueAznCents > maxPrizeCents) return "outOfRange";
+  return null;
+}
+
+/**
+ * Hədiyyə pillələrinin hovuzdaki hədəf payı (%).
+ *
+ * Bu olmadan allokator bütün büdcəni eyni səviyyəyə xərcləyirdi: hovuzun ~90%-i
+ * bir dəyərdə toplanırdı və müştəri ardıcıl 5 açılışda eyni qiymətli oyun alıb
+ * "sistem saxtadır" qənaətinə gəlirdi. Pillələr eyni büdcə ilə DƏYİŞKƏNLİK
+ * yaradır — çox vaxt adi, bəzən nadir, nadir hallarda qutu qiymətinin 2 misli.
+ *
+ * Cəm 100 olmalıdır. Sıralama vacibdir: bahalı pillə əvvəl doldurulur, çünki
+ * ucuz pillələr həmişə büdcəyə sığır, əksi isə yox.
+ */
+export const DEFAULT_PRIZE_SHAPE: Record<PrizeTier, number> = {
+  LEGENDARY: 4, // ≥ 1.6× qutu qiyməti — "vay!" anı
+  RARE: 11, // 1.2×–1.6×
+  STANDARD: 30, // 0.8×–1.2× — pulunu geri qaytaran zona
+  COMMON: 55, // < 0.8×
+};
+
+/** Faiz payını tam bilet sayına çevirir (ən böyük qalıq üsulu — cəm dəqiq qalır). */
+function shapeTargets(poolSize: number, shape: Record<PrizeTier, number>): Record<PrizeTier, number> {
+  const order: PrizeTier[] = ["LEGENDARY", "RARE", "STANDARD", "COMMON"];
+  const totalPct = order.reduce((s, t) => s + Math.max(0, shape[t]), 0) || 1;
+  const raw = order.map((t) => (poolSize * Math.max(0, shape[t])) / totalPct);
+  const counts = raw.map((r) => Math.floor(r));
+  let left = poolSize - counts.reduce((s, c) => s + c, 0);
+
+  // Qalan biletlər ən böyük kəsr hissəsi olan pillələrə verilir.
+  const byRemainder = raw
+    .map((r, i) => ({ i, frac: r - Math.floor(r) }))
+    .sort((a, b) => b.frac - a.frac);
+  for (const { i } of byRemainder) {
+    if (left <= 0) break;
+    counts[i] += 1;
+    left -= 1;
+  }
+
+  return {
+    LEGENDARY: counts[0],
+    RARE: counts[1],
+    STANDARD: counts[2],
+    COMMON: counts[3],
+  };
+}
+
+/**
+ * Namizədlərdən büdcəyə sığan bilet paylanması qurur.
+ *
+ * Alqoritm:
+ *  1. Hovuz PİLLƏLƏRƏ görə doldurulur (əfsanəvi → adi). Hər pillə üçün hədəf
+ *     bilet sayı `DEFAULT_PRIZE_SHAPE`-dən gəlir; pillə dolmasa qalıq növbəti
+ *     (daha ucuz) pilləyə keçir.
+ *  2. Pillə daxilində "ən ədalətli növbəti bilet" seçilir (Webster/Sainte-Laguë):
+ *     `ulduz / (mövcud bilet + 1)` xalı ən yüksək olan oyun. Bərabərlikdə daha
+ *     ucuz oyun seçilir ki, büdcə bahalı pillələrə çatsın.
+ *  3. Seçim yalnız o halda edilir ki, QALAN biletləri ən ucuz oyunla doldurmaq
+ *     hələ də büdcəyə sığsın. Yəni hər addımda hovuzun tamamlana bilməsi
+ *     zəmanətlidir — sonda "büdcə çatmadı" vəziyyəti yaranmır.
+ *  4. Sonda büdcədə boşluq qalıbsa, biletlər ÖZ PİLLƏSİ DAXİLİNDƏ bahalı
+ *     oyunlara yüksəldilir — dəyər artır, amma paylanma forması pozulmur.
+ */
+export function allocateTickets(
+  candidates: CandidateGame[],
+  cfg: LootBoxConfig,
+  opts?: { maxSharePct?: number; maxTicketsPerGame?: number; shape?: Record<PrizeTier, number> }
+): AllocationResult {
+  const minPrizeCents = minPrizeCentsFor(cfg);
+  const maxPrizeCents = maxPrizeCentsFor(cfg);
+  const budget = poolCostBudgetCents(cfg);
+  const maxSharePct = opts?.maxSharePct ?? DEFAULT_MAX_SHARE_PCT;
+  /*
+    Çeşid limiti iki mənbədən gəlir və HƏMİŞƏ daha sərti tətbiq olunur:
+      • faiz — "bir oyun hovuzun 40%-dən çoxunu tutmasın" (nisbi qoruma);
+      • mütləq — "bir oyundan ən çox N bilet" (birbaşa çeşid idarəsi).
+    Faiz böyük hovuzlarda kobuddur: 300 biletin 1%-i hələ 3 biletdir, ona görə
+    "hər hədiyyə fərqli oyun olsun" yalnız mütləq limitlə ifadə oluna bilir.
+  */
+  const absoluteCap = Math.floor(opts?.maxTicketsPerGame ?? 0);
+  const percentCap = Math.max(1, Math.ceil((cfg.poolSize * maxSharePct) / 100));
+  const maxPerGame =
+    absoluteCap > 0 ? Math.max(1, Math.min(percentCap, absoluteCap)) : percentCap;
+
+  const excluded = { outOfRange: 0, noCost: 0, lossMaking: 0 };
+  const eligible: CandidateGame[] = [];
+  for (const c of candidates) {
+    const issue = candidateIssue(c, minPrizeCents, maxPrizeCents);
+    if (issue) excluded[issue] += 1;
+    else eligible.push({ ...c, stars: Math.max(1, Math.min(5, Math.floor(c.stars) || 1)) });
+  }
+
+  const notes: string[] = [];
+
+  if (eligible.length === 0) {
+    return {
+      tickets: [],
+      economics: computePoolEconomics([], cfg),
+      excluded,
+      notes: [
+        `Uyğun oyun tapılmadı. Kataloqda ${formatAzn(minPrizeCents)} – ${formatAzn(
+          maxPrizeCents
+        )} aralığında oyun olmalıdır.`,
+      ],
+    };
+  }
+
+  // Hovuzun tamamlana bilməsi üçün lazım olan minimum bilet çeşidi.
+  const minGamesNeeded = Math.ceil(cfg.poolSize / maxPerGame);
+  if (eligible.length < minGamesNeeded) {
+    notes.push(
+      `Yalnız ${eligible.length} uyğun oyun var; bir oyundan ən çox ${maxPerGame} bilet ola bildiyi üçün ən azı ${minGamesNeeded} oyun lazımdır.`
+    );
+  }
+
+  // Determinik sıra: ucuzdan bahaya, bərabərlikdə id ilə.
+  const sorted = [...eligible].sort(
+    (a, b) => a.costAznCents - b.costAznCents || a.gameId.localeCompare(b.gameId)
+  );
+
+  const counts = new Map<string, number>(sorted.map((c) => [c.gameId, 0]));
+  let spent = 0;
+  let placed = 0;
+
+  /**
+   * Qalan `need` bileti mümkün olan ƏN UCUZ şəkildə doldurmağın qiyməti.
+   *
+   * Sadəcə "ən ucuz oyun × qalan bilet" demək OLMAZ: hər oyunun pay limiti
+   * (`maxPerGame`) var, ona görə ən ucuz oyun limitə çatanda növbəti ucuza
+   * keçmək lazımdır. Bu nəzərə alınmasa proqnoz həddindən optimist olur,
+   * allokator erkən çox xərcləyir və hovuzu tamamlaya bilmir.
+   *
+   * `extra` — bu anda təxmini götürülən biletin oyunu (onun tutumu 1 azalır).
+   */
+  const cheapestCompletion = (need: number, extra?: CandidateGame): number => {
+    if (need <= 0) return 0;
+    let left = need;
+    let total = 0;
+    for (const c of sorted) {
+      const used = (counts.get(c.gameId) ?? 0) + (extra && extra.gameId === c.gameId ? 1 : 0);
+      const capacity = maxPerGame - used;
+      if (capacity <= 0) continue;
+      const take = Math.min(capacity, left);
+      total += take * c.costAznCents;
+      left -= take;
+      if (left === 0) return total;
+    }
+    return Number.POSITIVE_INFINITY; // tutum çatmır
+  };
+
+  const tierOf = new Map<string, PrizeTier>(
+    sorted.map((c) => [c.gameId, prizeTierFor(c.valueAznCents, cfg.priceAznCents)])
+  );
+
+  /** Verilmiş pillədən bir bilet yerləşdirir; mümkün deyilsə `false`. */
+  const placeOne = (tier: PrizeTier | null): boolean => {
+    const remainingAfter = cfg.poolSize - placed - 1;
+    let best: CandidateGame | null = null;
+    let bestScore = -Infinity;
+
+    for (const c of sorted) {
+      if (tier != null && tierOf.get(c.gameId) !== tier) continue;
+      const cur = counts.get(c.gameId) ?? 0;
+      if (cur >= maxPerGame) continue;
+      // Bu bileti götürsək qalanları ən ucuz yolla doldurmaq hələ mümkündürmü?
+      if (spent + c.costAznCents + cheapestCompletion(remainingAfter, c) > budget) continue;
+
+      const score = c.stars / (cur + 1);
+      /*
+        Bərabər xalda DAHA UCUZ oyun seçilir. Əvvəl daha dəyərlisi seçilirdi və
+        bu, büdcəni erkən yeyib bahalı pillələri mümkünsüz edirdi. Dəyər artımı
+        indi aşağıdaki "pillə daxilində yüksəltmə" mərhələsinin işidir.
+      */
+      if (
+        score > bestScore ||
+        (score === bestScore && best != null && c.costAznCents < best.costAznCents)
+      ) {
+        bestScore = score;
+        best = c;
+      }
+    }
+
+    if (!best) return false;
+
+    counts.set(best.gameId, (counts.get(best.gameId) ?? 0) + 1);
+    spent += best.costAznCents;
+    placed += 1;
+    return true;
+  };
+
+  // ── 1) Pillələr üzrə doldurma: bahalıdan ucuza ──────────────────────────────
+  const tierOrder: PrizeTier[] = ["LEGENDARY", "RARE", "STANDARD", "COMMON"];
+  const targets = shapeTargets(cfg.poolSize, opts?.shape ?? DEFAULT_PRIZE_SHAPE);
+  let carry = 0;
+
+  for (const tier of tierOrder) {
+    const want = targets[tier] + carry;
+    let filled = 0;
+    while (filled < want && placed < cfg.poolSize && placeOne(tier)) filled += 1;
+    // Bu pillədə namizəd və ya büdcə çatmadısa qalıq daha ucuz pilləyə keçir.
+    carry = want - filled;
+  }
+
+  // ── 2) Forma tamamlanmadısa qalan biletləri istənilən pillədən doldur ───────
+  while (placed < cfg.poolSize && placeOne(null)) {
+    /* boş gövdə — placeOne özü sayğacları artırır */
+  }
+
+  if (placed < cfg.poolSize) {
+    notes.push(
+      `Büdcə ${cfg.poolSize} biletə çatmadı — yalnız ${placed} bilet yerləşdirildi. ` +
+        `Daha ucuz oyunlar lazımdır və ya hədəf marjanı azaldın.`
+    );
+  }
+
+  // ── Boşluğu dəyərə çevir: ucuz bileti bahalı oyuna yüksəlt ───────────────
+  // Büdcədə pul qalıbsa müştəriyə göstərilən dəyəri artırırıq. Marja onsuz da
+  // büdcə ilə qorunur, ona görə bu, riskə səbəb olmur.
+  //
+  // MÜHÜM: yüksəltmə yalnız EYNİ PİLLƏ daxilində olur. Sərbəst buraxılsaydı
+  // bütün biletlər ən yüksək pilləyə dırmaşar və yuxarıda qurulan paylanma
+  // dağılardı — yəni yenə hamı eyni dəyəri qazanardı.
+  const byValueDesc = [...eligible].sort(
+    (a, b) => b.valueAznCents - a.valueAznCents || a.gameId.localeCompare(b.gameId)
+  );
+  const byValueAsc = [...byValueDesc].reverse();
+
+  let upgrades = 0;
+  const maxUpgrades = cfg.poolSize * 20; // sonsuz dövr qoruması
+  let improved = true;
+
+  while (improved && upgrades < maxUpgrades) {
+    improved = false;
+    for (const receiver of byValueDesc) {
+      const rCount = counts.get(receiver.gameId) ?? 0;
+      if (rCount >= maxPerGame) continue;
+
+      for (const donor of byValueAsc) {
+        if (donor.gameId === receiver.gameId) continue;
+        // Pillələr arası köçürmə paylanmanı dağıdır — qadağandır.
+        if (tierOf.get(donor.gameId) !== tierOf.get(receiver.gameId)) continue;
+        const dCount = counts.get(donor.gameId) ?? 0;
+        if (dCount <= 0) continue;
+        if (receiver.valueAznCents <= donor.valueAznCents) continue;
+
+        const delta = receiver.costAznCents - donor.costAznCents;
+        if (delta <= 0 || spent + delta > budget) continue;
+
+        counts.set(donor.gameId, dCount - 1);
+        counts.set(receiver.gameId, rCount + 1);
+        spent += delta;
+        upgrades += 1;
+        improved = true;
+        break;
+      }
+      if (improved) break;
+    }
+  }
+
+  const tickets: LootBoxTicketSpec[] = sorted
+    .map((c) => ({
+      gameId: c.gameId,
+      title: c.title,
+      ticketCount: counts.get(c.gameId) ?? 0,
+      valueAznCents: c.valueAznCents,
+      costAznCents: c.costAznCents,
+    }))
+    .filter((t) => t.ticketCount > 0)
+    .sort((a, b) => b.valueAznCents - a.valueAznCents);
+
+  if (excluded.outOfRange > 0) {
+    notes.push(
+      `${excluded.outOfRange} oyun qiymət aralığından kənarda qaldı (${formatAzn(
+        minPrizeCents
+      )} – ${formatAzn(maxPrizeCents)}).`
+    );
+  }
+  if (excluded.noCost > 0) {
+    notes.push(`${excluded.noCost} oyun maya dəyəri hesablanmadığı üçün kənarda qaldı.`);
+  }
+  if (excluded.lossMaking > 0) {
+    notes.push(`${excluded.lossMaking} oyun mayası satış qiymətindən yüksək olduğu üçün kənarda qaldı.`);
+  }
+
+  return { tickets, economics: computePoolEconomics(tickets, cfg), excluded, notes };
+}
+
+/**
+ * "Bu qiymətə daha neçə bilet əlavə edə bilərəm?" sualının cavabı.
+ *
+ * Admin panelində oyun axtaranda hər nəticənin yanında göstərilir: bu oyundan
+ * büdcə neçə biletə imkan verir və hovuzun hamısı bu oyundan olsa ziyan
+ * ediləcəkmi.
+ */
+export function affordabilityFor(
+  costAznCents: number,
+  cfg: LootBoxConfig
+): { maxTickets: number; wholePoolAffordable: boolean; costIfWholePool: number } {
+  const budget = poolCostBudgetCents(cfg);
+  if (!Number.isFinite(costAznCents) || costAznCents <= 0) {
+    return { maxTickets: 0, wholePoolAffordable: false, costIfWholePool: 0 };
+  }
+  const costIfWholePool = costAznCents * cfg.poolSize;
+  return {
+    maxTickets: Math.floor(budget / costAznCents),
+    wholePoolAffordable: costIfWholePool <= budget,
+    costIfWholePool,
+  };
+}
+
 // ─── Ehtimal cədvəli ─────────────────────────────────────────────────────────
 
 export type OddsRow = {

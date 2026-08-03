@@ -18,10 +18,12 @@ import {
   sellBackAmountCents,
   prizeTierFor,
   isLootBoxOrderCode,
+  allocateTickets,
+  affordabilityFor,
   LOOT_BOX_OUTCOMES,
   LOOT_BOX_POOL_STATUSES,
 } from "../lib/lootBoxShared";
-import type { LootBoxConfig, LootBoxTicketSpec } from "../lib/lootBoxShared";
+import type { LootBoxConfig, LootBoxTicketSpec, CandidateGame } from "../lib/lootBoxShared";
 
 let passed = 0;
 const failures: string[] = [];
@@ -427,6 +429,265 @@ test("qismən drenaj: ən pis halda belə maya büdcəni aşa bilmir", () => {
   }
   assert.equal(cost, planned.totalCostCents);
   assert.ok(cost <= planned.budgetCostCents);
+});
+
+// ── Avtomatik oyun seçimi (allokator) ─────────────────────────────────────────
+//
+// Allokator yalnız TƏKLİF verir; son yoxlama computePoolEconomics-dədir.
+// Bu testlərin məqsədi: allokator heç bir girişdə büdcəni aşan təklif verməsin.
+
+function candidate(id: string, valueCents: number, stars = 1): CandidateGame {
+  return { gameId: id, title: `Oyun ${id}`, valueAznCents: valueCents, costAznCents: costOf(valueCents), stars };
+}
+
+/** Kataloqa bənzər namizəd dəsti: 3–10 AZN aralığında müxtəlif oyunlar. */
+const CATALOG: CandidateGame[] = [
+  candidate("a", 300),
+  candidate("b", 350),
+  candidate("c", 400),
+  candidate("d", 450),
+  candidate("e", 500),
+  candidate("f", 600),
+  candidate("g", 700),
+  candidate("h", 800),
+  candidate("i", 900),
+  candidate("j", 1000),
+];
+
+test("allokator: büdcəyə sığan tam hovuz qurur", () => {
+  const r = allocateTickets(CATALOG, CFG);
+  assert.equal(r.economics.ticketTotal, CFG.poolSize, r.notes.join(" | "));
+  assert.equal(r.economics.ok, true, r.economics.violations.join(" | "));
+  assert.ok(r.economics.totalCostCents <= r.economics.budgetCostCents);
+  assert.ok(r.economics.marginPct >= CFG.targetMarginPct);
+});
+
+test("allokator: ULDUZ verilən oyun daha tez-tez çıxır", () => {
+  const starred = CATALOG.map((c) => (c.gameId === "e" ? { ...c, stars: 5 } : c));
+  const r = allocateTickets(starred, CFG);
+  const eCount = r.tickets.find((t) => t.gameId === "e")?.ticketCount ?? 0;
+  const plainCount = r.tickets.find((t) => t.gameId === "d")?.ticketCount ?? 0;
+  assert.ok(eCount > plainCount, `ulduzlu ${eCount} ≤ adi ${plainCount}`);
+});
+
+test("allokator: bir oyun hovuzun 40%-dən çoxunu tuta bilmir", () => {
+  // Hamısına maksimum ulduz — yenə də heç biri hədd keçməməlidir.
+  const allStarred = CATALOG.map((c) => ({ ...c, stars: 5 }));
+  const r = allocateTickets(allStarred, CFG);
+  const cap = Math.ceil((CFG.poolSize * 40) / 100);
+  for (const t of r.tickets) {
+    assert.ok(t.ticketCount <= cap, `${t.gameId}: ${t.ticketCount} > ${cap}`);
+  }
+});
+
+test("allokator: ÇOX BAHALI kataloqda belə büdcəni aşmır", () => {
+  // Hamısı maksimum dəyərdə (10 AZN) — bu, büdcəni tam hovuzda aşır.
+  const expensive = [
+    candidate("x1", 1000, 5),
+    candidate("x2", 1000, 5),
+    candidate("x3", 1000, 5),
+    candidate("x4", 950, 5),
+  ];
+  const r = allocateTickets(expensive, CFG);
+  // Tam hovuz qurula bilməz, amma qurulan hissə HEÇ VAXT büdcəni aşmamalıdır.
+  assert.ok(r.economics.totalCostCents <= r.economics.budgetCostCents);
+  assert.ok(r.economics.ticketTotal < CFG.poolSize);
+  assert.ok(r.notes.some((n) => n.includes("Büdcə")), r.notes.join(" | "));
+  // Və computePoolEconomics bunu qəbul etməməlidir (bilet sayı tam deyil).
+  assert.equal(r.economics.ok, false);
+});
+
+test("allokator: aralıqdan kənar oyunlar avtomatik süzülür", () => {
+  const mixed = [
+    ...CATALOG,
+    candidate("tooCheap", 100), // 3 AZN-dən aşağı
+    candidate("tooRich", 5000), // 10 AZN-dən yuxarı
+  ];
+  const r = allocateTickets(mixed, CFG);
+  assert.equal(r.excluded.outOfRange, 2);
+  assert.equal(r.tickets.some((t) => t.gameId === "tooCheap" || t.gameId === "tooRich"), false);
+  assert.equal(r.economics.ok, true, r.economics.violations.join(" | "));
+});
+
+test("allokator: mayası bilinməyən / zərərli oyunlar süzülür", () => {
+  const bad = [
+    ...CATALOG,
+    { gameId: "noCost", title: "Mayasız", valueAznCents: 500, costAznCents: 0, stars: 5 },
+    { gameId: "loss", title: "Zərərli", valueAznCents: 400, costAznCents: 450, stars: 5 },
+  ];
+  const r = allocateTickets(bad, CFG);
+  assert.equal(r.excluded.noCost, 1);
+  assert.equal(r.excluded.lossMaking, 1);
+  assert.equal(r.tickets.some((t) => t.gameId === "noCost" || t.gameId === "loss"), false);
+});
+
+test("allokator: namizəd yoxdursa təmiz boş nəticə verir", () => {
+  const r = allocateTickets([], CFG);
+  assert.deepEqual(r.tickets, []);
+  assert.equal(r.economics.ok, false);
+  assert.ok(r.notes.some((n) => n.includes("Uyğun oyun tapılmadı")));
+});
+
+test("allokator: büdcə boşluğunu dəyərə çevirir (səxavətli olur)", () => {
+  // Yalnız ucuz oyunlar + bir neçə bahalı: boşluq qalarsa bahalılar seçilməlidir.
+  const r = allocateTickets(CATALOG, CFG);
+  const headroomPct = (r.economics.headroomCents / r.economics.budgetCostCents) * 100;
+  // Boşluq 5%-dən az olmalıdır — yəni büdcə demək olar tam istifadə olunub.
+  assert.ok(headroomPct < 5, `büdcənin ${headroomPct.toFixed(1)}%-i istifadəsiz qaldı`);
+});
+
+test("allokator: müxtəlif hovuz ölçüləri və marjalarda heç vaxt büdcəni aşmır", () => {
+  for (const poolSize of [10, 25, 50, 100, 250]) {
+    for (const targetMarginPct of [10, 23, 26, 40, 60]) {
+      for (const priceAznCents of [300, 500, 1000, 5000]) {
+        const cfg: LootBoxConfig = { priceAznCents, poolSize, targetMarginPct, minPrizePct: 60, maxPrizePct: 200 };
+        // Namizədləri bu qutunun aralığına uyğun qururuq.
+        const min = Math.round(priceAznCents * 0.6);
+        const max = Math.round(priceAznCents * 2);
+        const pool: CandidateGame[] = [];
+        for (let i = 0; i < 12; i++) {
+          const v = Math.round(min + ((max - min) * i) / 11);
+          pool.push(candidate(`g${i}`, v, (i % 5) + 1));
+        }
+        const r = allocateTickets(pool, cfg);
+        assert.ok(
+          r.economics.totalCostCents <= r.economics.budgetCostCents,
+          `poolSize=${poolSize} marja=${targetMarginPct} qiymət=${priceAznCents}: ` +
+            `maya ${r.economics.totalCostCents} > büdcə ${r.economics.budgetCostCents}`
+        );
+        if (r.economics.ticketTotal === poolSize) {
+          assert.ok(
+            r.economics.marginPct >= targetMarginPct,
+            `poolSize=${poolSize} marja=${r.economics.marginPct} < ${targetMarginPct}`
+          );
+        }
+      }
+    }
+  }
+});
+
+// ── Hədiyyə paylanması (pillələr) ────────────────────────────────────────────
+test("paylanma: hovuz tək dəyərdə toplanmır", () => {
+  /*
+    3–9 AZN aralığında 200 oyun (5 AZN qutu üçün). Yuxarı hədd qəsdən 10 deyil:
+    təkrar limiti 1 olanda allokator 100 FƏRQLİ oyun almalıdır, onların orta
+    mayası isə büdcəyə sığmalıdır. 3–10 aralığı bu şərti bir neçə qəpiklə
+    pozur və hovuz qurulmur — bu, allokatorun düzgün davranışıdır.
+  */
+  const catalog: CandidateGame[] = Array.from({ length: 200 }, (_, i) =>
+    candidate(`p${i}`, 300 + Math.round((i * 600) / 199)),
+  );
+  const r = allocateTickets(catalog, CFG, { maxSharePct: 40, maxTicketsPerGame: 1 });
+
+  const total = r.tickets.reduce((s, t) => s + t.ticketCount, 0);
+  assert.equal(total, CFG.poolSize, "hovuz dolmalıdır");
+
+  const odds = buildOddsTable(r.tickets);
+  const topPct = Math.max(...odds.map((o) => o.pct));
+  assert.ok(odds.length >= 5, `ən azı 5 fərqli dəyər olmalıdır, oldu: ${odds.length}`);
+  assert.ok(topPct <= 60, `bir dəyər hovuzun ${topPct}%-ni tutdu — paylanma pozulub`);
+
+  // Ən azı bir "əfsanəvi" (≥ 1.6× qutu qiyməti) bilet olmalıdır — həyəcanın mənbəyi.
+  const legendary = r.tickets.filter((t) => prizeTierFor(t.valueAznCents, CFG.priceAznCents) === "LEGENDARY");
+  assert.ok(legendary.length > 0, "ən azı bir əfsanəvi hədiyyə olmalıdır");
+  assert.ok(r.economics.ok, `büdcə pozulmamalıdır: ${r.economics.violations.join("; ")}`);
+});
+
+test("paylanma: forma dəyişsə də büdcə heç vaxt aşılmır", () => {
+  const catalog: CandidateGame[] = Array.from({ length: 200 }, (_, i) =>
+    candidate(`q${i}`, 300 + Math.round((i * 600) / 199)),
+  );
+  // Qəsdən həddindən səxavətli forma — allokator büdcəyə görə geri çəkilməlidir.
+  const greedy = { LEGENDARY: 50, RARE: 30, STANDARD: 15, COMMON: 5 };
+  const r = allocateTickets(catalog, CFG, { maxSharePct: 40, maxTicketsPerGame: 1, shape: greedy });
+  assert.ok(
+    r.economics.totalCostCents <= r.economics.budgetCostCents,
+    `maya büdcəni aşdı: ${r.economics.totalCostCents} > ${r.economics.budgetCostCents}`,
+  );
+  assert.ok(r.economics.marginPct >= CFG.targetMarginPct, `marja ${r.economics.marginPct} < hədəf`);
+});
+
+// ── Çeşid limiti: bir oyundan maksimum bilet ─────────────────────────────────
+test("maxTicketsPerGame=1: hər bilet fərqli oyun olur", () => {
+  /*
+    Kataloq qəsdən büdcəyə rahat sığan qiymətlərdədir. Bahalı kataloqda 40
+    FƏRQLİ bilet mümkün olmaya bilər: təkrar limiti 1 olanda allokator ən ucuz
+    oyunu təkrarlaya bilmir və orta maya qalxır — bu, allokatorun düzgün
+    davranışıdır (büdcə hər şeydən üstündür), amma bu testin mövzusu deyil.
+  */
+  const catalog: CandidateGame[] = Array.from({ length: 40 }, (_, i) => candidate(`v${i}`, 300 + i * 2));
+  const cfg: LootBoxConfig = { ...CFG, poolSize: 40 };
+  const r = allocateTickets(catalog, cfg, { maxSharePct: 40, maxTicketsPerGame: 1 });
+
+  assert.equal(r.tickets.reduce((s, t) => s + t.ticketCount, 0), 40, "hovuz dolmalıdır");
+  assert.equal(r.tickets.length, 40, "40 fərqli oyun olmalıdır");
+  assert.ok(r.tickets.every((t) => t.ticketCount === 1), "heç bir oyun təkrarlanmamalıdır");
+  assert.ok(r.economics.ok, `büdcə pozulmamalıdır: ${r.economics.violations.join("; ")}`);
+});
+
+test("maxTicketsPerGame: faiz limiti ilə birlikdə DAHA SƏRTİ tətbiq olunur", () => {
+  const catalog: CandidateGame[] = Array.from({ length: 60 }, (_, i) => candidate(`w${i}`, 300 + i * 5));
+
+  // Faiz 40% → 40 bilet; mütləq 3 → 3 qalib gəlir.
+  const strictAbsolute = allocateTickets(catalog, CFG, { maxSharePct: 40, maxTicketsPerGame: 3 });
+  assert.ok(
+    strictAbsolute.tickets.every((t) => t.ticketCount <= 3),
+    "mütləq limit faizdən sərt olanda o tətbiq olunmalıdır",
+  );
+
+  // Faiz 2% → 2 bilet; mütləq 50 daha boşdur, faiz qalib gəlməlidir.
+  const strictPercent = allocateTickets(catalog, CFG, { maxSharePct: 2, maxTicketsPerGame: 50 });
+  assert.ok(
+    strictPercent.tickets.every((t) => t.ticketCount <= 2),
+    "faiz limiti mütləqdən sərt olanda o tətbiq olunmalıdır",
+  );
+
+  // 0 = mütləq limit yoxdur, davranış dəyişməməlidir.
+  assert.deepEqual(
+    allocateTickets(catalog, CFG, { maxSharePct: 40, maxTicketsPerGame: 0 }).tickets,
+    allocateTickets(catalog, CFG, { maxSharePct: 40 }).tickets,
+    "0 köhnə davranışı saxlamalıdır",
+  );
+});
+
+test("çeşid limiti marjaya zərər vermir", () => {
+  // Çeşidi artırmaq büdcə zəmanətini pozmamalıdır — bu, əsas kommersiya şərtidir.
+  const catalog: CandidateGame[] = Array.from({ length: 200 }, (_, i) => candidate(`x${i}`, 300 + i * 3));
+  for (const maxTicketsPerGame of [0, 1, 2, 5, 10]) {
+    const r = allocateTickets(catalog, CFG, { maxSharePct: 40, maxTicketsPerGame });
+    assert.ok(
+      r.economics.totalCostCents <= r.economics.budgetCostCents,
+      `maxTicketsPerGame=${maxTicketsPerGame}: maya büdcəni aşdı`,
+    );
+    assert.ok(
+      r.economics.marginPct >= CFG.targetMarginPct,
+      `maxTicketsPerGame=${maxTicketsPerGame}: marja ${r.economics.marginPct} < ${CFG.targetMarginPct}`,
+    );
+  }
+});
+
+test("allokator: determinikdir (eyni giriş → eyni nəticə)", () => {
+  const a = allocateTickets(CATALOG, CFG);
+  const b = allocateTickets(CATALOG, CFG);
+  assert.deepEqual(a.tickets, b.tickets);
+});
+
+// ── "Neçə bilet ala bilərəm?" hesabı ──────────────────────────────────────────
+test("affordabilityFor: büdcənin neçə biletə çatdığını düzgün deyir", () => {
+  // 5 AZN qutu, 100 bilet, 23% marja → büdcə 385 AZN.
+  const tenAznCost = costOf(1000); // ~813 qəpik
+  const a = affordabilityFor(tenAznCost, CFG);
+  assert.equal(a.maxTickets, Math.floor(38_500 / tenAznCost));
+  assert.equal(a.wholePoolAffordable, false); // 100 × 8.13 = 813 AZN > 385
+  assert.equal(a.costIfWholePool, tenAznCost * 100);
+
+  const threeAznCost = costOf(300); // ~244
+  const b = affordabilityFor(threeAznCost, CFG);
+  assert.equal(b.wholePoolAffordable, true); // 100 × 2.44 = 244 AZN ≤ 385
+});
+test("affordabilityFor: keçərsiz mayada 0 qaytarır", () => {
+  assert.deepEqual(affordabilityFor(0, CFG), { maxTickets: 0, wholePoolAffordable: false, costIfWholePool: 0 });
+  assert.deepEqual(affordabilityFor(-5, CFG), { maxTickets: 0, wholePoolAffordable: false, costIfWholePool: 0 });
 });
 
 // ── Nəticə ────────────────────────────────────────────────────────────────────

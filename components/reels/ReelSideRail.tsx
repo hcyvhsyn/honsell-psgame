@@ -2,6 +2,7 @@
 
 import { Heart, ThumbsDown, MessageCircle, ShoppingCart, Volume2, VolumeX } from "lucide-react";
 import { fmtCount } from "./ReelActionRail";
+import { hasBuyPanel } from "./ReelBuyPanel";
 import { useReelInteractions } from "./useReelInteractions";
 import type { ReelFeedItem } from "./types";
 
@@ -24,7 +25,9 @@ export default function ReelSideRail({
   onOpenComments: () => void;
 }) {
   const { myReaction, displayLikes, displayDislikes, inCart, react, buy } = useReelInteractions(item);
-  const hasCta = Boolean(item.cta.product || item.cta.href);
+  // Videonun altındakı alış paneli varsa (sürüm çipləri + qiymət) buradakı səbət
+  // düyməsi eyni işi görür və iki fərqli qiymət mənbəyi təəssüratı yaradır.
+  const hasCta = Boolean(item.cta.product || item.cta.href) && !hasBuyPanel(item);
 
   return (
     <div className="flex flex-col items-center gap-5 text-white">

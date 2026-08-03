@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   AlertTriangle,
   Check,
@@ -12,21 +12,21 @@ import {
   Plus,
   RefreshCw,
   Trash2,
-  X,
 } from "lucide-react";
 
 import { useDialog } from "@/lib/dialogs";
 import {
   formatAzn,
   LOOT_BOX_POOL_STATUS_LABELS,
+  LOOT_BOX_OUTCOME_LABELS,
   type PoolEconomics,
   type OddsRow,
 } from "@/lib/lootBoxShared";
 
 // ─── Tiplər ───────────────────────────────────────────────────────────────────
 
-type TemplateSpec = {
-  templateId: string;
+/** Sistemin avtomatik seçdiyi resept sətri (yalnız göstərilir, redaktə olunmur). */
+type RecipeSpec = {
   gameId: string;
   title: string;
   imageUrl: string | null;
@@ -34,7 +34,42 @@ type TemplateSpec = {
   ticketCount: number;
   valueAznCents: number;
   costAznCents: number;
-  missing?: boolean;
+  stars: number;
+};
+
+/** Kataloqdan gələn namizəd + büdcə konteksti. */
+type Candidate = {
+  gameId: string;
+  title: string;
+  imageUrl: string | null;
+  store: string | null;
+  valueAznCents: number;
+  costAznCents: number;
+  stars: number;
+  starred: boolean;
+  discountEndAt: string | null;
+  maxTickets: number;
+  wholePoolAffordable: boolean;
+  costIfWholePool: number;
+  costVsAvgPct: number;
+};
+
+type CandidateResponse = {
+  candidates: Candidate[];
+  total: number;
+  avgAffordableCost: number;
+};
+
+type DriftRow = {
+  gameId: string;
+  title: string;
+  remainingTickets: number;
+  snapValueCents: number;
+  liveValueCents: number | null;
+  snapCostCents: number;
+  liveCostCents: number | null;
+  driftPct: number | null;
+  missing: boolean;
 };
 
 type PoolRow = {
@@ -78,18 +113,21 @@ type LootBox = {
   dailyLimitPerUser: number;
   isActive: boolean;
   sortOrder: number;
-  templates: TemplateSpec[];
+  maxSharePct: number;
+  maxTicketsPerGame: number;
+  discountGuardDays: number;
+  candidateStore: string | null;
+  uniquePrizePerUser: boolean;
+  lastRefillError: string | null;
+  lastRefillErrorAt: string | null;
+  recipe: RecipeSpec[];
+  recipeNotes: string[];
+  candidateCount: number;
   economics: PoolEconomics;
+  drift: DriftRow[];
   odds: OddsRow[];
   stats: Stats;
   pools: PoolRow[];
-};
-
-type GameOption = {
-  id: string;
-  title: string;
-  imageUrl: string | null;
-  finalAzn?: number;
 };
 
 type BoxForm = {
@@ -107,6 +145,11 @@ type BoxForm = {
   refillAtRemaining: string;
   dailyLimitPerUser: string;
   sortOrder: string;
+  maxSharePct: string;
+  maxTicketsPerGame: string;
+  discountGuardDays: string;
+  candidateStore: string;
+  uniquePrizePerUser: boolean;
 };
 
 const EMPTY_FORM: BoxForm = {
@@ -124,11 +167,41 @@ const EMPTY_FORM: BoxForm = {
   refillAtRemaining: "20",
   dailyLimitPerUser: "0",
   sortOrder: "0",
+  maxSharePct: "40",
+  maxTicketsPerGame: "1",
+  discountGuardDays: "7",
+  candidateStore: "",
+  uniquePrizePerUser: true,
 };
 
 const BTN = "rounded-xl px-3 py-2 text-sm font-bold transition disabled:opacity-50";
 const INPUT =
   "w-full rounded-xl border border-admin-line bg-admin-bg px-3 py-2 text-sm text-admin-fg outline-none focus:border-violet-400";
+
+/**
+ * Cavabı təhlükəsiz JSON kimi oxuyur.
+ *
+ * Birbaşa `res.json()` çağırmaq TƏHLÜKƏLİDİR: server 500 qaytarıb boş gövdə
+ * göndərəndə (və ya `next dev` yenidən kompilyasiya edərkən) brauzer
+ * "Unexpected end of JSON input" atır və ƏSL səbəb tamamilə gizlənir. Burada
+ * gövdə əvvəlcə mətn kimi oxunur və parse alınmasa HTTP statusu ilə birlikdə
+ * oxunaqlı xəta verilir.
+ */
+async function readJson(res: Response): Promise<Record<string, unknown>> {
+  const text = await res.text();
+  if (!text.trim()) {
+    throw new Error(
+      res.ok
+        ? "Server boş cavab qaytardı. Səhifəni yeniləyin."
+        : `Server xətası (HTTP ${res.status}). Server jurnalına baxın.`
+    );
+  }
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error(`Cavab JSON deyil (HTTP ${res.status}): ${text.slice(0, 200)}`);
+  }
+}
 
 // ─── Əsas komponent ───────────────────────────────────────────────────────────
 
@@ -139,16 +212,29 @@ export default function LootBoxesAdminClient() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<BoxForm | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const autoExpandedRef = useRef(false);
   const [, startTransition] = useTransition();
 
   const refresh = useCallback(() => {
     startTransition(async () => {
       try {
         const res = await fetch("/api/admin/loot-boxes", { cache: "no-store" });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Siyahı yüklənmədi.");
-        setBoxes(data.boxes ?? []);
+        const data = await readJson(res);
+        if (!res.ok) throw new Error((data.error as string) ?? "Siyahı yüklənmədi.");
+        const list: LootBox[] = (data.boxes as LootBox[]) ?? [];
+        setBoxes(list);
         setError(null);
+
+        // Resepti boş olan qutunu bir dəfə avtomatik açırıq — əks halda admin
+        // yalnız sönük "Hovuz yarat" düyməsini görür və oyun əlavə edəcəyi
+        // bölmənin bağlı akkordeonun içində olduğunu bilmir.
+        if (!autoExpandedRef.current) {
+          const needsRecipe = list.find((b) => !b.economics.ok);
+          if (needsRecipe) {
+            autoExpandedRef.current = true;
+            setExpanded(needsRecipe.id);
+          }
+        }
       } catch (err) {
         setError((err as Error).message);
       } finally {
@@ -166,12 +252,18 @@ export default function LootBoxesAdminClient() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = await res.json().catch(() => ({}));
+    let data: Record<string, unknown> = {};
+    try {
+      data = await readJson(res);
+    } catch (err) {
+      setError((err as Error).message);
+      return false;
+    }
     if (!res.ok) {
       setError(
         [data.error, ...(Array.isArray(data.violations) ? data.violations : [])]
           .filter(Boolean)
-          .join(" ") || "Əməliyyat alınmadı."
+          .join(" ") || `Əməliyyat alınmadı (HTTP ${res.status}).`
       );
       return false;
     }
@@ -288,6 +380,11 @@ export default function LootBoxesAdminClient() {
               refillAtRemaining: String(box.refillAtRemaining),
               dailyLimitPerUser: String(box.dailyLimitPerUser),
               sortOrder: String(box.sortOrder),
+              maxSharePct: String(box.maxSharePct),
+              maxTicketsPerGame: String(box.maxTicketsPerGame),
+              discountGuardDays: String(box.discountGuardDays),
+              candidateStore: box.candidateStore ?? "",
+              uniquePrizePerUser: box.uniquePrizePerUser,
             })
           }
           onToggleActive={() => toggleActive(box)}
@@ -345,7 +442,16 @@ function BoxFormCard({
           <input className={INPUT} value={form.maxPrizePct} onChange={(e) => set("maxPrizePct", e.target.value)} />
         </Field>
 
-        <Field label="Hovuz ölçüsü (bilet)" hint={budget > 0 ? `maya büdcəsi ${budget.toFixed(2)} AZN` : undefined}>
+        {/* Hovuzdaki FƏRQLİ oyun sayı bilet sayından çox ola bilməz — bu, ən çox
+            səhv anlaşılan parametrdir, ona görə birbaşa yazılır. */}
+        <Field
+          label="Hovuz ölçüsü (bilet)"
+          hint={
+            budget > 0
+              ? `maya büdcəsi ${budget.toFixed(2)} AZN · maksimum ${form.poolSize || 0} fərqli oyun`
+              : "hovuzdaki maksimum fərqli oyun sayı = bilet sayı"
+          }
+        >
           <input className={INPUT} value={form.poolSize} onChange={(e) => set("poolSize", e.target.value)} />
         </Field>
         <Field label="Geri satma (%)" hint="İstənməyən hədiyyənin balansa satış faizi">
@@ -357,6 +463,45 @@ function BoxFormCard({
 
         <Field label="Günlük limit / istifadəçi" hint="0 = limitsiz">
           <input className={INPUT} value={form.dailyLimitPerUser} onChange={(e) => set("dailyLimitPerUser", e.target.value)} />
+        </Field>
+        <Field
+          label="Bir oyundan maks bilet"
+          hint={
+            Number(form.maxTicketsPerGame) === 1
+              ? "1 = hər hədiyyə fərqli oyun (ən geniş çeşid)"
+              : Number(form.maxTicketsPerGame) > 0
+                ? `bir oyun ən çox ${form.maxTicketsPerGame} dəfə çıxa bilər`
+                : "0 = limitsiz, yalnız aşağıdaki faiz işləyir"
+          }
+        >
+          <input
+            className={INPUT}
+            value={form.maxTicketsPerGame}
+            onChange={(e) => set("maxTicketsPerGame", e.target.value)}
+          />
+        </Field>
+        <Field label="Bir oyunun maks payı (%)" hint="Ehtiyat limit — biri hovuzun hamısını udmasın">
+          <input className={INPUT} value={form.maxSharePct} onChange={(e) => set("maxSharePct", e.target.value)} />
+        </Field>
+        <Field label="Endirim qoruması (gün)" hint="Endirimi bu müddətdə bitən oyun hovuza salınmır">
+          <input className={INPUT} value={form.discountGuardDays} onChange={(e) => set("discountGuardDays", e.target.value)} />
+        </Field>
+        <Field label="Hədiyyə mənbəyi" hint="Sabitdir — dəyişdirilə bilməz">
+          <div className={`${INPUT} cursor-default text-admin-muted`}>PlayStation oyunları (DLC-siz)</div>
+        </Field>
+        <Field
+          label="Təkrar hədiyyə"
+          hint="Söndürsəniz eyni oyun bir müştəriyə bir neçə dəfə çıxa bilər"
+        >
+          <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-admin-line bg-admin-bg px-3 py-2 text-sm text-admin-fg">
+            <input
+              type="checkbox"
+              checked={form.uniquePrizePerUser}
+              onChange={(e) => setForm({ ...form, uniquePrizePerUser: e.target.checked })}
+              className="h-4 w-4 accent-violet-500"
+            />
+            Eyni oyun bir müştəriyə yalnız 1 dəfə
+          </label>
         </Field>
         <Field label="Sıra">
           <input className={INPUT} value={form.sortOrder} onChange={(e) => set("sortOrder", e.target.value)} />
@@ -453,10 +598,13 @@ function BoxCard({
 
       {expanded && (
         <div className="space-y-5 border-t border-admin-line px-5 py-5">
-          <RecipeEditor box={box} onPost={onPost} />
+          <AutoRecipePanel box={box} />
+          <CandidatePicker box={box} onPost={onPost} />
+          <DriftPanel box={box} />
           <OddsPanel box={box} />
           <PoolsPanel box={box} onRetirePool={onRetirePool} />
           <StatsPanel stats={box.stats} targetMarginPct={box.targetMarginPct} />
+          <WinnersPanel box={box} />
         </div>
       )}
     </div>
@@ -468,9 +616,28 @@ function BoxCard({
 function EconomicsPanel({ box, onGeneratePool }: { box: LootBox; onGeneratePool: () => void }) {
   const e = box.economics;
   const ok = e.ok;
+  // Resept boş olanda maya 0 olduğu üçün marja 100% kimi hesablanır — bu, "hər
+  // şey qaydasındadır" təəssüratı yaradır. Bilet yoxdursa rəqəm göstərmirik.
+  const hasTickets = e.ticketTotal > 0;
 
   return (
     <div className={`px-5 py-4 ${ok ? "bg-emerald-500/[0.04]" : "bg-rose-500/[0.04]"}`}>
+      {/* Avtomatik hovuz doldurma uğursuz olubsa admin bunu MÜTLƏQ görməlidir —
+          əks halda qutu səssizcə boşalır və satış dayanır. */}
+      {box.lastRefillError && (
+        <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
+          <div className="flex items-center gap-2 font-bold">
+            <AlertTriangle className="h-4 w-4 shrink-0" /> Avtomatik hovuz doldurma alınmadı
+          </div>
+          <p className="mt-1 text-xs">{box.lastRefillError}</p>
+          {box.lastRefillErrorAt && (
+            <p className="mt-1 text-[11px] opacity-70">
+              {new Date(box.lastRefillErrorAt).toLocaleString("az-AZ")}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Metric
           label="Bilet"
@@ -479,21 +646,27 @@ function EconomicsPanel({ box, onGeneratePool }: { box: LootBox; onGeneratePool:
         />
         <Metric
           label="Maya / büdcə"
-          value={`${formatAzn(e.totalCostCents)} / ${formatAzn(e.budgetCostCents)}`}
-          ok={e.headroomCents >= 0}
-          hint={e.headroomCents >= 0 ? `boşluq ${formatAzn(e.headroomCents)}` : `aşım ${formatAzn(-e.headroomCents)}`}
+          value={hasTickets ? `${formatAzn(e.totalCostCents)} / ${formatAzn(e.budgetCostCents)}` : `— / ${formatAzn(e.budgetCostCents)}`}
+          ok={!hasTickets || e.headroomCents >= 0}
+          hint={
+            !hasTickets
+              ? "resept boşdur"
+              : e.headroomCents >= 0
+                ? `boşluq ${formatAzn(e.headroomCents)}`
+                : `aşım ${formatAzn(-e.headroomCents)}`
+          }
         />
         <Metric
           label="Proqnoz marja"
-          value={`${e.marginPct.toFixed(2)}%`}
-          ok={e.marginPct >= box.targetMarginPct}
+          value={hasTickets ? `${e.marginPct.toFixed(2)}%` : "—"}
+          ok={!hasTickets || e.marginPct >= box.targetMarginPct}
           hint={`hədəf ${box.targetMarginPct}%`}
         />
         <Metric
           label="Orta hədiyyə (EV)"
-          value={formatAzn(e.evValueCents)}
+          value={hasTickets ? formatAzn(e.evValueCents) : "—"}
           ok
-          hint={`qiymətin ${e.evValuePctOfPrice.toFixed(1)}%-i`}
+          hint={hasTickets ? `qiymətin ${e.evValuePctOfPrice.toFixed(1)}%-i` : "hədiyyə əlavə edin"}
         />
       </div>
 
@@ -515,18 +688,31 @@ function EconomicsPanel({ box, onGeneratePool }: { box: LootBox; onGeneratePool:
         )}
       </div>
 
-      {!ok && (
-        <div className="mt-3 space-y-1 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span>Hovuz yaradıla bilməz:</span>
-          </div>
-          <ul className="list-disc pl-9 text-xs font-medium">
-            {e.violations.map((v, i) => (
-              <li key={i}>{v}</li>
-            ))}
-          </ul>
+      {/* Resept tamamilə boşdursa bu, xəta deyil — sadəcə növbəti addımdır. */}
+      {!hasTickets ? (
+        <div className="mt-3 rounded-xl border border-violet-300 bg-violet-50 px-4 py-3 text-sm text-violet-800 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-200">
+          <div className="font-bold">Növbəti addım: reseptə oyun əlavə edin</div>
+          <p className="mt-1 text-xs">
+            Aşağıdakı <strong>Resept</strong> bölməsindən oyun axtarın və hər birinə bilet sayı verin.
+            Cəmi <strong>{box.poolSize}</strong> bilet olmalıdır, dəyərləri{" "}
+            <strong>{formatAzn(e.minPrizeCents)} – {formatAzn(e.maxPrizeCents)}</strong> aralığında,
+            ümumi mayası <strong>{formatAzn(e.budgetCostCents)}</strong>-dən çox olmamalıdır.
+          </p>
         </div>
+      ) : (
+        !ok && (
+          <div className="mt-3 space-y-1 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>Hovuz yaradıla bilməz:</span>
+            </div>
+            <ul className="list-disc pl-9 text-xs font-medium">
+              {e.violations.map((v, i) => (
+                <li key={i}>{v}</li>
+              ))}
+            </ul>
+          </div>
+        )
       )}
 
       <button
@@ -543,149 +729,304 @@ function EconomicsPanel({ box, onGeneratePool }: { box: LootBox; onGeneratePool:
   );
 }
 
-// ─── Resept redaktoru ─────────────────────────────────────────────────────────
+// ─── Avtomatik resept (yalnız göstərilir) ─────────────────────────────────────
 
-function RecipeEditor({ box, onPost }: { box: LootBox; onPost: (b: Record<string, unknown>) => Promise<boolean> }) {
-  const [query, setQuery] = useState("");
-  const [options, setOptions] = useState<GameOption[]>([]);
-  const [searching, setSearching] = useState(false);
-
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setOptions([]);
-      return;
-    }
-    const t = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const res = await fetch(`/api/admin/banners/product-search?kind=GAME&q=${encodeURIComponent(q)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setOptions((data.results ?? []) as GameOption[]);
-        }
-      } finally {
-        setSearching(false);
-      }
-    }, 250);
-    return () => clearTimeout(t);
-  }, [query]);
-
-  const remaining = box.poolSize - box.economics.ticketTotal;
+function AutoRecipePanel({ box }: { box: LootBox }) {
+  const e = box.economics;
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-black text-admin-fg">Resept</h3>
-        <span className={`text-xs font-bold ${remaining === 0 ? "text-emerald-600" : "text-amber-600"}`}>
-          {remaining === 0 ? "Bilet sayı tam" : remaining > 0 ? `${remaining} bilet çatmır` : `${-remaining} bilet artıqdır`}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="font-black text-admin-fg">Sistemin seçdiyi resept</h3>
+          <p className="text-xs text-admin-muted">
+            Kataloqdan {box.candidateCount} uyğun oyun tapıldı. Paylanma büdcəyə görə avtomatik
+            hesablanır — hovuz yaradılanda bu tərkib dondurulur.
+          </p>
+        </div>
+        <span className={`text-xs font-bold ${e.ticketTotal === box.poolSize ? "text-emerald-600" : "text-amber-600"}`}>
+          {e.ticketTotal} / {box.poolSize} bilet
         </span>
       </div>
 
+      {box.recipeNotes.length > 0 && (
+        <ul className="list-disc space-y-0.5 rounded-xl bg-admin-chip px-5 py-2 pl-8 text-xs text-admin-muted">
+          {box.recipeNotes.map((n, i) => (
+            <li key={i}>{n}</li>
+          ))}
+        </ul>
+      )}
+
+      {box.recipe.length === 0 ? (
+        <p className="rounded-xl bg-admin-chip px-4 py-6 text-center text-sm text-admin-muted">
+          Uyğun oyun tapılmadı. Qiymət aralığını və ya hədəf marjanı dəyişin.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px] text-sm">
+            <thead className="text-left text-xs uppercase text-admin-muted">
+              <tr>
+                <th className="pb-2">Oyun</th>
+                <th className="pb-2">Ulduz</th>
+                <th className="pb-2">Dəyər</th>
+                <th className="pb-2">Maya</th>
+                <th className="pb-2">Bilet</th>
+                <th className="pb-2">Şans</th>
+              </tr>
+            </thead>
+            <tbody>
+              {box.recipe.map((t) => (
+                <tr key={t.gameId} className="border-t border-admin-line">
+                  <td className="max-w-[240px] truncate py-2 pr-3 text-admin-fg">{t.title}</td>
+                  <td className="py-2 pr-3 text-amber-500">
+                    {t.stars > 1 ? "★".repeat(t.stars) : <span className="text-admin-muted">—</span>}
+                  </td>
+                  <td className="py-2 pr-3 font-bold text-admin-fg">{formatAzn(t.valueAznCents)}</td>
+                  <td className="py-2 pr-3 text-admin-muted">{formatAzn(t.costAznCents)}</td>
+                  <td className="py-2 pr-3 text-admin-fg">{t.ticketCount}</td>
+                  <td className="py-2 pr-3 text-admin-muted">
+                    {((t.ticketCount / Math.max(1, e.ticketTotal)) * 100).toFixed(1)}%
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Ulduz seçicisi (namizəd kataloqu) ────────────────────────────────────────
+
+function CandidatePicker({
+  box,
+  onPost,
+}: {
+  box: LootBox;
+  onPost: (b: Record<string, unknown>) => Promise<boolean>;
+}) {
+  const [query, setQuery] = useState("");
+  const [data, setData] = useState<CandidateResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const load = useCallback(
+    async (q: string) => {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `/api/admin/loot-boxes/candidates?boxId=${box.id}&q=${encodeURIComponent(q)}`,
+          { cache: "no-store" },
+        );
+        const json = await readJson(res);
+        if (!res.ok) throw new Error((json.error as string) ?? `Namizədlər yüklənmədi (HTTP ${res.status}).`);
+        setData(json as unknown as CandidateResponse);
+        setLoadError(null);
+      } catch (err) {
+        setLoadError((err as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [box.id],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => load(query.trim()), 250);
+    return () => clearTimeout(t);
+  }, [open, query, load]);
+
+  async function setStars(c: Candidate, stars: number) {
+    const ok = await onPost({ action: "SET_STARS", lootBoxId: box.id, gameId: c.gameId, stars });
+    if (ok) load(query.trim());
+  }
+
+  const starredCount = box.recipe.filter((r) => r.stars > 1).length;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="font-black text-admin-fg">Ulduzlar</h3>
+          <p className="text-xs text-admin-muted">
+            Oyun əlavə etmirsiniz — yalnız hansının daha tez-tez çıxacağını deyirsiniz.
+            5 ulduzlu oyun 1 ulduzludan 5 dəfə tez-tez düşür.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(!open);
+            if (!open && !data) load("");
+          }}
+          className={`${BTN} border border-admin-line text-admin-muted hover:text-admin-fg`}
+        >
+          {open ? "Bağla" : `Oyunları göstər${starredCount > 0 ? ` (${starredCount} ulduzlu)` : ""}`}
+        </button>
+      </div>
+
+      {open && (
+        <>
+          <div className="relative">
+            <input
+              className={INPUT}
+              value={query}
+              onChange={(ev) => setQuery(ev.target.value)}
+              placeholder="Oyun adı ilə süz…"
+            />
+            {loading && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-admin-muted" />}
+          </div>
+
+          {loadError && (
+            <div className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300">
+              {loadError}
+            </div>
+          )}
+
+          {data && (
+            <p className="text-xs text-admin-muted">
+              {data.total} uyğun oyun · orta bilet büdcəsi{" "}
+              <strong className="text-admin-fg">{formatAzn(data.avgAffordableCost)}</strong> maya
+            </p>
+          )}
+
+          <div className="max-h-96 overflow-y-auto rounded-xl border border-admin-line">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead className="sticky top-0 bg-admin-card text-left text-xs uppercase text-admin-muted">
+                <tr>
+                  <th className="px-3 py-2">Oyun</th>
+                  <th className="px-3 py-2">Dəyər</th>
+                  <th className="px-3 py-2">Maya</th>
+                  <th className="px-3 py-2">Büdcə tutumu</th>
+                  <th className="px-3 py-2">Ulduz</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.candidates ?? []).map((c) => (
+                  <tr key={c.gameId} className="border-t border-admin-line">
+                    <td className="max-w-[220px] truncate px-3 py-2 text-admin-fg">{c.title}</td>
+                    <td className="px-3 py-2 font-bold text-admin-fg">{formatAzn(c.valueAznCents)}</td>
+                    <td className="px-3 py-2 text-admin-muted">{formatAzn(c.costAznCents)}</td>
+                    <td className="px-3 py-2">
+                      {/*
+                        Adminin əsas sualı: "bu oyundan neçə ala bilərəm?"
+                        wholePoolAffordable=false → hovuzun hamısı bundan olsa ziyan edirik.
+                      */}
+                      <span className={c.wholePoolAffordable ? "text-emerald-600" : "text-amber-600"}>
+                        {c.maxTickets >= box.poolSize
+                          ? `bütün ${box.poolSize} bilet`
+                          : `maks ${c.maxTickets} bilet`}
+                      </span>
+                      {!c.wholePoolAffordable && (
+                        <div className="text-[11px] text-admin-muted">
+                          hamısı bundan olsa {formatAzn(c.costIfWholePool)} maya — büdcədən çox
+                        </div>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      {/* 0 = qadağan. Kataloqda keyfiyyətsiz başlıqlar var və
+                          avtomatik seçim onları ayırd edə bilmir. */}
+                      <button
+                        type="button"
+                        onClick={() => setStars(c, 0)}
+                        title="Bu oyun bu qutuya heç vaxt düşməsin"
+                        className={`mr-1.5 rounded px-1.5 py-0.5 text-xs font-bold leading-none ${
+                          c.stars === 0
+                            ? "bg-rose-500/15 text-rose-600"
+                            : "text-admin-muted/50 hover:bg-rose-500/10 hover:text-rose-500"
+                        }`}
+                      >
+                        🚫
+                      </button>
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setStars(c, s)}
+                          title={`${s} ulduz`}
+                          className={`px-0.5 text-base leading-none ${
+                            c.stars > 0 && s <= c.stars
+                              ? "text-amber-500"
+                              : "text-admin-muted/40 hover:text-amber-400"
+                          }`}
+                        >
+                          ★
+                        </button>
+                      ))}
+                    </td>
+                  </tr>
+                ))}
+                {data != null && data.candidates.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-6 text-center text-admin-muted">
+                      Uyğun oyun tapılmadı.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Qiymət drifti ────────────────────────────────────────────────────────────
+
+function DriftPanel({ box }: { box: LootBox }) {
+  if (box.drift.length === 0) return null;
+
+  return (
+    <div>
+      <h3 className="mb-2 flex items-center gap-2 font-black text-amber-600 dark:text-amber-400">
+        <AlertTriangle className="h-4 w-4" /> Qiymət dəyişikliyi
+      </h3>
+      <p className="mb-2 text-xs text-admin-muted">
+        Bu oyunların kataloq qiyməti biletdə dondurulmuş dəyərdən fərqlənir.{" "}
+        <strong>Mövcud hovuzun marjası təhlükədə deyil</strong> — maya da dondurulub. Amma dəyəri
+        aşağı düşən oyunda müştəriyə vəd etdiyimiz məbləğ şişik qalır və geri satmada real
+        dəyərindən çox ödəyirik.
+      </p>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
+        <table className="w-full min-w-[560px] text-sm">
           <thead className="text-left text-xs uppercase text-admin-muted">
             <tr>
               <th className="pb-2">Oyun</th>
-              <th className="pb-2">Dəyər</th>
-              <th className="pb-2">Maya</th>
-              <th className="pb-2">Bilet</th>
-              <th className="pb-2">Şans</th>
-              <th className="pb-2" />
+              <th className="pb-2">Qalan bilet</th>
+              <th className="pb-2">Biletdə</th>
+              <th className="pb-2">Kataloqda</th>
+              <th className="pb-2">Fərq</th>
             </tr>
           </thead>
           <tbody>
-            {box.templates.map((t) => {
-              const outOfRange =
-                !t.missing &&
-                (t.valueAznCents < box.economics.minPrizeCents || t.valueAznCents > box.economics.maxPrizeCents);
-              return (
-                <tr key={t.templateId} className="border-t border-admin-line">
-                  <td className="py-2 pr-3">
-                    <span className={t.missing ? "text-rose-500" : "text-admin-fg"}>{t.title}</span>
-                    {t.store === "EPIC" && <span className="ml-2 text-[10px] text-admin-muted">EPIC</span>}
-                  </td>
-                  <td className={`py-2 pr-3 ${outOfRange ? "font-bold text-rose-500" : "text-admin-fg"}`}>
-                    {formatAzn(t.valueAznCents)}
-                  </td>
-                  <td className="py-2 pr-3 text-admin-muted">{formatAzn(t.costAznCents)}</td>
-                  <td className="py-2 pr-3">
-                    <input
-                      className="w-20 rounded-lg border border-admin-line bg-admin-bg px-2 py-1 text-sm text-admin-fg"
-                      defaultValue={t.ticketCount}
-                      onBlur={(ev) => {
-                        const next = Number(ev.target.value);
-                        if (next !== t.ticketCount && next >= 1) {
-                          onPost({ action: "UPSERT_TEMPLATE", lootBoxId: box.id, gameId: t.gameId, ticketCount: next });
-                        }
-                      }}
-                    />
-                  </td>
-                  <td className="py-2 pr-3 text-admin-muted">
-                    {box.economics.ticketTotal > 0
-                      ? `${((t.ticketCount / box.economics.ticketTotal) * 100).toFixed(1)}%`
-                      : "—"}
-                  </td>
-                  <td className="py-2">
-                    <button
-                      type="button"
-                      onClick={() => onPost({ action: "DELETE_TEMPLATE", id: t.templateId })}
-                      className="text-rose-500 hover:text-rose-600"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-            {box.templates.length === 0 && (
-              <tr>
-                <td colSpan={6} className="py-6 text-center text-admin-muted">
-                  Reseptə hələ oyun əlavə edilməyib.
+            {box.drift.map((d) => (
+              <tr key={d.gameId} className="border-t border-admin-line">
+                <td className="max-w-[220px] truncate py-2 pr-3 text-admin-fg">{d.title}</td>
+                <td className="py-2 pr-3 text-admin-fg">{d.remainingTickets}</td>
+                <td className="py-2 pr-3 text-admin-muted">{formatAzn(d.snapValueCents)}</td>
+                <td className="py-2 pr-3 text-admin-muted">
+                  {d.missing ? "silinib" : formatAzn(d.liveValueCents ?? 0)}
+                </td>
+                <td
+                  className={`py-2 pr-3 font-bold ${
+                    d.driftPct != null && d.driftPct < 0 ? "text-rose-500" : "text-emerald-600"
+                  }`}
+                >
+                  {d.driftPct != null ? `${d.driftPct > 0 ? "+" : ""}${d.driftPct.toFixed(1)}%` : "—"}
                 </td>
               </tr>
-            )}
+            ))}
           </tbody>
         </table>
       </div>
-
-      <div className="relative">
-        <input
-          className={INPUT}
-          value={query}
-          onChange={(ev) => setQuery(ev.target.value)}
-          placeholder="Oyun axtar və reseptə əlavə et…"
-        />
-        {searching && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-admin-muted" />}
-        {options.length > 0 && (
-          <div className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-admin-line bg-admin-card shadow-lg">
-            {options.map((o) => (
-              <button
-                key={o.id}
-                type="button"
-                onClick={async () => {
-                  const ok = await onPost({
-                    action: "UPSERT_TEMPLATE",
-                    lootBoxId: box.id,
-                    gameId: o.id,
-                    ticketCount: 1,
-                  });
-                  if (ok) {
-                    setQuery("");
-                    setOptions([]);
-                  }
-                }}
-                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-admin-chip"
-              >
-                <span className="truncate text-admin-fg">{o.title}</span>
-                {o.finalAzn != null && (
-                  <span className="shrink-0 text-xs text-admin-muted">{o.finalAzn.toFixed(2)} AZN</span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <p className="mt-2 text-xs text-admin-muted">
+        Həlli: cari hovuzu <strong>Dayandır</strong> və yeni hovuz yaradın — yeni qiymətlərlə
+        tərkib təzələnəcək.
+      </p>
     </div>
   );
 }
@@ -791,6 +1132,249 @@ function StatsPanel({ stats, targetMarginPct }: { stats: Stats; targetMarginPct:
           <Metric label="Oyun götürdü" value={String(stats.claimedGame)} ok />
           <Metric label="Balansa satdı" value={String(stats.soldBack)} ok />
           <Metric label="Qalan bilet" value={String(stats.remainingTickets)} ok={stats.remainingTickets > 0} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Kim nə qazandı ───────────────────────────────────────────────────────────
+
+type OpeningRow = {
+  id: string;
+  orderCode: string;
+  createdAt: string;
+  chosenAt: string | null;
+  user: { id: string; name: string | null; email: string; phone: string | null };
+  title: string;
+  imageUrl: string | null;
+  store: string | null;
+  pricePaidCents: number;
+  valueAznCents: number;
+  costAznCents: number;
+  outcome: string;
+  sellBackCents: number | null;
+  profitCents: number;
+  fulfillmentTransactionId: string | null;
+};
+
+const OUTCOME_FILTERS: Array<{ value: string; label: string }> = [
+  { value: "", label: "Hamısı" },
+  { value: "PENDING_CHOICE", label: "Seçim gözləyir" },
+  { value: "CLAIMED_GAME", label: "Oyun götürdü" },
+  { value: "SOLD_BACK", label: "Balansa satdı" },
+];
+
+const OUTCOME_BADGE: Record<string, string> = {
+  PENDING_CHOICE: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  CLAIMED_GAME: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+  SOLD_BACK: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+};
+
+const PAGE_SIZE = 50;
+
+function WinnersPanel({ box }: { box: LootBox }) {
+  const [rows, setRows] = useState<OpeningRow[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [outcome, setOutcome] = useState("");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        boxId: box.id,
+        take: String(PAGE_SIZE),
+        skip: String(page * PAGE_SIZE),
+      });
+      if (outcome) params.set("outcome", outcome);
+      if (query.trim()) params.set("q", query.trim());
+
+      const res = await fetch(`/api/admin/loot-boxes/openings?${params}`, { cache: "no-store" });
+      const data = await readJson(res);
+      if (!res.ok) throw new Error((data.error as string) ?? `Siyahı yüklənmədi (HTTP ${res.status}).`);
+      setRows((data.rows as OpeningRow[]) ?? []);
+      setTotal((data.total as number) ?? 0);
+      setLoadError(null);
+    } catch (err) {
+      setLoadError((err as Error).message);
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [box.id, outcome, page, query]);
+
+  // Süzgəc dəyişəndə 250ms gözləyirik ki, hər hərfdə sorğu getməsin.
+  useEffect(() => {
+    const t = setTimeout(load, 250);
+    return () => clearTimeout(t);
+  }, [load]);
+
+  // Süzgəc dəyişdikdə birinci səhifəyə qayıdırıq.
+  useEffect(() => {
+    setPage(0);
+  }, [outcome, query]);
+
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="font-black text-admin-fg">Kim nə qazandı</h3>
+          <p className="text-xs text-admin-muted">
+            {total} açılış. &quot;Mənfəət&quot; = ödənilən qiymət − faktiki maya (geri satılanda
+            ödədiyimiz kredit).
+          </p>
+        </div>
+        {loading && <Loader2 className="h-4 w-4 animate-spin text-admin-muted" />}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <input
+          className={`${INPUT} max-w-xs`}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Müştəri, e-poçt, oyun və ya kod…"
+        />
+        <div className="flex flex-wrap gap-1">
+          {OUTCOME_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => setOutcome(f.value)}
+              className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
+                outcome === f.value
+                  ? "bg-violet-500/15 text-violet-700 dark:text-violet-300"
+                  : "border border-admin-line text-admin-muted hover:text-admin-fg"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loadError && (
+        <div className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300">
+          {loadError}
+        </div>
+      )}
+
+      {rows == null ? (
+        <div className="h-24 animate-pulse rounded-xl bg-admin-chip" />
+      ) : rows.length === 0 ? (
+        <p className="rounded-xl bg-admin-chip px-4 py-6 text-center text-sm text-admin-muted">
+          Uyğun açılış tapılmadı.
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-admin-line">
+          <table className="w-full min-w-[860px] text-sm">
+            <thead className="bg-admin-card text-left text-xs uppercase text-admin-muted">
+              <tr>
+                <th className="px-3 py-2">Tarix</th>
+                <th className="px-3 py-2">Müştəri</th>
+                <th className="px-3 py-2">Qazandığı oyun</th>
+                <th className="px-3 py-2">Dəyər</th>
+                <th className="px-3 py-2">Ödədi</th>
+                <th className="px-3 py-2">Mənfəət</th>
+                <th className="px-3 py-2">Nəticə</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="border-t border-admin-line align-top">
+                  <td className="whitespace-nowrap px-3 py-2 text-xs text-admin-muted">
+                    {new Date(r.createdAt).toLocaleString("az-AZ", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
+                    <div className="font-mono text-[11px] text-amber-600">{r.orderCode}</div>
+                  </td>
+                  <td className="px-3 py-2">
+                    <a
+                      href={`/admin/users/${r.user.id}`}
+                      className="font-bold text-admin-fg hover:underline"
+                    >
+                      {r.user.name || "—"}
+                    </a>
+                    <div className="text-[11px] text-admin-muted">{r.user.email}</div>
+                    {r.user.phone && <div className="text-[11px] text-admin-muted">{r.user.phone}</div>}
+                  </td>
+                  <td className="max-w-[220px] px-3 py-2">
+                    <div className="truncate text-admin-fg">{r.title}</div>
+                    {r.store === "EPIC" && <span className="text-[10px] text-admin-muted">EPIC</span>}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 font-bold text-amber-600">
+                    {formatAzn(r.valueAznCents)}
+                    <div className="text-[11px] font-medium text-admin-muted">
+                      maya {formatAzn(r.costAznCents)}
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-admin-fg">
+                    {formatAzn(r.pricePaidCents)}
+                  </td>
+                  <td
+                    className={`whitespace-nowrap px-3 py-2 font-black ${
+                      r.profitCents >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600"
+                    }`}
+                  >
+                    {r.profitCents >= 0 ? "+" : "−"}
+                    {formatAzn(Math.abs(r.profitCents))}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                        OUTCOME_BADGE[r.outcome] ?? "bg-admin-chip text-admin-muted"
+                      }`}
+                    >
+                      {LOOT_BOX_OUTCOME_LABELS[r.outcome as keyof typeof LOOT_BOX_OUTCOME_LABELS] ??
+                        r.outcome}
+                    </span>
+                    {r.outcome === "SOLD_BACK" && r.sellBackCents != null && (
+                      <div className="text-[11px] text-admin-muted">
+                        {formatAzn(r.sellBackCents)} ödənildi
+                      </div>
+                    )}
+                    {r.outcome === "CLAIMED_GAME" && (
+                      <div className="text-[11px]">
+                        <a href="/admin/orders" className="text-violet-600 hover:underline">
+                          Sifarişə bax
+                        </a>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {pageCount > 1 && (
+        <div className="flex items-center justify-center gap-2 text-sm">
+          <button
+            type="button"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            className={`${BTN} border border-admin-line text-admin-muted hover:text-admin-fg`}
+          >
+            Əvvəlki
+          </button>
+          <span className="text-xs text-admin-muted">
+            {page + 1} / {pageCount}
+          </span>
+          <button
+            type="button"
+            disabled={page + 1 >= pageCount}
+            onClick={() => setPage((p) => p + 1)}
+            className={`${BTN} border border-admin-line text-admin-muted hover:text-admin-fg`}
+          >
+            Sonrakı
+          </button>
         </div>
       )}
     </div>
