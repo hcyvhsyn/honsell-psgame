@@ -7,6 +7,24 @@
 >
 > 2026-07-28-də Faza 1 (SEO slug + metadata) deploy-u məhz buna görə sındı.
 > Eyni tələ əvvəl də baş verib.
+>
+> **2026-08-03 — üçüncü təkrar.** Beş migrasiya tətbiq edilməmişdi
+> (`20260802120000_loot_box` … `20260803120000_reel_edition_game_ids`), build
+> `The column Reel.editionGameIds does not exist` ilə sındı. Eyni build-də
+> `The table public.LootBox does not exist` xətaları da vardı, LAKİN onlar
+> deploy-u sındırmadı: `/qutular` sorğunu `.catch(() => [])` ilə tutur.
+> Fərq yalnız o idi ki, `/reels` tutmurdu.
+>
+> İki nəticə çıxdı:
+> 1. `app/reels/page.tsx` artıq eyni qaydaya əməl edir — bir səhifənin sorğusu
+>    bütün saytın yayımını bloklaya bilməz. **Yeni prerender olunan səhifə
+>    DB-yə sorğu atırsa, `.catch` MƏCBURİDİR.**
+> 2. Bu qoruma migrasiya ehtiyacını ARADAN QALDIRMIR — sadəcə deploy-un
+>    sınmasını dayandırır. Migrasiya tətbiq olunmasa, funksiya canlıda boş
+>    işləyir (cədvəl/sütun yoxdur). Aşağıdakı addımlar hələ də lazımdır.
+>
+> Üç dəfə təkrarlandığına görə əsas həll aşağıdakı "`deploy.sh`-a əlavə"
+> bölməsidir — o edilməyincə bu dördüncü dəfə də baş verəcək.
 
 ## Qızıl qayda
 

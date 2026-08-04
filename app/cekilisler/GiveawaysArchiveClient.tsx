@@ -18,6 +18,11 @@ export default function GiveawaysArchiveClient() {
   const [winnersModal, setWinnersModal] = useState<Giveaway | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+
+
+
+
+  
   const load = useCallback(() => {
     fetch("/api/giveaways?scope=all")
       .then((r) => (r.ok ? r.json() : { giveaways: [] }))

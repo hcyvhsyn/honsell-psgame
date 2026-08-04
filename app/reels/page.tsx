@@ -17,7 +17,23 @@ export const metadata: Metadata = {
  * per-user vəziyyət client-də /api/reels/state-dən gəlir.
  */
 export default async function ReelsPage() {
-  const { items, nextCursor } = await getFirstReelsPageCached();
+  // `.catch` DEPLOY BLOKUNU AÇIR, sadəcə "ehtiyat tədbiri" deyil.
+  //
+  // Bu səhifə build zamanı prerender olunur və Docker build-i DB-yə qoşulur.
+  // Miqrasiya serverdə tətbiq edilməyibsə (deploy.sh `migrate deploy`
+  // çağırmır — bax: docs) sorğu `The column Reel.editionGameIds does not
+  // exist` ilə atılır, prerender sınır və BÜTÜN deploy exit code 1 verir —
+  // yəni bir səhifənin sorğusu bütün saytın yayımını bloklayır.
+  //
+  // Kataloqun qalan hissəsi onsuz da bu qaydaya əməl edir (məs. /qutular
+  // `getBoxes().catch(() => [])`), ona görə həmin loot box sorğuları eyni
+  // build-də uğursuz olsa da səhifələr generasiya olundu. Boş feed ilə
+  // yayımlanmaq, heç yayımlanmamaqdan yaxşıdır; feed onsuz da mount-dan sonra
+  // `/api/reels`-dən doldurulur.
+  const { items, nextCursor } = await getFirstReelsPageCached().catch((e) => {
+    console.error("reels: ilk səhifə yüklənmədi", e);
+    return { items: [], nextCursor: null };
+  });
 
   return (
     <main className="relative min-h-[100dvh] bg-black">
