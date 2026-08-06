@@ -64,13 +64,51 @@ export async function deliverSignupOtp(params: {
   return "whatsapp";
 }
 
+/**
+ * Şifrə yeniləmə OTP-sini çatdırır.
+ *
+ * `channel` verilməyəndə köhnə davranış qalır: WhatsApp birinci, e-poçt ehtiyat
+ * (admin panelindən göndərmə bu rejimdədir — admin kanal seçmir).
+ *
+ * `channel` verildikdə YALNIZ o kanal işlədilir və fallback YOXDUR. Səbəb:
+ * müştəri /forgot-password-da kanalı özü seçir; "e-poçt" seçib WhatsApp-a
+ * düşmək (və ya əksi) istifadəçini kodu olmayan yerdə axtarmağa məcbur edir.
+ */
 export async function deliverResetPasswordOtp(params: {
   email: string;
   phone: string | null;
   userName: string;
   code: string;
+  channel?: DeliveryChannel;
 }): Promise<DeliveryChannel> {
   const phoneE164 = normalizeToE164(params.phone);
+
+  if (params.channel === "email") {
+    await sendResetPasswordEmail(params.email, params.userName, params.code);
+    return "email";
+  }
+
+  if (params.channel === "whatsapp") {
+    if (!whatsappEnabled()) {
+      throw new Error(
+        "WhatsApp göndərişi konfiqurasiya olunmayıb. E-poçt ilə davam et.",
+      );
+    }
+    if (!phoneE164) {
+      throw new Error("Hesaba bağlı WhatsApp nömrəsi yoxdur. E-poçt ilə davam et.");
+    }
+    const result = await sendWasenderText({
+      to: phoneE164,
+      text: resetPasswordOtpText(params.userName, params.code),
+    });
+    if (!result.ok) {
+      console.error("[otp] wasender reset send failed:", result.error);
+      throw new Error("WhatsApp mesajı göndərilə bilmədi. Bir az sonra yenidən sına.");
+    }
+    return "whatsapp";
+  }
+
+  // ── Kanal seçilməyib: WhatsApp birinci, e-poçt ehtiyat ─────────────────────
   if (whatsappEnabled() && phoneE164) {
     const result = await sendWasenderText({
       to: phoneE164,

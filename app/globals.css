@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Səhifə konteyneri — TƏK həqiqət mənbəyi ─────────────────────────────
+   Navbar qabığı, footer və bütün səhifə blokları EYNİ şaquli xətdə oturmalıdır.
+   Ölçülər Tailwind `mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8` ilə
+   BİT-BƏRABƏRDİR (90+ mövcud blok belə yazılıb) — yəni `max-width` padding-i
+   DAXİL edir, məzmun eni lg-də 1280 − 2×32 = 1216px olur.
+
+   Tailwind sinifləri ilə yazılan yerlər də, CSS Module-lar da (SiteFooter) eyni
+   dəyərlərə baxsın deyə ölçülər dəyişən kimi verilir — birini dəyişəndə hamısı
+   birlikdə sürüşür. Konteyner enini burada dəyiş, komponentlərdə yox. */
+:root {
+  --site-max-width: 80rem; /* max-w-7xl */
+  --site-gutter: 1rem; /* px-4 */
+}
+@media (min-width: 640px) {
+  :root {
+    --site-gutter: 1.5rem; /* sm:px-6 */
+  }
+}
+@media (min-width: 1024px) {
+  :root {
+    --site-gutter: 2rem; /* lg:px-8 */
+  }
+}
+
 /* ─── Theme palettes ──────────────────────────────────────────────────────── */
 :root {
   --background: #f7f6fb;
@@ -723,6 +747,15 @@ html.light .auth-page-shell input.auth-page-dropdown-input {
     text-wrap: balance;
   }
 
+  /* Səhifə blokunun kənar xətti. Navbar qabığı və footer də bunu işlədir, ona
+     görə üçü də eyni sütunda oturur. Yuxarıdakı `--site-*` tokenlərinə bax. */
+  .site-container {
+    width: 100%;
+    max-width: var(--site-max-width);
+    margin-inline: auto;
+    padding-inline: var(--site-gutter);
+  }
+
   .honsell-navbar-shell {
     position: relative;
     isolation: isolate;
@@ -940,6 +973,52 @@ html.dark .honsell-img-skeleton {
 @media (prefers-reduced-motion: reduce) {
   .honsell-img-skeleton {
     animation: none;
+  }
+}
+
+/* ─── Hədiyyə kartı hero-sundaki CSS kart vizualı ─────────────────────────
+   Kart şəkil DEYİL, gradient div-dir (app/hediyye-kartlari/GiftCardHero.tsx) —
+   `.gc-sheen` üzərindən keçən diaqonal parıltı ona "plastik" hiss verir.
+   Yavaş və az kontrastlıdır ki, diqqəti qiymətlərdən yayındırmasın. */
+.gc-sheen {
+  background: linear-gradient(
+    115deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.26) 48%,
+    rgba(255, 255, 255, 0.05) 56%,
+    transparent 64%
+  );
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  animation: gc-sheen-slide 6.5s ease-in-out infinite;
+}
+
+.gc-card {
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gc-card:hover {
+  transform: translateX(-50%) rotate(1deg) scale(1.03);
+}
+
+@keyframes gc-sheen-slide {
+  0% {
+    background-position: 200% 0;
+  }
+  55%,
+  100% {
+    background-position: -140% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-sheen {
+    animation: none;
+  }
+  .gc-card,
+  .gc-card:hover {
+    transition: none;
+    transform: translateX(-50%) rotate(4deg);
   }
 }
 

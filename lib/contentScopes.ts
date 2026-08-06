@@ -58,9 +58,38 @@ export const BANNER_SCOPES: ContentScopeOption[] = [
   })),
 ];
 
+/**
+ * Aktivləşdirmə addımları (`ActivationStep`) üçün scope-lar. FAQ scope-larından
+ * QƏSDƏN ayrıdır: bunlar platforma səhifələri deyil, konkret məhsul növünün
+ * aktivləşdirmə axınıdır. Burada olan hər scope public səhifədə RENDER OLUNUR —
+ * render edilməyən scope əlavə etmə, yoxsa admin boşluğa yazır.
+ */
+export const ACTIVATION_STEP_SCOPES: ContentScopeOption[] = [
+  {
+    key: "GIFT_CARDS_TRY",
+    label: "PS TRY Hədiyyə Kartı",
+    description: "/hediyye-kartlari səhifəsində göstərilir",
+  },
+  {
+    key: "GIFT_CARDS_HONSELL",
+    label: "Honsell Hədiyyə Kartı",
+    description: "/hediyye-kartlari/honsell səhifəsində göstərilir",
+  },
+];
+
 export function isValidContentScope(s: string): boolean {
   return FAQ_SCOPES.some((o) => o.key === s);
 }
+
+export function isValidActivationScope(s: string): boolean {
+  return ACTIVATION_STEP_SCOPES.some((o) => o.key === s);
+}
+
+/** Scope → revalidate edilməli public path (admin mutasiyalarından sonra). */
+export const ACTIVATION_SCOPE_PATHS: Record<string, string> = {
+  GIFT_CARDS_TRY: "/hediyye-kartlari",
+  GIFT_CARDS_HONSELL: "/hediyye-kartlari/honsell",
+};
 
 export function isValidBannerScope(s: string): boolean {
   return BANNER_SCOPES.some((o) => o.key === s);

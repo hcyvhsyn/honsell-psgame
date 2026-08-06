@@ -28,9 +28,45 @@ type SearchResult = {
   store: string | null;
   title: string;
   priceAzn: number;
+  imageUrl: string | null;
   group: string;
 };
-type SelectedItem = Pick<SearchResult, "kind" | "id" | "title" | "priceAzn" | "group">;
+type SelectedItem = Pick<
+  SearchResult,
+  "kind" | "id" | "title" | "priceAzn" | "group" | "imageUrl"
+>;
+
+/** Məhsul şəkli — yoxdursa növünə uyğun ikon. CDN şəkilləri optimizerdən keçmir. */
+function ProductThumb({
+  imageUrl,
+  kind,
+  size = "md",
+}: {
+  imageUrl: string | null;
+  kind: "GAME" | "SERVICE";
+  size?: "sm" | "md";
+}) {
+  const box = size === "sm" ? "h-5 w-5 rounded" : "h-10 w-10 rounded-md";
+  const icon = size === "sm" ? "h-3 w-3" : "h-4 w-4";
+  if (imageUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={imageUrl}
+        alt=""
+        loading="lazy"
+        className={`${box} shrink-0 border border-admin-line object-cover`}
+      />
+    );
+  }
+  return (
+    <span
+      className={`${box} inline-flex shrink-0 items-center justify-center border border-admin-line bg-admin-chip text-zinc-400`}
+    >
+      {kind === "GAME" ? <Gamepad2 className={icon} /> : <MessageSquarePlus className={icon} />}
+    </span>
+  );
+}
 
 type MatchedCustomer = { id: string; name: string | null; email: string; phone: string | null };
 
@@ -70,7 +106,17 @@ export default function WhatsappReviewsAdminClient() {
     setSelected((prev) =>
       prev.some((s) => s.kind === r.kind && s.id === r.id)
         ? prev
-        : [...prev, { kind: r.kind, id: r.id, title: r.title, priceAzn: r.priceAzn, group: r.group }]
+        : [
+            ...prev,
+            {
+              kind: r.kind,
+              id: r.id,
+              title: r.title,
+              priceAzn: r.priceAzn,
+              group: r.group,
+              imageUrl: r.imageUrl,
+            },
+          ]
     );
     setQuery("");
     setResults([]);
@@ -235,7 +281,10 @@ export default function WhatsappReviewsAdminClient() {
         <div className="space-y-4">
           <div>
             <span className="mb-1 flex items-center justify-between text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              <span>Məhsul(lar) — oyun, EA Play, PS Plus, hesab açma, streaming…</span>
+              <span>
+                Məhsul(lar) — oyun, hədiyyə kartı / TRY balans, PS Plus, EA Play, hesab açma,
+                streaming…
+              </span>
               {selected.length > 0 && (
                 <span className="text-zinc-500 dark:text-zinc-400">
                   {selected.length} seçildi · cəmi {totalAzn.toFixed(2)} ₼
@@ -280,13 +329,9 @@ export default function WhatsappReviewsAdminClient() {
                             type="button"
                             onClick={() => addItem(r)}
                             disabled={picked}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-zinc-700 transition hover:bg-admin-chip2 disabled:opacity-40 dark:text-zinc-300"
+                            className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm text-zinc-700 transition hover:bg-admin-chip2 disabled:opacity-40 dark:text-zinc-300"
                           >
-                            {r.kind === "GAME" ? (
-                              <Gamepad2 className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                            ) : (
-                              <MessageSquarePlus className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                            )}
+                            <ProductThumb imageUrl={r.imageUrl} kind={r.kind} />
                             <span className="flex-1 truncate">{r.title}</span>
                             <span className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
                               {r.priceAzn.toFixed(2)} ₼
@@ -306,8 +351,9 @@ export default function WhatsappReviewsAdminClient() {
                 {selected.map((p) => (
                   <span
                     key={`${p.kind}:${p.id}`}
-                    className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-violet-500/20 dark:text-violet-200"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/15 py-0.5 pl-1 pr-2 text-xs font-medium text-violet-700 ring-1 ring-violet-500/20 dark:text-violet-200"
                   >
+                    <ProductThumb imageUrl={p.imageUrl} kind={p.kind} size="sm" />
                     {p.title}
                     <button
                       type="button"

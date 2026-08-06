@@ -27,7 +27,6 @@ import {
   Sun,
   Music2,
   Home,
-  Percent,
   Search,
   ShoppingBag,
   Sparkles,
@@ -125,13 +124,6 @@ const utilityLinks: NavLinkItem[] = [
     description: "Referal qazancı və hesablayıcı",
     Icon: Coins,
     iconClassName: "text-amber-500 dark:text-amber-300",
-  },
-  {
-    href: "/referal-faizleri",
-    label: "Referal faizləri",
-    description: "Məhsul üzrə referal faizləri",
-    Icon: Percent,
-    iconClassName: "text-fuchsia-500 dark:text-fuchsia-300",
   },
   {
     href: "/bilmeli-olduglarin",
@@ -272,8 +264,11 @@ export default function SiteHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-transparent px-4 py-3 sm:px-6">
-        <div className="honsell-navbar-shell mx-auto flex w-full max-w-7xl flex-col rounded-[24px]">
+      {/* Qabığın kənarı səhifə bloklarının kənarı ilə eyni xəttdə olsun deyə
+          `site-container` işlədilir — enin/gutter-in tək mənbəyi globals.css.
+          Şaquli boşluq (py-3) konteynerdən kənarda qalır. */}
+      <header className="site-container sticky top-0 z-50 bg-transparent py-3">
+        <div className="honsell-navbar-shell flex w-full flex-col rounded-[24px]">
           <div
             className="grid min-h-[66px] grid-cols-[auto_1fr] items-center gap-3 px-4 py-3 md:grid-cols-[150px_minmax(220px,1fr)_auto] md:px-5 xl:grid-cols-[170px_minmax(260px,1fr)_auto] xl:gap-4 xl:px-6"
             style={{ zIndex: 30 }}

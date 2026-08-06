@@ -5,6 +5,44 @@ Honsell PS Store — Next.js (App Router) + Prisma + Postgres (local Docker, pgv
 
 ---
 
+# Səhifə konteyneri (HƏR YENİ SƏHİFƏDƏ RİAYƏT ET)
+
+Navbar qabığı, footer və səhifədəki bütün bloklar **eyni şaquli xəttdə** oturmalıdır.
+Tək həqiqət mənbəyi [app/globals.css](app/globals.css) başındakı tokenlərdir:
+
+```css
+:root { --site-max-width: 80rem; --site-gutter: 1rem; }   /* sm: 1.5rem, lg: 2rem */
+.site-container { width:100%; max-width:var(--site-max-width);
+                  margin-inline:auto; padding-inline:var(--site-gutter); }
+```
+
+**Qayda:** hər üst səviyyə blok ya `site-container` sinfi ilə, ya da onunla bit-bərabər
+olan `mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8` ilə sarınır. Yeni səhifə yazanda
+**`site-container`** işlət — 90+ köhnə blok hələ Tailwind variantındadır, ikisi eyni
+həndəsəni verir, ona görə qarışıq olması problem deyil.
+
+- **Şaquli boşluq konteynerdən kənarda / üstündə** verilir (`py-*` eyni elementə əlavə
+  oluna bilər), **üfüqi padding ƏLAVƏ ETMƏ** — `site-container px-4` yazsan blok
+  navbar-dan içəri sürüşür.
+- **Öz `max-w-[1360px]` / `max-w-[96rem]` kimi dəyər uydurma.** Belə "bir az daha geniş"
+  bloklar məhz bu problemi yaradırdı (footer 1320px, navbar 1280px, bloklar 1280−32px —
+  üç fərqli kənar xətti).
+- **Fon tam-enli, məzmun konteynerdə.** Rəngli/gradient zolaq lazımdırsa xarici
+  `<section>` tam en olsun, içəridəki `<div className="site-container">` məzmunu tutsun.
+- **Dar oxunuş bloku istisnadır** — `max-w-3xl`/`max-w-5xl` mətn bölmələri qəsdən
+  daralır; onlar konteynerin **içində** mərkəzləşir, konteyneri əvəz etmir.
+- **CSS Module-dan** ([SiteFooter.module.css](components/SiteFooter.module.css) kimi)
+  Tailwind sinfi işlətmək olmur → birbaşa `var(--site-max-width)` / `var(--site-gutter)`
+  oxu, rəqəm yazma.
+- Navbar ([SiteHeader.tsx](components/SiteHeader.tsx)) və footer artıq bu tokenlərə
+  bağlıdır. Konteyner enini dəyişmək lazımdırsa **yalnız `:root` tokenini** dəyiş —
+  navbar, footer və bütün səhifələr birlikdə sürüşür.
+
+⚠️ Navbar-ın daxili padding-i (`px-4 md:px-5 xl:px-6`) qabığın **içindədir** — o, kartın
+sərhədini yerindən tərpətmir. Hizalanma meyarı qabığın **kənarı**dır, loqonun yeri yox.
+
+---
+
 # Reels (şaquli video feed)
 
 TikTok/YouTube Shorts tərzi feed: `/reels`. İstifadəçi izləyir, like/dislike edir,

@@ -1,7 +1,13 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import Logo from "@/components/Logo";
 
-type AuthMode = "login" | "register";
+/**
+ * `forgot` — /forgot-password üçün: HEÇ bir tab aktiv olmur, çünki istifadəçi
+ * nə login, nə register axınındadır. Tab-lar həmin halda geri qayıtma
+ * naviqasiyası rolunu oynayır.
+ */
+type AuthMode = "login" | "register" | "forgot";
 
 export default function AuthPageShell({
   mode,
@@ -22,6 +28,19 @@ export default function AuthPageShell({
     <main className="auth-page-shell min-h-screen bg-[#141414] text-white">
       <div className="auth-page-canvas relative min-h-dvh overflow-hidden bg-[#141414]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_84%_45%,rgba(112,42,214,0.34),transparent_27%),radial-gradient(circle_at_9%_77%,rgba(108,40,217,0.24),transparent_24%),linear-gradient(180deg,#141414_0%,#141414_58%,#15111f_100%)]" />
+
+        {/* Auth səhifələrində navbar YOXDUR (SiteHeader render olunmur), ona görə
+            sayta qayıtmaq üçün yeganə çıxış budur. Sol üstdə sabit saxlanılır ki,
+            logo mərkəzdə qalsın. `/` linkidir, `router.back()` deyil — tarixçə
+            boş olanda (reklamdan/birbaşa linkdən gələn) düymə işləməz qalmasın. */}
+        <Link
+          href="/"
+          className="absolute left-4 top-5 z-20 inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-white/80 backdrop-blur transition hover:border-white/25 hover:bg-white/[0.12] hover:text-white sm:left-6 sm:top-7 sm:text-sm"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">Ana səhifə</span>
+          <span className="sm:hidden">Geri</span>
+        </Link>
 
         <section className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[46rem] flex-col items-center px-4 py-6 sm:px-6 sm:py-8">
           <Logo href="/" height={32} priority className="auth-page-logo h-auto w-[10.75rem] sm:w-[12rem]" />

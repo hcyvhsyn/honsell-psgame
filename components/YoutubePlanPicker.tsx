@@ -159,7 +159,7 @@ export default function YoutubePlanPicker({ products }: Props) {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_14%_6%,rgba(239,68,68,0.18),transparent_30%),radial-gradient(circle_at_82%_0%,rgba(244,63,94,0.18),transparent_32%),linear-gradient(180deg,rgba(127,29,29,0.16),transparent_58%)]" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.014)_1px,transparent_1px)] bg-[size:54px_54px] opacity-40" />
 
-        <div className="relative mx-auto max-w-[96rem] px-4 pb-14 pt-8 sm:px-6 lg:px-8">
+        <div className="site-container relative pb-14 pt-8">
           <Hero />
 
           {products.length === 0 ? (

@@ -7,8 +7,8 @@ import { GraduationCap, ArrowRight, BadgeCheck } from "lucide-react";
  */
 export default function StudentPartnerEntryCard() {
   return (
-    <section className="w-full bg-gradient-to-b from-transparent to-violet-50/60 px-4 py-14 dark:to-violet-950/20">
-      <div className="mx-auto max-w-[1180px]">
+    <section className="w-full bg-gradient-to-b from-transparent to-violet-50/60 py-14 dark:to-violet-950/20">
+      <div className="site-container">
         <Link
           href="/referal-faizleri/telebe"
           className="group relative flex flex-col gap-6 overflow-hidden rounded-3xl border border-violet-200/80 bg-white/80 p-7 shadow-[0_30px_80px_-60px_rgba(76,29,149,0.5)] transition hover:-translate-y-1 hover:shadow-[0_40px_90px_-55px_rgba(76,29,149,0.6)] sm:flex-row sm:items-center sm:justify-between sm:p-9 dark:border-violet-500/25 dark:bg-violet-950/25 dark:shadow-none"

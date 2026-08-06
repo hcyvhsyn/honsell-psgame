@@ -12,6 +12,7 @@ export const REVIEW_CATEGORY_OPTIONS: { code: string; label: string }[] = [
   { code: "EPIC_GAMES", label: "Epic Games" },
   { code: "EA_PLAY", label: "EA Play" },
   { code: "PS_PLUS", label: "PS Plus" },
+  { code: "GIFT_CARD", label: "Hədiyyə kartı" },
   { code: "ACCOUNT_CREATION", label: "Hesab açma" },
   { code: "STREAMING", label: "Streaming" },
   { code: "MUSIC", label: "Musiqi" },

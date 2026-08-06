@@ -10,7 +10,9 @@ function cx(...parts: Array<string | undefined | false | null>) {
   return parts.filter(Boolean).join(" ");
 }
 
-const BASE_CLASSES = "mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8";
+// Ölçülər globals.css-dəki `.site-container` / `--site-*` tokenlərindən gəlir —
+// navbar və footer də eyni mənbəyə baxır, ona görə burada rəqəm yazma.
+const BASE_CLASSES = "site-container";
 
 const Container = forwardRef<HTMLElement, ContainerProps>(function Container(
   { as, children, className, ...rest },

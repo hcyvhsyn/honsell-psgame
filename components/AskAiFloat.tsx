@@ -222,8 +222,10 @@ export default function AskAiFloat() {
     pathname?.startsWith("/admin") ||
     pathname?.startsWith("/reels") || // reels immersiv feed — AI görünməsin
     pathname?.startsWith("/rey/") || // WhatsApp rəy sehrbazı — AI görünməsin
+    // Auth axını — kənar CTA diqqəti yayındırır (forgot-password da bu axındadır).
     pathname === "/login" ||
     pathname === "/register" ||
+    pathname === "/forgot-password" ||
     activeModal === "cart" // səbət açılanda AI gizli
   ) {
     return null;

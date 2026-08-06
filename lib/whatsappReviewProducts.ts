@@ -6,14 +6,21 @@
 
 export type ReviewItemKind = "GAME" | "SERVICE";
 
-/** Rəy picker-ində seçilə bilən xidmət tipləri (oyunlar ayrıca `Game`-dən gəlir). */
+/**
+ * Rəy picker-ində seçilə bilən xidmət tipləri (oyunlar ayrıca `Game`-dən gəlir).
+ * Siyahı /api/cart/checkout-un yüklədiyi növlərlə eyni olmalıdır — satıla bilən,
+ * amma burada olmayan bir növ (məs. TRY_BALANCE) admin axtarışında görünmür.
+ */
 export const REVIEW_SERVICE_TYPES = [
   "STREAMING",
   "PLATFORM",
   "PS_PLUS",
   "EA_PLAY",
+  "TRY_BALANCE",
+  "POINT_BLANK_TG",
   "ACCOUNT_CREATION",
   "EPIC_ACCOUNT_CREATION",
+  "HONSELL_GIFT_CARD",
 ] as const;
 
 /** Dəvətin `products` JSON-unda saxlanan bir element. */
@@ -88,9 +95,15 @@ export function derivePlatform(kind: ReviewItemKind, type: string, store?: strin
       return "PS_PLUS";
     case "EA_PLAY":
       return "EA_PLAY";
+    case "TRY_BALANCE":
+    case "HONSELL_GIFT_CARD":
+      return "GIFT_CARD";
     case "ACCOUNT_CREATION":
     case "EPIC_ACCOUNT_CREATION":
       return "ACCOUNT_CREATION";
+    // Oyun valyutası (Point Blank TG) — oyun rəyi kimi göstərilir.
+    case "POINT_BLANK_TG":
+      return "GAME";
     default:
       return "GAME";
   }

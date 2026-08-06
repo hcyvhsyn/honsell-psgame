@@ -1,9 +1,8 @@
 "use client";
 
 import { Suspense } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import Logo from "@/components/Logo";
+import AuthPageShell from "@/components/auth/AuthPageShell";
 import ForgotPasswordForm from "@/components/auth/ForgotPasswordForm";
 
 export default function ForgotPasswordPage() {
@@ -18,25 +17,17 @@ function Inner() {
   const search = useSearchParams();
   const initialEmail = search.get("email") ?? "";
 
+  // Login/register ilə EYNİ qabıq: fon, logo, tab-lar və başlıq buradan gəlir.
+  // `mode="forgot"` heç bir tab-ı aktiv etmir, tab-lar geri keçid rolundadır.
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_50%_-10%,rgba(124,58,237,0.22),transparent_34%),linear-gradient(180deg,#050612,#090913)] px-4 py-8 text-zinc-100 sm:px-6">
-      <div className="mx-auto w-full max-w-2xl">
-        <div className="mb-8 flex justify-center">
-          <Logo href="/" height={36} />
-        </div>
-
-        <ForgotPasswordForm initialEmail={initialEmail} />
-
-        <p className="mt-6 text-center text-sm text-zinc-400">
-          <Link href="/login" className="font-bold text-violet-300 hover:text-violet-200">
-            Daxil ol
-          </Link>{" "}
-          ·{" "}
-          <Link href="/register" className="font-bold text-violet-300 hover:text-violet-200">
-            Qeydiyyatdan keç
-          </Link>
-        </p>
-      </div>
-    </main>
+    <AuthPageShell
+      mode="forgot"
+      title="Şifrəni bərpa et"
+      // Kanalı müştəri seçir, ona görə alt-başlıq neytraldır — əvvəl «e-poçtuna
+      // göndərək» yazırdı, kod isə praktikada WhatsApp-a düşürdü.
+      subtitle="Kodu e-poçt və ya WhatsApp ilə al, sonra yeni şifrəni təyin et"
+    >
+      <ForgotPasswordForm initialEmail={initialEmail} variant="page" />
+    </AuthPageShell>
   );
 }

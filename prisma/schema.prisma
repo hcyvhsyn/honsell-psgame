@@ -2036,6 +2036,37 @@ model PlatformGuide {
   @@index([scope, isActive, sortOrder])
 }
 
+/// Aktivləşdirmə addımları — public səhifələrdə «Məhsul necə aktivləşdirilir?»
+/// bölməsi nömrələnmiş timeline kimi buradan render olunur (hədiyyə kartları
+/// səhifəsi). `PlatformGuide`-dan fərqi: bu bir mətn bloku deyil, SIRALI
+/// addımlardır və hər addımın öz ekran görüntüsü ola bilər — admin şəkilləri
+/// R2-yə yükləyir, `imageUrl` public URL saxlayır.
+model ActivationStep {
+  id String @id @default(cuid())
+  /// Scope: hansı public səhifədə göstərilir — lib/contentScopes.ts →
+  /// ACTIVATION_STEP_SCOPES (məs. GIFT_CARDS_TRY, GIFT_CARDS_HONSELL).
+  scope String
+  /// Addımın başlığı — «PS konsolu üzərindən», «Kodu istifadə et» və s.
+  title String
+  /// ÜSUL adı — «PS konsolu», «Mobil tətbiq», «Brauzer». Eyni ad = eyni tab.
+  ///
+  /// Niyə lazımdır: aktivləşdirmə ardıcıl 1→6 axını DEYİL, bir-birini əvəz edən
+  /// alternativlərdir. Üsul olmadan hamısı tək siyahıya düşür və müştəri altı
+  /// addımın hamısını etməli olduğunu düşünür. Boş buraxılsa addım qruplaşmır
+  /// (tək siyahı kimi render olunur) — köhnə sətirlər üçün geriyə uyğunluq.
+  method String?
+  /// Opsional izah. Markdown YOX — plain text, `whitespace-pre-line` ilə render.
+  body String?
+  /// Opsional ekran görüntüsü (R2 public URL). Boşdursa addım yalnız mətn olur.
+  imageUrl  String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scope, isActive, sortOrder])
+}
+
 /// Xəbərlər — admin paneldən idarə olunan platforma-spesifik xəbər/elan/yenilik
 /// kartları. Hər xəbər bir scope-a bağlanır (HOME | PLAYSTATION | STREAMING_*),
 /// PlayStation, Streaming və Music səhifələrində uyğun scope-lu xəbərlər

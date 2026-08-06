@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Gift, KeyRound, ShieldCheck, Wallet } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
+import ActivationStepsSection from "@/components/ActivationStepsSection";
 import { HONSELL_GIFT_CARD_SERVICE_TYPE } from "@/lib/honsellGiftCard";
 import HonsellGiftCardsClient from "./HonsellGiftCardsClient";
 
@@ -77,7 +78,7 @@ export default async function HonsellGiftCardsPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 lg:px-8">
         <HonsellGiftCardsClient
           cards={cards.map((c) => {
             const meta = (c.metadata as Record<string, unknown> | null) ?? null;
@@ -95,6 +96,14 @@ export default async function HonsellGiftCardsPage() {
           })}
         />
       </section>
+
+      {/* Addımlar admin paneldən: /admin/activation-steps → Honsell Hədiyyə Kartı */}
+      <div className="pb-10">
+        <ActivationStepsSection
+          scope="GIFT_CARDS_HONSELL"
+          title="Hədiyyə kartı necə aktivləşdirilir?"
+        />
+      </div>
     </main>
   );
 }

@@ -58,7 +58,7 @@ export default async function LootBoxesPage() {
   const boxes = await getBoxes().catch(() => []);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
+    <div className="site-container py-10">
       <h1 className="text-3xl font-black text-slate-900 dark:text-white">Qutu açılışı</h1>
       <p className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
         Qutunu aç və təsadüfi oyun qazan. Hər qutunun qazanma şansları tam açıq göstərilir —

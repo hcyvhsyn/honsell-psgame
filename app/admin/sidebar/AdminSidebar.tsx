@@ -15,6 +15,7 @@ import {
   UserPlus,
   Image as ImageIcon,
   ClipboardList,
+  ListChecks,
   HelpCircle,
   LayoutGrid,
   Menu,
@@ -71,6 +72,7 @@ type IconName =
   | "UserPlus"
   | "ImageIcon"
   | "ClipboardList"
+  | "ListChecks"
   | "HelpCircle"
   | "LayoutGrid"
   | "Tv"
@@ -121,6 +123,7 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   UserPlus,
   ImageIcon,
   ClipboardList,
+  ListChecks,
   HelpCircle,
   LayoutGrid,
   Tv,

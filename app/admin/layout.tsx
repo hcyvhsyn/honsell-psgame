@@ -78,6 +78,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
       { href: "/admin/news", label: "Xəbərlər", iconName: "Newspaper" },
       { href: "/admin/faq", label: "FAQ", iconName: "HelpCircle" },
       { href: "/admin/platform-guides", label: "Faydalı Başlıqlar", iconName: "ClipboardList" },
+      { href: "/admin/activation-steps", label: "Aktivləşdirmə Addımları", iconName: "ListChecks" },
       { href: "/admin/search-suggestions", label: "Populyar axtarışlar", iconName: "Search" },
       { href: "/admin/discount-digest", label: "Endirim Bülleteni", iconName: "Megaphone" },
     ],

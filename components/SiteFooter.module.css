@@ -56,10 +56,13 @@
   background: rgba(35, 205, 160, 0.08);
 }
 
+/* Navbar qabığı və səhifə blokları ilə eyni şaquli xətt — ölçülər
+   globals.css-dəki `--site-*` tokenlərindən gəlir, burada təkrar yazma. */
 .desktopFooter {
-  width: min(1320px, calc(100% - 48px));
+  width: 100%;
+  max-width: var(--site-max-width);
   margin: 0 auto;
-  padding: 42px 0 24px;
+  padding: 42px var(--site-gutter) 24px;
 }
 
 .cta {
@@ -124,7 +127,8 @@
   display: grid;
   grid-template-columns: minmax(250px, 1.35fr) 4fr;
   gap: clamp(50px, 7vw, 105px);
-  padding: 48px 8px 42px;
+  /* Üfüqi inset YOXDUR — sütunlar konteyner kənarında başlamalıdır. */
+  padding: 48px 0 42px;
 }
 
 .logoLink { display: inline-flex; }
@@ -149,13 +153,14 @@
 .trustStrip span + span { border-left: 1px solid var(--footer-line); }
 .trustStrip svg { width: 16px; height: 16px; color: var(--footer-mint); }
 
-.legalRow { display: flex; align-items: center; justify-content: space-between; padding: 22px 78px 0; color: var(--footer-muted); font-size: 10px; }
+.legalRow { display: flex; align-items: center; justify-content: space-between; padding: 22px 0 0; color: var(--footer-muted); font-size: 10px; }
 .legalRow div { display: flex; gap: 22px; }
 .legalRow a:hover { color: var(--footer-text); }
 .mobileFooter { display: none; }
 
 @media (max-width: 900px) {
-  .desktopFooter { width: min(100% - 32px, 760px); }
+  /* Eni DARALTMA — konteyner xətti səhifə blokları ilə eyni qalmalıdır;
+     bu breakpoint yalnız daxili gridləri tək sütuna salır. */
   .cta { align-items: flex-start; flex-direction: column; }
   .mainGrid { grid-template-columns: 1fr; gap: 36px; }
   .linkGrid { grid-template-columns: repeat(2, 1fr); }
@@ -166,7 +171,7 @@
 
   .mobileFooter {
     display: block;
-    padding: 31px 18px calc(92px + env(safe-area-inset-bottom));
+    padding: 31px var(--site-gutter) calc(92px + env(safe-area-inset-bottom));
   }
 
   .mobileTop { display: flex; align-items: center; justify-content: space-between; }
@@ -196,11 +201,12 @@
   .mobileLinks a { padding: 13px 3px; border-bottom: 1px solid var(--footer-line); color: var(--footer-text); font-size: 11px; font-weight: 700; }
   .mobileLinks a:nth-child(odd) { border-right: 1px solid var(--footer-line); }
   .mobileLinks a:nth-child(even) { padding-left: 15px; }
-  .mobileLinks a:nth-child(3) { padding-left: 64px; }
 
-  .mobileContact { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 19px; padding-left: 64px; color: var(--footer-muted); font-size: 10px; }
+  /* Bu üçü əvvəl `padding-left: 64px` idi — footer-in qalan sətirlərindən və
+     səhifə bloklarından 64px içəri sürüşürdü. Konteyner xəttinə qaytarılıb. */
+  .mobileContact { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 19px; color: var(--footer-muted); font-size: 10px; }
   .mobileContact a { color: var(--footer-text); }
-  .mobileLegal { margin-top: 13px; padding-left: 64px; color: var(--footer-muted); font-size: 9px; }
+  .mobileLegal { margin-top: 13px; color: var(--footer-muted); font-size: 9px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

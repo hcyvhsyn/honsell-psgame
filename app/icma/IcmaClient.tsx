@@ -249,7 +249,7 @@ export default function IcmaClient({
   }
 
   return (
-    <section className="relative mx-auto w-full max-w-[1360px] px-4 pb-24 pt-5 sm:px-6 lg:pt-8">
+    <section className="site-container relative pb-24 pt-5 lg:pt-8">
       <header className="relative mb-5 overflow-hidden rounded-[30px] border border-zinc-200/90 bg-white shadow-[0_35px_100px_-65px_rgba(2,8,23,0.72)] dark:border-white/10 dark:bg-[#0b0f18]">
         <div aria-hidden className="pointer-events-none absolute -left-20 -top-28 h-80 w-80 rounded-full bg-cyan-400/20 blur-[90px]" />
         <div aria-hidden className="pointer-events-none absolute -right-20 top-0 h-80 w-80 rounded-full bg-violet-500/20 blur-[90px]" />

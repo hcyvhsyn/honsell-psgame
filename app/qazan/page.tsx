@@ -159,7 +159,7 @@ export default async function QazanPage() {
         <div className="pointer-events-none absolute left-1/2 top-0 h-80 w-[70rem] -translate-x-1/2 rounded-full bg-violet-600/10 blur-3xl" />
         <div className="pointer-events-none absolute left-[18%] top-24 h-1.5 w-1.5 rounded-full bg-violet-300 shadow-[0_0_18px_rgba(167,139,250,0.9)]" />
         <div className="pointer-events-none absolute right-[9%] top-32 h-2 w-2 rounded-full bg-violet-400 shadow-[0_0_18px_rgba(167,139,250,0.9)]" />
-        <div className="relative mx-auto max-w-[1560px] px-4 py-16 sm:px-6 lg:py-20">
+        <div className="site-container relative py-16 lg:py-20">
           <div className="mb-8 text-center">
             <span className="inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.22em] text-slate-600 dark:text-slate-300">
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-violet-500/20 text-violet-200 ring-1 ring-violet-300/20">
