@@ -19,6 +19,10 @@ export const metadata: Metadata = {
       "Epic Games Store oyunlarının Azərbaycan üçün kataloqu. Endirimli PC oyunları, ən yeni çıxışlar.",
     url: "/epic-games",
   },
+
+
+
+  
 };
 
 const PAGE_SIZE = 24;
