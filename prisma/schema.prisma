@@ -399,6 +399,7 @@ model Game {
   transactions Transaction[]
   banners      Banner[]
   collections  CollectionGame[]
+  bundleItems  GameBundleItem[]
   favorites    Favorite[]
   reviews      GameReview[]
   flashDeal    FlashDeal?
@@ -693,6 +694,69 @@ model CollectionGame {
 
   @@id([collectionId, gameId])
   @@index([collectionId, position])
+  @@index([gameId])
+}
+
+// ─── Oyun paketləri (satıla bilən səbətlər) ──────────────────────────────────
+
+/// Kuratorlu oyun dəsti — `Collection`-dan fərqli olaraq SATILA BİLƏN vahiddir:
+/// müştəri onu səbətə TƏK sətir kimi atır, checkout serverdə paketi tərkib
+/// oyunlarına "açır" (bax `app/api/cart/checkout/route.ts`).
+///
+/// `pricingMode`:
+///   PERCENT → paket qiyməti = oyunların cari vitrin qiymətlərinin cəmindən
+///             `discountPct`% aşağı. Oyun qiyməti dəyişəndə paket də özü yenilənir.
+///   CUSTOM  → hər `GameBundleItem.priceAznCents` ayrıca yazılır, paket qiyməti
+///             onların cəmidir ("10 AZN səbəti" kimi sabit hədəflər üçün).
+///
+/// Paket vitrində YALNIZ bütün oyunları aktiv olduqda görünür — "4-lü paket"
+/// 3 oyunla satıla bilməz.
+model GameBundle {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  title       String
+  /// Kartda başlığın altındakı qısa sətir, məs. "4 oyun bir paketdə".
+  subtitle    String?
+  description String?
+  /// Boşdursa vitrin tərkib oyunlarının kaverlərindən kollaj qurur.
+  imageUrl    String?
+  /// Kartın üstündəki rəngli etiket, məs. "ULTRA PAKET".
+  badgeText   String?
+
+  // PERCENT | CUSTOM
+  pricingMode String @default("PERCENT")
+  /// Yalnız PERCENT rejimində mənalıdır (0–95).
+  discountPct Int    @default(0)
+
+  isActive   Boolean   @default(true)
+  isFeatured Boolean   @default(false)
+  sortOrder  Int       @default(0)
+  startsAt   DateTime?
+  endsAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items GameBundleItem[]
+
+  @@index([isActive, sortOrder])
+  @@index([isFeatured])
+}
+
+model GameBundleItem {
+  bundleId String
+  gameId   String
+  position Int    @default(0)
+  /// Yalnız CUSTOM rejimində: bu oyunun paket daxilindəki qiyməti (AZN qəpik).
+  /// NULL → oyunun adi vitrin qiyməti götürülür.
+  priceAznCents Int?
+  createdAt     DateTime @default(now())
+
+  bundle GameBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  game   Game       @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@id([bundleId, gameId])
+  @@index([bundleId, position])
   @@index([gameId])
 }
 
@@ -2267,6 +2331,13 @@ model Reel {
   isPublished Boolean @default(true)
   sortOrder   Int     @default(0)
 
+  // ─── Telegram ingest söhbət vəziyyəti ──────────────────────────────────────
+  // Düymə cavabları reelId-ni callback_data-da daşıyır, amma MƏTN cavabı (oyun
+  // adı) heç nə daşımır — bot onun hansı qaralamaya aid olduğunu bilməlidir.
+  // Ona görə gözləyən qaralama chat-a bağlanır. Yayımdan sonra tgStage null olur.
+  tgChatId String?
+  tgStage  String? // GAME_NAME — bot bu qaralama üçün oyun adı gözləyir
+
   reactions ReelReaction[]
   comments  ReelComment[]
 
@@ -2274,6 +2345,7 @@ model Reel {
   updatedAt DateTime @updatedAt
 
   @@index([isPublished, sortOrder, createdAt])
+  @@index([tgChatId, tgStage])
 }
 
 model ReelReaction {

@@ -9,6 +9,7 @@ import {
   tryCentsToCostAzn,
 } from "@/lib/pricing";
 import { applyFlashDeal, getFlashDealOverrides } from "@/lib/flashDeals";
+import { resolveBundlesForCart } from "@/lib/gameBundles";
 import { getEffectiveTier } from "@/lib/customerTier";
 import {
   applyCashbackToBalance,
@@ -317,6 +318,16 @@ export async function POST(req: Request) {
         unitCostCents: number;
         lineCents: number;
         unitSavingsCents: number;
+        /**
+         * Bu sətir oyun PAKETİNDƏN açılıbsa paketin id/başlığı. Paket səbətdə
+         * tək sətirdir, serverdə isə N adi GAME sətrinə çevrilir — beləcə PSN
+         * hesab tələbi, çatdırılma, komissiya və sifariş məktubu üçün ayrıca
+         * fulfillment budağı lazım gəlmir. Damğa yalnız `Transaction.metadata`-ya
+         * yazılır (admin sifarişləri paket üzrə qruplaşdıra bilsin) və sətri
+         * kupon bazasından kənarlaşdırır.
+         */
+        bundleId?: string;
+        bundleTitle?: string;
       }
     | {
         kind: "TRY_BALANCE";
@@ -435,7 +446,61 @@ export async function POST(req: Request) {
   // burada da tutulmalıdır — yoxsa vitrində bir qiymət, kassada başqa qiymət olar.
   const flashDeals = await getFlashDealOverrides(games.map((g) => g.id));
 
+  // Oyun paketləri. Satıla bilməyən paket (deaktiv, vaxtı bitmiş, tərkibində
+  // deaktiv oyun) map-ə düşmür → sətir sadəcə nəzərə alınmır.
+  const cartBundles = await resolveBundlesForCart(ids);
+  // Paketdən açılan oyunlar da tam `Game` sətri kimi lazımdır (PSN/Epic seçimi,
+  // çatdırılma, komissiya) — kataloqdan ayrıca yüklənir.
+  const bundleGameIds = Array.from(
+    new Set(
+      Array.from(cartBundles.values()).flatMap((b) => b.pricing.items.map((i) => i.gameId)),
+    ),
+  ).filter((id) => !games.some((g) => g.id === id));
+  const bundleGames =
+    bundleGameIds.length > 0
+      ? await prisma.game.findMany({ where: { id: { in: bundleGameIds }, isActive: true } })
+      : [];
+  const gamesById = new Map<string, GameModel>(
+    [...games, ...bundleGames].map((g) => [g.id, g]),
+  );
+
   for (const p of payloads) {
+    // ─── Oyun PAKETİ: serverdə N adi GAME sətrinə açılır ──────────────────
+    // ⚠️ Bu yoxlama aşağıdakı `services.find(...)!` sətrindən ƏVVƏL olmalıdır —
+    // paket id-si nə `games`, nə `services` içində olduğu üçün orada crash verər.
+    const bundle = cartBundles.get(p.id);
+    if (bundle) {
+      // Paket hədiyyə kimi göndərilmir (hər oyun ayrıca kod tələb edərdi).
+      if (p.isGift) continue;
+      for (const item of bundle.pricing.items) {
+        const game = gamesById.get(item.gameId);
+        if (!game) continue;
+        const displayPrice = applyFlashDeal(
+          computeDisplayPrice(game, settings),
+          flashDeals.get(game.id),
+        );
+        const originalCents = Math.round(
+          (displayPrice.originalAzn ?? displayPrice.finalAzn) * 100,
+        );
+        const tryForCost =
+          game.discountTryCents != null && game.discountTryCents < game.priceTryCents
+            ? game.discountTryCents
+            : game.priceTryCents;
+        lines.push({
+          kind: "GAME",
+          game,
+          qty: 1,
+          unitListCents: item.bundleAznCents,
+          unitCostCents: Math.round(tryCentsToCostAzn(tryForCost, settings) * 100),
+          lineCents: item.bundleAznCents,
+          unitSavingsCents: Math.max(0, originalCents - item.bundleAznCents),
+          bundleId: bundle.id,
+          bundleTitle: bundle.title,
+        });
+      }
+      continue;
+    }
+
     const game = games.find((g) => g.id === p.id);
 
     // ─── HƏDİYYƏ sətri ────────────────────────────────────────────────────
@@ -496,7 +561,11 @@ export async function POST(req: Request) {
       continue;
     }
 
-    const service = services.find((s) => s.id === p.id)!;
+    // Nə oyun, nə servis, nə də satıla bilən paket — məhsul aradan qalxıb
+    // (deaktiv oyun, vaxtı bitmiş paket). Sətri sadəcə buraxırıq; aşağıdakı
+    // "sifariş məbləği etibarsızdır" yoxlaması boş səbəti onsuz da tutur.
+    const service = services.find((s) => s.id === p.id);
+    if (!service) continue;
 
     if (service.type === "TRY_BALANCE") {
       lines.push({
@@ -784,14 +853,19 @@ export async function POST(req: Request) {
   let promoForOrder: PromoCode | null = null;
   if (couponCode) {
     const scopeItems: PromoScopeItem[] = [
-      ...lines.map((l) => ({
-        productId: l.kind === "GAME" ? l.game.id : l.service.id,
-        productType:
-          l.kind === "GAME"
-            ? "GAME"
-            : String((l as { service?: { type?: string } }).service?.type ?? l.kind),
-        lineCents: l.lineCents,
-      })),
+      // Paketdən açılan sətirlər kupon bazasına DAXİL EDİLMİR — paket onsuz da
+      // endirimlidir, ikiqat endirim mənfəəti yeyir. `/api/cart/coupon`
+      // preview-i də eyni istisnanı tətbiq edir.
+      ...lines
+        .filter((l) => !(l.kind === "GAME" && l.bundleId))
+        .map((l) => ({
+          productId: l.kind === "GAME" ? l.game.id : l.service.id,
+          productType:
+            l.kind === "GAME"
+              ? "GAME"
+              : String((l as { service?: { type?: string } }).service?.type ?? l.kind),
+          lineCents: l.lineCents,
+        })),
       ...giftLines.map((g) => ({
         productId: g.gameId ?? g.serviceProductId ?? "",
         productType: g.productKind,
@@ -860,6 +934,8 @@ export async function POST(req: Request) {
           epicAccountId: isEpicGame ? epicAccount?.id ?? null : null,
           store: isEpicGame ? "EPIC" : "PS",
           reviewAffiliateId,
+          bundleId: line.bundleId,
+          bundleTitle: line.bundleTitle,
         };
       }
 
@@ -1272,6 +1348,11 @@ export async function POST(req: Request) {
                   fulfillmentStage: "NEW",
                   store: isEpicGame ? "EPIC" : "PS",
                   orderCode,
+                  // Paketdən açılmış sətir — admin sifarişləri paket üzrə
+                  // qruplaşdıra bilsin (Order/OrderItem modeli yoxdur).
+                  ...(line.bundleId
+                    ? { bundleId: line.bundleId, bundleTitle: line.bundleTitle }
+                    : {}),
                   ...(reviewAffiliateId
                     ? { reviewAffiliateId, reviewAffiliateLineCents: line.unitListCents }
                     : {}),

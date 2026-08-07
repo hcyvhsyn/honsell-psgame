@@ -2,7 +2,26 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { uploadAdminImage } from "@/lib/uploadImageClient";
-import { Loader2, Plus, Edit2, Upload, X, Trash2, Eye, TrendingDown } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Edit2,
+  Upload,
+  X,
+  Trash2,
+  Eye,
+  TrendingDown,
+  Calculator,
+  AlertTriangle,
+} from "lucide-react";
+import {
+  DEFAULT_DISCOUNT_LADDER,
+  baseRateFromAnchor,
+  computeGiftCardPriceTable,
+  readStoredDiscountPct,
+  validateGiftCardPriceRule,
+  type GiftCardNominal,
+} from "@/lib/giftCardPriceRuleShared";
 import { useDialog } from "@/lib/dialogs";
 
 type ServiceProduct = {
@@ -12,6 +31,8 @@ type ServiceProduct = {
   description?: string | null;
   imageUrl?: string | null;
   priceAznCents: number;
+  /** Admin-only maya — qiymət generatoru yazır, kurs buradan geri oxunur. */
+  costAznCents: number;
   metadata: Record<string, unknown> | null;
   isActive: boolean;
   sortOrder: number;
@@ -23,7 +44,21 @@ export default function ServicesAdminClient() {
   const [loading, setLoading] = useState(true);
   const [pricing, setPricing] = useState<{
     tryToAznRate: number;
+    epointFeePct: number;
   } | null>(null);
+
+  // ─── Qiymət generatoru ────────────────────────────────────────────────────
+  const [ruleOpen, setRuleOpen] = useState(false);
+  const [anchorId, setAnchorId] = useState<string>("");
+  const [anchorPrice, setAnchorPrice] = useState<string>("");
+  const [costRate, setCostRate] = useState<string>("");
+  const [ladder, setLadder] = useState<Record<string, string>>({});
+  const [include, setInclude] = useState<Record<string, boolean>>({});
+  const [syncSortOrder, setSyncSortOrder] = useState(true);
+  const [allowBelowCost, setAllowBelowCost] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [ruleError, setRuleError] = useState<string | null>(null);
+  const [ruleResult, setRuleResult] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | "NEW" | null>(null);
   const [editForm, setEditForm] = useState<Record<string, string | number | boolean>>({});
@@ -46,6 +81,7 @@ export default function ServicesAdminClient() {
       .then((s) => {
         setPricing({
           tryToAznRate: Number(s.tryToAznRate) || 0.053,
+          epointFeePct: Number(s.epointFeePct) || 3,
         });
       })
       .catch(() => {});
@@ -275,6 +311,118 @@ export default function ServicesAdminClient() {
     load();
   }
 
+  // ─── Qiymət generatoru: köməkçilər ──────────────────────────────────────────
+
+  function tryAmountOf(p: ServiceProduct): number | null {
+    const n = Number((p.metadata as Record<string, unknown> | null)?.tryAmount);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  /** Nominal üzrə sıralanmış kartlar — generator cədvəlinin mənbəyi. */
+  const ruleProducts = useMemo(
+    () =>
+      [...products].sort((a, b) => (tryAmountOf(a) ?? Infinity) - (tryAmountOf(b) ?? Infinity)),
+    [products],
+  );
+
+  function openRule() {
+    setRuleError(null);
+    setRuleResult(null);
+    setAllowBelowCost(false);
+    setSyncSortOrder(true);
+
+    const withTry = ruleProducts.filter((p) => tryAmountOf(p) !== null);
+    const first = withTry[0];
+    setAnchorId(first?.id ?? "");
+    setAnchorPrice(first ? (first.priceAznCents / 100).toFixed(2) : "");
+
+    // Maya kursu `costAznCents`-dən geri oxunur (metadata-da SAXLANMIR — o publikdir).
+    // Heç bir kartda maya yoxdursa Settings kursuna düşürük.
+    let derivedCost = 0;
+    for (const p of withTry) {
+      const t = tryAmountOf(p)!;
+      if (p.costAznCents > 0) derivedCost = Math.max(derivedCost, p.costAznCents / 100 / t);
+    }
+    setCostRate((derivedCost || pricing?.tryToAznRate || 0.053).toFixed(4));
+
+    const nextLadder: Record<string, string> = {};
+    const nextInclude: Record<string, boolean> = {};
+    for (const p of ruleProducts) {
+      const t = tryAmountOf(p);
+      const stored = readStoredDiscountPct(p.metadata);
+      nextLadder[p.id] = String(stored ?? (t ? DEFAULT_DISCOUNT_LADDER[t] ?? 0 : 0));
+      nextInclude[p.id] = t !== null;
+    }
+    setLadder(nextLadder);
+    setInclude(nextInclude);
+    setRuleOpen(true);
+  }
+
+  const anchorProduct = ruleProducts.find((p) => p.id === anchorId) ?? null;
+  const anchorTryAmount = anchorProduct ? tryAmountOf(anchorProduct) : null;
+  const baseAznPerTry = baseRateFromAnchor(anchorTryAmount ?? 0, Number(anchorPrice));
+
+  /** Önizləmə client-də hesablanır — server gedişi saf arifmetikaya heç nə qatmır. */
+  const rulePreview = useMemo(() => {
+    const rule = {
+      baseAznPerTry,
+      costAznPerTry: Number(costRate),
+      epointFeePct: pricing?.epointFeePct ?? 3,
+    };
+    const nominals: GiftCardNominal[] = ruleProducts.map((p) => ({
+      id: p.id,
+      tryAmount: tryAmountOf(p),
+      discountPct: Number(ladder[p.id] ?? 0),
+      currentPriceAznCents: p.priceAznCents,
+      isActive: p.isActive,
+    }));
+    return {
+      ...computeGiftCardPriceTable(nominals, rule),
+      rule,
+      validation: validateGiftCardPriceRule(rule),
+    };
+  }, [baseAznPerTry, costRate, ladder, pricing, ruleProducts]);
+
+  const selectedRows = rulePreview.rows.filter((r) => r.writable && include[r.id]);
+  const hasBelowCost = selectedRows.some((r) => r.warnings.includes("BELOW_COST"));
+
+  async function applyRule() {
+    setApplying(true);
+    setRuleError(null);
+    setRuleResult(null);
+    try {
+      const res = await fetch("/api/admin/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "APPLY_PRICE_RULE",
+          anchor: { tryAmount: anchorTryAmount, priceAzn: Number(anchorPrice) },
+          costAznPerTry: Number(costRate),
+          syncSortOrder,
+          allowBelowCost,
+          // Server qiyməti YENİDƏN hesablayır; `expectedPriceAznCents` yalnız
+          // köhnə brauzer bundle-ını tutmaq üçün müqayisə olunur.
+          items: selectedRows.map((r) => ({
+            id: r.id,
+            discountPct: r.discountPct,
+            expectedPriceAznCents: r.priceAznCents,
+          })),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRuleError(data.error ?? "Qiymətlər tətbiq olunmadı.");
+        return;
+      }
+      setRuleResult(
+        `${data.updated} qiymət yeniləndi, ${data.sortOrderUpdated} sıra düzəldildi.`,
+      );
+      await load();
+    } finally {
+      setApplying(false);
+    }
+  }
+
   const baselineAznPerTry = useMemo(() => {
     let max = 0;
     for (const p of products) {
@@ -290,7 +438,13 @@ export default function ServicesAdminClient() {
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <button
+          onClick={openRule}
+          className="inline-flex items-center gap-2 rounded-lg border border-admin-line px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-admin-chip2"
+        >
+          <Calculator className="h-4 w-4" /> Qiymət generatoru
+        </button>
         <button onClick={handleNew} className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500">
           <Plus className="h-4 w-4" /> Yeni TRY Gift Card
         </button>
@@ -516,10 +670,12 @@ export default function ServicesAdminClient() {
                   </div>
                 );
               })()}
-              <label className="block text-sm">
-                Sıralama (0 ən öndə)
-                <input type="number" className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900" value={String(editForm.sortOrder || "0")} onChange={(e) => setEditForm({...editForm, sortOrder: e.target.value})} />
-              </label>
+              {/* «Sıralama» xanası silindi: dəyər artıq TRY nominalından
+                  hesablanır, ona görə burada yazılan rəqəm saxlanmırdı. */}
+              <div className="rounded border border-admin-line bg-admin-chip2 px-3 py-2 text-xs text-zinc-600">
+                Sıralama avtomatikdir — TRY nominalına bərabər yazılır, yəni
+                kartlar hər yerdə azdan çoxa görünür.
+              </div>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={Boolean(editForm.isActive)} onChange={(e) => setEditForm({...editForm, isActive: e.target.checked})} /> Aktivdir
               </label>
@@ -611,6 +767,294 @@ export default function ServicesAdminClient() {
             )}
             <div className="mt-6 flex justify-end">
               <button onClick={() => setViewCodesId(null)} className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-700">Bağla</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Qiymət generatoru ─────────────────────────────────────────────── */}
+      {ruleOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-admin-line bg-admin-card p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-zinc-900">Qiymət generatoru</h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  AZN = baza kurs × TRY × (1 − endirim%) → 0,10 AZN-ə qədər{" "}
+                  <span className="font-semibold">aşağı</span> yuvarlaqlaşdırılır.
+                </p>
+              </div>
+              <button onClick={() => setRuleOpen(false)} className="text-zinc-500 hover:text-zinc-900">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Girişlər */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="block text-sm text-zinc-700">
+                Baza nominal
+                <select
+                  value={anchorId}
+                  onChange={(e) => {
+                    setAnchorId(e.target.value);
+                    const p = ruleProducts.find((x) => x.id === e.target.value);
+                    if (p) setAnchorPrice((p.priceAznCents / 100).toFixed(2));
+                  }}
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
+                >
+                  {ruleProducts
+                    .filter((p) => tryAmountOf(p) !== null)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {tryAmountOf(p)} ₺ — {p.title}
+                      </option>
+                    ))}
+                </select>
+              </label>
+
+              <label className="block text-sm text-zinc-700">
+                Baza satış qiyməti (AZN)
+                <input
+                  type="number"
+                  step="0.01"
+                  value={anchorPrice}
+                  onChange={(e) => setAnchorPrice(e.target.value)}
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
+                />
+                <span className="mt-1 block text-[11px] text-zinc-500">
+                  Baza kurs:{" "}
+                  <span className="font-mono font-semibold text-violet-700">
+                    {baseAznPerTry > 0 ? baseAznPerTry.toFixed(5) : "—"}
+                  </span>{" "}
+                  AZN/₺
+                </span>
+              </label>
+
+              <label className="block text-sm text-zinc-700">
+                Faktiki alış kursu (AZN/₺)
+                <input
+                  type="number"
+                  step="0.0001"
+                  value={costRate}
+                  onChange={(e) => setCostRate(e.target.value)}
+                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
+                />
+                <span className="mt-1 block text-[11px] text-zinc-500">
+                  Yalnız bu hesablama üçün — Settings kursuna (oyunlar, PS Plus,
+                  PUBG) <span className="font-semibold">toxunmur</span>.
+                </span>
+              </label>
+            </div>
+
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-admin-chip2 px-3 py-1 text-[11px] text-zinc-600">
+              Epoint komissiyası: {(pricing?.epointFeePct ?? 3).toFixed(0)}% — yalnız
+              göstərilir, qiymətə əlavə olunmur.
+            </div>
+
+            {rulePreview.validation && (
+              <div className="mt-4 flex items-start gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                {rulePreview.validation}
+              </div>
+            )}
+
+            {/* Önizləmə */}
+            <div className="mt-5 overflow-x-auto rounded-xl border border-admin-line">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-admin-chip2 uppercase text-zinc-500">
+                  <tr>
+                    <th className="px-3 py-2.5 font-medium">✓</th>
+                    <th className="px-3 py-2.5 font-medium">Nominal</th>
+                    <th className="px-3 py-2.5 font-medium">Endirim %</th>
+                    <th className="px-3 py-2.5 font-medium">Kurs</th>
+                    <th className="px-3 py-2.5 font-medium">Xam</th>
+                    <th className="px-3 py-2.5 font-semibold text-zinc-700">Yeni qiymət</th>
+                    <th className="px-3 py-2.5 font-medium">Cari (Δ)</th>
+                    <th className="px-3 py-2.5 font-medium">Maya</th>
+                    <th className="px-3 py-2.5 font-medium">Epoint</th>
+                    <th className="px-3 py-2.5 font-medium">Xalis</th>
+                    <th className="px-3 py-2.5 font-medium">Xeyir</th>
+                    <th className="px-3 py-2.5 font-medium">Epointdən sonra</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-admin-line">
+                  {rulePreview.rows.map((r) => {
+                    const p = ruleProducts.find((x) => x.id === r.id);
+                    const below = r.warnings.includes("BELOW_COST");
+                    const negFee = r.warnings.includes("NEGATIVE_AFTER_FEE");
+                    return (
+                      <tr
+                        key={r.id}
+                        className={
+                          !r.writable
+                            ? "bg-zinc-500/5 text-zinc-400"
+                            : below
+                              ? "bg-rose-500/5"
+                              : negFee
+                                ? "bg-amber-500/5"
+                                : ""
+                        }
+                      >
+                        <td className="px-3 py-2.5">
+                          <input
+                            type="checkbox"
+                            disabled={!r.writable}
+                            checked={Boolean(include[r.id]) && r.writable}
+                            onChange={(e) =>
+                              setInclude({ ...include, [r.id]: e.target.checked })
+                            }
+                          />
+                        </td>
+                        <td className="px-3 py-2.5 font-semibold text-zinc-900">
+                          {r.writable ? `${r.tryAmount} ₺` : "—"}
+                          {!r.isActive && (
+                            <span className="ml-1.5 rounded bg-zinc-500/15 px-1.5 py-0.5 text-[10px] text-zinc-500">
+                              Deaktiv
+                            </span>
+                          )}
+                          {r.warnings.includes("NO_TRY_AMOUNT") && (
+                            <span className="ml-1.5 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700">
+                              nominal yoxdur
+                            </span>
+                          )}
+                          {r.warnings.includes("ZERO_PRICE") && (
+                            <span className="ml-1.5 rounded bg-rose-500/15 px-1.5 py-0.5 text-[10px] text-rose-700">
+                              qiymət 0
+                            </span>
+                          )}
+                          <div className="mt-0.5 max-w-[10rem] truncate text-[10px] font-normal text-zinc-500">
+                            {p?.title}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <input
+                            type="number"
+                            step="0.1"
+                            disabled={!r.writable}
+                            value={ladder[r.id] ?? "0"}
+                            onChange={(e) => setLadder({ ...ladder, [r.id]: e.target.value })}
+                            className="w-16 rounded border border-admin-line bg-admin-card px-2 py-1 text-zinc-900"
+                          />
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-[11px] text-zinc-500">
+                          {r.effectiveAznPerTry.toFixed(5)}
+                        </td>
+                        <td className="px-3 py-2.5 text-zinc-400">{r.rawPriceAzn.toFixed(3)}</td>
+                        <td className="px-3 py-2.5 text-base font-black text-zinc-900">
+                          {(r.priceAznCents / 100).toFixed(2)}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <span className="text-zinc-500">
+                            {(r.currentPriceAznCents / 100).toFixed(2)}
+                          </span>
+                          {r.deltaCents !== 0 && (
+                            <span
+                              className={`ml-1 font-semibold ${
+                                r.deltaCents > 0 ? "text-emerald-600" : "text-rose-600"
+                              }`}
+                            >
+                              {r.deltaCents > 0 ? "+" : ""}
+                              {(r.deltaCents / 100).toFixed(2)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-zinc-600">
+                          {(r.costAznCents / 100).toFixed(2)}
+                        </td>
+                        <td className="px-3 py-2.5 text-zinc-600">
+                          {(r.epointFeeCents / 100).toFixed(2)}
+                        </td>
+                        <td className="px-3 py-2.5 text-zinc-600">
+                          {(r.netAfterFeeCents / 100).toFixed(2)}
+                        </td>
+                        <td
+                          className={`px-3 py-2.5 font-semibold ${
+                            r.profitAznCents >= 0 ? "text-emerald-600" : "text-rose-600"
+                          }`}
+                        >
+                          {(r.profitAznCents / 100).toFixed(2)}
+                        </td>
+                        <td
+                          className={`px-3 py-2.5 font-semibold ${
+                            r.profitAfterFeeCents >= 0 ? "text-emerald-600" : "text-rose-600"
+                          }`}
+                        >
+                          {(r.profitAfterFeeCents / 100).toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-zinc-600">
+              <span>
+                <span className="font-bold text-zinc-900">{selectedRows.length}</span> sətir
+                yazılacaq
+              </span>
+              {rulePreview.totals.skipped > 0 && (
+                <span>{rulePreview.totals.skipped} sətir ötürülür</span>
+              )}
+              <span>
+                1 satışdan cəmi xeyir:{" "}
+                <span className="font-bold text-zinc-900">
+                  {(selectedRows.reduce((s, r) => s + r.profitAznCents, 0) / 100).toFixed(2)} ₼
+                </span>{" "}
+                (epointdən sonra{" "}
+                {(selectedRows.reduce((s, r) => s + r.profitAfterFeeCents, 0) / 100).toFixed(2)} ₼)
+              </span>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <label className="flex items-center gap-2 text-sm text-zinc-700">
+                <input
+                  type="checkbox"
+                  checked={syncSortOrder}
+                  onChange={(e) => setSyncSortOrder(e.target.checked)}
+                />
+                Sıralamanı nominal üzrə düzəlt (250 → 1000)
+              </label>
+              {hasBelowCost && (
+                <label className="flex items-center gap-2 text-sm text-rose-700">
+                  <input
+                    type="checkbox"
+                    checked={allowBelowCost}
+                    onChange={(e) => setAllowBelowCost(e.target.checked)}
+                  />
+                  Zərərlə satışa icazə ver — seçilmiş kartların bir hissəsi mayadan aşağıdır
+                </label>
+              )}
+            </div>
+
+            {ruleError && (
+              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">
+                {ruleError}
+              </div>
+            )}
+            {ruleResult && (
+              <div className="mt-4 rounded border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">
+                ✓ {ruleResult}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setRuleOpen(false)}
+                className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-700"
+              >
+                Bağla
+              </button>
+              <button
+                onClick={applyRule}
+                disabled={
+                  applying || selectedRows.length === 0 || Boolean(rulePreview.validation)
+                }
+                className="inline-flex items-center gap-2 rounded bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
+              >
+                {applying && <Loader2 className="h-4 w-4 animate-spin" />}
+                Tətbiq et
+              </button>
             </div>
           </div>
         </div>

@@ -18,11 +18,15 @@ export function revalidateSiteHeader(): void {
 export function revalidateGames(): void {
   revalidateTag("games");
   revalidateTag("home");
+  // PERCENT rejimli paketin qiyməti tərkib oyunlarının cari qiymətindən
+  // hesablanır — oyun qiyməti dəyişəndə paket vitrini də köhnəlir.
+  revalidateTag("bundles");
   revalidatePath("/");
   revalidatePath("/oyunlar");
   revalidatePath("/oyunlar/[slug]", "page");
   revalidatePath("/endirimler");
   revalidatePath("/kolleksiya/[slug]", "page");
+  revalidatePath("/paket/[slug]", "page");
 }
 
 /** Epic Games kataloqu (scrape sonrası) dəyişəndə. */
@@ -39,6 +43,14 @@ export function revalidateCollections(): void {
   revalidatePath("/kolleksiya/[slug]", "page");
 }
 
+/** Oyun paketləri (səbətlər) admin əməliyyatları — CRUD, oyun əlavə/sil/sırala. */
+export function revalidateBundles(): void {
+  revalidateTag("bundles");
+  revalidateTag("home");
+  revalidatePath("/");
+  revalidatePath("/paket/[slug]", "page");
+}
+
 /** Servis məhsulları (PS Plus, gift cards, hesab açma) dəyişəndə. */
 export function revalidateServices(): void {
   revalidateTag("home");
@@ -49,6 +61,10 @@ export function revalidateServices(): void {
   revalidatePath("/hediyye-kartlari");
   revalidatePath("/hesab-acma");
   revalidatePath("/streaming");
+  // `/playstation` həm PS Plus, həm TRY hədiyyə kartlarını göstərir
+  // (app/playstation/page.tsx) — bura əlavə olunmasa qiymət/sıra dəyişikliyi
+  // orada ISR müddəti bitənə qədər köhnə qalırdı.
+  revalidatePath("/playstation");
 }
 
 /** Banner-lər admin paneldən dəyişdirildikdə. */

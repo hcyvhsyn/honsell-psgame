@@ -9,6 +9,29 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // `font-sans` / `font-mono` sinifləri (87 yerdə işlənir) body ilə EYNİ
+      // şriftə baxmalıdır. Tailwind-in defoltu `system-ui`-dir → Windows-da
+      // Segoe UI-a düşür və `ə` hərfi qonşu bloklardan fərqli görünür.
+      // Zəncirdəki hər şrift U+0259 (ə) daşıyır — Arial əlavə etmə.
+      fontFamily: {
+        sans: [
+          "var(--font-geist-sans)",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica Neue",
+          "sans-serif",
+        ],
+        mono: [
+          "var(--font-geist-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "monospace",
+        ],
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",

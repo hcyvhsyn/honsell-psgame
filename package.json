@@ -14,6 +14,8 @@
     "test:giveaway": "tsx scripts/giveawayWinners.test.ts",
     "test:lootbox": "tsx scripts/lootBox.test.ts",
     "test:editions": "tsx scripts/gameEditions.test.ts",
+    "test:giftcards": "tsx scripts/giftCardPriceRule.test.ts",
+    "test:bundles": "tsx scripts/gameBundles.test.ts",
     "lootbox:drain": "tsx scripts/lootBoxDrain.ts",
     "postinstall": "prisma generate"
   },

@@ -71,12 +71,29 @@ export type EpicAccountCreationCartDetails = {
   displayName: string;
 };
 
+/**
+ * Oyun paketi sətrinin tərkib snapshot-u (yalnız GÖSTƏRİM üçün).
+ *
+ * Səbətdə paket ATOMİK tək sətirdir — içindəki oyunlar ayrıca silinmir və qiymət
+ * buradan hesablanmır. Checkout serverdə paketi id-yə görə yenidən açır və
+ * qiyməti özü hesablayır ([lib/gameBundles.ts](./gameBundles.ts)), yəni bu massiv
+ * köhnəlsə də müştəri yanlış məbləğ ödəmir.
+ */
+export type BundleCartItems = {
+  gameId: string;
+  title: string;
+  imageUrl: string | null;
+  bundleAznCents: number;
+}[];
+
 export type CartItem = {
   id: string;
   title: string;
   imageUrl: string | null;
   finalAzn: number;
   productType: string;
+  /** `productType === "BUNDLE"` olduqda paketin tərkibi (səbətdə açılan siyahı). */
+  bundleItems?: BundleCartItems;
   /** Storefront for catalog items: "PS" (default) or "EPIC". Distinguishes an
    *  Epic PC game (delivered to an Epic account) from a PS game — both have
    *  productType "GAME". */
@@ -301,7 +318,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const existing = prev.find((i) => i.id === item.id && !i.gift);
       if (existing) {
         // Cash cards / addons can be bought in multiples; full games stay at 1.
-        if (item.productType === "GAME" || item.productType === "PS_PLUS" || item.productType === "EA_PLAY") return prev;
+        // Oyun paketi də tək lisenziyadır — eyni paket iki dəfə səbətə düşmür.
+        if (
+          item.productType === "GAME" ||
+          item.productType === "BUNDLE" ||
+          item.productType === "PS_PLUS" ||
+          item.productType === "EA_PLAY"
+        )
+          return prev;
         return prev.map((i) =>
           i.id === item.id && !i.gift ? { ...i, qty: i.qty + 1 } : i
         );

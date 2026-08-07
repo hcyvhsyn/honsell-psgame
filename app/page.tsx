@@ -18,6 +18,8 @@ import HomeScrollTuning from "@/components/HomeScrollTuning";
 import ScrollAnimationManager from "@/components/ScrollAnimationManager";
 import HomeTrustBar from "@/components/HomeTrustBar";
 import HomeFlashDeals, { type FlashDealCard } from "@/components/HomeFlashDeals";
+import HomeBundles from "@/components/HomeBundles";
+import { loadActiveBundles } from "@/lib/gameBundles";
 import HomeTestimonials from "@/components/HomeTestimonials";
 import HomeGiveaways from "@/components/HomeGiveaways";
 import HomeLootBoxes from "@/components/HomeLootBoxes";
@@ -524,7 +526,7 @@ async function fetchFlashDeals(
 const getHomePageData = unstable_cache(
   async () => {
   const settings = await getSettings();
-  const [banners, landingProducts, bestSellers, totalsArr, orderCount, testimonialAgg, flashDeals] = await Promise.all([
+  const [banners, landingProducts, bestSellers, totalsArr, orderCount, testimonialAgg, flashDeals, bundles] = await Promise.all([
     prisma.banner
       .findMany({
         where: { isActive: true, scope: "HOME" },
@@ -542,6 +544,9 @@ const getHomePageData = unstable_cache(
       .aggregate({ where: { isActive: true }, _avg: { rating: true }, _count: { _all: true } })
       .catch(() => null),
     fetchFlashDeals(settings),
+    // Oyun paketləri — qiymət tərkib oyunlarının cari qiymətindən hesablanır,
+    // ona görə keş `"bundles"` tag-ına da bağlıdır (aşağıdakı `tags`).
+    loadActiveBundles().catch(() => []),
   ]);
 
   const totalsAll = totalsArr.reduce((sum, row) => sum + row._count._all, 0);
@@ -621,10 +626,11 @@ const getHomePageData = unstable_cache(
     landingProducts,
     bestSellers,
     flashDeals,
+    bundles,
   };
   },
   ["home-page-data"],
-  { revalidate: 1800, tags: ["home"] },
+  { revalidate: 1800, tags: ["home", "bundles"] },
 );
 
 export default async function HomePage() {
@@ -634,6 +640,7 @@ export default async function HomePage() {
     landingProducts,
     bestSellers,
     flashDeals,
+    bundles,
   } = await getHomePageData();
 
   const websiteJsonLd = {
@@ -735,6 +742,10 @@ export default async function HomePage() {
           Əvvəlki avtomatik "Endirimdə olan oyunlar" karuselinin yerini tutur.
           Öz başlığı olan bir panel olduğu üçün qabağına SectionFlowDivider qoyulmur. */}
       <HomeFlashDeals deals={flashDeals} />
+
+      {/* Oyun paketləri — HomeFlashDeals kimi öz başlıqlı paneldir, ona görə
+          qabağına SectionFlowDivider qoyulmur. Paket yoxdursa özü null qaytarır. */}
+      <HomeBundles bundles={bundles} />
 
       <SectionFlowDivider text="Bu həftə ən çox alınanlar" tone="amber" />
       <BestSellersSection items={bestSellers} />

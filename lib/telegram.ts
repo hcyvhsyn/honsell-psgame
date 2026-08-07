@@ -121,6 +121,47 @@ export async function telegramEditMessageText(
   }).catch(() => {});
 }
 
+/**
+ * Webhook-un `allowed_updates` siyahısını YOXLAYIR və `callback_query` yoxdursa
+ * özü yenidən qeyd edir.
+ *
+ * NİYƏ LAZIMDIR: webhook bir dəfə `["message","channel_post"]` ilə qeyd olunubsa,
+ * Telegram inline düymə basmalarını (callback_query) ÜMUMİYYƏTLƏ göndərmir —
+ * server tamamilə səssiz qalır və düymə sonsuz "saat" ikonunda ilişir. Kodda heç
+ * bir xəta görünmür, ona görə bu nasazlığın diaqnozu çətindir və təkrarlanır.
+ *
+ * Bu funksiya SERVERDƏ işlədiyi üçün `setWebhook`-u serverin ÖZ env-i ilə çağırır
+ * — secret uyğunsuzluğu riski yoxdur (lokal .env-dən çağırsaydıq, səhv secret
+ * webhook-u tamamilə sındıra bilərdi).
+ *
+ * Proses ömründə bir dəfə işləyir (`verifiedThisProcess`) ki, hər update-də
+ * əlavə API sorğusu getməsin.
+ */
+let verifiedThisProcess = false;
+
+export async function ensureCallbacksAllowed(webhookUrl: string): Promise<void> {
+  if (verifiedThisProcess) return;
+  verifiedThisProcess = true; // uğursuz olsa da təkrar cəhd etmə (update axınını yavaşlatmasın)
+
+  const token = telegramToken();
+  if (!token) return;
+  try {
+    const info = await fetch(`${API}/bot${token}/getWebhookInfo`).then((r) => r.json());
+    const allowed: unknown = info?.result?.allowed_updates;
+    // Siyahı boşdursa Telegram defaultu tətbiq edir — ora callback_query DAXİLDİR,
+    // yəni yalnız AÇIQ şəkildə verilmiş və callback_query-siz siyahı problemlidir.
+    if (!Array.isArray(allowed) || allowed.length === 0) return;
+    if (allowed.includes("callback_query")) return;
+
+    await telegramSetWebhook(webhookUrl);
+    console.warn(
+      `[telegram] allowed_updates-də callback_query yox idi (${allowed.join(",")}) — webhook yenidən qeyd olundu.`,
+    );
+  } catch {
+    /* şəbəkə xətası — update emalını bloklamırıq */
+  }
+}
+
 /** Webhook-u qeyd edir (setup endpoint-i çağırır). */
 export async function telegramSetWebhook(url: string): Promise<{ ok: boolean; description?: string }> {
   const token = telegramToken();

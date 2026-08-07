@@ -43,6 +43,96 @@ sərhədini yerindən tərpətmir. Hizalanma meyarı qabığın **kənarı**dır
 
 ---
 
+# Oyun paketləri (GameBundle — satılan səbətlər)
+
+Bir neçə oyunu sərfəli qiymətə bir dəst kimi satır: "Assassin's Creed səbəti",
+"10 AZN səbəti", "4-lü paket (RDR2 + GTA5 + FC26)". Müştəri paketi **tək toxunuşla**
+səbətə atır, səbətdə **atomik tək sətir** görür.
+
+`Collection`-dan fərqi: kolleksiya **redaksiya siyahısıdır, qiyməti yoxdur**.
+`LootBox`-dan fərqi: paket **deterministikdir** və adi səbət/checkout yolundan keçir.
+
+## Fayl xəritəsi
+
+| Qat | Fayl |
+| --- | --- |
+| Client-safe tip + riyaziyyat | [lib/gameBundleShared.ts](lib/gameBundleShared.ts) + [scripts/gameBundles.test.ts](scripts/gameBundles.test.ts) |
+| Server (DB + qiymət) | [lib/gameBundles.ts](lib/gameBundles.ts) |
+| Ana səhifə rail | [components/HomeBundles.tsx](components/HomeBundles.tsx) |
+| Detal səhifə | [app/paket/[slug]/page.tsx](app/paket/[slug]/page.tsx) + `AddBundleToCartButton.tsx` |
+| Admin UI | [app/admin/bundles/BundlesAdminClient.tsx](app/admin/bundles/BundlesAdminClient.tsx) |
+| Admin API | [app/api/admin/bundles/route.ts](app/api/admin/bundles/route.ts) |
+
+## Data modeli ([prisma/schema.prisma](prisma/schema.prisma) ~700)
+
+- **`GameBundle`** — `slug`, `title/subtitle/description`, `imageUrl` (boşdursa vitrin
+  oyun kaverlərindən kollaj qurur), `badgeText`, `pricingMode` (`PERCENT|CUSTOM`),
+  `discountPct`, `isActive/isFeatured/sortOrder`, `startsAt/endsAt`.
+- **`GameBundleItem`** — `@@id([bundleId, gameId])`, `position`, `priceAznCents Int?`
+  (yalnız CUSTOM rejimində; `null` → oyunun adi vitrin qiyməti).
+- **`Order`/`OrderItem` modeli YOXDUR** — alış N `Transaction` sətri yaradır, paket
+  damğası `metadata.bundleId` + `metadata.bundleTitle`-dədir.
+
+## Qiymət (TƏK mənbə: `computeBundlePricing`)
+
+List qiymət checkout-dakı ifadənin **eynisi** ilə alınır —
+`applyFlashDeal(computeDisplayPrice(game, settings), flashDeals.get(id))`. Flash deal və
+bitmiş endirim məntiqi təkrarlanmır.
+
+- **PERCENT** — hədəf cəm `allocateBundlePrices()` ilə oyunlara **largest-remainder**
+  üsulu ilə bölünür. Sadə `round()` deyil, çünki hər oyun ayrıca `Transaction` sətridir
+  və sətirlərin cəmi tutulan məbləğə **qəpiyinə qədər** bərabər olmalıdır.
+- **CUSTOM** — hər sətrin `priceAznCents`-i, amma **list qiymətdən böyük ola bilməz**
+  (`lib/flashDeals.ts` "override yalnız aşağı sala bilər" intizamı).
+
+⚠️ Riyaziyyatı dəyişəndə **`npm run test:bundles`** işlət.
+
+Qiymət **üç yerdə** lazımdır və üçü də eyni funksiyanı çağırır: vitrin (rail + detal),
+`/api/cart/refresh`, `/api/cart/checkout`. Heç birində əl ilə təkrarlama.
+
+## "Paket açılışı" (bundle expansion) — ƏN VACİB QAYDA
+
+Checkout-da `kind: "BUNDLE"` adlı **fulfillment budağı YOXDUR**. Səbətdəki bir paket
+sətri serverdə **N ədəd adi `kind: "GAME"` sətrinə açılır**, sadəcə `unitListCents` paket
+qiyməti ilə əvəzlənir və sətirlərə `bundleId` damğası vurulur:
+
+```
+Səbətdə:   [BUNDLE bundle_abc — 45.00₼]        ← müştəri 1 sətir görür
+Checkout:  [GAME rdr2 18₼ bundleId=abc] [GAME gta5 12₼ …] [GAME fc26 15₼ …]
+```
+
+Beləcə PSN/Epic hesab tələbi, `Transaction` yaradılması, referral komissiyası, rəy
+affiliate damğası, sifariş məktubu və admin fulfillment axını **dəyişmir**.
+
+⚠️ Paket yoxlaması `app/api/cart/checkout/route.ts` içindəki dövrdə `services.find(...)`
+sətrindən **ƏVVƏL** olmalıdır — paket id-si nə `games`, nə `services` içindədir.
+
+⚠️ **İkiqat fulfillment yolu** — cüzdan ([checkout/route.ts](app/api/cart/checkout/route.ts))
+və kart ([lib/epointCartCheckout.ts](lib/epointCartCheckout.ts)) ayrı-ayrıdır. Epoint
+snapshot-u artıq açılmış GAME sətirlərindən qurulur, ona görə orada yalnız `bundleId`
+metadata-ya ötürülür.
+
+## Tələlər / bilinməli məqamlar
+
+- **Deaktiv oyun → paket tamamilə gizlənir.** "4-lü paket" 3 oyunla satıla bilməz
+  (`isBundleSellable`). Admin panelində səbəb xəbərdarlıq kimi görünür; səbətdəki paket
+  `/api/cart/refresh`-in `missing` cavabı ilə silinir.
+- **Kupon paketə düşmür.** Paket onsuz da endirimlidir. İstisna **İKİ yerdə** eynidir:
+  `checkout/route.ts`-dəki `scopeItems` (`bundleId` olan sətirlər atılır) və
+  `/api/cart/coupon` preview-i (`productType === "BUNDLE"`). Biri unudulsa müştəri
+  preview-də bir rəqəm görür, kassada `COUPON_INVALID` alır.
+- **Client → prisma import tələsi** — `"use client"` komponent
+  [lib/gameBundles.ts](lib/gameBundles.ts)-i import etsə `next build` sınır (tsc keçsə də).
+  Client tərəf **yalnız** [lib/gameBundleShared.ts](lib/gameBundleShared.ts)-dən oxuyur.
+- **Paket hədiyyə olunmur** — hər oyun ayrıca kod tələb edərdi; checkout `isGift` gələn
+  paket sətrini buraxır, detal səhifəsində hədiyyə düyməsi yoxdur.
+- `revalidateGames()` **`"bundles"` tag-ını da sıfırlayır** — PERCENT paketin qiyməti
+  oyun qiymətindən asılıdır, yoxsa scrape sonrası vitrin köhnə qalır.
+- Ana səhifə keşi `tags: ["home", "bundles"]` ilə bağlıdır; detal səhifəsi isə
+  `["bundles", "games"]`.
+
+---
+
 # Reels (şaquli video feed)
 
 TikTok/YouTube Shorts tərzi feed: `/reels`. İstifadəçi izləyir, like/dislike edir,
@@ -176,11 +266,57 @@ keçmir — birbaşa `<img src>` / `<video src>`.
    də oradan gəlir. HEVC faylı yükləmədən əvvəl bloklanır.
 2. **URL idxalı** — `POST /api/admin/reels/video-import` serverdə fetch edib R2-yə yazır
    (maks 200MB). Poster `captureVideoPosterFromUrl` ilə; CORS taint olarsa `null` qaytarır.
-3. **Telegram botu** — video faylı və ya TikTok/Instagram/YouTube linki göndərilir.
-   `yt-dlp` endirir, `ffmpeg` H.264 + `+faststart`-a çevirir + poster çıxarır, reel
-   **qaralama** (`isPublished:false`) yaradılır, sonra inline düymələrlə platforma
-   soruşulur → seçim `isPublished:true` edir. Callback formatı: `rp|<reelId>|<code>`
-   (reel-in özü söhbət state-idir, ayrıca state store yoxdur).
+3. **Telegram botu** — aşağıdakı ayrıca bölməyə bax.
+
+## Telegram ingest axını
+
+Video faylı və ya TikTok/Instagram/YouTube linki göndərilir; `yt-dlp` endirir, `ffmpeg`
+H.264 + `+faststart`-a çevirir + poster çıxarır, reel **qaralama** (`isPublished:false`)
+yaradılır. Sonra:
+
+```
+video → "Bu nədir?"  ┌─ 🎬 Film/Serial → platforma düymələri → yayım
+                     └─ 🎮 Oyun → "Oyunun adını yaz" → mətn → oyun düymələri
+                                → sürümlər AVTO doldurulur → yayım
+```
+
+Callback formatları (limit **64 bayt**, cuid = 25 simvol):
+
+| Prefiks | Format | Uzunluq |
+| --- | --- | --- |
+| `rk` | `rk\|<reelId>\|G⎮S` — növ seçimi | 30 |
+| `rp` | `rp\|<reelId>\|<platformCode>` — platforma | ~35 |
+| `rg` | `rg\|<reelId>\|<gameId>` — oyun seçimi | 54 |
+
+**Söhbət state-i:** düymə cavabları `reelId`-ni callback_data-da daşıyır, amma **mətn**
+cavabı (oyun adı) heç nə daşımır — ona görə `Reel.tgChatId` + `Reel.tgStage`
+(`GAME_NAME`) sütunları var. Yeni video gələndə həmin chat-ın köhnə gözləyən qaralaması
+sərbəst buraxılır (`clearPendingStage`), yoxsa növbəti mətnin hansı reel-ə aid olduğu
+qeyri-müəyyən olur. Yayımdan sonra `tgStage = null`.
+
+**Mesaj emalı sırası vacibdir:** video/link həmişə YENİ qaralama başladır, sadə mətn isə
+yalnız gözləyən qaralama varsa oyun axtarışı kimi oxunur.
+
+⚠️ Telegram-da checkbox yoxdur, ona görə oyun seçiləndə **sürümlər admin təsdiqi olmadan**
+`findEditionCandidates()`-dən doldurulur. Təsdiq mesajı neçə sürüm əlavə olunduğunu və ən
+ucuz qiyməti yazır ki, admin paneldən yoxlaya bilsin.
+
+### `allowed_updates` tələsi (bu problem İKİ DƏFƏ təkrarlanıb)
+
+Webhook `["message","channel_post"]` ilə qeyd olunubsa Telegram **inline düymə basmalarını
+ümumiyyətlə göndərmir** — server tamamilə səssiz qalır, düymə sonsuz "saat" ikonunda
+ilişir, log-da heç bir xəta görünmür. Bu, kod xətası kimi görünür, amma deyil.
+
+Yoxlama: `curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"` → `allowed_updates`
+içində `callback_query` olmalıdır.
+
+İndi `ensureCallbacksAllowed()` ([lib/telegram.ts](lib/telegram.ts)) bunu **özü bərpa edir**:
+proses ömründə bir dəfə `getWebhookInfo` çağırır və `callback_query` yoxdursa `setWebhook`-u
+təkrarlayır. Serverdə işlədiyi üçün **serverin öz secret-ini** işlədir.
+
+⚠️ **Lokal `.env`-dən `setWebhook` ÇAĞIRMA.** Oradakı `TELEGRAM_ALLOWED_IDS` plasseholderdir
+(`123456789,987654321`) — yəni fayl prod Telegram konfiqurasiyası deyil (yalnız token
+realdır). Səhv `secret_token` webhook-u tamamilə sındırar.
 
 **Toplu yükləmə** (admin "Toplu yüklə"): hər fayl → avto poster + fayl adından başlıq →
 `isPublished:false` qaralama. Admin sonra CTA/platforma verib yayımlayır.

@@ -100,6 +100,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
       { href: "/admin/games", label: "Oyunlar", iconName: "Gamepad2" },
       { href: "/admin/sales", label: "Satışlar", iconName: "TrendingUp" },
       { href: "/admin/collections", label: "Kolleksiyalar", iconName: "LayoutGrid" },
+      { href: "/admin/bundles", label: "Oyun paketləri", iconName: "Package" },
       { href: "/admin/ps-plus", label: "PS Plus", iconName: "Crown" },
       { href: "/admin/ea-play", label: "EA Play", iconName: "Gamepad2" },
       { href: "/admin/services", label: "PS TRY Gift Card", iconName: "Gift" },
