@@ -2327,6 +2327,13 @@ model Reel {
   // Skalyar siyahı @default([]) OLMADAN NOT NULL olur və upsert-lər səssiz sınır.
   editionGameIds String[] @default([])
 
+  // GAME | STREAMING — feed-i ayıran YEGANƏ mənbə. Oyun alan auditoriya ilə
+  // film/serial izləyən auditoriya bir-birini itələyir, ona görə istifadəçi ilk
+  // girişdə birini seçir. "Hamısı" saxlanılan dəyər DEYİL — sadəcə süzgəcsiz baxış.
+  // ctaType-dan ÇIXARMA: toplu qaralamalar ctaType="URL" ilə yaradılır, amma oyun
+  // videosu ola bilər.
+  category String @default("STREAMING")
+
   viewCount   Int     @default(0)
   isPublished Boolean @default(true)
   sortOrder   Int     @default(0)
@@ -2345,6 +2352,7 @@ model Reel {
   updatedAt DateTime @updatedAt
 
   @@index([isPublished, sortOrder, createdAt])
+  @@index([isPublished, category, sortOrder, createdAt])
   @@index([tgChatId, tgStage])
 }
 

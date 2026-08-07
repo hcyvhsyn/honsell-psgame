@@ -17,6 +17,7 @@
     "test:giftcards": "tsx scripts/giftCardPriceRule.test.ts",
     "test:bundles": "tsx scripts/gameBundles.test.ts",
     "lootbox:drain": "tsx scripts/lootBoxDrain.ts",
+    "db:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate"
   },
   "dependencies": {

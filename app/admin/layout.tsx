@@ -33,6 +33,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
     description: "Sifariş, ödəniş və balans əməliyyatları",
     items: [
       { href: "/admin", label: "Dashboard", iconName: "LayoutDashboard" },
+      { href: "/admin/funnel", label: "Satış hunisi", iconName: "Filter" },
       { href: "/admin/orders", label: "Sifarişlər", iconName: "ClipboardList", badgeKey: "pendingAllOrders" },
       { href: "/admin/transactions", label: "Tranzaksiyalar", iconName: "Receipt" },
       { href: "/admin/subscriptions", label: "Aktiv Abunəliklər", iconName: "Crown", badgeKey: "expiringSubs" },

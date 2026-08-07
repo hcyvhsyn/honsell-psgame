@@ -17,6 +17,20 @@ import { editionSuffixLabel } from "@/lib/gameEditions";
 
 export const REELS_PAGE_SIZE = 8;
 
+/**
+ * Feed kateqoriyası. `GAME`/`STREAMING` DB-də saxlanılan dəyərlərdir; `ALL` isə
+ * yalnız BAXIŞDIR — süzgəcsiz feed deməkdir, heç vaxt `Reel.category`-yə yazılmır.
+ */
+export type ReelCategory = "GAME" | "STREAMING" | "ALL";
+
+/** Saxlanıla bilən kateqoriyalar (admin/Telegram yazma yolları üçün). */
+export const STORED_REEL_CATEGORIES = ["GAME", "STREAMING"] as const;
+
+/** Xarici girişi (query param, admin body) təhlükəsiz kateqoriyaya çevirir. */
+export function normalizeReelCategory(value: unknown): ReelCategory {
+  return value === "GAME" || value === "STREAMING" || value === "ALL" ? value : "ALL";
+}
+
 export type ReelProduct = {
   /** CartItem.id — birbaşa `useCart().add({ id })`. Game/ServiceProduct DB id-si. */
   id: string;
@@ -39,6 +53,8 @@ export type ReelProduct = {
 
 export type ReelFeedItem = {
   id: string;
+  /** GAME | STREAMING — deep link açılanda client feed-i buna uyğunlaşdırır. */
+  category: string;
   title: string;
   caption: string | null;
   videoUrl: string;
@@ -66,6 +82,7 @@ export type ReelFeedItem = {
 
 type ReelRow = {
   id: string;
+  category: string;
   title: string;
   caption: string | null;
   videoUrl: string;
@@ -214,6 +231,7 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
 
     return {
       id: r.id,
+      category: r.category,
       title: r.title,
       caption: r.caption,
       videoUrl: r.videoUrl,
@@ -252,12 +270,23 @@ const REEL_ORDER = [{ sortOrder: "asc" as const }, { createdAt: "desc" as const 
 export async function getReelsPage(opts: {
   cursor?: number;
   limit?: number;
+  /** `ALL` (default) süzgəc tətbiq etmir. */
+  category?: ReelCategory;
+  /** Yalnız film feed-ində — platforma çipi süzgəci. */
+  platformCode?: string | null;
 }): Promise<{ items: ReelFeedItem[]; nextCursor: number | null }> {
   const skip = Math.max(0, opts.cursor ?? 0);
   const limit = Math.min(24, Math.max(1, opts.limit ?? REELS_PAGE_SIZE));
+  const category = opts.category ?? "ALL";
 
   const rows = (await prisma.reel.findMany({
-    where: { isPublished: true },
+    // Süzgəc SERVERDƏ tətbiq olunur: client-də süzsək offset kursoru süzülmüş
+    // dəstlə uyğunsuzlaşır və səhifələmə element atlayır.
+    where: {
+      isPublished: true,
+      ...(category === "ALL" ? {} : { category }),
+      ...(opts.platformCode ? { platformCode: opts.platformCode } : {}),
+    },
     orderBy: REEL_ORDER,
     skip,
     take: limit + 1, // +1 ilə növbəti səhifə var-yoxunu bilirik
@@ -269,11 +298,29 @@ export async function getReelsPage(opts: {
   return { items, nextCursor: hasMore ? skip + limit : null };
 }
 
-/** İlk səhifə — keşlənmiş (tag "reels"). RSC ilk paint üçün. */
+/**
+ * İlk səhifə — keşlənmiş (tag "reels"). RSC ilk paint üçün.
+ *
+ * `unstable_cache` funksiya ARQUMENTLƏRİNİ avtomatik keş açarına daxil edir, ona
+ * görə hər kateqoriya öz girişini alır. Tag hamısında eynidir ki,
+ * `revalidateReels()` bir çağırışla hamısını sıfırlasın.
+ */
 export const getFirstReelsPageCached = unstable_cache(
-  async (): Promise<{ items: ReelFeedItem[]; nextCursor: number | null }> => {
-    return getReelsPage({ cursor: 0, limit: REELS_PAGE_SIZE });
+  async (
+    category: ReelCategory,
+  ): Promise<{ items: ReelFeedItem[]; nextCursor: number | null }> => {
+    return getReelsPage({ cursor: 0, limit: REELS_PAGE_SIZE, category });
   },
-  ["reels-feed-v1"],
+  ["reels-feed-v2"],
   { tags: ["reels"], revalidate: 300 },
 );
+
+/** Deep link (`/reels?r=<id>`) üçün tək reel — feed-in başına qoyulur. */
+export async function getReelById(id: string): Promise<ReelFeedItem | null> {
+  const row = (await prisma.reel.findFirst({
+    where: { id, isPublished: true },
+  })) as ReelRow | null;
+  if (!row) return null;
+  const [item] = await hydrateReels([row]);
+  return item ?? null;
+}

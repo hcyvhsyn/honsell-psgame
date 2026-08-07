@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { revalidateReels } from "@/lib/revalidate";
+import { STORED_REEL_CATEGORIES } from "@/lib/reels";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
         ctaHref,
         ctaLabel,
         editionGameIds,
+        category,
         isPublished,
         sortOrder,
       } = body;
@@ -53,6 +55,12 @@ export async function POST(req: Request) {
       // Poster və CTA opsionaldır: poster boşdursa feed video first-frame-ə düşür;
       // CTA yoxdursa sadəcə "al" düyməsi göstərilmir (toplu qaralamalar üçün lazımdır).
       const finalCtaType = CTA_TYPES.has(String(ctaType)) ? String(ctaType) : "URL";
+      // "ALL" yalnız BAXIŞDIR — heç vaxt saxlanılmır, yoxsa reel heç bir feed-ə düşmür.
+      const finalCategory = STORED_REEL_CATEGORIES.includes(
+        String(category) as (typeof STORED_REEL_CATEGORIES)[number],
+      )
+        ? String(category)
+        : "STREAMING";
 
       const payload = {
         title: String(title),
@@ -79,6 +87,7 @@ export async function POST(req: Request) {
                 ),
               )
             : [],
+        category: finalCategory,
         isPublished: Boolean(isPublished ?? true),
         sortOrder: Number(sortOrder || 0),
       };

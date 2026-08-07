@@ -180,6 +180,10 @@ desktop sticky launcher ([app/layout.tsx](app/layout.tsx)), admin sidebar
 `ctaTargetId` semantikası: `GAME` → `Game.id` (`productId` yox! — cart birbaşa DB id ilə
 işləyir), `SERVICE` → `ServiceProduct.id`.
 
+`Reel.category` — **`GAME` | `STREAMING`**. Feed ayrımının yeganə mənbəyi (aşağıdakı
+"Kateqoriya ayrımı" bölməsinə bax). `ctaType`-dan ÇIXARILMIR: toplu qaralamalar
+`ctaType="URL"` ilə yaradılır, amma oyun videosu ola bilər.
+
 `Reel.editionGameIds String[]` — `ctaType=GAME` olduqda feed-də göstərilən **sürümlər**
 (aşağıdakı "Sürümlər və qiymət" bölməsinə bax). CTA tipi GAME deyilsə admin API-si onu
 məcburi boşaldır.
@@ -216,12 +220,53 @@ başlıqları ilə kilidlənib (səhv qruplaşma = müştəriyə yanlış qiymə
 ⚠️ Panel görünəndə hər iki rail-dəki köhnə səbət düyməsi gizlədilir (`hasBuyPanel()` ortaq
 şərtdir) — yoxsa ekranda iki fərqli qiymət mənbəyi olur.
 
+## Kateqoriya ayrımı (oyun ↔ film/serial)
+
+Oyun alan auditoriya ilə film/serial izləyən auditoriya bir-birini **itələyir** —
+qarışıq feed hər ikisini itirirdi. Ona görə istifadəçi `/reels`-ə **ilk girişdə**
+seçim edir: 🎮 Oyun / 🎬 Film & Serial / Hamısı.
+
+- Seçim **yalnız cihazda** saxlanılır — `localStorage["honsell:reels-feed"]`
+  ([components/reels/reelCategory.ts](components/reels/reelCategory.ts)). Hesaba
+  yazılmır, çünki səhifə statik qalmalıdır.
+- `ALL` **saxlanılan dəyər DEYİL** — yalnız süzgəcsiz baxışdır. Admin API-si onu
+  qəbul etmir, yoxsa reel heç bir feed-ə düşməzdi.
+- Yazma yolları: Telegram `rk|<reelId>|G⎮S` düyməsi (elə ayrımın özüdür) və admin
+  formundakı select. Yeni reel üçün admin default-u `GAME`, toplu qaralamalar
+  `STREAMING` (yayımlanmır, admin onsuz da düzəldir).
+
+**Server seçimi bilmir** (statik səhifə), ona görə [app/reels/page.tsx](app/reels/page.tsx)
+**hər iki** kateqoriyanın ilk səhifəsini ötürür — seçim nə olursa olsun əlavə sorğu
+getmir. `ALL` azlıqda qalan seçimdir, onun ilk səhifəsi client-də mount-da çəkilir.
+
+⚠️ **Seçim həll olunana qədər feed RENDER OLUNMUR** (qara ekran). SSR-də hansısa
+kateqoriyanı göstərsək, qayıdan istifadəçi bir an **yanlış feed-i** görür: SSR HTML
+hidrasiyadan ƏVVƏL paint olunur, ona görə `useLayoutEffect` bunu xilas etmir.
+
+⚠️ Platforma çipi süzgəci **serverdə** tətbiq olunur (`/api/reels?platform=`) — client-də
+süzsək offset kursoru süzülmüş dəstlə uyğunsuzlaşır və səhifələmə element atlayır.
+
+⚠️ **MİQRASİYA BUILD-DƏN ƏVVƏL İŞLƏMƏLİDİR.** `/reels` statik prerender olunur, yəni
+`next build` zamanı DB-yə sorğu gedir. Sxem dəyişikliyi tətbiq olunmayıbsa **build-in
+özü sınır** (`Export encountered errors on following paths: /reels/page`), sadəcə runtime
+yox. Serverdə düzgün sıra: `git pull` → `prisma migrate deploy` → `next build`.
+
+## Deep link — `/reels?r=<id>`
+
+⚠️ `page.tsx`-də `searchParams` işlətmək route-u **dinamik edir** və bütün keşləmə
+arxitekturasını sındırır. Parametr **client-də** `useSearchParams()` + məcburi
+`<Suspense>` sərhədi ilə oxunur, reel `GET /api/reels/[id]`-dən çəkilib feed-in başına
+qoyulur. Saxlanmış seçim **dəyişdirilmir** — bu, bir dəfəlik baxışdır.
+
 ## Keşləmə arxitekturası (ƏN VACİB QAYDA)
 
 Feed səhifəsi **statik/edge-keşlənən** qalmalıdır → `app/reels/page.tsx` içində
 `cookies()` / `getCurrentUser()` **HEÇ VAXT** çağırma (homepage ilə eyni prinsip).
 
-- İlk səhifə: `getFirstReelsPageCached()` → `unstable_cache`, tag **`"reels"`**, `revalidate: 300`.
+- İlk səhifə: `getFirstReelsPageCached(category)` → `unstable_cache`, tag **`"reels"`**,
+  `revalidate: 300`. Funksiya **arqumenti avtomatik keş açarına düşür**, ona görə hər
+  kateqoriya öz girişini alır; tag hamısında eynidir ki, `revalidateReels()` bir çağırışla
+  hamısını sıfırlasın.
 - Sonrakı səhifələr: `GET /api/reels?cursor=N` (offset kursoru, `REELS_PAGE_SIZE = 8`,
   `take: limit+1` ilə `hasMore` təyini).
 - Per-user vəziyyət (bəyəndim/dislike) feed cavabında **yoxdur** — `POST /api/reels/state`

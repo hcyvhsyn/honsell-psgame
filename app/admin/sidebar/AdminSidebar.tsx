@@ -32,6 +32,7 @@ import {
   RefreshCw,
   Search,
   TrendingUp,
+  Filter,
   ArrowLeft,
   Coins,
   Monitor,
@@ -86,6 +87,7 @@ type IconName =
   | "RefreshCw"
   | "Search"
   | "TrendingUp"
+  | "Filter"
   | "Coins"
   | "Monitor"
   | "Megaphone"
@@ -137,6 +139,7 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   RefreshCw,
   Search,
   TrendingUp,
+  Filter,
   Coins,
   Monitor,
   Megaphone,

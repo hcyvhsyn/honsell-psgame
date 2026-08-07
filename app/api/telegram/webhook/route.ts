@@ -196,16 +196,23 @@ async function handleKindCallback(cb: TgCallbackQuery) {
   const kind = parts[2];
 
   if (kind === "S") {
+    // Kateqoriya elə burada təyin olunur — bu düymə onsuz da məhz feed ayrımıdır.
+    try {
+      await prisma.reel.update({ where: { id: reelId }, data: { category: "STREAMING" } });
+    } catch {
+      if (messageId != null) await telegramEditMessageText(chatId, messageId, "⚠️ Reel tapılmadı.");
+      return;
+    }
     if (messageId != null) await telegramEditMessageText(chatId, messageId, "🎬 Film / Serial");
     await askPlatform(chatId, reelId);
     return;
   }
 
-  // Oyun: mətn cavabını bu qaralamaya bağla.
+  // Oyun: kateqoriyanı yaz + mətn cavabını bu qaralamaya bağla.
   try {
     await prisma.reel.update({
       where: { id: reelId },
-      data: { tgChatId: String(chatId), tgStage: STAGE_GAME_NAME },
+      data: { category: "GAME", tgChatId: String(chatId), tgStage: STAGE_GAME_NAME },
     });
   } catch {
     if (messageId != null) await telegramEditMessageText(chatId, messageId, "⚠️ Reel tapılmadı.");

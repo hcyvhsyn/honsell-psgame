@@ -51,6 +51,7 @@ type Reel = {
   ctaHref: string | null;
   ctaLabel: string | null;
   editionGameIds: string[];
+  category: string;
   viewCount: number;
   isPublished: boolean;
   sortOrder: number;
@@ -76,6 +77,8 @@ type FormState = {
   ctaLabel: string;
   /** ctaType=GAME olduqda feed-də göstəriləcək sürümlər (Game.id). */
   editionGameIds: string[];
+  /** GAME | STREAMING — feed ayrımı. "Hamısı" saxlanılan dəyər deyil. */
+  category: string;
   isPublished: boolean;
   sortOrder: number;
 };
@@ -97,6 +100,7 @@ const EMPTY: FormState = {
   ctaHref: "",
   ctaLabel: "Hesab al",
   editionGameIds: [],
+  category: "GAME",
   isPublished: true,
   sortOrder: 0,
 };
@@ -112,6 +116,7 @@ export default function ReelsAdminClient() {
   const [videoPct, setVideoPct] = useState(0);
   const [posterBusy, setPosterBusy] = useState(false);
   const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
+  const [tab, setTab] = useState<"ALL" | "GAME" | "STREAMING">("ALL");
   const bulkRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -153,6 +158,7 @@ export default function ReelsAdminClient() {
       ctaHref: r.ctaHref ?? "",
       ctaLabel: r.ctaLabel ?? "Hesab al",
       editionGameIds: r.editionGameIds ?? [],
+      category: r.category === "GAME" ? "GAME" : "STREAMING",
       isPublished: r.isPublished,
       sortOrder: r.sortOrder,
     });
@@ -291,7 +297,10 @@ export default function ReelsAdminClient() {
             height,
             durationMs,
             ctaType: "URL",
-            isPublished: false, // qaralama — admin CTA/platforma təyin edib yayımlayır
+            // Toplu yükləmə hansı kateqoriya olduğunu bilə bilmir; qaralamalar
+            // yayımlanmadığı üçün admin yayımdan əvvəl onsuz da düzəldir.
+            category: "STREAMING",
+            isPublished: false, // qaralama — admin CTA/kateqoriya təyin edib yayımlayır
           }),
         });
         if (resp.ok) created++;
@@ -379,10 +388,40 @@ export default function ReelsAdminClient() {
     await load();
   }
 
+  // Kateqoriya nişanı "GAME" deyilsə film sayılır — köhnə sətirlərdə dəyər boş
+  // ola bilməz (sütunun DEFAULT-u var), amma müdafiəli oxuyuruq.
+  const counts = {
+    GAME: items.filter((r) => r.category === "GAME").length,
+    STREAMING: items.filter((r) => r.category !== "GAME").length,
+  };
+  const visible =
+    tab === "ALL" ? items : items.filter((r) => (tab === "GAME" ? r.category === "GAME" : r.category !== "GAME"));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-zinc-500">{items.length} reel</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-zinc-500">{visible.length} reel</span>
+          <div className="flex rounded-lg bg-zinc-100 p-0.5">
+            {(
+              [
+                ["ALL", `Hamısı (${items.length})`],
+                ["GAME", `🎮 Oyun (${counts.GAME})`],
+                ["STREAMING", `🎬 Film (${counts.STREAMING})`],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setTab(value)}
+                className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+                  tab === value ? "bg-white shadow-sm" : "text-zinc-500 hover:text-zinc-800"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           <input
             ref={bulkRef}
@@ -420,13 +459,15 @@ export default function ReelsAdminClient() {
         <div className="flex justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
         </div>
-      ) : items.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 py-16 text-center text-sm text-zinc-500">
-          Hələ reel yoxdur. İlk videonu əlavə edin.
+          {items.length === 0
+            ? "Hələ reel yoxdur. İlk videonu əlavə edin."
+            : "Bu kateqoriyada reel yoxdur."}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {items.map((r) => (
+          {visible.map((r) => (
             <div key={r.id} className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
               <div className="relative aspect-[9/16] bg-zinc-100">
                 {r.posterUrl ? (
@@ -442,6 +483,9 @@ export default function ReelsAdminClient() {
                     Gizli
                   </span>
                 )}
+                <span className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-0.5 text-[10px] font-bold text-white">
+                  {r.category === "GAME" ? "🎮 Oyun" : "🎬 Film"}
+                </span>
                 {r.platformLabel && (
                   <span className="absolute right-2 top-2 rounded bg-violet-600/90 px-2 py-0.5 text-[10px] font-bold text-white">
                     {r.platformLabel}
@@ -693,6 +737,24 @@ function ReelFormModal({
               placeholder="https://cdn.honsell.store/..."
             />
           </Field>
+
+          {/* Feed kateqoriyası — oyun və film/serial auditoriyaları ayrıdır. */}
+          <div className="rounded-xl border border-zinc-200 p-3">
+            <Field label="Feed kateqoriyası">
+              <select
+                value={form.category}
+                onChange={(e) => set("category", e.target.value)}
+                className="input"
+              >
+                <option value="GAME">🎮 Oyun</option>
+                <option value="STREAMING">🎬 Film / Serial</option>
+              </select>
+            </Field>
+            <p className="mt-1.5 text-[11px] text-zinc-500">
+              İstifadəçi <b>/reels</b>-ə ilk girişdə hansını izləyəcəyini seçir və yalnız
+              onu görür. Səhv kateqoriya = video yanlış auditoriyaya düşür.
+            </p>
+          </div>
 
           {/* CTA */}
           <div className="rounded-xl border border-zinc-200 p-3">
