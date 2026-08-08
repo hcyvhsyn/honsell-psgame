@@ -284,6 +284,24 @@ Feed səhifəsi **statik/edge-keşlənən** qalmalıdır → `app/reels/page.tsx
 - Poster `<img>` anında paint olunur, `onPlaying`-də `opacity-0` ilə itir.
 - Autoplay blokda (`NotAllowedError`) → `needsTap`, mərkəz Play ikonu.
 - Səs qlobaldır (`globalMuted`), `M` klavişi toggle; `↑/↓` naviqasiya.
+
+### Səs davranışı ([reelSound.ts](components/reels/reelSound.ts))
+
+⚠️ **Cihazın səs DÜYMƏLƏRİ brauzerə ötürülmür.** Mobil platformalarda bu hadisə
+səhifəyə ümumiyyətlə çatmır; masaüstündə yalnız bəzi brauzerlər `AudioVolumeUp`
+klavişini verir (macOS-da OS onu udur). Yəni "telefonun səsini artıranda feed-in səsi
+açılsın" birbaşa AŞKARLANA BİLMİR — bunu vəd edən kod yazma. Əvəzində üç mexanizm var:
+
+1. **Seçim yadda saxlanılır** (`localStorage["honsell:reels-sound"]`) — bir dəfə səs
+   açılırsa növbəti girişlərdə də açılmağa cəhd olunur. Ən çox təsir edən budur.
+2. **Səsli avtoplay cəhdi** — brauzer `NotAllowedError` verirsə video **səssiz
+   oynadılır** (dayandırılmır) və UI səssizə qayıdır. Saxlanmış seçim POZULMUR:
+   Chrome-un media engagement göstəricisi artdıqca sonrakı girişdə keçə bilər.
+   Bunun üçün `ReelSlot` `onSoundBlocked` prop-u ilə valideynə xəbər verir —
+   valideyn yalnız state-i dəyişir, `storeSoundPreference` ÇAĞIRMIR.
+3. **İlk toxunuş səsi açır** — səssiz ikən videoya toxunmaq pauza yox, səs açır
+   (TikTok davranışı). Səs açıldıqdan sonra toxunuş adi pauza/oynat olur.
+   Üst sağda "Səs üçün toxun" nişanı bunu bildirir.
 - Sonsuz scroll: `activeIndex >= items.length - 3` olanda `loadMore()`.
 - `viewedThisSession` Set — izlənmə ≥2s (və ya `durationMs*0.5`) sonra **bir dəfə**
   `POST /api/reels/[id]/view` (`keepalive`). Server tərəfdə dedup **yoxdur**, sadə increment.
@@ -345,6 +363,29 @@ yalnız gözləyən qaralama varsa oyun axtarışı kimi oxunur.
 ⚠️ Telegram-da checkbox yoxdur, ona görə oyun seçiləndə **sürümlər admin təsdiqi olmadan**
 `findEditionCandidates()`-dən doldurulur. Təsdiq mesajı neçə sürüm əlavə olunduğunu və ən
 ucuz qiyməti yazır ki, admin paneldən yoxlaya bilsin.
+
+### ⚠️ Ağır iş HEÇ VAXT cavab yolunda olmamalıdır
+
+Telegram webhook cavabını ~60 saniyə gözləyir; gecikmə olarsa **eyni update-i təkrar
+göndərir**. Əvvəllər endirmə+çevirmə (yt-dlp 150s + ffmpeg 180s) 200 qaytarılmazdan
+əvvəl işləyirdi → eyni video **8 dəfə** emal olunurdu, hər dəfə yeni "Video endirilir..."
+mesajı gəlirdi və paralel ffmpeg-lər 4GB serverdə bir-birini boğub
+`ffmpeg vaxt aşımına uğradı` verirdi. Bu, ffmpeg problemi kimi görünür — deyil.
+
+İndi üç müdafiə var:
+1. `runIngest()` **fon rejimində** işləyir, webhook 200-ü dərhal qaytarır
+   (`next start` uzunömürlü Node prosesidir, cavabdan sonra iş davam edir).
+2. `seenUpdateIds` — təkrar gələn `update_id` atılır.
+3. `ingestingChats` — eyni chat-da paralel ingest bloklanır.
+
+⚠️ **Yeni ağır əməliyyat əlavə edəndə onu mütləq `runIngest` kimi cavabdan sonra işlət.**
+
+### Remux > transcode
+
+TikTok/Instagram/YouTube endirmələri demək olar həmişə **onsuz da H.264+AAC**-dır.
+`processFile()` əvvəlcə `probeCodecs()` ilə yoxlayır: uyğundursa yalnız konteyneri
+remux edir (`-c copy -movflags +faststart`) — dəqiqələr əvəzinə saniyələr. Yenidən
+kodlaşdırma yalnız codec uyğun olmayanda və ya en > 1920 olanda işə düşür.
 
 ### `allowed_updates` tələsi (bu problem İKİ DƏFƏ təkrarlanıb)
 

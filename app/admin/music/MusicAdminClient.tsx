@@ -616,7 +616,7 @@ export default function MusicAdminClient() {
                   <p className="font-semibold text-zinc-900">
                     {p.label}
                     {!p.isActive && (
-                      <span className="ml-2 rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-bold text-zinc-600">Gizli</span>
+                      <span className="ml-2 rounded bg-admin-chip2 px-1.5 py-0.5 text-[10px] font-bold text-zinc-600">Gizli</span>
                     )}
                   </p>
                   <p className="text-xs text-zinc-500">{productCount} paket</p>

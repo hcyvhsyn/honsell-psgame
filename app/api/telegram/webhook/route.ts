@@ -30,6 +30,38 @@ export const maxDuration = 300;
 
 const MAX_BYTES = 20 * 1024 * 1024; // Telegram getFile endirmə limiti ~20MB
 
+/**
+ * Emal olunmuş `update_id`-lər.
+ *
+ * ⚠️ TELEGRAM CAVAB GECİKƏNDƏ EYNİ UPDATE-İ TƏKRAR GÖNDƏRİR. Əvvəllər webhook
+ * endirmə+çevirməni (dəqiqələr) bitirənə qədər 200 qaytarmırdı, ona görə Telegram
+ * təkrar-təkrar göndərir və EYNİ video 8 dəfə emal olunurdu (hər dəfə yeni
+ * "Video endirilir..." mesajı + paralel ffmpeg-lər bir-birini boğub vaxt aşımına
+ * uğrayırdı). İndi cavab dərhal qaytarılır, bu Set isə hər ehtimala qarşı ikinci
+ * müdafiə xəttidir.
+ *
+ * Proses yenidən başlayanda sıfırlanır — problem deyil, çünki əsas müdafiə sürətli
+ * cavabdır.
+ */
+const seenUpdateIds = new Set<number>();
+const SEEN_LIMIT = 1000;
+
+/** `true` → bu update ilk dəfə görülür (emal olunmalıdır). */
+function markUpdateSeen(updateId: unknown): boolean {
+  if (typeof updateId !== "number") return true; // id yoxdursa süzə bilmirik
+  if (seenUpdateIds.has(updateId)) return false;
+  seenUpdateIds.add(updateId);
+  // Set-i qeyri-məhdud böyütmə — ən köhnəni at.
+  if (seenUpdateIds.size > SEEN_LIMIT) {
+    const oldest = seenUpdateIds.values().next().value;
+    if (oldest !== undefined) seenUpdateIds.delete(oldest);
+  }
+  return true;
+}
+
+/** Eyni chat-da paralel ingest-in qarşısını alır (CPU-nu boğmasın). */
+const ingestingChats = new Set<number>();
+
 type TgPhoto = { file_id: string };
 type TgMedia = {
   file_id: string;
@@ -419,6 +451,12 @@ export async function POST(req: Request) {
 
   const update = await req.json().catch(() => null);
 
+  // Təkrar göndərilən update-i at (eyni videonun bir neçə dəfə emalına qarşı
+  // ikinci müdafiə xətti — birincisi ağır işi cavab yolundan çıxarmaqdır).
+  if (!markUpdateSeen(update?.update_id)) {
+    return NextResponse.json({ ok: true });
+  }
+
   // Webhook `callback_query`-siz qeyd olunubsa düymələr HEÇ VAXT bura çatmır —
   // server özünü bir dəfə yoxlayıb bərpa edir (lib/telegram.ts-dəki izaha bax).
   await ensureCallbacksAllowed(`${SITE_URL}/api/telegram/webhook`);
@@ -478,6 +516,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  // ─── Ağır ingest — CAVAB YOLUNDAN KƏNARDA ─────────────────────────────────
+  // Endirmə + çevirmə dəqiqələr çəkir. Telegram-a 200 dərhal qaytarılmasa o,
+  // eyni update-i təkrar göndərir və video təkrar-təkrar emal olunur.
+  if (ingestingChats.has(chatId)) {
+    await telegramSendMessage(chatId, "⏳ Əvvəlki video hələ emal olunur, bir az gözlə.");
+    return NextResponse.json({ ok: true });
+  }
+  ingestingChats.add(chatId);
+  void runIngest(chatId, msg, media, url).finally(() => ingestingChats.delete(chatId));
+  return NextResponse.json({ ok: true });
+}
+
+/**
+ * Videonu endirir/emal edir və qaralama yaradır. Webhook cavabından SONRA, fon
+ * rejimində işləyir (`next start` uzunömürlü Node prosesidir, ona görə cavabdan
+ * sonra da davam edir).
+ */
+async function runIngest(
+  chatId: number,
+  msg: TgMessage,
+  media: TgMedia | undefined,
+  url: string | null,
+) {
   const bins = await checkIngestBinaries();
 
   try {
@@ -488,12 +549,12 @@ export async function POST(req: Request) {
           chatId,
           "Link-dən endirmə üçün server hazır deyil (ffmpeg/yt-dlp quraşdırılmalıdır).",
         );
-        return NextResponse.json({ ok: true });
+        return;
       }
       await telegramSendMessage(chatId, "⏳ Video endirilir və emal olunur...");
       const assets = await ingestFromUrl(url);
       await createDraftAndAskKind(chatId, assets, hostLabel(url), (msg.caption ?? "").trim());
-      return NextResponse.json({ ok: true });
+      return;
     }
 
     // ─── Telegram video faylı ───────────────────────────────────────────────
@@ -502,12 +563,12 @@ export async function POST(req: Request) {
         chatId,
         `Video çox böyükdür (${(media!.file_size / 1024 / 1024).toFixed(1)}MB). Telegram limiti ~20MB.`,
       );
-      return NextResponse.json({ ok: true });
+      return;
     }
     const bytes = await telegramFetchFileBytes(media!.file_id);
     if (!bytes) {
       await telegramSendMessage(chatId, "Videonu endirə bilmədim (20MB-dan böyük ola bilər).");
-      return NextResponse.json({ ok: true });
+      return;
     }
 
     if (bins.ffmpeg) {
@@ -515,7 +576,7 @@ export async function POST(req: Request) {
       const ext = (media!.mime_type ?? "").includes("webm") ? "webm" : "mp4";
       const assets = await ingestFromBytes(bytes, ext);
       await createDraftAndAskKind(chatId, assets, "Reels video", (msg.caption ?? "").trim());
-      return NextResponse.json({ ok: true });
+      return;
     }
 
     // ffmpeg yoxdur → xam yüklə (codec yoxlaması + Telegram thumbnail poster).
@@ -525,7 +586,7 @@ export async function POST(req: Request) {
         chatId,
         "Bu video H.265/HEVC formatındadır — brauzerlər oynatmır. H.264 (MP4) göndər.",
       );
-      return NextResponse.json({ ok: true });
+      return;
     }
     let posterBuffer: Buffer | null = null;
     const thumbId = media!.thumbnail?.file_id ?? media!.thumb?.file_id;
@@ -542,10 +603,8 @@ export async function POST(req: Request) {
       "Reels video",
       (msg.caption ?? "").trim(),
     );
-    return NextResponse.json({ ok: true });
   } catch (err) {
     const m = err instanceof Error ? err.message : "naməlum xəta";
     await telegramSendMessage(chatId, `Reel əlavə olunmadı: ${m}`);
-    return NextResponse.json({ ok: true });
   }
 }

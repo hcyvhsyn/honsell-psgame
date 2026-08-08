@@ -19,6 +19,7 @@ import ScrollActivityFlag from "@/components/ScrollActivityFlag";
 import { Suspense } from "react";
 import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "@/lib/site";
 import SiteAnalytics from "@/components/SiteAnalytics";
+import VisitorTracker from "@/components/VisitorTracker";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -170,6 +171,11 @@ export default async function RootLayout({
           </ReferralRatesProvider>
         </ThemeProvider>
         <SiteAnalytics />
+        {/* Öz funnel ölçmələrimiz — useSearchParams işlətdiyi üçün Suspense
+            məcburidir, əks halda bütün səhifələr dinamik render olunar. */}
+        <Suspense fallback={null}>
+          <VisitorTracker />
+        </Suspense>
       </body>
     </html>
   );

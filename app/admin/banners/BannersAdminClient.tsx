@@ -468,7 +468,7 @@ export default function BannersAdminClient() {
                       ))}
                     </div>
                   </div>
-                  <div className={`relative overflow-hidden rounded-xl border border-admin-line bg-zinc-800 ${previewDevice === "mobile" ? "mx-auto aspect-[4/5] max-w-[240px]" : "aspect-[16/9] w-full"}`}>
+                  <div className={`admin-banner-preview relative overflow-hidden rounded-xl border border-admin-line bg-zinc-800 ${previewDevice === "mobile" ? "mx-auto aspect-[4/5] max-w-[240px]" : "aspect-[16/9] w-full"}`}>
                     {img ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover" />

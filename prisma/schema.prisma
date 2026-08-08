@@ -964,12 +964,23 @@ model Transaction {
   // Free-form metadata (e.g. masked card, gateway ref)
   metadata String?
 
+  /// Sifariş kodu (HON-XXXXXX). Bir checkout N Transaction sətri yaradır və
+  /// hamısı eyni kodu daşıyır — `OrderAttribution` ilə join açarıdır.
+  ///
+  /// ⚠️ Kod `metadata` JSON-unda da var, amma ORADAN oxuma: hesabat `LIKE`
+  /// skanına çevrilər. Bu sütun checkout-dan sonra TƏK `updateMany` ilə
+  /// doldurulur (cüzdan və kart yolları üçün ikisi) — 50 ədəd metadata
+  /// literalına toxunmadan.
+  /// Köhnə sətirlərdə NULL-dır; hesabat onları "Mənbəsi bilinməyən" kimi göstərir.
+  orderCode String?
+
   // Manual-deposit receipt URL (uploaded by the customer, reviewed by admin)
   receiptUrl String?
 
   createdAt DateTime @default(now())
 
   @@index([status, type])
+  @@index([orderCode])
 }
 
 // ─── PS Plus subscriptions (auto-renew, expiry tracking) ─────────────────────
@@ -2792,4 +2803,139 @@ model CommunityPostComment {
 
   @@index([postId, createdAt])
   @@index([userId])
+}
+
+// ─── Analitika: satış hunisi və kanal atributsiyası ──────────────────────────
+//
+// NİYƏ ÖZ SİSTEMİMİZ VAR (GA4 deyil):
+// Sifarişlər admin tərəfindən ƏL İLƏ, bəzən günlər sonra SUCCESS edilir. GA4-ün
+// `purchase` event-i isə checkout anında atəşlənməlidir — yəni uğursuz kart
+// ödənişlərini və yerinə yetirilməmiş sifarişləri gəlir kimi sayardı. Bizə lazım
+// olan rəqəm "hansı kanal REAL AZN gətirdi"dir; o, yalnız `Transaction` ilə eyni
+// bazada hesablana bilər. Üstəlik az trafikdə GA4 hesabatları gizlədir
+// (thresholding) — yəni ən çox lazım olan anda susur.
+//
+// Konvensiya `RateLimitEvent` ilə eynidir: append-only, "kind"-lar sərbəst String
+// (bu sxemdə heç bir enum yoxdur), indekslər [ölçü, createdAt] formasında.
+
+model AnalyticsEvent {
+  /// Client tərəfdə yaradılan UUID. `createMany({ skipDuplicates: true })` ilə
+  /// birlikdə beacon-un təkrar göndərilməsini idempotent edir — `sendBeacon`
+  /// çatdırılmanı zəmanət etmir, amma dublikat da göndərə bilər.
+  id String @id
+
+  visitorId String
+  sessionId String
+  /// Login olmuşsa serverdə damğalanır — anonim → istifadəçi körpüsü.
+  userId    String?
+
+  /// page_view | view_item | add_to_cart | begin_checkout | purchase | search | reel_view
+  name String
+  path String
+
+  productId   String?
+  productType String?
+  /// Səbətə atılan / alınan dəyər (AZN qəpik). page_view üçün null.
+  valueAznCents Int?
+  /// Yalnız name = "search" üçün doludur.
+  query String?
+
+  /// lib/analyticsShared.ts → classifyChannel() nəticəsi.
+  channel String
+  /// Bot trafiki SİLİNMİR, işarələnir — filtrin real ziyarətçi yemədiyini
+  /// sonradan sübut etmək üçün. Bütün hesabat sorğuları isBot=false süzür.
+  isBot Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([visitorId, createdAt])
+  @@index([createdAt])
+}
+
+/// Hesabatın ƏSL oxuduğu cədvəl. Huni `O(seans)` sorğusuna çevrilir — xam event
+/// axınını skan etmək lazım gəlmir.
+model AnalyticsSession {
+  id String @id @default(cuid())
+
+  visitorId String
+  sessionId String
+  userId    String?
+
+  // İlk toxunuş — BİR DƏFƏ yazılır, heç vaxt üzərinə yazılmır.
+  firstChannel      String
+  firstSource       String?
+  firstMedium       String?
+  firstCampaign     String?
+  firstReferrerHost String?
+  firstLandingPath  String?
+
+  // Son qeyri-birbaşa toxunuş (daxili naviqasiya bunu dəyişmir).
+  lastChannel      String
+  lastSource       String?
+  lastMedium       String?
+  lastCampaign     String?
+  lastReferrerHost String?
+
+  landingPath String
+  pageViews   Int    @default(0)
+
+  /// ⚠️ Bunlar 0/1 bayraqlarıdır, amma QƏSDƏN `Boolean` DEYİL: Prisma `groupBy`
+  /// `Int`-i `_sum` edə bilir, `Boolean`-ı yox. `Int` ilə bütün kanal hunisi TƏK
+  /// `groupBy` sorğusudur; `Boolean` olsaydı hər addım üçün ayrıca sorğu lazım
+  /// gələrdi.
+  sawProduct    Int @default(0)
+  addedToCart   Int @default(0)
+  beganCheckout Int @default(0)
+  purchased     Int @default(0)
+
+  isBot Boolean @default(false)
+
+  startedAt  DateTime @default(now())
+  lastSeenAt DateTime @updatedAt
+
+  @@unique([visitorId, sessionId])
+  @@index([startedAt])
+  @@index([firstChannel, startedAt])
+  @@index([lastChannel, startedAt])
+}
+
+/// Sifariş → kanal damğası. Checkout anında BİR DƏFƏ yazılır; sonradan
+/// uzlaşdırma işi tələb etmir, çünki `Transaction.createdAt` checkout anıdır və
+/// admin statusu SUCCESS edəndə dəyişmir. Beləcə gəlir müştərinin ALDIĞI günə
+/// düşür, amma yalnız real yerinə yetirilmiş pul sayılır.
+model OrderAttribution {
+  id String @id @default(cuid())
+
+  /// Checkout-da yaradılan sifariş kodu (HON-XXXXXX).
+  orderCode String @unique
+  userId    String
+
+  visitorId String?
+  sessionId String?
+
+  firstChannel      String
+  firstSource       String?
+  firstMedium       String?
+  firstCampaign     String?
+  firstReferrerHost String?
+  firstLandingPath  String?
+
+  lastChannel      String
+  lastSource       String?
+  lastMedium       String?
+  lastCampaign     String?
+  lastReferrerHost String?
+
+  /// WALLET | REFERRAL | EPOINT | EPOINT_WIDGET
+  paymentMethod String
+  /// Checkout anındakı nəzərdə tutulan cəm (AZN qəpik). Sifariş ödənilməsə də
+  /// sətir qalır — "ödənişə keçdi, ödəmədi" metrikası məhz buradan çıxır.
+  orderTotalAznCents Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([firstChannel, createdAt])
+  @@index([lastChannel, createdAt])
 }

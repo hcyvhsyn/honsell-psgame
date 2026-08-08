@@ -21,6 +21,7 @@ import { looksLikeProductId } from "@/lib/gameSlug";
 import { getCurrentUser } from "@/lib/auth";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
+import TrackView from "@/components/TrackView";
 import GameCard, { type GameCardData } from "@/components/GameCard";
 import AddToCartButton from "./AddToCartButton";
 import FavoriteButton from "@/components/FavoriteButton";
@@ -392,6 +393,13 @@ export default async function GameDetailPage({
 
   return (
     <main className="min-h-screen bg-zinc-50 text-zinc-950 dark:bg-[#0A0A0F] dark:text-zinc-100">
+      {/* Huninin "məhsula baxdı" addımı. Qiymət də göndərilir ki, hansı qiymət
+          diapazonunun səbətə çevrildiyi görünsün. */}
+      <TrackView
+        productId={game.id}
+        productType={game.productType}
+        valueAznCents={Math.round(display.finalAzn * 100)}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}

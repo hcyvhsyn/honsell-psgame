@@ -111,7 +111,7 @@ export default function TestimonialsAdminClient({ initial }: { initial: AdminTes
       )}
 
       {shown.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 py-16 text-center text-sm text-zinc-500">
+        <div className="rounded-xl border border-dashed border-admin-line2 bg-admin-chip py-16 text-center text-sm text-zinc-500">
           {tab === "pending"
             ? "Təsdiq gözləyən rəy yoxdur."
             : "Anasayfada göstərilən rəy yoxdur."}
@@ -135,7 +135,7 @@ export default function TestimonialsAdminClient({ initial }: { initial: AdminTes
                         />
                       ))}
                     </span>
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                    <span className="rounded-full bg-admin-chip px-2 py-0.5 text-[11px] font-medium text-zinc-600">
                       {t.productTitle ?? PLATFORM_LABELS[t.platform] ?? t.platform}
                     </span>
                     {t.fromPurchase ? (
@@ -163,7 +163,7 @@ export default function TestimonialsAdminClient({ initial }: { initial: AdminTes
                         <button
                           type="button"
                           onClick={() => patch(t.id, { isActive: false }, { isActive: false })}
-                          className="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                          className="inline-flex items-center gap-1 rounded-lg border border-admin-line2 bg-admin-card px-2.5 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-admin-chip"
                         >
                           <EyeOff className="h-3.5 w-3.5" /> Deaktiv et
                         </button>
@@ -196,7 +196,7 @@ export default function TestimonialsAdminClient({ initial }: { initial: AdminTes
                           const v = Number(e.target.value);
                           if (v !== t.sortOrder) patch(t.id, { sortOrder: v }, { sortOrder: v });
                         }}
-                        className="w-14 rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-right text-xs text-zinc-800"
+                        className="w-14 rounded border border-admin-line2 bg-admin-card px-1.5 py-0.5 text-right text-xs text-zinc-800"
                       />
                     </label>
                   )}
@@ -225,7 +225,7 @@ function TabButton({
       onClick={onClick}
       className={[
         "inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium transition",
-        active ? "bg-violet-500/10 text-violet-700 ring-1 ring-violet-500/30" : "text-zinc-600 hover:bg-zinc-100",
+        active ? "bg-violet-500/10 text-violet-700 ring-1 ring-violet-500/30" : "text-zinc-600 hover:bg-admin-chip",
       ].join(" ")}
     >
       {children}

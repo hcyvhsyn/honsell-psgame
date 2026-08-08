@@ -18,6 +18,7 @@ import ReelCommentsSheet from "./ReelCommentsSheet";
 import ReelCategoryGate from "./ReelCategoryGate";
 import ReelCategorySwitch from "./ReelCategorySwitch";
 import { readStoredReelCategory, storeReelCategory } from "./reelCategory";
+import { isVolumeUpKey, readSoundPreference, storeSoundPreference } from "./reelSound";
 import type { ReelCategory, ReelFeedItem, ReelPlatformChip, ReelRole } from "./types";
 
 /** Bir slot-un yüksəkliyi — mobil tam ekran, desktop-da telefon-eni sütun. */
@@ -73,7 +74,7 @@ export default function ReelsFeedClient({
   const loadingRef = useRef(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
-  // Saxlanmış seçimi paint-dən əvvəl oxu (hidrasiya uyğunsuzluğu olmasın deyə
+  // Saxlanmış seçimləri paint-dən əvvəl oxu (hidrasiya uyğunsuzluğu olmasın deyə
   // render-də deyil, layout effektində).
   useLayoutEffect(() => {
     const stored = readStoredReelCategory();
@@ -82,6 +83,14 @@ export default function ReelsFeedClient({
       setCategory("GAME"); // qapının arxasında məhsul görünsün
       setGateOpen(true);
     }
+    // İstifadəçi əvvəllər səsi açıbsa yenidən açmağa CƏHD et — brauzer icazə
+    // verməsə ReelSlot səssizə qayıdır (avtoplay siyasəti).
+    if (readSoundPreference()) setGlobalMuted(false);
+  }, []);
+
+  const setMuted = useCallback((next: boolean) => {
+    setGlobalMuted(next);
+    storeSoundPreference(!next);
   }, []);
 
   function pickCategory(next: ReelCategory) {
@@ -230,12 +239,16 @@ export default function ReelsFeedClient({
         e.preventDefault();
         scrollToIndex(Math.max(activeIndex - 1, 0));
       } else if (e.key.toLowerCase() === "m") {
-        setGlobalMuted((m) => !m);
+        setMuted(!globalMuted);
+      } else if (isVolumeUpKey(e)) {
+        // Yalnız bu klavişi ötürən masaüstü brauzerlərdə işləyir (macOS və mobil
+        // onu səhifəyə vermir) — ona görə bu, əlavə imkandır, əsas yol deyil.
+        setMuted(false);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeIndex, items.length, scrollToIndex]);
+  }, [activeIndex, items.length, scrollToIndex, globalMuted, setMuted]);
 
   function roleFor(i: number): ReelRole {
     if (i === activeIndex) return "active";
@@ -299,7 +312,11 @@ export default function ReelsFeedClient({
                       item={item}
                       role={roleFor(i)}
                       globalMuted={globalMuted}
-                      onToggleMute={() => setGlobalMuted((m) => !m)}
+                      onToggleMute={() => setMuted(!globalMuted)}
+                      // Brauzer səsli avtoplay-a icazə vermədi. YALNIZ state
+                      // dəyişir — saxlanmış seçim "səs açıq" qalır ki, növbəti
+                      // girişdə (media engagement artdıqca) yenidən cəhd olunsun.
+                      onSoundBlocked={() => setGlobalMuted(true)}
                       commentDelta={commentDeltas[item.id] ?? 0}
                       onOpenComments={setCommentsOpenId}
                     />
@@ -331,7 +348,7 @@ export default function ReelsFeedClient({
                 item={activeItem}
                 commentDelta={commentDeltas[activeItem.id] ?? 0}
                 muted={globalMuted}
-                onToggleMute={() => setGlobalMuted((m) => !m)}
+                onToggleMute={() => setMuted(!globalMuted)}
                 onOpenComments={() => setCommentsOpenId(activeItem.id)}
               />
             )}

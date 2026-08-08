@@ -22,6 +22,7 @@ import {
   Copy,
 } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
+import { attributionPayload, trackEvent } from "@/lib/track";
 import { MIN_CART_AZN, MIN_CART_AZN_CENTS } from "@/lib/cartLimits";
 import CartSummary from "@/components/cart/CartSummary";
 import CouponCodeBox, {
@@ -567,6 +568,11 @@ export default function CartView({
       });
       return;
     }
+    // Bütün validasiya maneələri keçildikdən SONRA — yəni bu, real ödəniş
+    // cəhdidir, doldurulmamış formaya görə dayanan klik deyil.
+    trackEvent("begin_checkout", {
+      valueAznCents: Math.round(finalPayAzn * 100),
+    });
     setBusy(true);
     setMessage(null);
     try {
@@ -595,6 +601,8 @@ export default function CartView({
           paymentSource: "wallet",
           paymentMethod,
           ...(appliedCoupon ? { couponCode: appliedCoupon.code } : {}),
+          // Kanal damğası — server əvvəlcə cookie oxuyur, bu ehtiyatdır.
+          attribution: attributionPayload(),
         }),
       });
       const data = await res.json();
@@ -623,6 +631,10 @@ export default function CartView({
           });
           return;
         }
+
+        // Cüzdan yolu — ödəniş burada TAMAMLANIB (kart yolunda isə istifadəçi
+        // hələ epoint-ə yönləndirilir və `purchase` /succeess səhifəsində atılır).
+        trackEvent("purchase", { valueAznCents: Math.round(finalPayAzn * 100) });
 
         clear();
         removeCoupon();

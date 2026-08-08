@@ -93,7 +93,7 @@ export default function SubscriptionPackagesClient() {
 
   if (products.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500">
+      <div className="rounded-xl border border-admin-line bg-admin-card p-8 text-center text-sm text-zinc-500">
         Vitrin tipinə aid heç bir məhsul yoxdur.
       </div>
     );
@@ -105,7 +105,7 @@ export default function SubscriptionPackagesClient() {
         <button
           type="button"
           onClick={load}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-admin-line bg-admin-card px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-admin-chip"
         >
           <RefreshCw className="h-3.5 w-3.5" /> Yenilə
         </button>
@@ -118,9 +118,9 @@ export default function SubscriptionPackagesClient() {
           return (
             <li
               key={p.id}
-              className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3"
+              className="flex items-center gap-3 rounded-xl border border-admin-line bg-admin-card p-3"
             >
-              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-100">
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-admin-chip">
                 {p.imageUrl ? (
                   <Image src={p.imageUrl} alt={p.title} fill sizes="56px" className="object-cover" />
                 ) : (
@@ -132,11 +132,11 @@ export default function SubscriptionPackagesClient() {
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600">
+                  <span className="rounded-full bg-admin-chip px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600">
                     {LANDING_SERVICE_TYPE_LABELS[p.type] ?? p.type}
                   </span>
                   {!p.isActive ? (
-                    <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-bold text-zinc-600">
+                    <span className="rounded-full bg-admin-chip2 px-2 py-0.5 text-[10px] font-bold text-zinc-600">
                       Deaktiv
                     </span>
                   ) : hidden ? (
@@ -168,7 +168,7 @@ export default function SubscriptionPackagesClient() {
                   className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition disabled:opacity-40 ${
                     hidden
                       ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                      : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                      : "border border-admin-line bg-admin-card text-zinc-700 hover:bg-admin-chip"
                   }`}
                 >
                   {busy ? (
@@ -186,7 +186,7 @@ export default function SubscriptionPackagesClient() {
                   onClick={() => deleteProduct(p)}
                   disabled={busy}
                   title="Tamamilə sil"
-                  className="inline-flex items-center justify-center rounded-lg border border-rose-200 bg-white p-2 text-rose-600 transition hover:bg-rose-50 disabled:opacity-40"
+                  className="inline-flex items-center justify-center rounded-lg border border-rose-200 bg-admin-card p-2 text-rose-600 transition hover:bg-rose-50 disabled:opacity-40"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

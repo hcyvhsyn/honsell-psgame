@@ -61,7 +61,7 @@ const PRODUCT_TYPES: { value: string; label: string }[] = [
 ];
 
 const STATUS_BADGE: Record<string, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-600",
+  DRAFT: "bg-admin-chip text-zinc-600",
   ACTIVE: "bg-emerald-100 text-emerald-700",
   COMPLETED: "bg-violet-100 text-violet-700",
   CANCELLED: "bg-rose-100 text-rose-700",
@@ -442,7 +442,7 @@ export default function GiveawaysAdminClient() {
     statusFilter === "ALL" ? items : items.filter((g) => g.status === statusFilter);
 
   const inputCls =
-    "w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400";
+    "w-full rounded-lg border border-admin-line2 px-3 py-2 text-sm focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400";
 
   return (
     <div className="space-y-8">
@@ -453,7 +453,7 @@ export default function GiveawaysAdminClient() {
       )}
 
       {/* Yaratma / redaktə formu */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-admin-line bg-admin-card p-5 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold">
           {editingId ? "Çəkilişi redaktə et" : "Yeni çəkiliş"}
         </h2>
@@ -486,7 +486,7 @@ export default function GiveawaysAdminClient() {
                 <img
                   src={form.prizeImageUrl}
                   alt=""
-                  className="h-10 w-10 shrink-0 rounded-lg border border-zinc-200 object-cover"
+                  className="h-10 w-10 shrink-0 rounded-lg border border-admin-line object-cover"
                 />
               )}
               <input
@@ -682,7 +682,7 @@ export default function GiveawaysAdminClient() {
           {editingId && (
             <button
               onClick={resetForm}
-              className="rounded-lg border border-zinc-300 px-5 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+              className="rounded-lg border border-admin-line2 px-5 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-admin-chip"
             >
               Ləğv et
             </button>
@@ -704,7 +704,7 @@ export default function GiveawaysAdminClient() {
                 className={`rounded-full px-3.5 py-1.5 text-xs font-semibold ring-1 transition ${
                   on
                     ? "bg-violet-600 text-white ring-violet-600"
-                    : "bg-white text-zinc-600 ring-zinc-300 hover:bg-zinc-50"
+                    : "bg-admin-card text-zinc-600 ring-zinc-300 hover:bg-admin-chip"
                 }`}
               >
                 {f.label} ({count})
@@ -728,14 +728,14 @@ export default function GiveawaysAdminClient() {
             return (
               <div
                 key={g.id}
-                className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm"
+                className="rounded-2xl border border-admin-line bg-admin-card p-4 shadow-sm"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                          STATUS_BADGE[g.status] ?? "bg-zinc-100 text-zinc-600"
+                          STATUS_BADGE[g.status] ?? "bg-admin-chip text-zinc-600"
                         }`}
                       >
                         {STATUS_LABEL[g.status] ?? g.status}
@@ -770,7 +770,7 @@ export default function GiveawaysAdminClient() {
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => setDetailFor(g)}
-                      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                      className="rounded-lg border border-admin-line2 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-admin-chip"
                     >
                       Qalib / Rəy idarəsi ({g._count.entries})
                     </button>
@@ -798,7 +798,7 @@ export default function GiveawaysAdminClient() {
                         </button>
                         <button
                           onClick={() => patchStatus(g, "DRAFT")}
-                          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                          className="rounded-lg border border-admin-line2 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-admin-chip"
                         >
                           Dayandır
                         </button>
@@ -820,7 +820,7 @@ export default function GiveawaysAdminClient() {
                         </button>
                         <button
                           onClick={() => drawWinners(g)}
-                          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                          className="rounded-lg border border-admin-line2 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-admin-chip"
                         >
                           Yenidən çək
                         </button>
@@ -828,7 +828,7 @@ export default function GiveawaysAdminClient() {
                     )}
                     <button
                       onClick={() => startEdit(g)}
-                      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                      className="rounded-lg border border-admin-line2 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-admin-chip"
                     >
                       Redaktə
                     </button>
@@ -898,7 +898,7 @@ function BatchProgressModal({
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-2xl bg-admin-card p-6 shadow-2xl">
         <h3 className="text-lg font-bold text-zinc-900">{batch.title}</h3>
 
         {/* İrəliləyiş */}
@@ -909,7 +909,7 @@ function BatchProgressModal({
             </span>
             <span className="tabular-nums text-zinc-500">{pct}%</span>
           </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-200">
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-admin-chip2">
             <div
               className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-500"
               style={{ width: `${pct}%` }}
@@ -919,7 +919,7 @@ function BatchProgressModal({
 
         {/* Cari vəziyyət */}
         {!batch.done && (
-          <div className="mt-4 rounded-xl bg-zinc-50 px-4 py-3 text-sm">
+          <div className="mt-4 rounded-xl bg-admin-chip px-4 py-3 text-sm">
             {batch.nextInSec != null ? (
               <span className="text-zinc-700">
                 Növbəti mesaj: <span className="font-black tabular-nums text-violet-600">{batch.nextInSec}s</span>
@@ -939,7 +939,7 @@ function BatchProgressModal({
           <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">✓ {batch.sent}</span>
           <span className="rounded-full bg-rose-100 px-2.5 py-1 text-rose-700">✗ {batch.failed}</span>
           {batch.skippedNoPhone > 0 && (
-            <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-zinc-600">
+            <span className="rounded-full bg-admin-chip px-2.5 py-1 text-zinc-600">
               Nömrəsiz: {batch.skippedNoPhone}
             </span>
           )}
@@ -992,17 +992,17 @@ function ShareModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="w-full max-w-lg overflow-hidden rounded-2xl bg-admin-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-zinc-200 px-5 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-admin-line px-5 py-4">
           <div className="min-w-0">
             <h3 className="truncate font-semibold text-zinc-900">WhatsApp-la paylaş</h3>
             <p className="truncate text-xs text-zinc-500">{giveaway.title}</p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg border border-zinc-300 px-3 py-1 text-sm font-semibold text-zinc-600 hover:bg-zinc-50"
+            className="rounded-lg border border-admin-line2 px-3 py-1 text-sm font-semibold text-zinc-600 hover:bg-admin-chip"
           >
             Bağla
           </button>
@@ -1022,11 +1022,11 @@ function ShareModal({
                 readOnly
                 value={url}
                 onFocus={(e) => e.currentTarget.select()}
-                className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700"
+                className="w-full rounded-lg border border-admin-line2 bg-admin-chip px-3 py-2 text-sm text-zinc-700"
               />
               <button
                 onClick={() => onCopy(url)}
-                className="shrink-0 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+                className="shrink-0 rounded-lg border border-admin-line2 px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-admin-chip"
               >
                 {copied ? "✓ Kopyalandı" : "Kopyala"}
               </button>

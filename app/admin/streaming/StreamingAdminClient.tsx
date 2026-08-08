@@ -973,7 +973,7 @@ export default function StreamingAdminClient() {
                   <p className="font-semibold text-zinc-900">
                     {svc.label}
                     {!p.isActive && (
-                      <span className="ml-2 rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-bold text-zinc-600">
+                      <span className="ml-2 rounded bg-admin-chip2 px-1.5 py-0.5 text-[10px] font-bold text-zinc-600">
                         Gizli
                       </span>
                     )}
@@ -1464,7 +1464,7 @@ export default function StreamingAdminClient() {
                 </div>
                 <div className="flex shrink-0 items-center gap-2 text-xs font-semibold">
                   <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-emerald-700">{free} boşda</span>
-                  <span className="rounded bg-zinc-200 px-2 py-0.5 text-zinc-600">{used} istifadədə</span>
+                  <span className="rounded bg-admin-chip2 px-2 py-0.5 text-zinc-600">{used} istifadədə</span>
                 </div>
               </div>
 
@@ -1579,7 +1579,7 @@ export default function StreamingAdminClient() {
                             title="Status dəyiş"
                             className={`rounded px-2 py-0.5 text-xs font-medium transition disabled:opacity-50 ${
                               e.isUsed
-                                ? "bg-zinc-200 text-zinc-600 hover:bg-zinc-300"
+                                ? "bg-admin-chip2 text-zinc-600 hover:bg-zinc-300"
                                 : "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25"
                             }`}
                           >

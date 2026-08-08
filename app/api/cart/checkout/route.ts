@@ -57,6 +57,11 @@ import {
   type PromoScopeItem,
 } from "@/lib/promoCodes";
 import { grantCheckoutBonuses, generateUniqueBonusPromoCode } from "@/lib/checkoutBonuses";
+import {
+  recordOrderAttribution,
+  resolveAttribution,
+  stampOrderCode,
+} from "@/lib/attribution";
 import type { PromoCode } from "@/lib/generated/prisma/client";
 
 export const runtime = "nodejs";
@@ -1112,6 +1117,17 @@ export async function POST(req: Request) {
       select: { id: true },
     });
 
+    // Kanal damğası — sifariş ödənilməsə də qalır. Məhz bu sətir "ödənişə
+    // keçdi, ödəmədi" metrikasını pulsuz verir: OrderAttribution var, amma
+    // SUCCESS Transaction yoxdur.
+    await recordOrderAttribution({
+      orderCode,
+      userId: user.id,
+      paymentMethod: useWidget ? "EPOINT_WIDGET" : "EPOINT",
+      orderTotalAznCents: discountedTotalCents,
+      attribution: await resolveAttribution(body),
+    });
+
     const origin = requestOrigin(req);
     const amountAzn = Number((chargeCents / 100).toFixed(2));
     const description = `Honsell sifariş ${orderCode}: ${amountAzn.toFixed(2)} AZN`;
@@ -1802,6 +1818,21 @@ export async function POST(req: Request) {
   } catch (e: unknown) {
     throw e;
   }
+
+  // ── Kanal atributsiyası (cüzdan yolu) ───────────────────────────────────
+  // $transaction-dan KƏNARDA: hesabat damğası pul əməliyyatını gecikdirməməli
+  // və uğursuzluğu onu geri qaytarmamalıdır. Hər iki funksiya öz-özünə səssizdir.
+  await recordOrderAttribution({
+    orderCode: result.orderCode,
+    userId: user.id,
+    paymentMethod: payTag, // WALLET | REFERRAL
+    orderTotalAznCents: discountedTotalCents,
+    attribution: await resolveAttribution(body),
+  });
+  await stampOrderCode(
+    [...result.purchaseIds, ...result.serviceOrderIds],
+    result.orderCode,
+  );
 
   // GAME alındıqdan sonra rəy affiliate cookie-sini təmizlə —
   // attribution alışın metadata-sına yazıldı, daha lazım deyil.

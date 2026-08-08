@@ -19,6 +19,7 @@ import {
 } from "@/lib/productGift";
 import { sendProductGiftCodeEmail } from "@/lib/resend";
 import { SITE_URL } from "@/lib/site";
+import { stampOrderCode } from "@/lib/attribution";
 
 export const EPOINT_CART_PAYMENT_TYPE = "CHECKOUT_PAYMENT";
 
@@ -816,6 +817,18 @@ export async function finalizeEpointCartCheckout(
   });
 
   if (!summary) return { ok: false, reason: "ALREADY_PROCESSED" };
+
+  // Hesabat join açarı. `OrderAttribution` sətri artıq checkout anında (kart
+  // yolunun başlanğıcında) yazılıb — burada yalnız yaranmış Transaction
+  // sətirlərinə eyni sifariş kodu vurulur.
+  //
+  // ⚠️ İKİQAT FULFILLMENT YOLU: bu damğa HƏM burada (kart), HƏM də
+  // `app/api/cart/checkout/route.ts`-də (cüzdan) olmalıdır. Biri unudulsa
+  // həmin ödəniş növü hesabatda "Mənbəsi bilinməyən"ə düşər.
+  await stampOrderCode(
+    [...summary.purchaseIds, ...summary.serviceOrderIds],
+    summary.orderCode,
+  );
 
   // Hədiyyə kodlarını alıcıya email ilə göndər (dostuna ötürməsi üçün).
   if (summary.productGifts.length > 0) {

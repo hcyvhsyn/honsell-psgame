@@ -258,13 +258,13 @@ export default function PromoCodesAdminClient() {
           <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 py-16 text-center text-sm text-zinc-500">
+        <div className="rounded-xl border border-dashed border-admin-line2 py-16 text-center text-sm text-zinc-500">
           Hələ kupon yoxdur.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-zinc-200">
+        <div className="overflow-x-auto rounded-xl border border-admin-line">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
+            <thead className="bg-admin-chip text-left text-xs uppercase tracking-wide text-zinc-500">
               <tr>
                 <th className="px-3 py-2">Kod</th>
                 <th className="px-3 py-2">Endirim</th>
@@ -276,7 +276,7 @@ export default function PromoCodesAdminClient() {
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {items.map((p) => (
-                <tr key={p.id} className="hover:bg-zinc-50">
+                <tr key={p.id} className="hover:bg-admin-chip">
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1.5 font-mono font-semibold">
                       <TicketPercent className="h-3.5 w-3.5 text-violet-500" />
@@ -298,7 +298,7 @@ export default function PromoCodesAdminClient() {
                   <td className="px-3 py-2">
                     <span
                       className={`rounded px-2 py-0.5 text-[10px] font-bold ${
-                        p.isActive ? "bg-emerald-100 text-emerald-700" : "bg-zinc-200 text-zinc-500"
+                        p.isActive ? "bg-emerald-100 text-emerald-700" : "bg-admin-chip2 text-zinc-500"
                       }`}
                     >
                       {p.isActive ? "Aktiv" : "Deaktiv"}
@@ -308,14 +308,14 @@ export default function PromoCodesAdminClient() {
                     <div className="flex justify-end gap-1">
                       <button
                         onClick={() => openEdit(p)}
-                        className="rounded-md p-1.5 hover:bg-zinc-200"
+                        className="rounded-md p-1.5 hover:bg-admin-chip2"
                         title="Redaktə"
                       >
                         <Edit2 className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={() => toggleActive(p)}
-                        className="rounded-md p-1.5 hover:bg-zinc-200"
+                        className="rounded-md p-1.5 hover:bg-admin-chip2"
                         title={p.isActive ? "Deaktiv et" : "Aktiv et"}
                       >
                         {p.isActive ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -338,10 +338,10 @@ export default function PromoCodesAdminClient() {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
-          <div className="my-8 w-full max-w-lg rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-zinc-100 p-4">
+          <div className="my-8 w-full max-w-lg rounded-2xl bg-admin-card shadow-xl">
+            <div className="flex items-center justify-between border-b border-admin-line p-4">
               <h2 className="text-lg font-bold">{form.id ? "Kupon redaktə" : "Yeni kupon"}</h2>
-              <button onClick={() => setOpen(false)} className="rounded-lg p-1 hover:bg-zinc-100">
+              <button onClick={() => setOpen(false)} className="rounded-lg p-1 hover:bg-admin-chip">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -393,7 +393,7 @@ export default function PromoCodesAdminClient() {
                 />
               </Field>
 
-              <div className="rounded-xl border border-zinc-200 p-3">
+              <div className="rounded-xl border border-admin-line p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm font-semibold text-zinc-800">Scope (opsional)</span>
                   {scopeCount > 0 && (
@@ -433,7 +433,7 @@ export default function PromoCodesAdminClient() {
                           className={`rounded-lg border px-2 py-1 text-xs font-medium ${
                             on
                               ? "border-violet-500 bg-violet-100 text-violet-800"
-                              : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                              : "border-admin-line text-zinc-600 hover:bg-admin-chip"
                           }`}
                         >
                           {PROMO_SCOPE_TYPE_LABELS[t] ?? t}
@@ -512,14 +512,14 @@ export default function PromoCodesAdminClient() {
                       className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
                         copied
                           ? "bg-emerald-600 text-white"
-                          : "border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
+                          : "border border-emerald-300 bg-admin-card text-emerald-700 hover:bg-emerald-100"
                       }`}
                     >
                       {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                       {copied ? "Kopyalandı" : "Kopyala"}
                     </button>
                   </div>
-                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-white p-2.5 text-xs leading-relaxed text-zinc-700">
+                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-admin-card p-2.5 text-xs leading-relaxed text-zinc-700">
                     {customerMessage}
                   </pre>
                   <p className="mt-1.5 text-[11px] text-emerald-700/80">
@@ -528,8 +528,8 @@ export default function PromoCodesAdminClient() {
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-2 border-t border-zinc-100 p-4">
-              <button onClick={() => setOpen(false)} className="rounded-lg px-4 py-2 text-sm font-medium hover:bg-zinc-100">
+            <div className="flex justify-end gap-2 border-t border-admin-line p-4">
+              <button onClick={() => setOpen(false)} className="rounded-lg px-4 py-2 text-sm font-medium hover:bg-admin-chip">
                 Ləğv et
               </button>
               <button

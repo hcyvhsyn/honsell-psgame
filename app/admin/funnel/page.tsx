@@ -4,67 +4,84 @@ import { fmtAzn, fmtThousands } from "@/lib/format";
 import { getTestAccountUserIds } from "@/lib/testAccounts";
 import { HEARD_ABOUT_OPTIONS, heardAboutLabel } from "@/lib/heardAbout";
 import { ABANDONED_MIN_AGE_HOURS } from "@/lib/abandoned-cart";
+import { channelLabel } from "@/lib/analyticsShared";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Satış hunisi — FAZA 0 (yalnız MÖVCUD data, heç bir yeni tracking yoxdur).
+ * Satış hunisi — hansı kanal real AZN gətirir.
  *
- * NİYƏ BU SƏHİFƏ VAR:
- * Admin paneldə gəlir/mənfəət hesabatı var (`/admin`, `/admin/sales`), amma
- * "hansı kanal real pul gətirir" sualına heç yerdə cavab verilmirdi. Halbuki
- * qeydiyyatda MƏCBURİ soruşulan `User.heardAboutSource` (Instagram / TikTok /
- * Dost tövsiyəsi / Digər) indiyə qədər yalnız admin bildiriş e-poçtunda
- * göstərilirdi — heç vaxt aqreqasiya olunmurdu. Bu səhifə həmin sahəni gəlirlə
- * birləşdirir, yəni **bu gün mövcud olan kanal → AZN hesabatıdır**.
+ * İKİ MÜSTƏQİL MƏNBƏ, QƏSDƏN AYRI GÖSTƏRİLİR:
  *
- * ÖLÇÜLƏ BİLMƏYƏNLƏR (qəsdən göstərilmir, yalan rəqəm verməmək üçün):
- *  • Ziyarətçi sayı və ziyarətçi → səbət konversiyası — anonim trafik heç yerdə
- *    qeyd olunmur. FAZA 2 (`/api/t` + VisitorTracker) bunu gətirəcək.
- *  • Tərk edilmiş səbətin BƏRPA nisbəti — səbət boşalanda `CartSnapshot` silinir
- *    (`app/api/cart/sync/route.ts:75`), yəni **bərpa olunan səbət iz qoymur**.
- *    Ona görə aşağıda yalnız "hazırda gözləyən" mütləq rəqəmlər var.
- *  • Dəqiq sifariş sayı — bir sifariş N `Transaction` sətri yaradır və sətirdə
- *    `orderCode` sütunu yoxdur (FAZA 3 əlavə edəcək). Müvəqqəti proksi:
- *    eyni istifadəçinin eyni dəqiqədəki sətirləri bir sifariş sayılır.
+ *  1. ÖLÇÜLMÜŞ (AnalyticsSession + OrderAttribution) — ziyarətçinin faktiki
+ *     gəldiyi yer. Reklam blokerə görə ~10-25% itki var, amma GƏLİR rəqəmi
+ *     itkisizdir: o, `Transaction`-dan gəlir, beacon-dan yox.
+ *
+ *  2. BƏYAN EDİLMİŞ (User.heardAboutSource) — qeydiyyatda MƏCBURİ soruşulan
+ *     "Bizi haradan eşitdiniz?". Reklam bloker buna təsir etmir və offline
+ *     kanalı (dost tövsiyəsi) da tutur — ölçmənin heç vaxt görə bilməyəcəyi şey.
+ *
+ * İkisi üst-üstə düşməyəndə bu, xəta deyil, məlumatdır: fərq adətən reklam
+ * blokeri və cihazlararası keçiddir (telefonda görür, kompüterdə alır).
+ *
+ * ⚠️ UZLAŞMA: kanal cədvəlinin cəmi + "Mənbəsi bilinməyən" sətri HƏMİŞƏ
+ * `/admin/sales`-dəki ümumi gəlirə bərabər olmalıdır. Aşağıda bu, ekranda
+ * yoxlama sətri kimi göstərilir ki, sürüşmə özünü bildirsin.
  */
 
 const REVENUE_TYPES = ["PURCHASE", "SERVICE_PURCHASE"];
 const RANGES = [7, 30, 90] as const;
 const REVIEW_AFFILIATE_KEY = '"reviewAffiliateId"';
+const UNKNOWN = "__unknown__";
 
-type ChannelRow = {
+type FunnelRow = {
   key: string;
   label: string;
+  sessions: number;
+  sawProduct: number;
+  addedToCart: number;
+  beganCheckout: number;
+  purchasedSessions: number;
   revenueCents: number;
-  orders: number;
-  buyers: number;
-  registrations: number;
-  convertedRegistrations: number;
+  paidOrders: number;
 };
+
+function emptyRow(key: string, label: string): FunnelRow {
+  return {
+    key,
+    label,
+    sessions: 0,
+    sawProduct: 0,
+    addedToCart: 0,
+    beganCheckout: 0,
+    purchasedSessions: 0,
+    revenueCents: 0,
+    paidOrders: 0,
+  };
+}
 
 export default async function AdminFunnelPage({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: string }>;
+  searchParams: Promise<{ range?: string; attr?: string }>;
 }) {
   const sp = await searchParams;
-  const rangeDays: number =
-    RANGES.find((r) => String(r) === sp.range) ?? 30;
+  const rangeDays: number = RANGES.find((r) => String(r) === sp.range) ?? 30;
+  const attr: "first" | "last" = sp.attr === "last" ? "last" : "first";
 
   const since = new Date();
   since.setHours(0, 0, 0, 0);
   since.setDate(since.getDate() - (rangeDays - 1));
 
   const testUserIds = await getTestAccountUserIds();
-  const excludeTest =
-    testUserIds.length > 0 ? { notIn: testUserIds } : undefined;
+  const excludeTest = testUserIds.length > 0 ? { notIn: testUserIds } : undefined;
 
   const revenueWhere = {
     type: { in: REVENUE_TYPES },
     status: "SUCCESS",
     ...(excludeTest ? { userId: excludeTest } : {}),
   };
+  const sessionWhere = { startedAt: { gte: since }, isBot: false };
 
   const [
     rangeRows,
@@ -74,9 +91,12 @@ export default async function AdminFunnelPage({
     neverPurchasedCount,
     idleWallet,
     liveCarts,
+    sessionRows,
+    channelGroups,
+    landingGroups,
   ] = await Promise.all([
-    // Seçilmiş dövrün bütün gəlir sətirləri. `metadata` da gətirilir ki, rəy
-    // affiliate payı üçün ikinci sorğu lazım olmasın.
+    // Dövrün bütün gəlir sətirləri. `orderCode` atributsiya join-u üçün,
+    // `metadata` isə rəy affiliate payı üçün — ikisi də ayrıca sorğu tələb etmir.
     prisma.transaction.findMany({
       where: { ...revenueWhere, createdAt: { gte: since } },
       select: {
@@ -84,16 +104,15 @@ export default async function AdminFunnelPage({
         createdAt: true,
         amountAznCents: true,
         metadata: true,
+        orderCode: true,
       },
     }),
-    // Bütün zamanlar üzrə alıcılar — sətir gətirmir, yalnız aqreqat.
     prisma.transaction.groupBy({
       by: ["userId"],
       where: revenueWhere,
       _sum: { amountAznCents: true },
       orderBy: { userId: "asc" },
     }),
-    // Dövr ərzində qeydiyyatdan keçənlər (kohorta konversiyası üçün).
     prisma.user.findMany({
       where: {
         createdAt: { gte: since },
@@ -101,10 +120,7 @@ export default async function AdminFunnelPage({
       },
       select: { id: true, heardAboutSource: true },
     }),
-    prisma.user.count({
-      where: excludeTest ? { id: excludeTest } : undefined,
-    }),
-    // Heç vaxt alış etməyənlər — əlaqə filtri ilə, SQL tərəfdə.
+    prisma.user.count({ where: excludeTest ? { id: excludeTest } : undefined }),
     prisma.user.count({
       where: {
         ...(excludeTest ? { id: excludeTest } : {}),
@@ -113,7 +129,6 @@ export default async function AdminFunnelPage({
         },
       },
     }),
-    // Cüzdanda pul var, amma heç vaxt almayıb — "ölü pul".
     prisma.user.aggregate({
       where: {
         walletBalance: { gt: 0 },
@@ -125,8 +140,6 @@ export default async function AdminFunnelPage({
       _count: { _all: true },
       _sum: { walletBalance: true },
     }),
-    // Hazırda yaşayan səbətlər. Səbət boşalanda sətir silinir, ona görə hər
-    // sətir "hələ alınmayıb" deməkdir.
     prisma.cartSnapshot.findMany({
       where: {
         itemCount: { gt: 0 },
@@ -134,9 +147,52 @@ export default async function AdminFunnelPage({
       },
       select: { totalAznCents: true, reminderSentAt: true, updatedAt: true },
     }),
+    // Yalnız iki sütun — həm fərqli ziyarətçi sayı, həm günlük qrafik bundan çıxır.
+    prisma.analyticsSession.findMany({
+      where: sessionWhere,
+      select: { visitorId: true, startedAt: true },
+    }),
+    // ⚠️ Bütün huni TƏK groupBy sorğusudur — bayraqlar `Int` olduğuna görə
+    // `_sum` işləyir (sxemdəki şərhə bax).
+    attr === "first"
+      ? prisma.analyticsSession.groupBy({
+          by: ["firstChannel"],
+          where: sessionWhere,
+          _count: { _all: true },
+          _sum: {
+            sawProduct: true,
+            addedToCart: true,
+            beganCheckout: true,
+            purchased: true,
+          },
+          orderBy: { firstChannel: "asc" },
+        })
+      : prisma.analyticsSession.groupBy({
+          by: ["lastChannel"],
+          where: sessionWhere,
+          _count: { _all: true },
+          _sum: {
+            sawProduct: true,
+            addedToCart: true,
+            beganCheckout: true,
+            purchased: true,
+          },
+          orderBy: { lastChannel: "asc" },
+        }),
+    prisma.analyticsSession.groupBy({
+      by: ["landingPath"],
+      where: sessionWhere,
+      _count: { _all: true },
+      _sum: {
+        addedToCart: true,
+        beganCheckout: true,
+        purchased: true,
+      },
+      orderBy: { landingPath: "asc" },
+    }),
   ]);
 
-  // ── Sifariş proksisi: eyni istifadəçi + eyni dəqiqə = bir sifariş ──────────
+  // ── Sifariş proksisi (orderCode yoxdursa): eyni istifadəçi + eyni dəqiqə ──
   const orderKeys = new Set<string>();
   const rangeBuyers = new Set<string>();
   let rangeRevenue = 0;
@@ -145,6 +201,9 @@ export default async function AdminFunnelPage({
 
   const revenueByUser = new Map<string, number>();
   const ordersByUser = new Map<string, Set<string>>();
+  /** orderCode → cəm gəlir (bir sifariş = N Transaction sətri). */
+  const revenueByOrderCode = new Map<string, number>();
+  let untrackedRevenue = 0;
 
   for (const row of rangeRows) {
     const amount = Math.abs(row.amountAznCents);
@@ -162,6 +221,16 @@ export default async function AdminFunnelPage({
     }
     set.add(orderKey);
 
+    if (row.orderCode) {
+      revenueByOrderCode.set(
+        row.orderCode,
+        (revenueByOrderCode.get(row.orderCode) ?? 0) + amount,
+      );
+    } else {
+      // FAZA 3-dən əvvəlki sifarişlər — atributsiya mümkün deyil.
+      untrackedRevenue += amount;
+    }
+
     if (row.metadata?.includes(REVIEW_AFFILIATE_KEY)) {
       affiliateRevenue += amount;
       affiliateOrders += 1;
@@ -171,19 +240,101 @@ export default async function AdminFunnelPage({
   const rangeOrders = orderKeys.size;
   const aov = rangeOrders > 0 ? Math.round(rangeRevenue / rangeOrders) : 0;
 
-  // ── Bütün zamanlar üzrə alıcı çoxluğu ────────────────────────────────────
-  const allTimeBuyerIds = new Set(buyerGroups.map((g) => g.userId));
-  const allTimeBuyers = allTimeBuyerIds.size;
+  // ── Ölçülmüş huni: gəliri kanala bağla ───────────────────────────────────
+  const orderCodes = Array.from(revenueByOrderCode.keys());
+  const attributions =
+    orderCodes.length > 0
+      ? await prisma.orderAttribution.findMany({
+          where: { orderCode: { in: orderCodes } },
+          select: {
+            orderCode: true,
+            firstChannel: true,
+            lastChannel: true,
+            firstLandingPath: true,
+          },
+        })
+      : [];
+  const attrByCode = new Map(attributions.map((a) => [a.orderCode, a]));
 
-  // Təkrar alış — dövr daxilində ≥2 fərqli sifarişi olan alıcılar.
-  let repeatBuyers = 0;
-  for (const set of ordersByUser.values()) {
-    if (set.size >= 2) repeatBuyers += 1;
+  const funnelRows = new Map<string, FunnelRow>();
+  function rowFor(key: string): FunnelRow {
+    let row = funnelRows.get(key);
+    if (!row) {
+      row = emptyRow(key, key === UNKNOWN ? "Mənbəsi bilinməyən" : channelLabel(key));
+      funnelRows.set(key, row);
+    }
+    return row;
   }
-  const repeatRate =
-    rangeBuyers.size > 0 ? (repeatBuyers / rangeBuyers.size) * 100 : 0;
 
-  // ── Kanal cədvəli: heardAboutSource → gəlir ──────────────────────────────
+  for (const g of channelGroups) {
+    const key =
+      "firstChannel" in g ? g.firstChannel : (g as { lastChannel: string }).lastChannel;
+    const row = rowFor(key);
+    row.sessions += g._count._all;
+    row.sawProduct += g._sum.sawProduct ?? 0;
+    row.addedToCart += g._sum.addedToCart ?? 0;
+    row.beganCheckout += g._sum.beganCheckout ?? 0;
+    row.purchasedSessions += g._sum.purchased ?? 0;
+  }
+
+  // Atributsiyası olmayan sifarişlərin gəliri (köhnə tarixçə + bloklanmış beacon).
+  let unattributedRevenue = untrackedRevenue;
+  for (const [code, revenue] of revenueByOrderCode) {
+    const a = attrByCode.get(code);
+    if (!a) {
+      unattributedRevenue += revenue;
+      continue;
+    }
+    const row = rowFor(attr === "first" ? a.firstChannel : a.lastChannel);
+    row.revenueCents += revenue;
+    row.paidOrders += 1;
+  }
+  if (unattributedRevenue > 0) {
+    const row = rowFor(UNKNOWN);
+    row.revenueCents += unattributedRevenue;
+  }
+
+  const channelTable = Array.from(funnelRows.values()).sort(
+    (a, b) => b.revenueCents - a.revenueCents || b.sessions - a.sessions,
+  );
+
+  // Ümumi huni — bütün kanalların cəmi.
+  const totals = channelTable.reduce(
+    (acc, r) => ({
+      sessions: acc.sessions + r.sessions,
+      sawProduct: acc.sawProduct + r.sawProduct,
+      addedToCart: acc.addedToCart + r.addedToCart,
+      beganCheckout: acc.beganCheckout + r.beganCheckout,
+      purchasedSessions: acc.purchasedSessions + r.purchasedSessions,
+      revenueCents: acc.revenueCents + r.revenueCents,
+      paidOrders: acc.paidOrders + r.paidOrders,
+    }),
+    {
+      sessions: 0,
+      sawProduct: 0,
+      addedToCart: 0,
+      beganCheckout: 0,
+      purchasedSessions: 0,
+      revenueCents: 0,
+      paidOrders: 0,
+    },
+  );
+
+  const uniqueVisitors = new Set(sessionRows.map((s) => s.visitorId)).size;
+  const trackingLive = sessionRows.length > 0;
+
+  const landingTable = landingGroups
+    .map((g) => ({
+      path: g.landingPath,
+      sessions: g._count._all,
+      addedToCart: g._sum.addedToCart ?? 0,
+      beganCheckout: g._sum.beganCheckout ?? 0,
+      purchased: g._sum.purchased ?? 0,
+    }))
+    .sort((a, b) => b.purchased - a.purchased || b.sessions - a.sessions)
+    .slice(0, 30);
+
+  // ── Bəyan edilmiş mənbə (heardAboutSource) ───────────────────────────────
   const buyerIdsInRange = Array.from(rangeBuyers);
   const buyerChannels =
     buyerIdsInRange.length > 0
@@ -192,46 +343,56 @@ export default async function AdminFunnelPage({
           select: { id: true, heardAboutSource: true },
         })
       : [];
-  const channelByUser = new Map(
-    buyerChannels.map((u) => [u.id, u.heardAboutSource ?? "UNKNOWN"]),
+  const declaredByUser = new Map(
+    buyerChannels.map((u) => [u.id, u.heardAboutSource ?? UNKNOWN]),
   );
 
-  const channelKeys = [...HEARD_ABOUT_OPTIONS.map((o) => o.value), "UNKNOWN"];
-  const rows = new Map<string, ChannelRow>(
-    channelKeys.map((key) => [
+  type DeclaredRow = {
+    key: string;
+    label: string;
+    revenueCents: number;
+    buyers: number;
+    registrations: number;
+    converted: number;
+  };
+  const declaredRows = new Map<string, DeclaredRow>(
+    [...HEARD_ABOUT_OPTIONS.map((o) => o.value), UNKNOWN].map((key) => [
       key,
       {
         key,
-        label: key === "UNKNOWN" ? "Bilinməyən (köhnə hesab)" : heardAboutLabel(key),
+        label: key === UNKNOWN ? "Bilinməyən (köhnə hesab)" : heardAboutLabel(key),
         revenueCents: 0,
-        orders: 0,
         buyers: 0,
         registrations: 0,
-        convertedRegistrations: 0,
+        converted: 0,
       },
     ]),
   );
 
+  const allTimeBuyerIds = new Set(buyerGroups.map((g) => g.userId));
+
   for (const [userId, revenue] of revenueByUser) {
-    const row = rows.get(channelByUser.get(userId) ?? "UNKNOWN");
+    const row = declaredRows.get(declaredByUser.get(userId) ?? UNKNOWN);
     if (!row) continue;
     row.revenueCents += revenue;
-    row.orders += ordersByUser.get(userId)?.size ?? 0;
     row.buyers += 1;
   }
-
   for (const u of newUsers) {
-    const row = rows.get(u.heardAboutSource ?? "UNKNOWN");
+    const row = declaredRows.get(u.heardAboutSource ?? UNKNOWN);
     if (!row) continue;
     row.registrations += 1;
-    if (allTimeBuyerIds.has(u.id)) row.convertedRegistrations += 1;
+    if (allTimeBuyerIds.has(u.id)) row.converted += 1;
   }
-
-  const channelRows = Array.from(rows.values()).sort(
+  const declaredTable = Array.from(declaredRows.values()).sort(
     (a, b) => b.revenueCents - a.revenueCents || b.registrations - a.registrations,
   );
 
-  // ── Səbət vəziyyəti ──────────────────────────────────────────────────────
+  // ── Müştəri davranışı ────────────────────────────────────────────────────
+  let repeatBuyers = 0;
+  for (const set of ordersByUser.values()) if (set.size >= 2) repeatBuyers += 1;
+  const repeatRate =
+    rangeBuyers.size > 0 ? (repeatBuyers / rangeBuyers.size) * 100 : 0;
+
   const abandonThreshold = new Date(
     Date.now() - ABANDONED_MIN_AGE_HOURS * 60 * 60 * 1000,
   );
@@ -243,8 +404,14 @@ export default async function AdminFunnelPage({
   const newRegistrations = newUsers.length;
   const convertedNew = newUsers.filter((u) => allTimeBuyerIds.has(u.id)).length;
 
-  function rangeHref(days: number) {
-    return days === 30 ? "/admin/funnel" : `/admin/funnel?range=${days}`;
+  function href(next: { range?: number; attr?: string }) {
+    const params = new URLSearchParams();
+    const r = next.range ?? rangeDays;
+    const a = next.attr ?? attr;
+    if (r !== 30) params.set("range", String(r));
+    if (a !== "first") params.set("attr", a);
+    const qs = params.toString();
+    return qs ? `/admin/funnel?${qs}` : "/admin/funnel";
   }
 
   return (
@@ -252,28 +419,26 @@ export default async function AdminFunnelPage({
       <div>
         <h1 className="text-2xl font-semibold">Satış hunisi</h1>
         <p className="text-sm text-zinc-600">
-          Hansı kanal real pul gətirir. Mənbə: qeydiyyatdakı «Bizi haradan
-          eşitdiniz?» cavabı — bu gün mövcud olan yeganə kanal atributsiyası.
+          Hansı kanal real AZN gətirir və müştəri harada itir.
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-xs uppercase tracking-wider text-zinc-500">
-          Dövr
-        </span>
-        {RANGES.map((r) => (
-          <Link
-            key={r}
-            href={rangeHref(r)}
-            className={`rounded-lg border px-3 py-1 text-xs font-semibold transition ${
-              r === rangeDays
-                ? "border-violet-500 bg-violet-500/15 text-violet-700"
-                : "border-admin-line text-zinc-600 hover:border-admin-line2 hover:text-zinc-900"
-            }`}
-          >
-            {r} gün
-          </Link>
-        ))}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
+        <Chips
+          label="Dövr"
+          current={String(rangeDays)}
+          options={RANGES.map((r) => ({ value: String(r), label: `${r} gün` }))}
+          build={(v) => href({ range: Number(v) })}
+        />
+        <Chips
+          label="Atributsiya"
+          current={attr}
+          options={[
+            { value: "first", label: "İlk toxunuş" },
+            { value: "last", label: "Son toxunuş" },
+          ]}
+          build={(v) => href({ attr: v })}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -283,25 +448,163 @@ export default async function AdminFunnelPage({
         <SumCard label="Alan müştəri" value={fmtThousands(rangeBuyers.size)} />
       </div>
 
-      {/* ── Kanal → gəlir ────────────────────────────────────────────────── */}
+      {/* ── ÖLÇÜLMÜŞ HUNİ ───────────────────────────────────────────────── */}
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold">Kanal → gəlir</h2>
+          <h2 className="text-lg font-semibold">Ölçülmüş huni</h2>
           <p className="text-sm text-zinc-600">
-            Gəlir alıcının qeydiyyatda göstərdiyi mənbəyə görə bölünüb.
-            «Qeydiyyat» və «çevrildi» sütunları isə yalnız bu dövrdə
-            qeydiyyatdan keçənlərə aiddir (kohorta).
+            Faktiki ziyarətçi davranışı. Reklam blokerə görə ziyarətçi sayında
+            ~10–25% itki ola bilər — <strong>gəlir rəqəmi isə itkisizdir</strong>,
+            çünki o, tranzaksiyalardan gəlir.
+          </p>
+        </div>
+
+        {!trackingLive ? (
+          <Callout tone="info">
+            Bu dövrdə hələ heç bir seans qeyd olunmayıb. Deploy-dan sonra ilk
+            ziyarətçilər gələn kimi bu bölmə dolacaq. Yoxlama:{" "}
+            <code>SELECT count(*) FROM &quot;AnalyticsSession&quot;;</code>
+          </Callout>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+              <FunnelStep label="Ziyarətçi" value={uniqueVisitors} />
+              <FunnelStep
+                label="Seans"
+                value={totals.sessions}
+                prev={uniqueVisitors}
+                skipDrop
+              />
+              <FunnelStep
+                label="Məhsula baxdı"
+                value={totals.sawProduct}
+                prev={totals.sessions}
+              />
+              <FunnelStep
+                label="Səbətə atdı"
+                value={totals.addedToCart}
+                prev={totals.sawProduct}
+              />
+              <FunnelStep
+                label="Ödədi"
+                value={totals.purchasedSessions}
+                prev={totals.beganCheckout}
+                accent
+              />
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-admin-line">
+              <table className="w-full min-w-[860px] text-sm">
+                <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
+                  <tr>
+                    <Th>Kanal</Th>
+                    <Th className="text-right">Seans</Th>
+                    <Th className="text-right">Məhsula baxdı</Th>
+                    <Th className="text-right">Səbətə atdı</Th>
+                    <Th className="text-right">Ödənişə keçdi</Th>
+                    <Th className="text-right">Ödənilmiş sifariş</Th>
+                    <Th className="text-right">Gəlir</Th>
+                    <Th className="text-right">Konversiya</Th>
+                    <Th className="text-right">AZN / seans</Th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-admin-line">
+                  {channelTable.map((r) => {
+                    const conv =
+                      r.sessions > 0 ? (r.purchasedSessions / r.sessions) * 100 : 0;
+                    const perSession =
+                      r.sessions > 0 ? Math.round(r.revenueCents / r.sessions) : 0;
+                    return (
+                      <tr key={r.key} className="hover:bg-admin-chip">
+                        <Td className="font-medium text-zinc-900">{r.label}</Td>
+                        <Td className="text-right text-zinc-700">{fmtThousands(r.sessions)}</Td>
+                        <Td className="text-right text-zinc-700">{fmtThousands(r.sawProduct)}</Td>
+                        <Td className="text-right text-zinc-700">{fmtThousands(r.addedToCart)}</Td>
+                        <Td className="text-right text-zinc-700">{fmtThousands(r.beganCheckout)}</Td>
+                        <Td className="text-right text-zinc-700">{fmtThousands(r.paidOrders)}</Td>
+                        <Td className="text-right font-semibold text-emerald-700">
+                          {fmtAzn(r.revenueCents)}
+                        </Td>
+                        <Td className="text-right text-zinc-700">
+                          {r.sessions > 0 ? `${conv.toFixed(2)}%` : "—"}
+                        </Td>
+                        <Td className="text-right text-zinc-700">
+                          {r.sessions > 0 ? fmtAzn(perSession) : "—"}
+                        </Td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <Reconciliation
+              channelSum={totals.revenueCents}
+              actual={rangeRevenue}
+            />
+
+            {landingTable.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-zinc-900">
+                  Giriş səhifələri (ən çox alış gətirən 30)
+                </h3>
+                <div className="overflow-x-auto rounded-xl border border-admin-line">
+                  <table className="w-full min-w-[620px] text-sm">
+                    <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
+                      <tr>
+                        <Th>Səhifə</Th>
+                        <Th className="text-right">Seans</Th>
+                        <Th className="text-right">Səbətə atdı</Th>
+                        <Th className="text-right">Ödənişə keçdi</Th>
+                        <Th className="text-right">Ödədi</Th>
+                        <Th className="text-right">Konversiya</Th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-admin-line">
+                      {landingTable.map((r) => (
+                        <tr key={r.path} className="hover:bg-admin-chip">
+                          <Td className="font-mono text-xs text-zinc-800">{r.path}</Td>
+                          <Td className="text-right text-zinc-700">{fmtThousands(r.sessions)}</Td>
+                          <Td className="text-right text-zinc-700">{fmtThousands(r.addedToCart)}</Td>
+                          <Td className="text-right text-zinc-700">{fmtThousands(r.beganCheckout)}</Td>
+                          <Td className="text-right font-semibold text-zinc-900">
+                            {fmtThousands(r.purchased)}
+                          </Td>
+                          <Td className="text-right text-zinc-700">
+                            {r.sessions > 0
+                              ? `${((r.purchased / r.sessions) * 100).toFixed(2)}%`
+                              : "—"}
+                          </Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* ── BƏYAN EDİLMİŞ MƏNBƏ ─────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Bəyan edilmiş mənbə</h2>
+          <p className="text-sm text-zinc-600">
+            Qeydiyyatda məcburi soruşulan «Bizi haradan eşitdiniz?». Reklam
+            blokerdən asılı deyil və <strong>dost tövsiyəsi kimi offline kanalı da
+            tutur</strong> — ölçmənin heç vaxt görə bilməyəcəyi şey. Ölçülmüş
+            hunidən fərqlənməsi normaldır.
           </p>
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-admin-line">
-          <table className="w-full min-w-[720px] text-sm">
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
               <tr>
-                <Th>Kanal</Th>
+                <Th>Mənbə</Th>
                 <Th className="text-right">Gəlir</Th>
                 <Th className="text-right">Payı</Th>
-                <Th className="text-right">Sifariş</Th>
                 <Th className="text-right">Alıcı</Th>
                 <Th className="text-right">Qeydiyyat</Th>
                 <Th className="text-right">Çevrildi</Th>
@@ -309,41 +612,24 @@ export default async function AdminFunnelPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-admin-line">
-              {channelRows.map((r) => {
+              {declaredTable.map((r) => {
                 const share =
                   rangeRevenue > 0 ? (r.revenueCents / rangeRevenue) * 100 : 0;
                 const conv =
-                  r.registrations > 0
-                    ? (r.convertedRegistrations / r.registrations) * 100
-                    : 0;
+                  r.registrations > 0 ? (r.converted / r.registrations) * 100 : 0;
                 return (
                   <tr key={r.key} className="hover:bg-admin-chip">
                     <Td className="font-medium text-zinc-900">{r.label}</Td>
                     <Td className="text-right font-semibold text-emerald-700">
                       {fmtAzn(r.revenueCents)}
                     </Td>
-                    <Td className="text-right text-zinc-600">
-                      {share.toFixed(1)}%
-                    </Td>
-                    <Td className="text-right text-zinc-700">
-                      {fmtThousands(r.orders)}
-                    </Td>
-                    <Td className="text-right text-zinc-700">
-                      {fmtThousands(r.buyers)}
-                    </Td>
-                    <Td className="text-right text-zinc-700">
-                      {fmtThousands(r.registrations)}
-                    </Td>
-                    <Td className="text-right text-zinc-700">
-                      {fmtThousands(r.convertedRegistrations)}
-                    </Td>
+                    <Td className="text-right text-zinc-600">{share.toFixed(1)}%</Td>
+                    <Td className="text-right text-zinc-700">{fmtThousands(r.buyers)}</Td>
+                    <Td className="text-right text-zinc-700">{fmtThousands(r.registrations)}</Td>
+                    <Td className="text-right text-zinc-700">{fmtThousands(r.converted)}</Td>
                     <Td
                       className={`text-right font-semibold ${
-                        conv >= 20
-                          ? "text-emerald-700"
-                          : conv > 0
-                            ? "text-zinc-700"
-                            : "text-zinc-400"
+                        conv >= 20 ? "text-emerald-700" : "text-zinc-700"
                       }`}
                     >
                       {r.registrations > 0 ? `${conv.toFixed(1)}%` : "—"}
@@ -355,11 +641,8 @@ export default async function AdminFunnelPage({
             <tfoot className="bg-admin-card text-xs font-semibold text-zinc-700">
               <tr>
                 <Td>Cəm</Td>
-                <Td className="text-right text-emerald-700">
-                  {fmtAzn(rangeRevenue)}
-                </Td>
+                <Td className="text-right text-emerald-700">{fmtAzn(rangeRevenue)}</Td>
                 <Td className="text-right">100%</Td>
-                <Td className="text-right">{fmtThousands(rangeOrders)}</Td>
                 <Td className="text-right">{fmtThousands(rangeBuyers.size)}</Td>
                 <Td className="text-right">{fmtThousands(newRegistrations)}</Td>
                 <Td className="text-right">{fmtThousands(convertedNew)}</Td>
@@ -374,23 +657,20 @@ export default async function AdminFunnelPage({
         </div>
       </section>
 
-      {/* ── Səbət vəziyyəti ──────────────────────────────────────────────── */}
+      {/* ── SƏBƏT VƏZİYYƏTİ ─────────────────────────────────────────────── */}
       <section className="space-y-3">
         <div>
           <h2 className="text-lg font-semibold">Səbət vəziyyəti (indiki an)</h2>
           <p className="text-sm text-zinc-600">
-            Səbət boşalanda snapshot silinir — yəni aşağıdakı hər sətir «hələ
-            alınmayıb» deməkdir. Bu, dövrə görə deyil, **anlıq** mənzərədir.
+            Səbət boşalanda snapshot silinir — hər sətir «hələ alınmayıb»
+            deməkdir. Bu səbəbdən <strong>bərpa nisbəti hesablana bilmir</strong>:
+            bərpa olunan səbət geridə iz qoymur.
           </p>
         </div>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <SumCard label="Dolu səbət" value={fmtThousands(liveCarts.length)} />
-          <SumCard
-            label="Səbətlərdəki dəyər"
-            value={fmtAzn(cartValue)}
-            accent="emerald"
-          />
+          <SumCard label="Səbətlərdəki dəyər" value={fmtAzn(cartValue)} accent="emerald" />
           <SumCard
             label={`${ABANDONED_MIN_AGE_HOURS} saatdan köhnə`}
             value={fmtThousands(staleCarts.length)}
@@ -405,19 +685,19 @@ export default async function AdminFunnelPage({
 
         {staleUnreminded.length > 0 && (
           <Callout tone="warn">
-            <strong>{fmtThousands(staleUnreminded.length)}</strong> ədəd tərk
-            edilmiş səbətə (cəmi {fmtAzn(
-              staleUnreminded.reduce((a, c) => a + c.totalAznCents, 0),
-            )}) hələ xatırlatma göndərilməyib. Kod hazırdır
+            <strong>{fmtThousands(staleUnreminded.length)}</strong> tərk edilmiş
+            səbətə (cəmi{" "}
+            {fmtAzn(staleUnreminded.reduce((a, c) => a + c.totalAznCents, 0))})
+            hələ xatırlatma göndərilməyib. Kod hazırdır
             (<code>/api/cron/abandoned-cart</code>) — cron həqiqətən işləyirmi,
             serverdə <code>crontab -l</code> ilə yoxla.{" "}
-            <code>vercel.json</code>-dakı cron cədvəli self-host mühitdə
-            <strong> işləmir</strong>.
+            <code>vercel.json</code>-dakı cədvəl self-host mühitdə{" "}
+            <strong>işləmir</strong>.
           </Callout>
         )}
       </section>
 
-      {/* ── Müştəri davranışı ────────────────────────────────────────────── */}
+      {/* ── MÜŞTƏRİ DAVRANIŞI ───────────────────────────────────────────── */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Müştəri davranışı</h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -428,13 +708,10 @@ export default async function AdminFunnelPage({
           />
           <SumCard
             label="Ümumi alıcı (bütün zaman)"
-            value={fmtThousands(allTimeBuyers)}
-            hint={`${totalUsers > 0 ? ((allTimeBuyers / totalUsers) * 100).toFixed(1) : "0"}% qeydiyyatın`}
+            value={fmtThousands(allTimeBuyerIds.size)}
+            hint={`${totalUsers > 0 ? ((allTimeBuyerIds.size / totalUsers) * 100).toFixed(1) : "0"}% qeydiyyatın`}
           />
-          <SumCard
-            label="Alış etməyən hesab"
-            value={fmtThousands(neverPurchasedCount)}
-          />
+          <SumCard label="Alış etməyən hesab" value={fmtThousands(neverPurchasedCount)} />
           <SumCard
             label="İşlənməyən cüzdan pulu"
             value={fmtAzn(idleWallet._sum.walletBalance ?? 0)}
@@ -443,40 +720,116 @@ export default async function AdminFunnelPage({
         </div>
 
         <div className="rounded-xl border border-admin-line bg-admin-card p-4 text-sm">
-          <p className="font-semibold text-zinc-900">
-            Rəy affiliate ilə gələn gəlir
-          </p>
+          <p className="font-semibold text-zinc-900">Rəy affiliate ilə gələn gəlir</p>
           <p className="mt-1 text-zinc-600">
             {affiliateOrders > 0 ? (
               <>
                 <span className="font-semibold text-emerald-700">
                   {fmtAzn(affiliateRevenue)}
                 </span>{" "}
-                ({rangeRevenue > 0
+                (
+                {rangeRevenue > 0
                   ? ((affiliateRevenue / rangeRevenue) * 100).toFixed(1)
                   : "0"}
-                % ümumi gəlirin), {fmtThousands(affiliateOrders)} sətirdə.
-                Mənbə: <code>?via=</code> linki ilə gələn ziyarətçilər
-                (<code>middleware.ts</code>). Bu, tam kanal atributsiyasının
-                artıq işləyən kiçik nümunəsidir.
+                % ümumi gəlirin), {fmtThousands(affiliateOrders)} sətirdə. Mənbə:{" "}
+                <code>?via=</code> linki (<code>middleware.ts</code>).
               </>
             ) : (
               <>
                 Bu dövrdə <code>?via=</code> linki ilə gələn alış yoxdur. Rəy
-                müəllifləri öz linklərini paylaşmırsa, bu kanal boş qalır.
+                müəllifləri linklərini paylaşmırsa bu kanal boş qalır.
               </>
             )}
           </p>
         </div>
       </section>
+    </div>
+  );
+}
 
-      <Callout tone="info">
-        <strong>Bu səhifədə ziyarətçi rəqəmi yoxdur</strong> — anonim trafik
-        hazırda heç yerdə qeyd olunmur, ona görə «ziyarətçi → səbət»
-        konversiyası hesablana bilmir. Onu FAZA 2 (<code>/api/t</code> +{" "}
-        <code>VisitorTracker</code>) gətirəcək. Buradakı bütün rəqəmlər
-        qeydiyyatdan keçmiş istifadəçilərə aiddir.
-      </Callout>
+/** Kanal cədvəlinin cəmi `/admin/sales` ilə uzlaşırmı — sürüşmə özünü bildirsin. */
+function Reconciliation({
+  channelSum,
+  actual,
+}: {
+  channelSum: number;
+  actual: number;
+}) {
+  const diff = actual - channelSum;
+  const ok = Math.abs(diff) < 1; // 1 qəpikdən az fərq = yuvarlaqlaşma
+  return (
+    <p
+      className={`text-xs ${ok ? "text-zinc-500" : "font-semibold text-amber-700"}`}
+    >
+      Yoxlama: kanal cəmi {fmtAzn(channelSum)} · faktiki gəlir {fmtAzn(actual)}
+      {ok ? " · uzlaşır ✓" : ` · FƏRQ ${fmtAzn(diff)} — hesabatda sızma var`}
+    </p>
+  );
+}
+
+function FunnelStep({
+  label,
+  value,
+  prev,
+  accent,
+  skipDrop,
+}: {
+  label: string;
+  value: number;
+  prev?: number;
+  accent?: boolean;
+  skipDrop?: boolean;
+}) {
+  const rate = prev && prev > 0 ? (value / prev) * 100 : null;
+  return (
+    <div className="rounded-xl border border-admin-line bg-admin-card p-4">
+      <p className="text-xs uppercase tracking-wider text-zinc-500">{label}</p>
+      <p
+        className={`mt-1 text-lg font-semibold tabular-nums ${
+          accent ? "text-emerald-700" : "text-zinc-900"
+        }`}
+      >
+        {fmtThousands(value)}
+      </p>
+      {rate !== null && !skipDrop && (
+        <p className="mt-0.5 text-[11px] text-zinc-500">
+          {rate.toFixed(1)}% keçdi · {(100 - rate).toFixed(1)}% itdi
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Chips({
+  label,
+  current,
+  options,
+  build,
+}: {
+  label: string;
+  current: string;
+  options: Array<{ value: string; label: string }>;
+  build: (v: string) => string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-xs uppercase tracking-wider text-zinc-500">{label}</span>
+      {options.map((o) => {
+        const active = o.value === current;
+        return (
+          <Link
+            key={o.value}
+            href={build(o.value)}
+            className={`rounded-lg border px-3 py-1 text-xs font-semibold transition ${
+              active
+                ? "border-violet-500 bg-violet-500/15 text-violet-700"
+                : "border-admin-line text-zinc-600 hover:border-admin-line2 hover:text-zinc-900"
+            }`}
+          >
+            {o.label}
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -518,9 +871,7 @@ function Callout({
     tone === "warn"
       ? "border-amber-300 bg-amber-50 text-amber-900"
       : "border-sky-300 bg-sky-50 text-sky-900";
-  return (
-    <div className={`rounded-xl border p-4 text-sm ${styles}`}>{children}</div>
-  );
+  return <div className={`rounded-xl border p-4 text-sm ${styles}`}>{children}</div>;
 }
 
 function Th({
@@ -531,9 +882,7 @@ function Th({
   className?: string;
 }) {
   return (
-    <th className={`px-4 py-2.5 text-left font-semibold ${className}`}>
-      {children}
-    </th>
+    <th className={`px-4 py-2.5 text-left font-semibold ${className}`}>{children}</th>
   );
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useEffect, useRef, useState } from "react";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, VolumeX } from "lucide-react";
 import { useReelState } from "./ReelStateProvider";
 import ReelActionRail from "./ReelActionRail";
 import ReelBuyPanel, { hasBuyPanel } from "./ReelBuyPanel";
@@ -19,6 +19,7 @@ function ReelSlotImpl({
   role,
   globalMuted,
   onToggleMute,
+  onSoundBlocked,
   commentDelta,
   onOpenComments,
 }: {
@@ -26,6 +27,8 @@ function ReelSlotImpl({
   role: ReelRole;
   globalMuted: boolean;
   onToggleMute: () => void;
+  /** Brauzer səsli avtoplay-a icazə vermədi — UI səssiz vəziyyətə qayıtmalıdır. */
+  onSoundBlocked: () => void;
   commentDelta: number;
   onOpenComments: (id: string) => void;
 }) {
@@ -55,7 +58,18 @@ function ReelSlotImpl({
       const p = v.play();
       if (p && typeof p.catch === "function") {
         p.then(() => setNeedsTap(false)).catch((err: DOMException) => {
-          if (err?.name === "NotAllowedError") setNeedsTap(true);
+          if (err?.name !== "NotAllowedError") return;
+          if (!v.muted) {
+            // Səsli avtoplay bloklandı (brauzer siyasəti). Videonu tamamilə
+            // dayandırmaq əvəzinə SƏSSİZ oynadırıq — istifadəçi ən azı görüntünü
+            // görür və bir toxunuşla səsi aça bilir. Saxlanmış "səs açıq" seçimi
+            // POZULMUR: növbəti girişdə brauzer icazə verə bilər.
+            v.muted = true;
+            onSoundBlocked();
+            v.play().catch(() => setNeedsTap(true));
+            return;
+          }
+          setNeedsTap(true);
         });
       }
     } else {
@@ -104,6 +118,17 @@ function ReelSlotImpl({
   function togglePlayback() {
     const v = videoRef.current;
     if (!v) return;
+
+    // Səssiz ikən İLK toxunuş səsi açır (TikTok/Instagram davranışı) — pauza yox.
+    // Səs açıldıqdan sonra toxunuş yenidən adi pauza/oynat olur.
+    if (globalMuted && !needsTap) {
+      v.muted = false;
+      onToggleMute();
+      if (v.paused) v.play().catch(() => {});
+      flashIcon(true);
+      return;
+    }
+
     if (needsTap) {
       v.play().then(() => {
         setNeedsTap(false);
@@ -180,6 +205,15 @@ function ReelSlotImpl({
           {paused || needsTap ? <Play className="h-9 w-9 fill-white" /> : <Pause className="h-9 w-9 fill-white" />}
         </span>
       </div>
+
+      {/* "Səs üçün toxun" — səssiz avtoplay brauzer tələbidir, ona görə istifadəçi
+          səsin bağlı olduğunu və bir toxunuşla açılacağını görməlidir. */}
+      {role === "active" && globalMuted && !needsTap && (
+        <div className="pointer-events-none absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">
+          <VolumeX className="h-4 w-4" />
+          Səs üçün toxun
+        </div>
+      )}
 
       {/* Alt gradient */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 to-transparent" />

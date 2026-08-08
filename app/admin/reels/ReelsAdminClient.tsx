@@ -402,7 +402,7 @@ export default function ReelsAdminClient() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-sm text-zinc-500">{visible.length} reel</span>
-          <div className="flex rounded-lg bg-zinc-100 p-0.5">
+          <div className="flex rounded-lg bg-admin-chip p-0.5">
             {(
               [
                 ["ALL", `Hamısı (${items.length})`],
@@ -414,7 +414,9 @@ export default function ReelsAdminClient() {
                 key={value}
                 onClick={() => setTab(value)}
                 className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
-                  tab === value ? "bg-white shadow-sm" : "text-zinc-500 hover:text-zinc-800"
+                  tab === value
+                    ? "bg-violet-500/15 text-violet-700 ring-1 ring-violet-500/30"
+                    : "text-zinc-500 hover:text-zinc-800"
                 }`}
               >
                 {label}
@@ -434,7 +436,7 @@ export default function ReelsAdminClient() {
           <button
             onClick={() => bulkRef.current?.click()}
             disabled={!!bulk}
-            className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold hover:bg-zinc-50 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-lg border border-admin-line2 px-4 py-2 text-sm font-semibold hover:bg-admin-chip disabled:opacity-60"
           >
             {bulk ? (
               <>
@@ -460,7 +462,7 @@ export default function ReelsAdminClient() {
           <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
         </div>
       ) : visible.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 py-16 text-center text-sm text-zinc-500">
+        <div className="rounded-xl border border-dashed border-admin-line2 py-16 text-center text-sm text-zinc-500">
           {items.length === 0
             ? "Hələ reel yoxdur. İlk videonu əlavə edin."
             : "Bu kateqoriyada reel yoxdur."}
@@ -468,8 +470,8 @@ export default function ReelsAdminClient() {
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {visible.map((r) => (
-            <div key={r.id} className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-              <div className="relative aspect-[9/16] bg-zinc-100">
+            <div key={r.id} className="overflow-hidden rounded-xl border border-admin-line bg-admin-card shadow-sm">
+              <div className="relative aspect-[9/16] bg-admin-chip">
                 {r.posterUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={r.posterUrl} alt={r.title} className="h-full w-full object-cover" />
@@ -508,14 +510,14 @@ export default function ReelsAdminClient() {
                 <div className="flex gap-1 pt-1">
                   <button
                     onClick={() => openEdit(r)}
-                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-zinc-100 py-1.5 text-xs font-medium hover:bg-zinc-200"
+                    className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-admin-chip py-1.5 text-xs font-medium hover:bg-admin-chip2"
                   >
                     <Edit2 className="h-3 w-3" /> Redaktə
                   </button>
                   <button
                     onClick={() => togglePublished(r)}
                     title={r.isPublished ? "Gizlə" : "Yayımla"}
-                    className="inline-flex items-center justify-center rounded-md bg-zinc-100 px-2 py-1.5 hover:bg-zinc-200"
+                    className="inline-flex items-center justify-center rounded-md bg-admin-chip px-2 py-1.5 hover:bg-admin-chip2"
                   >
                     {r.isPublished ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                   </button>
@@ -591,10 +593,10 @@ function ReelFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
-      <div className="my-8 w-full max-w-2xl rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-100 p-4">
+      <div className="my-8 w-full max-w-2xl rounded-2xl bg-admin-card shadow-xl">
+        <div className="flex items-center justify-between border-b border-admin-line p-4">
           <h2 className="text-lg font-bold">{form.id ? "Reel redaktə" : "Yeni reel"}</h2>
-          <button onClick={onClose} className="rounded-lg p-1 hover:bg-zinc-100">
+          <button onClick={onClose} className="rounded-lg p-1 hover:bg-admin-chip">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -620,8 +622,8 @@ function ReelFormModal({
                 onDragLeave={() => setDragOver(false)}
                 onDrop={onDrop}
                 disabled={videoBusy}
-                className={`flex aspect-[9/16] w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed bg-zinc-50 text-sm text-zinc-500 transition ${
-                  dragOver ? "border-violet-500 bg-violet-50" : "border-zinc-300 hover:border-violet-400"
+                className={`flex aspect-[9/16] w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed bg-admin-chip text-sm text-zinc-500 transition ${
+                  dragOver ? "border-violet-500 bg-violet-50" : "border-admin-line2 hover:border-violet-400"
                 }`}
               >
                 {videoBusy ? (
@@ -653,7 +655,7 @@ function ReelFormModal({
               <button
                 onClick={() => posterRef.current?.click()}
                 disabled={posterBusy}
-                className="flex aspect-[9/16] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-500 hover:border-violet-400"
+                className="flex aspect-[9/16] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border-2 border-dashed border-admin-line2 bg-admin-chip text-sm text-zinc-500 hover:border-violet-400"
               >
                 {posterBusy ? (
                   <Loader2 className="h-6 w-6 animate-spin" />
@@ -671,7 +673,7 @@ function ReelFormModal({
           </div>
 
           {/* URL-dən idxal — fayl seçmədən birbaşa link yapışdır */}
-          <div className="flex items-end gap-2 rounded-lg bg-zinc-50 p-2">
+          <div className="flex items-end gap-2 rounded-lg bg-admin-chip p-2">
             <div className="flex-1">
               <label className="mb-1 flex items-center gap-1 text-xs font-semibold text-zinc-600">
                 <Link2 className="h-3.5 w-3.5" /> Və ya video URL yapışdır
@@ -739,7 +741,7 @@ function ReelFormModal({
           </Field>
 
           {/* Feed kateqoriyası — oyun və film/serial auditoriyaları ayrıdır. */}
-          <div className="rounded-xl border border-zinc-200 p-3">
+          <div className="rounded-xl border border-admin-line p-3">
             <Field label="Feed kateqoriyası">
               <select
                 value={form.category}
@@ -757,7 +759,7 @@ function ReelFormModal({
           </div>
 
           {/* CTA */}
-          <div className="rounded-xl border border-zinc-200 p-3">
+          <div className="rounded-xl border border-admin-line p-3">
             <div className="mb-3 text-xs font-bold uppercase tracking-wide text-zinc-500">
               Tək toxunuşla al (CTA)
             </div>
@@ -838,8 +840,8 @@ function ReelFormModal({
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-zinc-100 p-4">
-          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium hover:bg-zinc-100">
+        <div className="flex justify-end gap-2 border-t border-admin-line p-4">
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium hover:bg-admin-chip">
             Ləğv et
           </button>
           <button
@@ -935,7 +937,7 @@ function EditionPicker({
 
   if (busy) {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-zinc-200 p-3 text-sm text-zinc-500">
+      <div className="flex items-center gap-2 rounded-lg border border-admin-line p-3 text-sm text-zinc-500">
         <Loader2 className="h-4 w-4 animate-spin" /> Sürümlər axtarılır...
       </div>
     );
@@ -943,14 +945,14 @@ function EditionPicker({
 
   if (items.length <= 1) {
     return (
-      <p className="rounded-lg border border-dashed border-zinc-300 p-3 text-xs text-zinc-500">
+      <p className="rounded-lg border border-dashed border-admin-line2 p-3 text-xs text-zinc-500">
         Bu oyun üçün başqa sürüm tapılmadı — feed-də tək qiymət göstəriləcək.
       </p>
     );
   }
 
   return (
-    <div className="rounded-lg border border-zinc-200 p-3">
+    <div className="rounded-lg border border-admin-line p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-xs font-semibold text-zinc-700">
@@ -964,14 +966,14 @@ function EditionPicker({
           <button
             type="button"
             onClick={() => onChange(items.map((i) => i.id))}
-            className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-semibold hover:bg-zinc-200"
+            className="rounded-md bg-admin-chip px-2 py-1 text-[11px] font-semibold hover:bg-admin-chip2"
           >
             Hamısı
           </button>
           <button
             type="button"
             onClick={() => onChange([])}
-            className="rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-semibold hover:bg-zinc-200"
+            className="rounded-md bg-admin-chip px-2 py-1 text-[11px] font-semibold hover:bg-admin-chip2"
           >
             Heç biri
           </button>
@@ -982,7 +984,7 @@ function EditionPicker({
         {items.map((it) => (
           <label
             key={it.id}
-            className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-zinc-50"
+            className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-admin-chip"
           >
             <input
               type="checkbox"
@@ -1081,7 +1083,7 @@ function ProductPicker({
         {busy && <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-zinc-400" />}
       </div>
       {openList && results.length > 0 && (
-        <div className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg">
+        <div className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-admin-line bg-admin-card shadow-lg">
           {results.map((it) => (
             <button
               key={it.id}
@@ -1090,7 +1092,7 @@ function ProductPicker({
                 setOpenList(false);
                 setQ(it.title);
               }}
-              className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-zinc-50"
+              className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm hover:bg-admin-chip"
             >
               {it.imageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element

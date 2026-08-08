@@ -229,24 +229,24 @@ export default function GiveawayDetailModal({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
-        className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-admin-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Başlıq */}
-        <div className="flex items-start justify-between gap-3 border-b border-zinc-200 px-5 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-admin-line px-5 py-4">
           <div className="min-w-0">
             <h3 className="truncate font-semibold text-zinc-900">{giveaway.title}</h3>
             <p className="text-xs text-zinc-500">
               Qalib: {winnerCount}/{giveaway.winnersCount} · {giveaway.prizeLabel}
             </p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-zinc-400 hover:bg-admin-chip">
             ✕
           </button>
         </div>
 
         {/* Tablar */}
-        <div className="flex border-b border-zinc-200 px-3">
+        <div className="flex border-b border-admin-line px-3">
           {([
             ["participants", `İştirakçılar (${participants?.length ?? "…"})`],
             ["winners", `Qaliblər (${winnerCount})`],
@@ -286,7 +286,7 @@ export default function GiveawayDetailModal({
                   return (
                     <li
                       key={p.id}
-                      className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5"
+                      className="flex items-center gap-3 rounded-xl border border-admin-line bg-admin-chip px-3 py-2.5"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-semibold text-zinc-900">
@@ -361,7 +361,7 @@ export default function GiveawayDetailModal({
               ) : (
                 <ul className="space-y-2.5">
                   {winners.map((w) => (
-                    <li key={w.id} className="rounded-xl border border-zinc-200 p-3.5">
+                    <li key={w.id} className="rounded-xl border border-admin-line p-3.5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="text-sm font-bold text-zinc-900">{w.name}</div>
@@ -426,7 +426,7 @@ export default function GiveawayDetailModal({
                             <button
                               onClick={() => toggleWinnerPublic(w)}
                               disabled={busy}
-                              className="rounded-lg border border-zinc-300 px-2 py-1 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-50"
+                              className="rounded-lg border border-admin-line2 px-2 py-1 text-[11px] font-semibold text-zinc-600 hover:bg-admin-chip"
                             >
                               {w.isPublic ? "Gizlət" : "İctimai et"}
                             </button>
@@ -467,7 +467,7 @@ export default function GiveawayDetailModal({
             ) : (
               <ul className="space-y-3">
                 {allReviews.map(({ w, r }) => (
-                  <li key={r.id} className="rounded-xl border border-zinc-200 p-3.5">
+                  <li key={r.id} className="rounded-xl border border-admin-line p-3.5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-sm font-bold text-zinc-900">{w.name}</div>
@@ -493,7 +493,7 @@ export default function GiveawayDetailModal({
                     <p className="mt-2 whitespace-pre-line text-sm text-zinc-700">{r.text}</p>
                     {r.imageUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={r.imageUrl} alt="" className="mt-2 max-h-40 rounded-lg border border-zinc-200" />
+                      <img src={r.imageUrl} alt="" className="mt-2 max-h-40 rounded-lg border border-admin-line" />
                     )}
                     {r.internalNote && (
                       <p className="mt-1.5 text-xs text-zinc-400">Daxili qeyd: {r.internalNote}</p>
@@ -643,7 +643,7 @@ function AddWinnerForm({
           <select
             value={f.source}
             onChange={(e) => setF({ ...f, source: e.target.value })}
-            className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm"
+            className="w-full rounded-lg border border-admin-line2 px-2.5 py-1.5 text-sm"
           >
             {WINNER_SOURCES.map((s) => (
               <option key={s} value={s}>
@@ -658,7 +658,7 @@ function AddWinnerForm({
             type="datetime-local"
             value={f.selectedAt}
             onChange={(e) => setF({ ...f, selectedAt: e.target.value })}
-            className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm"
+            className="w-full rounded-lg border border-admin-line2 px-2.5 py-1.5 text-sm"
           />
         </label>
         <Field label="Qeyd (daxili)" value={f.internalNote} onChange={(v) => setF({ ...f, internalNote: v })} />
@@ -786,7 +786,7 @@ function AddReviewForm({
       <select
         value={f.entryMethod}
         onChange={(e) => setF({ ...f, entryMethod: e.target.value })}
-        className="mb-2 w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm"
+        className="mb-2 w-full rounded-lg border border-admin-line2 px-2.5 py-1.5 text-sm"
       >
         <option value="ADMIN_TRANSCRIBED">Qalibin mesajından köçürülüb (transcribe)</option>
         <option value="ADMIN_STORE_NOTE">Mağaza açıqlaması (qalib rəyi kimi göstərilmir)</option>
@@ -797,7 +797,7 @@ function AddReviewForm({
         onChange={(e) => setF({ ...f, text: e.target.value })}
         rows={3}
         placeholder={storeNote ? "Mağaza açıqlaması mətni…" : "Qalibin real rəyinin mətni…"}
-        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+        className="w-full rounded-lg border border-admin-line2 px-3 py-2 text-sm"
       />
 
       {!storeNote && (
@@ -810,7 +810,7 @@ function AddReviewForm({
               max={5}
               value={f.rating}
               onChange={(e) => setF({ ...f, rating: e.target.value })}
-              className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm"
+              className="w-full rounded-lg border border-admin-line2 px-2.5 py-1.5 text-sm"
             />
           </label>
           <label className="block">
@@ -818,7 +818,7 @@ function AddReviewForm({
             <select
               value={f.source}
               onChange={(e) => setF({ ...f, source: e.target.value })}
-              className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm"
+              className="w-full rounded-lg border border-admin-line2 px-2.5 py-1.5 text-sm"
             >
               {REVIEW_SOURCES.filter((s) => s !== "STORE_NOTE").map((s) => (
                 <option key={s} value={s}>
@@ -833,7 +833,7 @@ function AddReviewForm({
               type="datetime-local"
               value={f.originalSubmittedAt}
               onChange={(e) => setF({ ...f, originalSubmittedAt: e.target.value })}
-              className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm"
+              className="w-full rounded-lg border border-admin-line2 px-2.5 py-1.5 text-sm"
             />
           </label>
           <label className="block">
@@ -842,7 +842,7 @@ function AddReviewForm({
               value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)}
               placeholder="https://…"
-              className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm"
+              className="w-full rounded-lg border border-admin-line2 px-2.5 py-1.5 text-sm"
             />
           </label>
         </div>
@@ -853,7 +853,7 @@ function AddReviewForm({
         <select
           value={f.status}
           onChange={(e) => setF({ ...f, status: e.target.value as ReviewStatus })}
-          className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm"
+          className="w-full rounded-lg border border-admin-line2 px-2.5 py-1.5 text-sm"
         >
           {REVIEW_STATUSES.map((s) => (
             <option key={s} value={s}>
@@ -929,7 +929,7 @@ function Field({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm"
+        className="w-full rounded-lg border border-admin-line2 px-2.5 py-1.5 text-sm"
       />
     </label>
   );
@@ -945,7 +945,7 @@ function UploadBtn({
   onFile: (file: File) => void;
 }) {
   return (
-    <label className="cursor-pointer rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
+    <label className="cursor-pointer rounded-lg border border-admin-line2 bg-admin-card px-2.5 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-admin-chip">
       {label}
       <input
         type="file"
@@ -965,7 +965,7 @@ function UploadBtn({
 type Tone = "violet" | "zinc" | "emerald" | "amber" | "blue" | "rose";
 const TONE: Record<Tone, string> = {
   violet: "bg-violet-100 text-violet-700",
-  zinc: "bg-zinc-100 text-zinc-600",
+  zinc: "bg-admin-chip text-zinc-600",
   emerald: "bg-emerald-100 text-emerald-700",
   amber: "bg-amber-100 text-amber-700",
   blue: "bg-blue-100 text-blue-700",

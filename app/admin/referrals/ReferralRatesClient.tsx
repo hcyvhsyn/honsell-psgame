@@ -380,7 +380,7 @@ export default function ReferralRatesClient() {
               {tier.isDefault && (
                 <span
                   className={`rounded px-1 text-[10px] ${
-                    tier.id === data.tierId ? "bg-white/20" : "bg-zinc-100 text-zinc-500"
+                    tier.id === data.tierId ? "bg-white/20" : "bg-admin-chip text-zinc-500"
                   }`}
                 >
                   standart
@@ -436,7 +436,7 @@ export default function ReferralRatesClient() {
             “{activeTier?.name ?? "—"}” tipinin parametrləri
           </h2>
           {activeTier && (
-            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+            <span className="rounded-full bg-admin-chip px-2 py-0.5 text-xs text-zinc-500">
               {activeTier.kind === "AUTO"
                 ? `Avtomatik · ${
                     activeTier.minSpendCents > 0
@@ -521,7 +521,7 @@ export default function ReferralRatesClient() {
         <div className="mb-1 flex items-center gap-2">
           <Receipt className="h-5 w-5 text-rose-700" />
           <h2 className="text-base font-semibold text-zinc-900">Ödəniş və vergi kəsintiləri</h2>
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+          <span className="rounded-full bg-admin-chip px-2 py-0.5 text-xs text-zinc-500">
             bütün tiplər üçün ümumi
           </span>
         </div>
@@ -577,7 +577,7 @@ export default function ReferralRatesClient() {
         <div className="mb-4 flex items-center gap-2">
           <Percent className="h-5 w-5 text-amber-700" />
           <h2 className="text-base font-semibold text-zinc-900">Digər referal faizləri</h2>
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+          <span className="rounded-full bg-admin-chip px-2 py-0.5 text-xs text-zinc-500">
             bütün tiplər üçün ümumi
           </span>
         </div>
@@ -642,7 +642,7 @@ function ProductGroupTable({
       <div className="mb-4 flex items-center gap-2">
         <Icon className="h-5 w-5 text-sky-700" />
         <h2 className="text-base font-semibold text-zinc-900">{group.label}</h2>
-        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+        <span className="rounded-full bg-admin-chip px-2 py-0.5 text-xs text-zinc-500">
           {group.categoryLabel}
         </span>
       </div>

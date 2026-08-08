@@ -794,7 +794,7 @@ export default function CampaignComposer({
               <iframe
                 title="Email önizləmə"
                 srcDoc={emailHtml}
-                className="h-72 w-full rounded-lg border border-admin-line bg-white"
+                className="h-72 w-full rounded-lg border border-admin-line bg-admin-card"
               />
             )}
           </div>

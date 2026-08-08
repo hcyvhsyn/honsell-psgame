@@ -9,6 +9,10 @@ import {
   useRef,
   useState,
 } from "react";
+// ⚠️ Yalnız `lib/track.ts` — o da yalnız `lib/analyticsShared.ts`-dən asılıdır.
+// Bu fayl `app/layout.tsx`-dən import olunur; tranzitiv `lib/prisma` `next build`-i
+// sındırar (tsc təmiz keçsə də).
+import { trackEvent } from "@/lib/track";
 
 /** Səbətdə PSN hesab açılışı üçün müştəri məlumatları (checkout zamanı serverə göndərilir). */
 export type AccountCreationCartDetails = {
@@ -302,6 +306,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items, hydrated]);
 
   const add = useCallback((item: Omit<CartItem, "qty">) => {
+    // ⚠️ Event setItems-in XARİCİNDƏ atəşlənir: state updater saf qalmalıdır,
+    // React StrictMode-da onu iki dəfə çağırır. Səbətdə onsuz da olan oyunun
+    // təkrar basılması da sayılır — huni bayrağı 0/1 olduğu üçün təsiri yoxdur.
+    trackEvent("add_to_cart", {
+      productId: item.id,
+      productType: item.productType,
+      valueAznCents: Math.round(item.finalAzn * 100),
+    });
     setItems((prev) => {
       if (
         item.productType === "ACCOUNT_CREATION" ||
@@ -340,6 +352,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       message?: string,
       discountEndAt?: string | null,
     ) => {
+      trackEvent("add_to_cart", {
+        productId: item.id,
+        productType: item.productType,
+        valueAznCents: Math.round(item.finalAzn * 100),
+      });
       setItems((prev) => {
         // Hədiyyə həmişə tək nüsxə (qty 1) və yalnız mövcud HƏDİYYƏ sətrini əvəz
         // edir — eyni məhsulun adi alış sətri (varsa) toxunulmaz qalır.

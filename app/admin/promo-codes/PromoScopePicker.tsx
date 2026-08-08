@@ -193,9 +193,9 @@ export default function PromoScopePicker({
       )}
 
       {hasResults && (
-        <div className="max-h-56 overflow-y-auto rounded-lg border border-zinc-200">
+        <div className="max-h-56 overflow-y-auto rounded-lg border border-admin-line">
           {results.services.length > 0 && (
-            <div className="flex items-center justify-between bg-zinc-50 px-2.5 py-1.5">
+            <div className="flex items-center justify-between bg-admin-chip px-2.5 py-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">
                 Servis / platforma
               </span>
@@ -217,7 +217,7 @@ export default function PromoScopePicker({
             />
           ))}
           {results.games.length > 0 && (
-            <div className="bg-zinc-50 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+            <div className="bg-admin-chip px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
               Oyunlar
             </div>
           )}
@@ -235,7 +235,7 @@ function Row({ p, checked, onToggle }: { p: ScopeProduct; checked: boolean; onTo
     <button
       type="button"
       onClick={onToggle}
-      className={`flex w-full items-center gap-2 border-t border-zinc-100 px-2.5 py-2 text-left hover:bg-violet-50 ${
+      className={`flex w-full items-center gap-2 border-t border-admin-line px-2.5 py-2 text-left hover:bg-violet-50 ${
         checked ? "bg-violet-50/60" : ""
       }`}
     >

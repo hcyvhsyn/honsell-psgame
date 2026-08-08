@@ -101,7 +101,7 @@ export default function InviteBonusesClient({ initial }: { initial: AdminInviteB
       )}
 
       {shown.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 py-16 text-center text-sm text-zinc-500">
+        <div className="rounded-xl border border-dashed border-admin-line2 bg-admin-chip py-16 text-center text-sm text-zinc-500">
           {tab === "held"
             ? "Yoxlama gözləyən dəvət yoxdur."
             : tab === "paid"
@@ -125,7 +125,7 @@ export default function InviteBonusesClient({ initial }: { initial: AdminInviteB
                     <span className="text-zinc-700">
                       {b.referee.name ?? b.referee.email}
                     </span>
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                    <span className="rounded-full bg-admin-chip px-2 py-0.5 text-[11px] font-medium text-zinc-600">
                       {b.amountAzn.toFixed(2)} AZN
                     </span>
                     <StatusBadge status={b.status} />
@@ -219,7 +219,7 @@ function TabButton({
         "inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-medium transition",
         active
           ? "bg-violet-500/10 text-violet-700 ring-1 ring-violet-500/30"
-          : "text-zinc-600 hover:bg-zinc-100",
+          : "text-zinc-600 hover:bg-admin-chip",
       ].join(" ")}
     >
       {children}
