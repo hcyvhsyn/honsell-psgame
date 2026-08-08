@@ -25,10 +25,25 @@ export const metadata: Metadata = {
  * Deep link (`?r=<id>`) client-də `useSearchParams` ilə oxunur — burada
  * `searchParams` işlətsək route dinamik olardı və keş arxitekturası dağılardı.
  */
+/**
+ * Boş feed — sorğu sınanda geri qaytarılan dəyər.
+ *
+ * ⚠️ Bu `.catch` KOSMETİKA DEYİL. Səhifə `next build` zamanı prerender olunur,
+ * yəni tutulmayan sorğu xətası bütün saytın deploy-unu sındırır (`Export
+ * encountered errors on following paths: /reels/page`) — 2026-08-08-də sxem
+ * miqrasiyası tətbiq olunmadığı üçün məhz bu baş verdi. Bir səhifənin sorğusu
+ * bütün yayımı bloklaya bilməz; feed boş qalır, sayt qalxır, keş 300 saniyəyə
+ * özünü bərpa edir. Bax: docs/DEPLOY_WITH_MIGRATION.md
+ */
+const emptyFeed = (): Awaited<ReturnType<typeof getFirstReelsPageCached>> => ({
+  items: [],
+  nextCursor: null,
+});
+
 export default async function ReelsPage() {
   const [game, streaming, platforms] = await Promise.all([
-    getFirstReelsPageCached("GAME"),
-    getFirstReelsPageCached("STREAMING"),
+    getFirstReelsPageCached("GAME").catch(emptyFeed),
+    getFirstReelsPageCached("STREAMING").catch(emptyFeed),
     getStreamingPlatformsByCategory("STREAMING").catch(() => []),
   ]);
 

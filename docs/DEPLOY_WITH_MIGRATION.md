@@ -23,8 +23,18 @@
 >    sınmasını dayandırır. Migrasiya tətbiq olunmasa, funksiya canlıda boş
 >    işləyir (cədvəl/sütun yoxdur). Aşağıdakı addımlar hələ də lazımdır.
 >
-> Üç dəfə təkrarlandığına görə əsas həll aşağıdakı "`deploy.sh`-a əlavə"
-> bölməsidir — o edilməyincə bu dördüncü dəfə də baş verəcək.
+> **2026-08-08 — dördüncü təkrar, və proqnoz doğru çıxdı.**
+> `20260807160000_reel_category` tətbiq olunmamışdı, build
+> `The column Reel.category does not exist` ilə sındı.
+>
+> Üstəlik yuxarıdakı 1-ci nəticə **reqressiyaya uğramışdı**: `app/reels/page.tsx`
+> içindəki `.catch` bir yerdə (`getStreamingPlatformsByCategory`) qalmışdı, amma
+> feed sorğularından itmişdi — ona görə səhifə zərif deqradasiya etmək əvəzinə
+> yenə bütün deploy-u bloklаdı. `.catch` geri qaytarıldı, səbəbi izah edən şərh
+> ilə birlikdə (yenidən silinməsin deyə).
+>
+> Əsas həll — migrasiyanın pipeline-a əlavəsi — **artıq edilib**, aşağıdakı
+> "pipeline-a əlavə" bölməsinə bax.
 
 ## Qızıl qayda
 
@@ -179,21 +189,30 @@ avtomatik `noindex` alacaq — bu gözləniləndir, erkən deploy zərər vermir
 
 ---
 
-## Təkrarlanmasın deyə: `deploy.sh`-a əlavə
+## Təkrarlanmasın deyə: pipeline-a əlavə (EDİLİB — 2026-08-08)
 
-Yuxarıdakı 3-cü addımı əl ilə etməmək üçün `deploy.sh`-da Docker build-dən
-**əvvəl** bu blok olmalıdır:
+Yuxarıdakı 3-cü addım artıq **avtomatikdir**. `deploy.sh` serverdə yaşadığı üçün
+blok ora yox, versiyalanan [.github/workflows/deploy.yml](../.github/workflows/deploy.yml)
+faylına, `./deploy.sh` çağırışından **əvvəl** qoyulub:
 
 ```bash
-# Sxem dəyişikliyi build-dən ƏVVƏL tətbiq olunmalıdır: build statik səhifələri
-# generasiya edərkən DB-yə sorğu atır və çatışmayan sütun build-i sındırır.
-docker compose run --rm \
-  -v "$(pwd)/prisma:/app/prisma" \
-  --entrypoint sh <servis-adı> -c "npx prisma migrate deploy" || exit 1
+docker compose run --rm --no-deps -T \
+  -v /root/honsell-psgame/prisma:/app/prisma \
+  --entrypoint npx "$APP_SVC" prisma migrate deploy
 ```
 
-`|| exit 1` vacibdir — migrasiya sınıbsa build-ə keçməyin mənası yoxdur, əks
-halda səbəbi gizlədən ikinci bir xəta alırsınız.
+Üç detal vacibdir:
 
-> `deploy.sh` və `Dockerfile` hazırda repo-da deyil, yalnız serverdə yaşayır.
-> Onları repo-ya köçürmək bu addımı versiyalanan edərdi.
+- **`-v .../prisma:/app/prisma`** — image-dəki `prisma/` build vaxtı `COPY`
+  olunub, yəni indicə `git reset --hard` ilə çəkilmiş YENİ migrasiyalar orada
+  yoxdur. Mount olmasa addım "uğurlu" görünüb heç nə tətbiq etmir. Build sınandan
+  sonra yeni image ümumiyyətlə olmur, ona görə `docker compose exec` də yaramır.
+- **`script_stop: true`** (action səviyyəsində) — migrasiya sınıbsa 9 dəqiqəlik
+  build-ə keçməyin mənası yoxdur; əks halda səbəbi gizlədən ikinci xəta alırsan.
+- **`-T`** — SSH sessiyasında TTY yoxdur.
+
+Servis adı `honsell-store-app`-dır; workflow onu tapmasa db/redis olmayan ilk
+servisə keçir, heç nə tapmasa deploy-u dayandırır.
+
+> `deploy.sh` və `Dockerfile` hələ də repo-da deyil, yalnız serverdə yaşayır.
+> Onları repo-ya köçürmək qalan addımları da versiyalanan edərdi.

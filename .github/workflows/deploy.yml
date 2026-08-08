@@ -20,6 +20,9 @@ jobs:
           # Docker build + export alone takes ~8 min; the action's default
           # command_timeout is 10m, which killed the deploy mid-run. Bump it.
           command_timeout: 30m
+          # Miqrasiya sınarsa build-ə KEÇMƏ — köhnə sxemlə `next build` onsuz da
+          # sınacaq, amma 9 dəqiqə sonra və anlaşılmaz prerender xətası ilə.
+          script_stop: true
           script: |
             cd /root/honsell-psgame
             # Serverdə yerli dəyişikliklər (məs. npm install-ın toxunduğu
@@ -27,4 +30,33 @@ jobs:
             # sərt sıfırla. .env untracked olduğu üçün toxunulmur.
             git fetch origin main
             git reset --hard origin/main
+
+            # ─── Miqrasiya build-dən ƏVVƏL ──────────────────────────────────
+            # /reels (və digər statik səhifələr) prerender olunur, yəni
+            # `npm run build` Docker image-in İÇİNDƏ canlı DB-yə sorğu göndərir.
+            # Sxem köhnədirsə runtime yox, BUILD-in özü sınır:
+            #   "The column `Reel.category` does not exist in the current database"
+            # deploy.sh miqrasiya işlətmir, ona görə burada işlədirik.
+            #
+            SERVICES=$(docker compose config --services 2>/dev/null || true)
+            APP_SVC=$(echo "$SERVICES" | grep -x 'honsell-store-app' || true)
+            # Servis adı dəyişibsə: db/redis olmayan ilk servisə keç.
+            if [ -z "$APP_SVC" ]; then
+              APP_SVC=$(echo "$SERVICES" \
+                | grep -vEi '^(db|postgres|postgresql|pgvector|redis|cache|proxy|nginx)$' \
+                | head -1 || true)
+            fi
+            if [ -z "$APP_SVC" ]; then
+              echo "❌ compose app servisi tapılmadı — miqrasiya tətbiq olunmadı"
+              exit 1
+            fi
+            echo "▶ prisma migrate deploy (servis: $APP_SVC)"
+            # ⚠️ prisma/ MOUNT OLUNUR: image-dəki nüsxə build vaxtı COPY olunub,
+            # yəni indicə çəkilmiş YENİ miqrasiyalar orada yoxdur. Mount olmasa
+            # bu addım "uğurlu" görünüb heç nə tətbiq etməz.
+            # -T: SSH sessiyasında TTY yoxdur ("the input device is not a TTY").
+            docker compose run --rm --no-deps -T \
+              -v /root/honsell-psgame/prisma:/app/prisma \
+              --entrypoint npx "$APP_SVC" prisma migrate deploy
+
             ./deploy.sh

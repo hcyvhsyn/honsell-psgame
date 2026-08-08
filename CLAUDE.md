@@ -249,7 +249,13 @@ süzsək offset kursoru süzülmüş dəstlə uyğunsuzlaşır və səhifələm�
 ⚠️ **MİQRASİYA BUILD-DƏN ƏVVƏL İŞLƏMƏLİDİR.** `/reels` statik prerender olunur, yəni
 `next build` zamanı DB-yə sorğu gedir. Sxem dəyişikliyi tətbiq olunmayıbsa **build-in
 özü sınır** (`Export encountered errors on following paths: /reels/page`), sadəcə runtime
-yox. Serverdə düzgün sıra: `git pull` → `prisma migrate deploy` → `next build`.
+yox. Düzgün sıra: `git pull` → `prisma migrate deploy` → `next build`.
+
+Bu artıq **avtomatlaşdırılıb** — [.github/workflows/deploy.yml](.github/workflows/deploy.yml)
+`./deploy.sh`-dan əvvəl `prisma migrate deploy` işlədir (`deploy.sh` serverdədir və
+miqrasiya işlətmir). İki incəlik: `prisma/` qovluğu konteynerə **mount olunur**, çünki
+image-dəki nüsxə build vaxtı `COPY` olunub və yeni miqrasiyalar orada yoxdur; `script_stop:
+true` isə miqrasiya sınanda 9 dəqiqəlik build-ə keçməyi dayandırır.
 
 ## Deep link — `/reels?r=<id>`
 
