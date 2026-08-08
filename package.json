@@ -15,6 +15,7 @@
     "test:lootbox": "tsx scripts/lootBox.test.ts",
     "test:editions": "tsx scripts/gameEditions.test.ts",
     "test:reelranking": "tsx scripts/reelRanking.test.ts",
+    "clean:reeltitles": "tsx scripts/cleanReelTitles.ts",
     "test:giftcards": "tsx scripts/giftCardPriceRule.test.ts",
     "test:bundles": "tsx scripts/gameBundles.test.ts",
     "test:analytics": "tsx scripts/analytics.test.ts",

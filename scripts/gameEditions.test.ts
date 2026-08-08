@@ -7,7 +7,12 @@
  *
  * DB tələb etmir — funksiyalar safdır.
  */
-import { baseGameTitle, editionSuffixLabel, isSameGameFamily } from "../lib/gameEditions";
+import {
+  baseGameTitle,
+  dedupeEditions,
+  editionSuffixLabel,
+  isSameGameFamily,
+} from "../lib/gameEditions";
 
 let failed = 0;
 
@@ -84,6 +89,75 @@ suffix("Injustice™ 2 - Standart Sürüm", "Standart Sürüm");
 suffix("EA SPORTS FC™ 26 Ultimate Sürüm PS4 ve PS5", "Ultimate Sürüm");
 suffix("The Witcher 3: Wild Hunt – Complete Edition", "Complete Edition");
 suffix("Resident Evil 4 Gold Edition PS4 & PS5", "Gold Edition");
+
+console.log("\n── sürüm çiplərinin dublikat təmizliyi ─────────────────────");
+function dedupe(
+  label: string,
+  input: { editionName: string | null; platform: string | null; finalAzn: number }[],
+  wantNames: string[],
+) {
+  const got = dedupeEditions(input).map(
+    (e) => `${e.editionName ?? "-"}/${e.platform ?? "-"}/${e.finalAzn}`,
+  );
+  if (JSON.stringify(got) === JSON.stringify(wantNames)) {
+    console.log(`  ok   ${label}`);
+  } else {
+    failed++;
+    console.log(
+      `  FAIL ${label}\n         alındı: ${JSON.stringify(got)}\n         gözlənilən: ${JSON.stringify(wantNames)}`,
+    );
+  }
+}
+
+// Skrinşotdakı əsl hal: eyni ad + eyni qiymət, biri platformasız.
+dedupe(
+  "platformasız dublikat atılır",
+  [
+    { editionName: "Standart", platform: "PS5", finalAzn: 66.26 },
+    { editionName: "Standart", platform: null, finalAzn: 66.26 },
+  ],
+  ["Standart/PS5/66.26"],
+);
+
+// ⚠️ Real platforma fərqi qorunmalıdır — qiymət eyni olsa belə.
+dedupe(
+  "PS4 və PS5 ayrı qalır",
+  [
+    { editionName: "Standart", platform: "PS4", finalAzn: 66.26 },
+    { editionName: "Standart", platform: "PS5", finalAzn: 66.26 },
+  ],
+  ["Standart/PS4/66.26", "Standart/PS5/66.26"],
+);
+
+dedupe(
+  "tam eyni üçlük bir dəfə qalır",
+  [
+    { editionName: "Deluxe", platform: "PS5", finalAzn: 91.4 },
+    { editionName: "Deluxe", platform: "PS5", finalAzn: 91.4 },
+  ],
+  ["Deluxe/PS5/91.4"],
+);
+
+// Qiymət fərqlidirsə eyni ad birləşdirilməməlidir (endirim yalnız birində ola bilər).
+dedupe(
+  "fərqli qiymət birləşmir",
+  [
+    { editionName: "Standart", platform: null, finalAzn: 66.26 },
+    { editionName: "Standart", platform: "PS5", finalAzn: 82.82 },
+  ],
+  ["Standart/-/66.26", "Standart/PS5/82.82"],
+);
+
+dedupe(
+  "hər ikisi platformasızdırsa biri qalır",
+  [
+    { editionName: "Standart", platform: null, finalAzn: 66.26 },
+    { editionName: "Standart", platform: null, finalAzn: 66.26 },
+  ],
+  ["Standart/-/66.26"],
+);
+
+dedupe("boş siyahı", [], []);
 
 if (failed > 0) {
   console.log(`\n❌ ${failed} test sındı\n`);

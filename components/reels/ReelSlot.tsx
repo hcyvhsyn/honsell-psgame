@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useEffect, useRef, useState } from "react";
-import { Play, Pause, VolumeX } from "lucide-react";
+import { Play, Pause, VolumeX, Volume2 } from "lucide-react";
 import { useReelState } from "./ReelStateProvider";
 import ReelActionRail from "./ReelActionRail";
 import ReelBuyPanel, { hasBuyPanel } from "./ReelBuyPanel";
@@ -37,8 +37,9 @@ function ReelSlotImpl({
   onSeen?: (id: string) => void;
 }) {
   const { ensure } = useReelState();
-  const { myReaction, displayLikes, displayDislikes, copied, isSaved, react, buy, share, toggleSave } =
-    useReelInteractions(item);
+  // `displayDislikes` / `isSaved` / `toggleSave` qəsdən götürülmür — düymələri
+  // silinib, amma hook-dakı məntiq və API-lər qalır (izah ReelActionRail-dədir).
+  const { myReaction, displayLikes, copied, react, buy, share } = useReelInteractions(item);
   const showBuyPanel = hasBuyPanel(item);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -226,20 +227,28 @@ function ReelSlotImpl({
         </span>
       </div>
 
-      {/* "Səs üçün toxun" — səssiz avtoplay brauzer tələbidir, ona görə istifadəçi
-          səsin bağlı olduğunu və bir toxunuşla açılacağını görməlidir. */}
-      {role === "active" && globalMuted && !needsTap && (
-        <div className="pointer-events-none absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">
-          <VolumeX className="h-4 w-4" />
-          Səs üçün toxun
-        </div>
+      {/* Səs — sağ üst küncdə. Əvvəllər BURADA "Səs üçün toxun" nişanı, rail-də isə
+          ayrıca səs düyməsi vardı; ikisi eyni şeyi deyirdi. İndi bir elementdir:
+          səssiz ikən yazı ilə genişlənir (səssiz avtoplay brauzer tələbidir, ona görə
+          istifadəçi bir toxunuşla açılacağını görməlidir), səs açılanda ikona yığılır. */}
+      {role === "active" && (
+        <button
+          onClick={onToggleMute}
+          aria-label={globalMuted ? "Səsi aç" : "Səsi bağla"}
+          className="absolute right-4 top-4 z-20 flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-xs font-bold text-white backdrop-blur transition active:scale-95"
+        >
+          {globalMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          {globalMuted && !needsTap && "Səs üçün toxun"}
+        </button>
       )}
 
       {/* Alt gradient */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 to-transparent" />
 
-      {/* Platforma nişanı */}
-      {item.platform.label && (
+      {/* Platforma nişanı — YALNIZ film/serial reels-ində. Oyun reels-ində "PS5"
+          onsuz da alış panelindəki sürüm çipində yazılır, ona görə burada təkrar idi;
+          Netflix/Prime nişanı isə həqiqətən məlumat daşıyır. */}
+      {item.category === "STREAMING" && item.platform.label && (
         <div className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">
           {item.platform.logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -266,18 +275,12 @@ function ReelSlotImpl({
               item={item}
               myReaction={myReaction}
               likes={displayLikes}
-              dislikes={displayDislikes}
               comments={item.counts.comments + commentDelta}
-              muted={globalMuted}
               onLike={() => react(1)}
-              onDislike={() => react(-1)}
               onComments={() => onOpenComments(item.id)}
               onShare={share}
               copied={copied}
-              onToggleSave={toggleSave}
-              isSaved={isSaved}
               onBuy={buy}
-              onToggleMute={onToggleMute}
               // Panel varkən rail-dəki səbət düyməsi eyni işi görür — təkrarı gizlət.
               hideBuy={showBuyPanel}
             />

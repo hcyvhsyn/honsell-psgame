@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { gameDetailHref } from "@/lib/gameSlug";
-import { editionSuffixLabel } from "@/lib/gameEditions";
+import { dedupeEditions, editionSuffixLabel } from "@/lib/gameEditions";
 import { rankReels } from "@/lib/reelRanking";
 
 /**
@@ -209,11 +209,21 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
       // Sürüm siyahısı = əsas oyun + admin təsdiqlədikləri, UCUZDAN BAHAYA.
       // Feed [0]-ı default seçir, ona görə sıralama məhsul qərarıdır, kosmetika deyil.
       const ids = Array.from(new Set([r.ctaTargetId, ...r.editionGameIds]));
-      editions = ids
-        .map((id) => gameById.get(id))
-        .filter((g): g is NonNullable<typeof g> => Boolean(g))
-        .map(toGameProduct)
-        .sort((a, b) => a.finalAzn - b.finalAzn);
+      editions = dedupeEditions(
+        ids
+          .map((id) => gameById.get(id))
+          .filter((g): g is NonNullable<typeof g> => Boolean(g))
+          // PC sətirləri çipdən çıxır — `findEditionCandidates` artıq mənbədə
+          // süzür, amma MÖVCUD reels-in `editionGameIds`-ində PC id-si yazılıb
+          // qalıb. (JS-də süzülür; SQL-də `not: "PC"` NULL-ları da atardı.)
+          .filter((g) => g.platform !== "PC")
+          .map(toGameProduct)
+          .sort((a, b) => a.finalAzn - b.finalAzn),
+      );
+
+      // Süzgəclərdən sonra siyahı boşalarsa panel tamamilə yox olardı — əsas
+      // məhsulu tək sürüm kimi saxlayırıq ki, müştəri heç olmasa onu ala bilsin.
+      if (editions.length === 0 && product) editions = [product];
     } else if (r.ctaType === "SERVICE" && r.ctaTargetId) {
       const s = serviceById.get(r.ctaTargetId);
       if (s) {

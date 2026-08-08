@@ -70,6 +70,13 @@ export async function findEditionCandidates(
   ]);
 
   const items = candidates
+    // ⚠️ PC sətirləri: `store` "PS" olsa da `platform` "PC" ola bilir (idxal
+    // qalıqları). Reels yalnız PlayStation-dur, ona görə belə sətir sürüm çipi
+    // kimi görünməməlidir.
+    //
+    // Süzgəc JS-dədir, SQL-də DEYİL: `platform: { not: "PC" }` yazsaq
+    // `NULL != 'PC'` → `NULL` olduğu üçün platforması boş sətirlər də atılardı.
+    .filter((g) => g.platform !== "PC")
     .filter((g) => isSameGameFamily(base.title, g.title))
     .map((g) => {
       const d = computeDisplayPrice(g, settings);

@@ -166,3 +166,44 @@ export function editionSearchPrefix(title: string): string {
   const safe = base.split(/[:\-–—(]/)[0].trim();
   return safe.length >= 3 ? safe : base;
 }
+
+/**
+ * Feed-də göstəriləcək sürüm siyahısını təmizləyir — **saf**, ona görə test edilir.
+ *
+ * Real kataloqda eyni oyunun bir neçə demək olar eyni sətri olur (fərqli mağaza
+ * idxalları, platforma sütunu boş qalmış köhnə sətirlər). Nəticədə alış panelində
+ * iki çip yan-yana "Standart 66.26 ₼" yazırdı — müştəri hansını seçəcəyini bilmirdi.
+ *
+ * Qaydalar:
+ *   1. `editionName|platform|finalAzn` üçlüyü təkrarlanırsa biri qalır.
+ *   2. Platforması BOŞ olan sətir, eyni ad+qiymətə malik və platforması DOLU olan
+ *      sətir varsa atılır — "etiketsiz dublikat" halı budur.
+ *
+ * ⚠️ Real PS4/PS5 fərqi QORUNUR: hər ikisinin platforması dolu olduğu üçün 1-ci
+ * qayda onları fərqli sayır. Yalnız qiymət eyni olsa belə ayrı çip kimi qalırlar.
+ *
+ * Sıra dəyişdirilmir (çağıran tərəf onsuz da ucuzdan bahaya sıralayıb).
+ */
+export function dedupeEditions<
+  T extends { editionName: string | null; platform: string | null; finalAzn: number },
+>(items: T[]): T[] {
+  const labelledKeys = new Set(
+    items
+      .filter((i) => i.platform)
+      .map((i) => `${i.editionName ?? ""}|${i.finalAzn}`),
+  );
+
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const item of items) {
+    const nameAndPrice = `${item.editionName ?? ""}|${item.finalAzn}`;
+    // Qayda 2 — platformasız dublikat.
+    if (!item.platform && labelledKeys.has(nameAndPrice)) continue;
+    // Qayda 1 — tam eyni üçlük.
+    const key = `${nameAndPrice}|${item.platform ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}

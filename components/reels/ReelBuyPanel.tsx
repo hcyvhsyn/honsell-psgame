@@ -53,7 +53,11 @@ export default function ReelBuyPanel({ item }: { item: ReelFeedItem }) {
   if (!selected) return null;
 
   const inCart = has(selected.id);
-  const cheapestId = editions[0]?.id;
+  // "ən ucuz" nişanı YALNIZ həqiqi qiymət fərqi olanda. Sürümlərin hamısı eyni
+  // qiymətdədirsə birinə "ən ucuz" yazmaq müştərini aldadır (skrinşotda iki çip də
+  // 66.26 ₼ idi, biri nişanla).
+  const cheapestId =
+    editions.length > 1 && editions[0].finalAzn < editions[1].finalAzn ? editions[0].id : null;
 
   function onAdd() {
     if (!selected) return;
@@ -96,7 +100,12 @@ export default function ReelBuyPanel({ item }: { item: ReelFeedItem }) {
                   <span className="text-[11px] font-bold leading-tight">
                     {e.editionName ?? "Sürüm"}
                   </span>
-                  {e.id === cheapestId && editions.length > 1 && (
+                  {e.platform && (
+                    <span className={`text-[9px] ${active ? "text-zinc-500" : "text-white/50"}`}>
+                      {e.platform}
+                    </span>
+                  )}
+                  {e.id === cheapestId && (
                     <span
                       className={`rounded px-1 py-px text-[9px] font-black uppercase ${
                         active ? "bg-emerald-600 text-white" : "bg-emerald-500/90 text-white"
@@ -106,20 +115,11 @@ export default function ReelBuyPanel({ item }: { item: ReelFeedItem }) {
                     </span>
                   )}
                 </span>
-                <span className="mt-0.5 flex items-baseline gap-1">
-                  <span className="text-xs font-black">{e.finalAzn.toFixed(2)} ₼</span>
-                  {e.discountPct != null && (
-                    <span
-                      className={`text-[9px] font-bold ${active ? "text-rose-600" : "text-rose-300"}`}
-                    >
-                      −{e.discountPct}%
-                    </span>
-                  )}
-                  {e.platform && (
-                    <span className={`text-[9px] ${active ? "text-zinc-500" : "text-white/50"}`}>
-                      {e.platform}
-                    </span>
-                  )}
+                {/* Endirim faizi QƏSDƏN yoxdur — 4 çipdə 4 qırmızı nişan olurdu və
+                    aşağıdakı böyük sətir onsuz da endirimi göstərir. Çipin işi
+                    sürümlər arasında qiymət MÜQAYİSƏSİDİR. */}
+                <span className="mt-0.5 block text-xs font-black">
+                  {e.finalAzn.toFixed(2)} ₼
                 </span>
               </button>
             );
@@ -145,12 +145,8 @@ export default function ReelBuyPanel({ item }: { item: ReelFeedItem }) {
               </span>
             )}
           </div>
-          {editions.length > 1 && (
-            <p className="mt-0.5 truncate text-[11px] text-white/60">
-              {selected.editionName ?? "Sürüm"}
-              {selected.platform ? ` · ${selected.platform}` : ""}
-            </p>
-          )}
+          {/* "Standart · PS5" alt sətri QƏSDƏN silinib — seçili çip onsuz da ağ fonla
+              işarələnib, sətir eyni məlumatı üçüncü dəfə təkrarlayırdı. */}
         </div>
 
         <button

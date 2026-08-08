@@ -151,6 +151,7 @@ səbətə atır. Admin panelindən VƏ Telegram botundan video əlavə olunur.
 | Bir slot (video+poster) | [components/reels/ReelSlot.tsx](components/reels/ReelSlot.tsx) |
 | Mobil overlay rail | [components/reels/ReelActionRail.tsx](components/reels/ReelActionRail.tsx) |
 | Desktop yan panel | [components/reels/ReelSideRail.tsx](components/reels/ReelSideRail.tsx) |
+| Kateqoriya çipi + vərəq | [components/reels/ReelCategoryChip.tsx](components/reels/ReelCategoryChip.tsx) + [ReelCategoryGate.tsx](components/reels/ReelCategoryGate.tsx) |
 | Şərh panosu | [components/reels/ReelCommentsSheet.tsx](components/reels/ReelCommentsSheet.tsx) |
 | Per-user state context | [components/reels/ReelStateProvider.tsx](components/reels/ReelStateProvider.tsx) |
 | Like/səbət ortaq hook | [components/reels/useReelInteractions.ts](components/reels/useReelInteractions.ts) |
@@ -214,6 +215,45 @@ bütün seriyanı tutur. Əvəzinə iki mərhələ:
 Sürümlər feed-ə **ucuzdan bahaya** sıralı gəlir və panel `[0]`-ı default seçir — sıralama
 məhsul qərarıdır, kosmetika deyil (müştəri ən ucuzu axtarmadan görməlidir).
 
+### Qiymət YALNIZ bir yerdə
+
+Panel əvvəllər eyni qiyməti **üç dəfə** yazırdı (çipdə, böyük sətirdə, altdakı
+`Standart · PS5` sətrində). İndi işbölgüsü belədir:
+
+| Element | Nə göstərir |
+| --- | --- |
+| Çip | sürüm adı + platforma + **qiymət** — işi sürümlər arası MÜQAYİSƏDİR |
+| Böyük sətir | seçilmişin qiyməti + köhnə qiymət + `−N%` — **endirim yalnız burada** |
+
+⚠️ Çipdə endirim faizi YOXDUR — 4 çipdə 4 qırmızı nişan olurdu.
+⚠️ **"ən ucuz" nişanı yalnız `editions[0].finalAzn < editions[1].finalAzn` olanda.**
+Bütün sürümlər eyni qiymətdədirsə birinə "ən ucuz" yazmaq müştərini aldadır.
+
+### Sürüm siyahısının təmizliyi
+
+İki süzgəc **hər iki qatda** tətbiq olunur, çünki mənbəni düzəltmək köhnə sətirləri
+düzəltmir:
+
+1. **PC sətirləri atılır** — `store` "PS" olsa da `platform` "PC" ola bilir (idxal
+   qalıqları) və feed-də PC çipi kimi görünürdü.
+   `findEditionCandidates` (mənbə: admin siyahısı + Telegram avto-doldurma) **və**
+   [lib/reels.ts](lib/reels.ts)-dəki `editions` qurulması (mövcud `editionGameIds`-də PC
+   id-si artıq yazılıb qalıb).
+
+   ⚠️ Süzgəc **JS-dədir, SQL-də yox** — `platform: { not: "PC" }` yazsan `NULL != 'PC'`
+   → `NULL` olduğu üçün platforması boş sətirlər də süzülüb atılar (feed-də mövcud
+   `store` süzgəci tələsinin eynisi).
+
+2. **`dedupeEditions()`** ([lib/gameEditions.ts](lib/gameEditions.ts), SAF) — eyni
+   `editionName|platform|finalAzn` təkrarını atır; **əlavə olaraq** platforması boş olan
+   sətri, eyni ad+qiymətli və platforması DOLU sətir varsa atır ("etiketsiz dublikat").
+   Real **PS4/PS5 fərqi qorunur** — hər ikisinin platforması dolu olduğu üçün ayrı qalır.
+
+⚠️ Süzgəclərdən sonra siyahı boşalarsa əsas məhsul tək sürüm kimi saxlanılır — panel
+tamamilə yox olmasın.
+
+⚠️ Dəyişəndə **`npm run test:editions`** işlət (dedupe testləri də oradadır).
+
 ⚠️ Qruplaşdırma məntiqini dəyişəndə **`npm run test:editions`** işlət — real PS Store
 başlıqları ilə kilidlənib (səhv qruplaşma = müştəriyə yanlış qiymət).
 
@@ -274,6 +314,11 @@ Telegram-dan gələn videonun başlığı **yalnız caption-dan** götürülür.
 qalır və oyun seçiləndə oyunun adı ilə dolur; feed boş `<h2>` render etmir, admin
 siyahısında "(başlıqsız)" göstərilir.
 
+Kod düzəldi, amma **köhnə sətirlər qaldı** — onlar üçün bir dəfəlik təmizləyici var:
+`npm run clean:reeltitles` ([scripts/cleanReelTitles.ts](scripts/cleanReelTitles.ts),
+`--dry-run` dəstəkləyir, idempotentdir). Başlıq `""` olur, `null` yox — sütun nullable
+deyil.
+
 ## Təkrar-önləmə (eyni video təkrar görünməsin)
 
 İki ayrı səbəb var idi və hər ikisi həll olunub:
@@ -315,7 +360,12 @@ göstərilir ("Əvvəldən başla" → dəftər təmizlənir + yeni seed). Bu, `
 QARIŞDIRILMAMALIDIR — o, "kataloqda heç video yoxdur" halıdır. Fərq dəftərin boş olub
 olmamasından bilinir.
 
-## "Saxla" düyməsi
+## "Saxla" (düyməsi HAZIRDA GİZLİDİR — mexanizm qalır)
+
+⚠️ **Rail-də saxla düyməsi YOXDUR** (ekran büdcəsi qərarı, yuxarıdakı bölməyə bax).
+Aşağıdakı mexanizmin hamısı işlək qalır və `SAVED` feed-i onu oxuyur; sadəcə **yazan
+düymə yoxdur**, yəni yeni `ReelBookmark` yaranmır. Geri qaytarmaq = rail-ə düymə əlavə
+etmək (`useReelInteractions().toggleSave` hazırdır).
 
 Bir düymə, **iki fərqli hədəf** — reel kateqoriyasına görə:
 
@@ -335,7 +385,8 @@ sahəsi), oyun üçün `useFavorites().has()`.
 
 **"Saxladıqlarım" feed-i** (`category=SAVED`) hər iki mənbəni birləşdirir: bookmark
 edilmiş reels + favorit oyuna aid reels (`ctaTargetId` VƏ `editionGameIds hasSome`
-üzrə — istifadəçi hansı sürümü saxlayıbsa reel yenə çıxsın).
+üzrə — istifadəçi hansı sürümü saxlayıbsa reel yenə çıxsın). Düymə gizli olduğu üçün
+praktikada **yalnız favorit oyun** qolu dolur.
 
 ⚠️ `SAVED`-də NƏ görülmüş süzgəci, NƏ də qarışdırma tətbiq olunur — saxlanılan siyahı
 proqnozlaşdırılan olmalıdır. Həmçinin `localStorage`-a **yazılmır**: müvəqqəti baxışdır,
@@ -411,6 +462,59 @@ işlədir:
 ⚠️ `ReelSideRail` mütləq `key={activeItem.id}` ilə render olunmalıdır — `useReelInteractions`
 like sayının baseline-ını per-instance `useRef`-də saxlayır; remount olmasa köhnə baseline
 qalır və saylar sürüşür.
+
+## Ekran büdcəsi (ƏN VACİB UX QAYDASI)
+
+Feed bir dəfə 12 interaktiv elementə çatmışdı və hamısı ağ **"Səbətə at"** düyməsi ilə
+yarışırdı. İndi **6**-dır. Yeni düymə əlavə edəndə bunu POZMA — nə isə əlavə edirsənsə,
+nəyi çıxardığını da de.
+
+| Yer | Nə var |
+| --- | --- |
+| Sol üst | home + kateqoriya çipi |
+| Sağ üst | səs |
+| Sağ rail | bəyən, şərh, paylaş — **yazısız**, say yalnız `> 0` olanda |
+| Alt | alış paneli (çiplər + qiymət + səbət) |
+
+**Rail-dən qəsdən çıxarılanlar:** dislike (sıralama ona baxmır — `lib/reelRanking.ts`
+yalnız `createdAt`+seed işlədir; ticarət feed-ində mənfi siqnal yersizdir), baxış sayı
+(kiçik rəqəm məhsulun boş olduğunu elan edir → ZƏRƏR verir), "Saxla", səs.
+
+⚠️ **API-lər silinməyib.** `react(-1)`, `toggleSave`, `POST /api/reels/[id]/bookmark`,
+`ReelReaction`/`ReelBookmark` cədvəlləri və `/api/reels/state`-in `saved` sahəsi qalır —
+sadəcə onları çağıran düymə yoxdur. Geri qaytarmaq bir düymədir və mövcud data itmir.
+
+⚠️ **"Saxla"-nın silinməsinin nəticəsi:** `ReelBookmark`-a yazan YEGANƏ yol o düymə idi.
+Yəni **film/serial artıq saxlanıla bilmir**; `SAVED` feed-i praktikada yalnız favorit
+oyunlara aid reels ilə dolur (favorit məhsul səhifəsindən əlavə olunur). Film tərəfini
+geri istəyirsənsə rail-ə düyməni qaytarmaq kifayətdir.
+
+⚠️ İki rail **eyni düymə dəstini** göstərməlidir — fərqli olsalar istifadəçi cihaz
+dəyişəndə funksiya itirdiyini sanır.
+
+## Kateqoriya çipi + seçim vərəqi
+
+Üstdə 4 tab-lıq sətir yox, **tək çip** var: `🎮 Oyun ▾` (film rejimində aktiv platforma
+da yazılır: `🎬 Film & Serial · Netflix ▾`). Kateqoriya gündəlik dəyişilən şey deyil —
+bir dəfə seçilir və `localStorage`-da qalır, ona görə daimi sətir yer israfı idi.
+
+[ReelCategoryGate.tsx](components/reels/ReelCategoryGate.tsx) **İKİ rolda** işlədilir və
+fərq `onClose` prop-undan bilinir:
+
+| Rol | `onClose` | Davranış |
+| --- | --- | --- |
+| İlk giriş qapısı | **verilmir** | bağlana bilmir — seçim məcburidir |
+| Çipdən açılan vərəq | verilir | X + fon toxunuşu ilə bağlanır, hazırkı seçim ✓ ilə işarəli |
+
+⚠️ İlk girişdə vərəq bağlana bilməməlidir: seçim həll olunana qədər feed ümumiyyətlə
+render olunmur (SSR-də hansısa kateqoriyanı göstərsək qayıdan istifadəçi bir an yanlış
+feed-i görür — SSR HTML hidrasiyadan ƏVVƏL paint olunur).
+
+⚠️ "Saxladıqlarım" **ilk girişdə göstərilmir** — istifadəçinin hələ heç nəyi yoxdur,
+boş feed ilə qarşılaşardı.
+
+Platforma süzgəci də vərəqin içindədir (əvvəl üst sətirdə idi) — süzgəc süzgəcin yanında
+olsun deyə. Gizli qalmasın deyə **aktiv platforma çipin yazısına düşür**.
 
 ## Media boru xətti
 

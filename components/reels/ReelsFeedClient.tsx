@@ -16,7 +16,7 @@ import ReelSlot from "./ReelSlot";
 import ReelSideRail from "./ReelSideRail";
 import ReelCommentsSheet from "./ReelCommentsSheet";
 import ReelCategoryGate from "./ReelCategoryGate";
-import ReelCategorySwitch from "./ReelCategorySwitch";
+import ReelCategoryChip from "./ReelCategoryChip";
 import ReelExhaustedScreen from "./ReelExhaustedScreen";
 import { readStoredReelCategory, storeReelCategory } from "./reelCategory";
 import { isVolumeUpKey, readSoundPreference, storeSoundPreference } from "./reelSound";
@@ -60,6 +60,8 @@ export default function ReelsFeedClient({
 
   const [category, setCategory] = useState<ReelCategory | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
+  /** Üstdəki çipdən ƏL İLƏ açılan vərəq — ilk giriş qapısından fərqli olaraq bağlanır. */
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [platform, setPlatform] = useState<string | null>(null);
   const [feed, setFeed] = useState<Feed>(LOADING_FEED);
   const [restartKey, setRestartKey] = useState(0);
@@ -187,6 +189,7 @@ export default function ReelsFeedClient({
     if (next !== "SAVED") storeReelCategory(next);
     setCategory(next);
     setGateOpen(false);
+    setSheetOpen(false);
     setPlatform(null);
     setActiveIndex(0);
     scrollerRef.current?.scrollTo({ top: 0 });
@@ -333,16 +336,29 @@ export default function ReelsFeedClient({
 
   return (
     <ReelStateProvider>
+      {/* İlk giriş qapısı — bağlana BİLMİR (onClose verilmir), seçim məcburidir. */}
       {gateOpen && <ReelCategoryGate onPick={pickCategory} />}
 
-      {/* Kateqoriya keçidi — üst mərkəzdə. */}
-      <div className="pointer-events-none fixed inset-x-0 top-4 z-[90] flex justify-center px-16">
-        <ReelCategorySwitch
-          category={category}
-          onCategoryChange={pickCategory}
+      {/* Sonradan dəyişmək — eyni vərəq, amma bağlanan. */}
+      {sheetOpen && (
+        <ReelCategoryGate
+          onPick={pickCategory}
+          current={category}
+          onClose={() => setSheetOpen(false)}
           platforms={platforms}
           activePlatform={platform}
           onPlatformChange={setPlatform}
+        />
+      )}
+
+      {/* Kateqoriya çipi — home linkinin yanında (sol üst). `app/reels/page.tsx`-dəki
+          home düyməsi `left-4 top-4`-dədir, ona görə çip `left-16`-dan başlayır. */}
+      <div className="pointer-events-none fixed left-16 top-4 z-[90]">
+        <ReelCategoryChip
+          category={category}
+          platforms={platforms}
+          activePlatform={platform}
+          onOpen={() => setSheetOpen(true)}
         />
       </div>
 
@@ -417,8 +433,6 @@ export default function ReelsFeedClient({
                 key={activeItem.id}
                 item={activeItem}
                 commentDelta={commentDeltas[activeItem.id] ?? 0}
-                muted={globalMuted}
-                onToggleMute={() => setMuted(!globalMuted)}
                 onOpenComments={() => setCommentsOpenId(activeItem.id)}
               />
             )}
