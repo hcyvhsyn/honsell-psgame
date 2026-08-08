@@ -135,6 +135,7 @@ model User {
   // Reels — şaquli video feed: reaksiyalar (like/dislike) + şərhlər.
   reelReactions ReelReaction[]
   reelComments  ReelComment[]
+  reelBookmarks ReelBookmark[]
 
   // Honsell İcması — sərbəst topluluq divarı (postlar + reaksiyalar + şərhlər).
   communityPosts          CommunityPost[]
@@ -2358,6 +2359,7 @@ model Reel {
 
   reactions ReelReaction[]
   comments  ReelComment[]
+  bookmarks ReelBookmark[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2381,6 +2383,23 @@ model ReelReaction {
 
   @@id([reelId, userId])
   @@index([reelId, value])
+}
+
+/// "Saxla" düyməsi — FİLM/SERİAL reels-ləri üçün izləmə siyahısı.
+///
+/// Oyun reels-ində "Saxla" mövcud `Favorite` cədvəlinə yazır (orada endirim
+/// bildirişləri də var). Film/serial isə heç bir məhsula bağlı deyil — yalnız
+/// videonun özü var, ona görə burada reel saxlanılır.
+model ReelBookmark {
+  reelId String
+  reel   Reel   @relation(fields: [reelId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([reelId, userId])
+  @@index([userId, createdAt])
 }
 
 model ReelComment {

@@ -31,10 +31,12 @@ export async function GET(req: Request) {
     });
   }
 
-  // Default: GAME
+  // Default: GAME. Reels yalnız PlayStation oyunları üçündür (Telegram axını ilə
+  // eyni qayda) — Epic sətirləri seçim siyahısında görünmür.
   const items = await prisma.game.findMany({
     where: {
       isActive: true,
+      store: "PS",
       ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
     },
     orderBy: [{ isFeatured: "desc" }, { title: "asc" }],
@@ -46,7 +48,7 @@ export async function GET(req: Request) {
       id: g.id,
       title: g.title,
       imageUrl: g.imageUrl,
-      subtitle: g.store === "EPIC" || g.platform === "PC" ? "Epic" : "PlayStation",
+      subtitle: g.platform || "PlayStation",
     })),
   });
 }

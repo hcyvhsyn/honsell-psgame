@@ -18,6 +18,13 @@ export type PublicTestimonialItem = {
   priceAznCents: number | null;
   /** Məhsulun alınma tarixi (ISO) — məlumdursa. */
   purchasedAt: string | null;
+  /**
+   * Rəy real alışa bağlıdırmı — "Real alış / Təsdiqlənmiş alıcı" nişanları
+   * YALNIZ bunda göstərilir. Alışı olmayan istifadəçi də ümumi rəy yaza bilir
+   * (bax `app/api/reviews/route.ts`), ona görə nişanı hamıya vermək yalan
+   * iddia olardı.
+   */
+  isVerifiedPurchase: boolean;
   adminReply: string | null;
   adminReplyImageUrl: string | null;
   tier: UserTierBadge | null;
@@ -178,6 +185,9 @@ export async function getPublicTestimonials({
         platform: testimonial.platform,
         priceAznCents,
         purchasedAt,
+        // Alış mənbəyi: bağlı tranzaksiya (email dəvəti / anasayfa modalı) və
+        // ya WhatsApp dəvəti (admin real sifariş üçün yaradır).
+        isVerifiedPurchase: Boolean(txn ?? invite),
         productTitle: testimonial.productTitle,
         adminReply: testimonial.adminReply,
         adminReplyImageUrl: testimonial.adminReplyImageUrl,

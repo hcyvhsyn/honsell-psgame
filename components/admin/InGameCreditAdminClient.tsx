@@ -60,15 +60,21 @@ type Props = {
   currencyLabel: string;
   productNoun: string;
   recommendedImageSize: string;
-  /** Bynogame paste import dəstəklənirsə true. (Hələ yalnız PUBG UC.) */
+  /** Qiymət importu (Oyunfor URL / Bynogame paste) dəstəklənirsə true. (Hələ yalnız PUBG UC.) */
   supportsBynogameImport?: boolean;
 };
+
+/** Oyunfor URL-dən avtomatik çəkir; Bynogame yapışdırılan mətndən oxuyur. */
+type ImportSource = "OYUNFOR" | "BYNOGAME";
 
 type ParsedItem = {
   amount: number;
   deliveryMethod: "EPIN" | "ID_TOPUP";
   tryPrice: number;
   originalTryPrice: number;
+  /** Mənbə saytda stok var (bizim e-pin stokumuz deyil). */
+  inStock: boolean;
+  sourceName: string | null;
 };
 
 type DraftState = {
@@ -95,6 +101,8 @@ const emptyDraft: DraftState = {
 };
 
 const DEFAULT_TRY_RATE = 0.053;
+
+const DEFAULT_OYUNFOR_URL = "https://www.oyunfor.com/mobil-oyunlar/pubg-mobile-uc";
 
 // Deterministic az-AZ style formatting (comma decimal, dot thousands) so server
 // and client render identical markup regardless of available ICU locale data.
@@ -131,11 +139,14 @@ export default function InGameCreditAdminClient({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isEditing = Boolean(draft.id);
 
-  // Bynogame import dialog state
+  // Qiymət importu dialoq state-i
   const [showImport, setShowImport] = useState(false);
+  const [importSource, setImportSource] = useState<ImportSource>("OYUNFOR");
+  const [importUrl, setImportUrl] = useState(DEFAULT_OYUNFOR_URL);
   const [importText, setImportText] = useState("");
   const [importMargin, setImportMargin] = useState("25");
   const [importPreview, setImportPreview] = useState<ParsedItem[] | null>(null);
+  const [previewing, setPreviewing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{
     created: number;
@@ -272,21 +283,33 @@ export default function InGameCreditAdminClient({
     }
   }
 
+  /** Hər iki mənbə eyni endpoint-ə gedir, yalnız daşıdıqları sahə fərqlidir. */
+  const importPayload = useCallback(
+    () =>
+      importSource === "OYUNFOR"
+        ? { source: "OYUNFOR" as const, url: importUrl }
+        : { source: "BYNOGAME" as const, text: importText },
+    [importSource, importUrl, importText],
+  );
+
   async function previewImport() {
     setErr(null);
     setImportPreview(null);
     setImportResult(null);
+    setPreviewing(true);
     try {
       const res = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "PREVIEW_IMPORT", type, text: importText }),
+        body: JSON.stringify({ action: "PREVIEW_IMPORT", type, ...importPayload() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Preview alınmadı");
       setImportPreview(data.items ?? []);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Xəta baş verdi");
+    } finally {
+      setPreviewing(false);
     }
   }
 
@@ -299,10 +322,10 @@ export default function InGameCreditAdminClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "IMPORT_FROM_TEXT",
+          action: "APPLY_IMPORT",
           type,
-          text: importText,
           marginPct: importMargin,
+          ...importPayload(),
         }),
       });
       const data = await res.json();
@@ -385,7 +408,7 @@ export default function InGameCreditAdminClient({
                 className="inline-flex h-10 items-center gap-2 rounded-xl border border-violet-400/40 bg-violet-500/10 px-4 text-sm font-semibold text-violet-100 transition hover:bg-violet-500/20"
               >
                 <Download className="h-4 w-4" />
-                Bynogame-dən import
+                Qiymət importu
               </button>
             )}
             <button
@@ -718,10 +741,18 @@ export default function InGameCreditAdminClient({
         </section>
       )}
 
-      {/* Bynogame import modal */}
+      {/* Qiymət import modalı */}
       {showImport && (
-        <BynogameImportModal
+        <PriceImportModal
           tryRate={tryRate}
+          source={importSource}
+          setSource={(s) => {
+            setImportSource(s);
+            setImportPreview(null);
+            setImportResult(null);
+          }}
+          url={importUrl}
+          setUrl={setImportUrl}
           text={importText}
           setText={setImportText}
           margin={importMargin}
@@ -730,6 +761,7 @@ export default function InGameCreditAdminClient({
           onPreview={previewImport}
           onApply={applyImport}
           onClose={closeImport}
+          previewing={previewing}
           importing={importing}
           result={importResult}
         />
@@ -844,8 +876,42 @@ function DeliveryOption({
   );
 }
 
-function BynogameImportModal({
+function SourceTab({
+  active,
+  onClick,
+  title,
+  subtitle,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex-1 rounded-xl border px-3 py-2 text-left transition ${
+        active
+          ? "border-violet-400/60 bg-violet-500/10"
+          : "border-admin-line bg-admin-chip hover:border-violet-400/30"
+      }`}
+    >
+      <div className={`text-sm font-semibold ${active ? "text-violet-100" : "text-zinc-800"}`}>
+        {title}
+      </div>
+      <div className="text-[11px] text-zinc-500">{subtitle}</div>
+    </button>
+  );
+}
+
+function PriceImportModal({
   tryRate,
+  source,
+  setSource,
+  url,
+  setUrl,
   text,
   setText,
   margin,
@@ -854,10 +920,15 @@ function BynogameImportModal({
   onPreview,
   onApply,
   onClose,
+  previewing,
   importing,
   result,
 }: {
   tryRate: number;
+  source: ImportSource;
+  setSource: (s: ImportSource) => void;
+  url: string;
+  setUrl: (s: string) => void;
   text: string;
   setText: (s: string) => void;
   margin: string;
@@ -866,11 +937,13 @@ function BynogameImportModal({
   onPreview: () => Promise<void>;
   onApply: () => Promise<void>;
   onClose: () => void;
+  previewing: boolean;
   importing: boolean;
   result: { created: number; updated: number } | null;
 }) {
   const marginNum = Number(margin);
   const validMargin = Number.isFinite(marginNum) && marginNum >= 0 && marginNum <= 500;
+  const hasInput = source === "OYUNFOR" ? url.trim().length > 0 : text.trim().length > 0;
 
   return (
     <div
@@ -894,24 +967,58 @@ function BynogameImportModal({
           <X className="h-4 w-4" />
         </button>
 
-        <h2 className="text-lg font-black text-white">Bynogame-dən PUBG UC import</h2>
+        <h2 className="text-lg font-black text-white">PUBG UC qiymət importu</h2>
         <p className="mt-1 text-xs text-zinc-600">
-          Bynogame səhifəsində Ctrl+A → Ctrl+C edib, mətni aşağıya yapışdırın. Sistem hər
-          variantı (60 UC, 325 UC, … və Top-Up versiyalarını) parse edib qiymətləri yeniləyəcək.
+          Mənbədən hər variantı (60 UC, 325 UC, … və Top-Up versiyalarını) oxuyub TRY
+          mayasını və AZN satış qiymətini yeniləyir.
         </p>
 
-        <label className="mt-4 block">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-600">
-            Yapışdırılan mətn
-          </span>
-          <textarea
-            rows={6}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Bynogame səhifəsindən kopyalanan tam mətn..."
-            className="w-full rounded-xl border border-admin-line bg-admin-chip px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
+        <div className="mt-4 flex gap-2">
+          <SourceTab
+            active={source === "OYUNFOR"}
+            onClick={() => setSource("OYUNFOR")}
+            title="Oyunfor (link)"
+            subtitle="Səhifəni özü çəkir"
           />
-        </label>
+          <SourceTab
+            active={source === "BYNOGAME"}
+            onClick={() => setSource("BYNOGAME")}
+            title="Bynogame (mətn)"
+            subtitle="Ctrl+A → Ctrl+C → yapışdır"
+          />
+        </div>
+
+        {source === "OYUNFOR" ? (
+          <label className="mt-4 block">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-600">
+              Oyunfor kateqoriya linki
+            </span>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder={DEFAULT_OYUNFOR_URL}
+              className="h-11 w-full rounded-xl border border-admin-line bg-admin-chip px-3 text-sm text-zinc-900 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Bütün UC paketlərinin göründüyü kateqoriya səhifəsi (tək variantın detal
+              səhifəsi yox). Yalnız oyunfor.com linkləri qəbul olunur.
+            </p>
+          </label>
+        ) : (
+          <label className="mt-4 block">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-600">
+              Yapışdırılan mətn
+            </span>
+            <textarea
+              rows={6}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Bynogame səhifəsindən kopyalanan tam mətn..."
+              className="w-full rounded-xl border border-admin-line bg-admin-chip px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-violet-400/60 focus:ring-2 focus:ring-violet-500/20"
+            />
+          </label>
+        )}
 
         <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
           <label className="block">
@@ -935,10 +1042,11 @@ function BynogameImportModal({
             <button
               type="button"
               onClick={onPreview}
-              disabled={!text.trim()}
+              disabled={!hasInput || previewing}
               className="inline-flex h-11 items-center gap-2 rounded-xl border border-admin-line bg-admin-chip px-4 text-sm font-semibold text-zinc-800 transition hover:border-violet-400/40 disabled:opacity-50"
             >
-              Önizlə
+              {previewing && <Loader2 className="h-4 w-4 animate-spin" />}
+              {source === "OYUNFOR" ? "Çək və önizlə" : "Önizlə"}
             </button>
           </div>
         </div>
@@ -947,21 +1055,28 @@ function BynogameImportModal({
           <div className="mt-5 rounded-xl border border-admin-line bg-admin-chip p-3">
             {preview.length === 0 ? (
               <p className="py-4 text-center text-sm text-zinc-600">
-                Mətndən heç bir variant tapılmadı. Format düz deyilmi?
+                Heç bir variant tapılmadı. {source === "OYUNFOR" ? "Link düz deyilmi?" : "Format düz deyilmi?"}
               </p>
             ) : (
               <>
                 <div className="mb-2 text-xs text-zinc-600">
                   Tapıldı: <span className="font-semibold text-zinc-800">{preview.length} variant</span>
+                  {source === "OYUNFOR" && (
+                    <span className="ml-2 text-zinc-500">
+                      · mənbədə stokda olmayanların qiyməti də yenilənir, aktivlik statusuna
+                      toxunulmur
+                    </span>
+                  )}
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[500px] text-xs">
+                  <table className="w-full min-w-[560px] text-xs">
                     <thead className="text-left text-zinc-500">
                       <tr className="border-b border-admin-line">
                         <th className="px-2 py-1.5 font-semibold">Miqdar</th>
                         <th className="px-2 py-1.5 font-semibold">Tip</th>
                         <th className="px-2 py-1.5 font-semibold">TRY</th>
                         <th className="px-2 py-1.5 font-semibold">AZN (hesablanır)</th>
+                        <th className="px-2 py-1.5 font-semibold">Mənbə stoku</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -987,9 +1102,21 @@ function BynogameImportModal({
                             </td>
                             <td className="px-2 py-1.5 tabular-nums text-zinc-700">
                               {item.tryPrice.toFixed(2)} ₺
+                              {item.originalTryPrice > item.tryPrice && (
+                                <span className="ml-1.5 text-[10px] text-zinc-500 line-through">
+                                  {item.originalTryPrice.toFixed(2)}
+                                </span>
+                              )}
                             </td>
                             <td className="px-2 py-1.5 tabular-nums text-zinc-900">
                               {validMargin ? `${azn.toFixed(2)} ₼` : "—"}
+                            </td>
+                            <td className="px-2 py-1.5">
+                              {item.inStock ? (
+                                <span className="text-emerald-700">var</span>
+                              ) : (
+                                <span className="font-semibold text-rose-700">yoxdur</span>
+                              )}
                             </td>
                           </tr>
                         );
@@ -1025,7 +1152,7 @@ function BynogameImportModal({
           <button
             type="button"
             onClick={onApply}
-            disabled={!text.trim() || !validMargin || importing}
+            disabled={!hasInput || !validMargin || importing}
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:bg-violet-500 disabled:opacity-60"
           >
             {importing && <Loader2 className="h-4 w-4 animate-spin" />}

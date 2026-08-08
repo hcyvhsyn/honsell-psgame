@@ -96,14 +96,6 @@ function firstUrl(s?: string): string | null {
   return m ? m[0] : null;
 }
 
-function hostLabel(url: string): string {
-  const u = url.toLowerCase();
-  if (u.includes("tiktok")) return "TikTok video";
-  if (u.includes("instagram")) return "Instagram video";
-  if (u.includes("youtube") || u.includes("youtu.be")) return "YouTube video";
-  return "Video";
-}
-
 // ─── Callback prefiksləri ────────────────────────────────────────────────────
 // callback_data limiti 64 BAYTDIR. cuid = 25 simvol, ona görə:
 //   rk|<reelId>|G          → 30 bayt
@@ -122,12 +114,7 @@ const STAGE_GAME_NAME = "GAME_NAME";
  * "oyun, yoxsa film/serial?" sualını verir. Reel-in özü söhbət state-idir —
  * callback gələndə həmin reel-ə seçim yazılıb yayımlanır.
  */
-async function createDraftAndAskKind(
-  chatId: number,
-  assets: ReelAssets,
-  fallbackTitle: string,
-  caption: string,
-) {
+async function createDraftAndAskKind(chatId: number, assets: ReelAssets, caption: string) {
   const rand = Math.random().toString(36).slice(2, 8);
   const videoKey = `reels/${Date.now()}-${rand}.mp4`;
   const videoUrl = await putR2Object(videoKey, assets.videoBuffer, "video/mp4");
@@ -138,8 +125,11 @@ async function createDraftAndAskKind(
     posterUrl = await putR2Object(posterKey, assets.posterBuffer, "image/jpeg");
   }
 
+  // Başlıq YALNIZ caption-dan gəlir. Əvvəllər "TikTok video" kimi mənbə adı
+  // qoyulurdu — feed-də mənasız görünürdü. Boş qalırsa oyun seçiləndə oyunun adı
+  // ilə dolur, film/serial üçün isə admin paneldən yazılır.
   const firstLine = caption.split("\n")[0]?.trim() ?? "";
-  const title = (firstLine || fallbackTitle).slice(0, 120);
+  const title = firstLine.slice(0, 120);
   const body = caption.length > firstLine.length ? caption.slice(firstLine.length).trim() : "";
 
   // Yeni video gəldi → bu chat-da oyun adı gözləyən köhnə qaralama varsa onu
@@ -279,7 +269,16 @@ async function handleGameNameText(chatId: number, text: string): Promise<boolean
   }
 
   const rows = await prisma.game.findMany({
-    where: { isActive: true, productType: "GAME", title: { contains: q, mode: "insensitive" } },
+    where: {
+      isActive: true,
+      productType: "GAME",
+      // Reels YALNIZ PlayStation oyunları üçündür — Epic sətirləri təklif olunmur.
+      // `store` NOT NULL və defaultu "PS"-dir, ona görə bu yoxlama kifayətdir;
+      // `platform: { not: "PC" }` yazsaq platform-u NULL olan sətirlər də düşərdi
+      // (SQL-də NULL != 'PC' → NULL, yəni sətir süzülüb atılır).
+      store: "PS",
+      title: { contains: q, mode: "insensitive" },
+    },
     orderBy: [{ isFeatured: "desc" }, { title: "asc" }],
     // Sürümlər təkrarsızlaşdırıldıqdan sonra 8 sətir qalsın deyə geniş götür.
     take: 60,
@@ -342,6 +341,11 @@ async function handleGameCallback(cb: TgCallbackQuery) {
     return;
   }
 
+  // Caption yoxdursa başlıq boşdur — oyunun adı ilə doldur (feed-də başlıqsız
+  // video qalmasın). Admin caption yazıbsa ona toxunmuruq.
+  const draft = await prisma.reel.findUnique({ where: { id: reelId }, select: { title: true } });
+  const titlePatch = draft && draft.title.trim().length === 0 ? { title: game.title.slice(0, 120) } : {};
+
   const found = await findEditionCandidates(gameId).catch(() => null);
   const editions = found?.items ?? [];
   const editionIds = editions.map((e) => e.id);
@@ -352,6 +356,7 @@ async function handleGameCallback(cb: TgCallbackQuery) {
     await prisma.reel.update({
       where: { id: reelId },
       data: {
+        ...titlePatch,
         ctaType: "GAME",
         ctaTargetId: game.id,
         ctaHref: null,
@@ -553,7 +558,7 @@ async function runIngest(
       }
       await telegramSendMessage(chatId, "⏳ Video endirilir və emal olunur...");
       const assets = await ingestFromUrl(url);
-      await createDraftAndAskKind(chatId, assets, hostLabel(url), (msg.caption ?? "").trim());
+      await createDraftAndAskKind(chatId, assets, (msg.caption ?? "").trim());
       return;
     }
 
@@ -575,7 +580,7 @@ async function runIngest(
       // ffmpeg var → faststart + poster (ən yaxşı nəticə).
       const ext = (media!.mime_type ?? "").includes("webm") ? "webm" : "mp4";
       const assets = await ingestFromBytes(bytes, ext);
-      await createDraftAndAskKind(chatId, assets, "Reels video", (msg.caption ?? "").trim());
+      await createDraftAndAskKind(chatId, assets, (msg.caption ?? "").trim());
       return;
     }
 
@@ -600,7 +605,6 @@ async function runIngest(
         height: media!.height ?? 1280,
         durationMs: media!.duration ? Math.round(media!.duration * 1000) : 0,
       },
-      "Reels video",
       (msg.caption ?? "").trim(),
     );
   } catch (err) {

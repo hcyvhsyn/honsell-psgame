@@ -271,10 +271,14 @@ function ReviewCard({ item }: { item: PublicTestimonialItem }) {
           <span className="text-xs font-bold text-zinc-700 dark:text-zinc-200">{rating}.0</span>
         </div>
 
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/45 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold text-emerald-700 dark:border-emerald-300/20 dark:text-emerald-300">
-          <ShieldCheck className="h-3.5 w-3.5" />
-          Real alış
-        </span>
+        {/* "Real alış" yalnız tranzaksiyaya/WhatsApp dəvətinə bağlı rəylərdə —
+            alışı olmayan istifadəçinin ümumi rəyi bu nişanı almamalıdır. */}
+        {item.isVerifiedPurchase && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/45 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold text-emerald-700 dark:border-emerald-300/20 dark:text-emerald-300">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Real alış
+          </span>
+        )}
       </div>
 
       <div className={`${styles.cardBody} relative mt-6 min-h-0 flex-1 overflow-y-auto pr-1`}>
@@ -306,21 +310,23 @@ function ReviewCard({ item }: { item: PublicTestimonialItem }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-sm font-bold text-zinc-900 dark:text-white">
             <span className="truncate">{item.name}</span>
-            <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+            {item.isVerifiedPurchase && (
+              <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+            )}
           </div>
           <div className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
-            Təsdiqlənmiş alıcı
+            {item.isVerifiedPurchase ? "Təsdiqlənmiş alıcı" : "Honsell istifadəçisi"}
           </div>
         </div>
 
         <div className="shrink-0">
           {item.tier ? (
             <TierBadge tier={item.tier} full className="px-2 py-0.5 text-[10px]" />
-          ) : (
+          ) : item.isVerifiedPurchase ? (
             <span className="inline-flex items-center rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-300">
               {loyaltyLabel}
             </span>
-          )}
+          ) : null}
         </div>
       </figcaption>
     </figure>

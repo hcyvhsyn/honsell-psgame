@@ -20,14 +20,29 @@ import {
 type ReelStateCtx = {
   /** reelId → myReaction (1 like | -1 dislike | 0 yox). */
   reactions: Record<string, number>;
+  /** reelId → izləmə siyahısındadır (yalnız film/serial; oyunlar favoritlərdədir). */
+  saved: Record<string, boolean>;
   ensure: (ids: string[]) => void;
   setLocalReaction: (reelId: string, value: number) => void;
+  setLocalSaved: (reelId: string, value: boolean) => void;
+  /**
+   * reelId → seçilmiş sürümün Game.id-si.
+   *
+   * NİYƏ CONTEXT-DƏ: sürüm çipləri `ReelBuyPanel`-dədir (ReelSlot içində), amma
+   * "Saxla" düyməsi həm orada, həm də DESKTOP yan raildədir (ReelSideRail,
+   * ReelSlot-dan kənarda). Hər ikisi eyni seçimi görməlidir, yoxsa istifadəçi
+   * Ultimate sürümə baxıb saxlayanda favoritlərə Standart düşər.
+   */
+  selectedEditions: Record<string, string>;
+  setSelectedEdition: (reelId: string, gameId: string) => void;
 };
 
 const Ctx = createContext<ReelStateCtx | null>(null);
 
 export function ReelStateProvider({ children }: { children: ReactNode }) {
   const [reactions, setReactions] = useState<Record<string, number>>({});
+  const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [selectedEditions, setSelectedEditions] = useState<Record<string, string>>({});
   const requested = useRef<Set<string>>(new Set());
 
   const ensure = useCallback((ids: string[]) => {
@@ -42,11 +57,16 @@ export function ReelStateProvider({ children }: { children: ReactNode }) {
       cache: "no-store",
     })
       .then((r) => (r.ok ? r.json() : { state: {} }))
-      .then((data: { state?: Record<string, { myReaction: number }> }) => {
+      .then((data: { state?: Record<string, { myReaction: number; saved?: boolean }> }) => {
         const s = data.state ?? {};
         setReactions((prev) => {
           const next = { ...prev };
           for (const id of Object.keys(s)) next[id] = s[id].myReaction;
+          return next;
+        });
+        setSaved((prev) => {
+          const next = { ...prev };
+          for (const id of Object.keys(s)) next[id] = Boolean(s[id].saved);
           return next;
         });
       })
@@ -60,8 +80,28 @@ export function ReelStateProvider({ children }: { children: ReactNode }) {
     setReactions((prev) => ({ ...prev, [reelId]: value }));
   }, []);
 
+  const setLocalSaved = useCallback((reelId: string, value: boolean) => {
+    setSaved((prev) => ({ ...prev, [reelId]: value }));
+  }, []);
+
+  const setSelectedEdition = useCallback((reelId: string, gameId: string) => {
+    setSelectedEditions((prev) => (prev[reelId] === gameId ? prev : { ...prev, [reelId]: gameId }));
+  }, []);
+
   return (
-    <Ctx.Provider value={{ reactions, ensure, setLocalReaction }}>{children}</Ctx.Provider>
+    <Ctx.Provider
+      value={{
+        reactions,
+        saved,
+        ensure,
+        setLocalReaction,
+        setLocalSaved,
+        selectedEditions,
+        setSelectedEdition,
+      }}
+    >
+      {children}
+    </Ctx.Provider>
   );
 }
 

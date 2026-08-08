@@ -17,17 +17,20 @@ import ReelSideRail from "./ReelSideRail";
 import ReelCommentsSheet from "./ReelCommentsSheet";
 import ReelCategoryGate from "./ReelCategoryGate";
 import ReelCategorySwitch from "./ReelCategorySwitch";
+import ReelExhaustedScreen from "./ReelExhaustedScreen";
 import { readStoredReelCategory, storeReelCategory } from "./reelCategory";
 import { isVolumeUpKey, readSoundPreference, storeSoundPreference } from "./reelSound";
+import { clearSeenReels, readSeenReels } from "./reelSeen";
+import { createReelSeed } from "@/lib/reelRanking";
 import type { ReelCategory, ReelFeedItem, ReelPlatformChip, ReelRole } from "./types";
 
 /** Bir slot-un yüksəkliyi — mobil tam ekran, desktop-da telefon-eni sütun. */
 const SLOT_H = "h-[100dvh] sm:h-[92dvh]";
 
-type Page = { items: ReelFeedItem[]; nextCursor: number | null };
-type Bucket = Page & { loaded: boolean };
+type Page = { items: ReelFeedItem[]; nextCursor: number | null; exhausted?: boolean };
+type Feed = { items: ReelFeedItem[]; nextCursor: number | null; loaded: boolean; exhausted: boolean };
 
-const EMPTY_BUCKET: Bucket = { items: [], nextCursor: 0, loaded: false };
+const LOADING_FEED: Feed = { items: [], nextCursor: null, loaded: false, exhausted: false };
 
 /**
  * Reels feed — YouTube Shorts tərzi.
@@ -37,9 +40,11 @@ const EMPTY_BUCKET: Bucket = { items: [], nextCursor: 0, loaded: false };
  *
  * KATEQORİYA: oyun və film/serial auditoriyaları ayrıdır. Seçim client-də
  * (localStorage) saxlanılır — server onu bilmir, çünki səhifə statik qalmalıdır.
- * Seçim həll olunana qədər feed RENDER OLUNMUR: SSR-də hansısa kateqoriyanı
- * göstərsəydik, qayıdan istifadəçi bir an yanlış feed-i görərdi (SSR HTML
- * hidrasiyadan ƏVVƏL paint olunur, ona görə useLayoutEffect bunu xilas etmir).
+ * Seçim həll olunana qədər feed RENDER OLUNMUR (SSR HTML hidrasiyadan ƏVVƏL paint
+ * olunur, ona görə useLayoutEffect yanlış kateqoriyanın görünməsini əngəlləyə bilmir).
+ *
+ * TƏKRAR-ÖNLƏMƏ: görülmüş videolar `reelSeen.ts` dəftərində saxlanılır və
+ * `POST /api/reels/feed` onları süzür; sıra ziyarətə məxsus `seed` ilə qarışdırılır.
  */
 export default function ReelsFeedClient({
   initialGame,
@@ -56,14 +61,8 @@ export default function ReelsFeedClient({
   const [category, setCategory] = useState<ReelCategory | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
   const [platform, setPlatform] = useState<string | null>(null);
-
-  // Kateqoriya başına ayrıca dəst — keçid edəndə əvvəlki mövqe və yüklənmiş
-  // səhifələr itmir, təkrar fetch olmur.
-  const [buckets, setBuckets] = useState<Record<ReelCategory, Bucket>>({
-    GAME: { ...initialGame, loaded: true },
-    STREAMING: { ...initialStreaming, loaded: true },
-    ALL: EMPTY_BUCKET, // azlıqda qalan seçim — lazım olanda çəkilir
-  });
+  const [feed, setFeed] = useState<Feed>(LOADING_FEED);
+  const [restartKey, setRestartKey] = useState(0);
 
   const [pinned, setPinned] = useState<ReelFeedItem | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -74,17 +73,31 @@ export default function ReelsFeedClient({
   const loadingRef = useRef(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
+  /** Ziyarətə məxsus qarışdırma toxumu — səhifələmə boyu SABİT qalmalıdır. */
+  const seedRef = useRef("");
+  /** Dəftərin CANLI vəziyyəti — yeni tamamlanan videolar buraya düşür. */
+  const seenRef = useRef<Set<string>>(new Set());
+  /**
+   * Cari feed sessiyası üçün DONDURULMUŞ süzgəc siyahısı.
+   *
+   * ⚠️ Səhifələmə zamanı `excludeIds`-i yeniləsək server hovuzu kiçilir və offset-lər
+   * sürüşür → istifadəçi element atlayır və ya təkrar görür. Ona görə siyahı yalnız
+   * yeni feed sessiyası başlayanda (kateqoriya/platforma dəyişimi, restart) yenilənir.
+   */
+  const excludeRef = useRef<string[]>([]);
+
   // Saxlanmış seçimləri paint-dən əvvəl oxu (hidrasiya uyğunsuzluğu olmasın deyə
   // render-də deyil, layout effektində).
   useLayoutEffect(() => {
+    seedRef.current = createReelSeed();
+    seenRef.current = new Set(readSeenReels());
+
     const stored = readStoredReelCategory();
     if (stored) setCategory(stored);
     else {
       setCategory("GAME"); // qapının arxasında məhsul görünsün
       setGateOpen(true);
     }
-    // İstifadəçi əvvəllər səsi açıbsa yenidən açmağa CƏHD et — brauzer icazə
-    // verməsə ReelSlot səssizə qayıdır (avtoplay siyasəti).
     if (readSoundPreference()) setGlobalMuted(false);
   }, []);
 
@@ -93,8 +106,85 @@ export default function ReelsFeedClient({
     storeSoundPreference(!next);
   }, []);
 
+  /**
+   * SSR-dən gələn statik səhifə — dəftərə görə DƏRHAL süzülür.
+   * Şəxsiləşdirilmiş cavabı gözləməsək belə görülmüş video bir kadr görünmür.
+   */
+  const ssrPlaceholder = useCallback(
+    (cat: ReelCategory): Feed => {
+      // Yalnız GAME/STREAMING SSR-də gəlir; ALL və SAVED client-də çəkilir.
+      if (cat !== "GAME" && cat !== "STREAMING") return LOADING_FEED;
+      const src = cat === "GAME" ? initialGame : initialStreaming;
+      const seen = seenRef.current;
+      return {
+        items: src.items.filter((i) => !seen.has(i.id)),
+        nextCursor: null,
+        loaded: false, // şəxsi cavab gələnə qədər "yüklənir" sayılır
+        exhausted: false,
+      };
+    },
+    [initialGame, initialStreaming],
+  );
+
+  /** Şəxsiləşdirilmiş feed sorğusu. `cursor: 0` yeni sessiya başladır. */
+  const fetchFeed = useCallback(
+    async (cat: ReelCategory, plat: string | null, cursor: number): Promise<Page | null> => {
+      if (cursor === 0) excludeRef.current = Array.from(seenRef.current);
+      try {
+        const res = await fetch("/api/reels/feed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          body: JSON.stringify({
+            category: cat,
+            platform: plat,
+            cursor,
+            seed: seedRef.current,
+            excludeIds: excludeRef.current,
+          }),
+        });
+        if (!res.ok) return null;
+        return (await res.json()) as Page;
+      } catch {
+        return null;
+      }
+    },
+    [],
+  );
+
+  // Kateqoriya / platforma / restart dəyişəndə feed sıfırdan qurulur.
+  useEffect(() => {
+    if (!category) return;
+    let cancelled = false;
+
+    // Platforma süzgəci yoxdursa SSR məzmununu dərhal göstər (boş ekran olmasın).
+    setFeed(platform ? LOADING_FEED : ssrPlaceholder(category));
+    setActiveIndex(0);
+
+    fetchFeed(category, platform, 0).then((data) => {
+      if (cancelled) return;
+      if (!data) {
+        // Şəbəkə xətası — SSR məzmunu ilə davam et, boş ekran göstərmə.
+        setFeed((prev) => ({ ...prev, loaded: true }));
+        return;
+      }
+      setFeed({
+        items: data.items ?? [],
+        nextCursor: data.nextCursor ?? null,
+        loaded: true,
+        exhausted: Boolean(data.exhausted),
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [category, platform, restartKey, ssrPlaceholder, fetchFeed]);
+
   function pickCategory(next: ReelCategory) {
-    storeReelCategory(next);
+    // "Saxladıqlarım" MƏZMUN SEÇİMİ deyil, müvəqqəti baxışdır — yadda saxlasaq
+    // növbəti giriş boş siyahı ilə açılardı.
+    if (next !== "SAVED") storeReelCategory(next);
     setCategory(next);
     setGateOpen(false);
     setPlatform(null);
@@ -102,53 +192,24 @@ export default function ReelsFeedClient({
     scrollerRef.current?.scrollTo({ top: 0 });
   }
 
-  const bucket = category ? buckets[category] : EMPTY_BUCKET;
+  /** "Əvvəldən başla" — dəftər təmizlənir, yeni toxumla feed yenidən qurulur. */
+  function restart() {
+    clearSeenReels();
+    seenRef.current = new Set();
+    seedRef.current = createReelSeed();
+    setPinned(null);
+    setRestartKey((k) => k + 1);
+    scrollerRef.current?.scrollTo({ top: 0 });
+  }
 
-  // Platforma süzgəci SERVERDƏ tətbiq olunur (offset kursoru süzülmüş dəstlə
-  // uyğun qalsın deyə), ona görə çip dəyişəndə dəst sıfırdan çəkilir.
-  const [filtered, setFiltered] = useState<Bucket | null>(null);
-  useEffect(() => {
-    if (category !== "STREAMING" || !platform) {
-      setFiltered(null);
-      return;
-    }
-    let cancelled = false;
-    setFiltered({ items: [], nextCursor: null, loaded: false });
-    fetch(`/api/reels?category=STREAMING&platform=${encodeURIComponent(platform)}`, {
-      cache: "no-store",
-    })
-      .then((r) => (r.ok ? r.json() : { items: [], nextCursor: null }))
-      .then((d: Page) => {
-        if (!cancelled) setFiltered({ items: d.items ?? [], nextCursor: d.nextCursor ?? null, loaded: true });
-      })
-      .catch(() => !cancelled && setFiltered({ items: [], nextCursor: null, loaded: true }));
-    return () => {
-      cancelled = true;
-    };
-  }, [category, platform]);
-
-  // "Hamısı" ilk dəfə seçiləndə çəkilir (SSR-də göndərilmir).
-  useEffect(() => {
-    if (category !== "ALL" || buckets.ALL.loaded) return;
-    let cancelled = false;
-    fetch("/api/reels?category=ALL", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { items: [], nextCursor: null }))
-      .then((d: Page) => {
-        if (cancelled) return;
-        setBuckets((prev) => ({
-          ...prev,
-          ALL: { items: d.items ?? [], nextCursor: d.nextCursor ?? null, loaded: true },
-        }));
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [category, buckets.ALL.loaded]);
+  /** Video sonuna çatdı — dəftərə düşür (cari səhifələməyə TƏSİR ETMİR). */
+  const onSeen = useCallback((id: string) => {
+    seenRef.current.add(id);
+  }, []);
 
   // Deep link — paylaşılan reel feed-in BAŞINA qoyulur və kateqoriya ona
-  // uyğunlaşdırılır (yoxsa link saxlanmış seçimə görə boş feed açar).
-  // Saxlanmış seçim DƏYİŞDİRİLMİR: bu, bir dəfəlik baxışdır.
+  // uyğunlaşdırılır. Görülmüş olsa belə göstərilir (açıq niyyətdir) və dəftərdən
+  // süzülmür. Saxlanmış kateqoriya seçimi DƏYİŞDİRİLMİR — bir dəfəlik baxışdır.
   useEffect(() => {
     if (!deepLinkId) return;
     let cancelled = false;
@@ -169,13 +230,11 @@ export default function ReelsFeedClient({
     };
   }, [deepLinkId]);
 
-  const active = filtered ?? bucket;
-
   // Pin-lənmiş reel siyahının başında, təkrarsız.
   const items = useMemo(() => {
-    if (!pinned) return active.items;
-    return [pinned, ...active.items.filter((i) => i.id !== pinned.id)];
-  }, [pinned, active.items]);
+    if (!pinned) return feed.items;
+    return [pinned, ...feed.items.filter((i) => i.id !== pinned.id)];
+  }, [pinned, feed.items]);
 
   useEffect(() => {
     const scroller = scrollerRef.current;
@@ -196,31 +255,32 @@ export default function ReelsFeedClient({
   }, [items.length]);
 
   const loadMore = useCallback(async () => {
-    const cursor = active.nextCursor;
+    const cursor = feed.nextCursor;
     if (loadingRef.current || cursor == null || !category) return;
     loadingRef.current = true;
     try {
-      const qs = new URLSearchParams({ cursor: String(cursor), category });
-      if (filtered && platform) qs.set("platform", platform);
-      const res = await fetch(`/api/reels?${qs}`, { cache: "no-store" });
-      const data: Partial<Page> = await res.json();
-      const merge = (prev: Bucket): Bucket => {
-        const seen = new Set(prev.items.map((p) => p.id));
-        const fresh = (data.items ?? []).filter((it) => !seen.has(it.id));
-        return { items: [...prev.items, ...fresh], nextCursor: data.nextCursor ?? null, loaded: true };
-      };
+      const data = await fetchFeed(category, platform, cursor);
+      if (!data) return;
       startTransition(() => {
-        if (filtered) setFiltered((prev) => (prev ? merge(prev) : prev));
-        else setBuckets((prev) => ({ ...prev, [category]: merge(prev[category]) }));
+        setFeed((prev) => {
+          const seen = new Set(prev.items.map((p) => p.id));
+          const fresh = (data.items ?? []).filter((it) => !seen.has(it.id));
+          return {
+            items: [...prev.items, ...fresh],
+            nextCursor: data.nextCursor ?? null,
+            loaded: true,
+            exhausted: prev.exhausted,
+          };
+        });
       });
     } finally {
       loadingRef.current = false;
     }
-  }, [active.nextCursor, category, filtered, platform]);
+  }, [feed.nextCursor, category, platform, fetchFeed]);
 
   useEffect(() => {
-    if (active.nextCursor != null && activeIndex >= items.length - 3) loadMore();
-  }, [activeIndex, items.length, active.nextCursor, loadMore]);
+    if (feed.nextCursor != null && activeIndex >= items.length - 3) loadMore();
+  }, [activeIndex, items.length, feed.nextCursor, loadMore]);
 
   const scrollToIndex = useCallback((i: number) => {
     scrollerRef.current
@@ -267,6 +327,9 @@ export default function ReelsFeedClient({
   }
 
   const activeItem = items[activeIndex] ?? items[0];
+  // "Hamısını gördün" YALNIZ dəftər doludursa. Dəftər boş ikən boş nəticə
+  // "kataloqda video yoxdur" deməkdir — mesajlar qarışmamalıdır.
+  const showExhausted = feed.loaded && items.length === 0 && feed.exhausted && seenRef.current.size > 0;
 
   return (
     <ReelStateProvider>
@@ -286,9 +349,15 @@ export default function ReelsFeedClient({
       <div className="flex justify-center bg-black">
         <div className="flex w-full items-stretch justify-center gap-3 sm:w-auto sm:gap-5">
           <div className={`relative ${SLOT_H} w-full sm:w-[430px] sm:max-w-full`}>
-            {items.length === 0 ? (
+            {showExhausted ? (
+              <ReelExhaustedScreen
+                category={category}
+                onRestart={restart}
+                onSwitchCategory={pickCategory}
+              />
+            ) : items.length === 0 ? (
               <EmptyState
-                loading={!active.loaded}
+                loading={!feed.loaded}
                 category={category}
                 platform={platform}
                 onClearPlatform={() => setPlatform(null)}
@@ -317,13 +386,14 @@ export default function ReelsFeedClient({
                       // dəyişir — saxlanmış seçim "səs açıq" qalır ki, növbəti
                       // girişdə (media engagement artdıqca) yenidən cəhd olunsun.
                       onSoundBlocked={() => setGlobalMuted(true)}
+                      onSeen={onSeen}
                       commentDelta={commentDeltas[item.id] ?? 0}
                       onOpenComments={setCommentsOpenId}
                     />
                   </div>
                 ))}
 
-                {active.nextCursor != null && (
+                {feed.nextCursor != null && (
                   <div className="flex h-16 items-center justify-center">
                     <Loader2 className="h-5 w-5 animate-spin text-white/40" />
                   </div>
@@ -372,7 +442,10 @@ export default function ReelsFeedClient({
   );
 }
 
-/** Boş feed — istifadəçini çıxılmaz ekranda saxlamamaq üçün həmişə bir çıxış verir. */
+/**
+ * Boş feed — kataloqda HEÇ video yoxdur (admin yayımlamayıb).
+ * "Hamısını gördün" halı ilə qarışdırma: ona `ReelExhaustedScreen` baxır.
+ */
 function EmptyState({
   loading,
   category,
@@ -395,6 +468,29 @@ function EmptyState({
   }
 
   const other: ReelCategory = category === "GAME" ? "STREAMING" : "GAME";
+
+  // "Saxladıqlarım" boşdursa səbəb kataloq deyil, istifadəçinin hələ heç nə
+  // saxlamamasıdır — mesaj fərqli olmalıdır.
+  if (category === "SAVED") {
+    return (
+      <div className="grid h-full w-full place-items-center bg-black px-6 text-center">
+        <div>
+          <p className="text-lg font-semibold text-white">Hələ heç nə saxlamamısan</p>
+          <p className="mt-1 text-sm text-white/50">
+            Bəyəndiyin videoda <b>Saxla</b> düyməsinə bas — oyunlar favoritlərə, film və
+            seriallar izləmə siyahısına düşür.
+          </p>
+          <button
+            onClick={() => onSwitch("GAME")}
+            className="mt-4 rounded-full bg-white px-4 py-2 text-sm font-bold text-zinc-900"
+          >
+            Videolara qayıt
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid h-full w-full place-items-center bg-black px-6 text-center text-white/70">
       <div>

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { revalidateServices } from "@/lib/revalidate";
 import { parseBynogameText } from "@/lib/bynogameParser";
+import { fetchOyunforHtml, parseOyunforHtml } from "@/lib/oyunforParser";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,59 @@ function buildTitle(type: InGameType, amount: number) {
   return type === "POINT_BLANK_TG"
     ? `${TITLE_PREFIX[type]} ${amount} ${CURRENCY_BY_TYPE[type]}`
     : `${TITLE_PREFIX[type]} ${amount}`;
+}
+
+/**
+ * İki qiymət mənbəyi var və hər ikisi eyni formata gətirilir:
+ *   BYNOGAME — admin səhifəni Ctrl+A/Ctrl+C edib mətni yapışdırır
+ *   OYUNFOR  — admin yalnız URL verir, HTML-i server özü çəkir
+ *
+ * `inStock` **mənbənin** stokudur (bizim `ServiceCode` stokumuz deyil), ona görə
+ * import bu sahəyə əsasən heç bir məhsulu aktivləşdirmir/deaktiv etmir —
+ * sadəcə admin preview-də göstərilir.
+ */
+type ImportSource = "BYNOGAME" | "OYUNFOR";
+
+/** Admin-in düzəldə biləcəyi xəta (yanlış link, boş mətn) → 500 yox, 400. */
+class ImportError extends Error {}
+
+type NormalizedImportItem = {
+  amount: number;
+  deliveryMethod: "EPIN" | "ID_TOPUP";
+  tryPrice: number;
+  originalTryPrice: number;
+  inStock: boolean;
+  sourceName: string | null;
+};
+
+async function collectImportItems(
+  body: Record<string, unknown>,
+): Promise<NormalizedImportItem[]> {
+  const source: ImportSource = body.source === "OYUNFOR" ? "OYUNFOR" : "BYNOGAME";
+
+  if (source === "OYUNFOR") {
+    const url = String(body.url ?? "").trim();
+    if (!url) throw new ImportError("URL boşdur");
+    let html: string;
+    try {
+      html = await fetchOyunforHtml(url);
+    } catch (e) {
+      throw new ImportError(e instanceof Error ? e.message : "Səhifə çəkilmədi");
+    }
+    const parsed = parseOyunforHtml(html);
+    if (parsed.length === 0) {
+      throw new ImportError("Səhifədən heç bir variant tapılmadı. Link kateqoriya səhifəsidirmi?");
+    }
+    return parsed;
+  }
+
+  const text = String(body.text ?? "");
+  if (!text.trim()) throw new ImportError("Mətn boşdur");
+  const parsed = parseBynogameText(text);
+  if (parsed.length === 0) {
+    throw new ImportError("Mətndən heç bir variant tapılmadı. Format düz deyilmi?");
+  }
+  return parsed.map((p) => ({ ...p, inStock: true, sourceName: null }));
 }
 
 export async function GET(req: Request) {
@@ -159,7 +213,7 @@ export async function POST(req: Request) {
     }
 
     if (action === "PREVIEW_IMPORT") {
-      // Mətni parse edib admin-ə nəticələri preview üçün qaytarır,
+      // Mənbəni parse edib admin-ə nəticələri preview üçün qaytarır,
       // verilənlər bazasına heç nə yazılmır.
       if (type !== "PUBG_UC") {
         return NextResponse.json(
@@ -167,38 +221,25 @@ export async function POST(req: Request) {
           { status: 400 },
         );
       }
-      const text = String(body.text ?? "");
-      if (!text.trim()) {
-        return NextResponse.json({ error: "Mətn boşdur" }, { status: 400 });
-      }
-      const parsed = parseBynogameText(text);
-      return NextResponse.json({ items: parsed });
+      const items = await collectImportItems(body);
+      return NextResponse.json({ items });
     }
 
-    if (action === "IMPORT_FROM_TEXT") {
+    // `IMPORT_FROM_TEXT` köhnə addır — açıq admin tabları sınmasın deyə qəbul
+    // olunur (artıq mətn tək mənbə deyil).
+    if (action === "APPLY_IMPORT" || action === "IMPORT_FROM_TEXT") {
       if (type !== "PUBG_UC") {
         return NextResponse.json(
           { error: "Hələ yalnız PUBG UC import dəstəklənir" },
           { status: 400 },
         );
       }
-      const text = String(body.text ?? "");
       const marginPct = Number(body.marginPct ?? 0);
-
-      if (!text.trim()) {
-        return NextResponse.json({ error: "Mətn boşdur" }, { status: 400 });
-      }
       if (!Number.isFinite(marginPct) || marginPct < 0 || marginPct > 500) {
         return NextResponse.json({ error: "Xeyir % düzgün deyil (0-500)" }, { status: 400 });
       }
 
-      const parsed = parseBynogameText(text);
-      if (parsed.length === 0) {
-        return NextResponse.json(
-          { error: "Mətndən heç bir variant tapılmadı. Format düz deyilmi?" },
-          { status: 400 },
-        );
-      }
+      const parsed = await collectImportItems(body);
 
       const settings = await prisma.settings.findFirst();
       const tryRate = settings?.tryToAznRate ?? 0.053;
@@ -307,6 +348,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bilinməyən action" }, { status: 400 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Xəta baş verdi";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: err instanceof ImportError ? 400 : 500 });
   }
 }

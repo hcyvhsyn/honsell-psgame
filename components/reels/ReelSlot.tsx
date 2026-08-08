@@ -6,6 +6,7 @@ import { useReelState } from "./ReelStateProvider";
 import ReelActionRail from "./ReelActionRail";
 import ReelBuyPanel, { hasBuyPanel } from "./ReelBuyPanel";
 import { useReelInteractions } from "./useReelInteractions";
+import { markReelSeen } from "./reelSeen";
 import type { ReelFeedItem, ReelRole } from "./types";
 
 /** İzlənməsi bu session-da artıq sayılmış reels (təkrar POST-un qarşısını alır). */
@@ -22,6 +23,7 @@ function ReelSlotImpl({
   onSoundBlocked,
   commentDelta,
   onOpenComments,
+  onSeen,
 }: {
   item: ReelFeedItem;
   role: ReelRole;
@@ -31,9 +33,12 @@ function ReelSlotImpl({
   onSoundBlocked: () => void;
   commentDelta: number;
   onOpenComments: (id: string) => void;
+  /** Video sonuna çatdı → feed onu "görülmüş" kimi qeyd edir. */
+  onSeen?: (id: string) => void;
 }) {
   const { ensure } = useReelState();
-  const { myReaction, displayLikes, displayDislikes, react, buy } = useReelInteractions(item);
+  const { myReaction, displayLikes, displayDislikes, copied, isSaved, react, buy, share, toggleSave } =
+    useReelInteractions(item);
   const showBuyPanel = hasBuyPanel(item);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -42,6 +47,8 @@ function ReelSlotImpl({
   const [paused, setPaused] = useState(false); // istifadəçi əl ilə dayandırıb
   const [iconVisible, setIconVisible] = useState(false); // mərkəz ikonu (Instagram tərzi)
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Bu reel artıq "görülmüş" kimi qeyd olunub — loop-da təkrar qeyd etməsin. */
+  const seenMarkedRef = useRef(false);
 
   // Görünən reels üçün per-user vəziyyəti çək.
   useEffect(() => {
@@ -179,6 +186,19 @@ function ReelSlotImpl({
             setPosterHidden(true);
             setPaused(false);
           }}
+          onTimeUpdate={(e) => {
+            // ⚠️ `loop` atributu səbəbindən `ended` hadisəsi HEÇ VAXT işə düşmür —
+            // video sona çatanda sadəcə başa qayıdır. Ona görə tamamlanma burada,
+            // vaxta baxaraq aşkarlanır.
+            if (seenMarkedRef.current) return;
+            const v = e.currentTarget;
+            if (!Number.isFinite(v.duration) || v.duration <= 0) return;
+            if (v.currentTime >= v.duration - 0.3) {
+              seenMarkedRef.current = true;
+              markReelSeen(item.id);
+              onSeen?.(item.id);
+            }
+          }}
           onCanPlay={(e) => {
             if (role === "active" && e.currentTarget.paused) {
               e.currentTarget.muted = globalMuted;
@@ -233,7 +253,9 @@ function ReelSlotImpl({
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-4 pr-2">
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0 flex-1 pb-2 text-white">
-            <h2 className="text-base font-bold drop-shadow">{item.title}</h2>
+            {/* Başlıq boş ola bilər (Telegram-dan caption-suz gələn video) —
+                boş <h2> alt gradientdə yersiz boşluq yaradır. */}
+            {item.title && <h2 className="text-base font-bold drop-shadow">{item.title}</h2>}
             {item.caption && (
               <p className="mt-1 line-clamp-2 text-sm text-white/85 drop-shadow">{item.caption}</p>
             )}
@@ -250,6 +272,10 @@ function ReelSlotImpl({
               onLike={() => react(1)}
               onDislike={() => react(-1)}
               onComments={() => onOpenComments(item.id)}
+              onShare={share}
+              copied={copied}
+              onToggleSave={toggleSave}
+              isSaved={isSaved}
               onBuy={buy}
               onToggleMute={onToggleMute}
               // Panel varkən rail-dəki səbət düyməsi eyni işi görür — təkrarı gizlət.

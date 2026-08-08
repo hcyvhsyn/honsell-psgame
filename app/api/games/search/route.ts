@@ -6,6 +6,12 @@ import { cdnImageUrl } from "@/lib/cdnImage";
 import type { Game } from "@/lib/generated/prisma/client";
 import { Prisma as PrismaSql } from "@/lib/generated/prisma/client";
 import { gameDetailHref } from "@/lib/gameSlug";
+import { buildGameSearchTerms } from "@/lib/gameSearchTerms";
+import {
+  gameSearchFromSql,
+  gameSearchMatchSql,
+  gameSearchRelevanceSql,
+} from "@/lib/gameSearchSql";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -91,15 +97,17 @@ export async function GET(req: Request) {
  */
 async function searchGames(q: string, limit: number): Promise<Game[]> {
   const like = `%${q}%`;
+  const terms = buildGameSearchTerms(q);
   try {
-    // ILIKE substring güclü siqnaldır; similarity qısa/typo sorğuları tutur.
-    // genres — tag massivi; hər hansı tag q-nu ehtiva edərsə də uyğun sayılır.
+    // Başlıq uyğunluğu navbar/kataloq ilə EYNİ mühərrikdəndir
+    // (lib/gameSearchSql.ts) — müştəri WhatsApp-da "gta 5" yazanda CRM də
+    // oyunu tapmalıdır. genres — tag massivi; hər hansı tag q-nu ehtiva
+    // edərsə də uyğun sayılır.
     const where = PrismaSql.sql`
       g."isActive" = true
       AND g."store" = 'PS'
       AND (
-        g."title" ILIKE ${like}
-        OR similarity(g."title", ${q}) >= 0.15
+        ${gameSearchMatchSql(terms)}
         OR EXISTS (
           SELECT 1 FROM unnest(g."genres") AS tag WHERE tag ILIKE ${like}
         )
@@ -108,13 +116,13 @@ async function searchGames(q: string, limit: number): Promise<Game[]> {
     // Ad uyğunluğu tag uyğunluğundan öndə sıralanır ki, birbaşa oyun adı
     // axtaranda kateqoriya nəticələri onu sıxışdırmasın.
     const order = PrismaSql.sql`
-      (CASE WHEN g."title" ILIKE ${like} THEN 1 ELSE 0 END) DESC,
-      similarity(g."title", ${q}) DESC,
+      ${gameSearchRelevanceSql(terms)},
+      (CASE WHEN g."productType" = 'GAME' THEN 0 ELSE 1 END) ASC,
       g."isFeatured" DESC,
       g."lastScrapedAt" DESC
     `;
     return (await prisma.$queryRaw(
-      PrismaSql.sql`SELECT g.* FROM "Game" g WHERE ${where} ORDER BY ${order} LIMIT ${limit}`
+      PrismaSql.sql`SELECT g.* FROM ${gameSearchFromSql()} WHERE ${where} ORDER BY ${order} LIMIT ${limit}`
     )) as Game[];
   } catch {
     return prisma.game.findMany({

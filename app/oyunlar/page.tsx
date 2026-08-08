@@ -75,6 +75,11 @@ export default async function OyunlarPage({
   const sp = (await searchParams) ?? {};
   const pageRaw = Array.isArray(sp.page) ? sp.page[0] : sp.page;
   const page = Math.max(1, Number(pageRaw) || 1);
+  // Navbar modalındakı "Kataloqda filtrlərlə axtar" keçidi sorğunu `?q=` ilə
+  // ötürür. İlkin data keşlənmiş populyar siyahıdır — GameBrowser mount-da
+  // dərhal /api/games-i bu sorğu ilə çağırır və siyahını əvəz edir.
+  const qRaw = Array.isArray(sp.q) ? sp.q[0] : sp.q;
+  const initialQuery = (qRaw ?? "").trim().slice(0, 80);
 
   const [settings, { games, popularCount, typeAllCount, typeOnSaleCount, totalsArr }] = await Promise.all([
     getSettings(),
@@ -116,7 +121,11 @@ export default async function OyunlarPage({
    
 
       <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8 mt-12">
-        <GameBrowser initial={initial} categoryLinks={categoryLinks} />
+        <GameBrowser
+          initial={initial}
+          categoryLinks={categoryLinks}
+          initialQuery={initialQuery}
+        />
       </section>
     </main>
   );

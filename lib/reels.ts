@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { gameDetailHref } from "@/lib/gameSlug";
 import { editionSuffixLabel } from "@/lib/gameEditions";
+import { rankReels } from "@/lib/reelRanking";
 
 /**
  * Reels feed data qatı — TƏK mənbə.
@@ -21,14 +22,16 @@ export const REELS_PAGE_SIZE = 8;
  * Feed kateqoriyası. `GAME`/`STREAMING` DB-də saxlanılan dəyərlərdir; `ALL` isə
  * yalnız BAXIŞDIR — süzgəcsiz feed deməkdir, heç vaxt `Reel.category`-yə yazılmır.
  */
-export type ReelCategory = "GAME" | "STREAMING" | "ALL";
+export type ReelCategory = "GAME" | "STREAMING" | "ALL" | "SAVED";
 
 /** Saxlanıla bilən kateqoriyalar (admin/Telegram yazma yolları üçün). */
 export const STORED_REEL_CATEGORIES = ["GAME", "STREAMING"] as const;
 
 /** Xarici girişi (query param, admin body) təhlükəsiz kateqoriyaya çevirir. */
 export function normalizeReelCategory(value: unknown): ReelCategory {
-  return value === "GAME" || value === "STREAMING" || value === "ALL" ? value : "ALL";
+  return value === "GAME" || value === "STREAMING" || value === "ALL" || value === "SAVED"
+    ? value
+    : "ALL";
 }
 
 export type ReelProduct = {
@@ -99,6 +102,8 @@ type ReelRow = {
   ctaLabel: string | null;
   editionGameIds: string[];
   viewCount: number;
+  /** `rankReels` yaş səbətini bundan hesablayır (yenilər öndə). */
+  createdAt: Date;
 };
 
 /** Bir reels səhifəsinin CTA məhsullarını + reaksiya/şərh saylarını topluca doldurur. */
@@ -314,6 +319,119 @@ export const getFirstReelsPageCached = unstable_cache(
   ["reels-feed-v2"],
   { tags: ["reels"], revalidate: 300 },
 );
+
+/**
+ * Namizəd hovuzunun yuxarı həddi. Sıralama JS-də (saf funksiya ilə) aparılır, ona
+ * görə hovuz məhduddur — kataloq bundan böyüyəndə ən yeni 200 sətir kifayətdir,
+ * çünki köhnə səbətlər onsuz da siyahının sonundadır.
+ */
+const RANKING_POOL_SIZE = 200;
+
+/** Client-dən gələn `excludeIds` həddi — client-ə etibar etmirik. */
+const MAX_EXCLUDE_IDS = 500;
+
+/**
+ * ŞƏXSİLƏŞDİRİLMİŞ feed səhifəsi — görülmüşləri çıxarır və ziyarətə məxsus `seed`
+ * ilə qarışdırır (yenilər öndə, bax `lib/reelRanking.ts`).
+ *
+ * Keşlənmir və keşlənə də bilməz: nəticə istifadəçinin dəftərindən asılıdır. Statik
+ * ilk səhifə (`getFirstReelsPageCached`) ilk paint üçün qalır, bu isə onu əvəz edir.
+ *
+ * `cursor` sıralanmış siyahıya offset kimi tətbiq olunur — eyni `seed` → eyni sıra,
+ * ona görə səhifələmə sabitdir.
+ */
+export async function getPersonalizedReelsPage(opts: {
+  cursor?: number;
+  limit?: number;
+  category?: ReelCategory;
+  platformCode?: string | null;
+  excludeIds?: string[];
+  seed: string;
+  /** `SAVED` kateqoriyası üçün məcburi — kimin saxladıqları. */
+  userId?: string | null;
+}): Promise<{ items: ReelFeedItem[]; nextCursor: number | null; exhausted: boolean }> {
+  const skip = Math.max(0, opts.cursor ?? 0);
+  const limit = Math.min(24, Math.max(1, opts.limit ?? REELS_PAGE_SIZE));
+  const category = opts.category ?? "ALL";
+  const exclude = (opts.excludeIds ?? []).slice(-MAX_EXCLUDE_IDS);
+
+  // ─── "Saxladıqlarım" ──────────────────────────────────────────────────────
+  // İki mənbədən yığılır: film/serial `ReelBookmark`-da, oyunlar isə mövcud
+  // FAVORİTLƏR-də saxlanılır (orada endirim bildirişləri var). Favorit konkret
+  // OYUN-a aiddir, ona görə reel-i həm `ctaTargetId`, həm də `editionGameIds`
+  // üzrə uyğunlaşdırırıq — istifadəçi Ultimate sürümü saxlayıbsa reel yenə çıxsın.
+  //
+  // Burada NƏ görülmüş süzgəci, NƏ də qarışdırma tətbiq olunmur: saxlanılan
+  // siyahı proqnozlaşdırılan olmalıdır, ən son saxlanılan əvvəldə.
+  if (category === "SAVED") {
+    if (!opts.userId) return { items: [], nextCursor: null, exhausted: false };
+
+    const [bookmarks, favorites] = await Promise.all([
+      prisma.reelBookmark.findMany({
+        where: { userId: opts.userId },
+        select: { reelId: true },
+        orderBy: { createdAt: "desc" },
+        take: RANKING_POOL_SIZE,
+      }),
+      prisma.favorite.findMany({
+        where: { userId: opts.userId },
+        select: { gameId: true },
+        orderBy: { createdAt: "desc" },
+        take: RANKING_POOL_SIZE,
+      }),
+    ]);
+
+    const bookmarkIds = bookmarks.map((b) => b.reelId);
+    const favIds = favorites.map((f) => f.gameId);
+    if (bookmarkIds.length === 0 && favIds.length === 0) {
+      return { items: [], nextCursor: null, exhausted: false };
+    }
+
+    const savedRows = (await prisma.reel.findMany({
+      where: {
+        isPublished: true,
+        OR: [
+          ...(bookmarkIds.length ? [{ id: { in: bookmarkIds } }] : []),
+          ...(favIds.length ? [{ ctaTargetId: { in: favIds } }] : []),
+          ...(favIds.length ? [{ editionGameIds: { hasSome: favIds } }] : []),
+        ],
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: RANKING_POOL_SIZE,
+    })) as ReelRow[];
+
+    const pageRows = savedRows.slice(skip, skip + limit);
+    const items = await hydrateReels(pageRows);
+    return {
+      items,
+      nextCursor: skip + limit < savedRows.length ? skip + limit : null,
+      exhausted: false,
+    };
+  }
+
+  const pool = (await prisma.reel.findMany({
+    where: {
+      isPublished: true,
+      ...(category === "ALL" ? {} : { category }),
+      ...(opts.platformCode ? { platformCode: opts.platformCode } : {}),
+      ...(exclude.length > 0 ? { id: { notIn: exclude } } : {}),
+    },
+    // Hovuzu ən yenidən götürürük; yekun sıra rankReels-dədir.
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: RANKING_POOL_SIZE,
+  })) as ReelRow[];
+
+  // Görülməmiş heç nə qalmayıb → client "Hamısını gördün" ekranını göstərir.
+  if (pool.length === 0) {
+    return { items: [], nextCursor: null, exhausted: true };
+  }
+
+  const ranked = rankReels(pool, opts.seed, Date.now());
+  const pageRows = ranked.slice(skip, skip + limit);
+  const items = await hydrateReels(pageRows);
+  const nextCursor = skip + limit < ranked.length ? skip + limit : null;
+  return { items, nextCursor, exhausted: false };
+}
 
 /** Deep link (`/reels?r=<id>`) üçün tək reel — feed-in başına qoyulur. */
 export async function getReelById(id: string): Promise<ReelFeedItem | null> {

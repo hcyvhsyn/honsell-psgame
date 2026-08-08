@@ -208,6 +208,7 @@ export default function GameBrowser({
   categories = [],
   categoryLinks = [],
   lockedFilters,
+  initialQuery = "",
 }: {
   initial: ListingResponse;
   /** Storefront scope. "EPIC" routes requests to the Epic-filtered catalog. */
@@ -234,13 +235,21 @@ export default function GameBrowser({
    * "PS4" seçib kateqoriyadan çıxmaq mümkün deyil, səhifə öz mövzusunda qalır.
    */
   lockedFilters?: Record<string, string>;
+  /**
+   * URL-dən gələn ilkin axtarış sorğusu (`/oyunlar?q=gta 5`) — navbar axtarış
+   * modalındakı "Kataloqda filtrlərlə axtar" keçidi bunu doldurur.
+   *
+   * `initial` keşlənmiş populyar siyahıdır və sorğuya AİD DEYİL, ona görə
+   * dolu olduqda mount-dakı "ilk fetch-i keç" optimizasiyası söndürülür.
+   */
+  initialQuery?: string;
 }) {
   // Epic/PC mode: swaps the PlayStation type tabs + platform filter for a
   // genre/category picker, and routes requests to the Epic catalog.
   const isEpic = store === "EPIC";
   const [data, setData] = useState<ListingResponse>(initial);
   const [productType, setProductType] = useState<ProductType>(DEFAULT_TYPE);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [sort, setSort] = useState<Sort>(defaultSort);
   const [genre, setGenre] = useState<string>("");
   const [platform, setPlatform] = useState<Platform>(DEFAULT_PLATFORM);
@@ -276,7 +285,9 @@ export default function GameBrowser({
   );
 
   const reqId = useRef(0);
-  const hasMounted = useRef(false);
+  // `?q=` ilə gəlmişiksə "artıq mount olub" kimi başlayırıq ki, birinci effekt
+  // erkən qayıtmasın və sorğu dərhal getsin.
+  const hasMounted = useRef(initialQuery.trim().length >= 2);
 
   useEffect(() => {
     if (!hasMounted.current) {
@@ -393,6 +404,10 @@ export default function GameBrowser({
   // tətbiq edirik. Saxlanmış filter dəyişiklik edəcəksə, "main fetch" effekti
   // (yuxarıda) hasMounted=true halında işə düşüb yeni nəticələri çəkir.
   useEffect(() => {
+    // URL-dəki `?q=` saxlanmış sessiyadan güclüdür: navbar-dan yeni sorğu ilə
+    // gələn istifadəçi keçən dəfəki filtrlərin (məs. "yalnız endirimdə")
+    // arxasında boş nəticə görməməlidir.
+    if (initialQuery.trim().length >= 2) return;
     const saved = readSavedFilters(store);
     if (!saved) return;
     if (typeof saved.productType === "string") setProductType(saved.productType);

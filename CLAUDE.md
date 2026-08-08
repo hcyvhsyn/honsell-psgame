@@ -257,12 +257,100 @@ miqrasiya işlətmir). İki incəlik: `prisma/` qovluğu konteynerə **mount olu
 image-dəki nüsxə build vaxtı `COPY` olunub və yeni miqrasiyalar orada yoxdur; `script_stop:
 true` isə miqrasiya sınanda 9 dəqiqəlik build-ə keçməyi dayandırır.
 
+## Yalnız PlayStation
+
+Reels-də **Epic oyunları göstərilmir** — hər üç yerdə `store: "PS"` süzgəci var:
+Telegram oyun axtarışı, admin məhsul seçicisi (`/api/admin/reels/products`) və sürüm
+namizədləri (`findEditionCandidates`, orada `store: base.store` ilə).
+
+⚠️ `platform: { not: "PC" }` YAZMA — SQL-də `NULL != 'PC'` → `NULL` olduğu üçün
+platform-u boş olan sətirlər də süzülüb atılır. `store` NOT NULL və defaultu `"PS"`-dir,
+ona görə düzgün süzgəc odur.
+
+## Başlıq
+
+Telegram-dan gələn videonun başlığı **yalnız caption-dan** götürülür. Əvvəllər mənbə adı
+("TikTok video") qoyulurdu — feed-də mənasız görünürdü. Caption yoxdursa başlıq **boş**
+qalır və oyun seçiləndə oyunun adı ilə dolur; feed boş `<h2>` render etmir, admin
+siyahısında "(başlıqsız)" göstərilir.
+
+## Təkrar-önləmə (eyni video təkrar görünməsin)
+
+İki ayrı səbəb var idi və hər ikisi həll olunub:
+
+1. **Giriş nöqtəsi hamı üçün eyni idi** — `sortOrder → createdAt` sıralaması sabitdir
+   və feed həmişə offset 0-dan başlayırdı. İndi sıra ziyarətə məxsus `seed` ilə
+   qarışdırılır ([lib/reelRanking.ts](lib/reelRanking.ts)).
+2. **İzlənmə yadda qalmırdı** — per-user qeyd YOX idi, yalnız qlobal `viewCount`.
+   İndi cihaz dəftəri var ([reelSeen.ts](components/reels/reelSeen.ts),
+   `localStorage["honsell:reels-seen"]`, ~500 id ring buffer).
+
+**Sıralama formulu:** `recencyBucket(createdAt) * 1000 + seededHash(id, seed) % 1000`
+— yaş 7 günlük səbətlərə bölünür, hər səbətin İÇİ qarışdırılır. Yəni bu həftəkilər
+(qarışıq) əvvəldə, sonra keçən həftə. Tam təsadüfi sıralama yeni kampaniya videosunu
+kataloqda itirərdi; sırf "ən yenilər" isə köhnə yaxşı videoları bir daha göstərməzdi.
+
+⚠️ Dəyişəndə **`npm run test:reelranking`** işlət (determinizm + səbət intizamı).
+
+**Endpoint:** `POST /api/reels/feed` (`force-dynamic`, keşlənmir). GET deyil, çünki
+gövdədə 500-ə qədər `excludeIds` gedir. Keşlənən `GET /api/reels` **silinməyib** —
+statik səhifə və deep link onu işlədir.
+
+⚠️ **`excludeIds` səhifələmə boyu DONDURULUR** (`excludeRef`). Scroll edərkən yeni
+tamamlanan videoları süzgəcə əlavə etsək server hovuzu kiçilir, offset-lər sürüşür və
+istifadəçi element atlayır/təkrar görür. Yeni siyahı yalnız yeni feed sessiyasında
+(kateqoriya/platforma dəyişimi, restart) tətbiq olunur.
+
+⚠️ **"Görülmüş" = video SONUNA ÇATIB**, `loop` səbəbindən `ended` hadisəsi HEÇ VAXT
+işə düşmür — `onTimeUpdate` ilə `currentTime >= duration - 0.3` yoxlanılır
+([ReelSlot.tsx](components/reels/ReelSlot.tsx)). Bu, ciddi meyardır: sürətlə ötürülən
+video bağlanmır. Təkrarlar hiss olunmağa davam edərsə həddi 50%-ə endirmək bir sətirlik
+dəyişiklikdir.
+
+⚠️ Mövcud `viewedThisSession` + `POST /api/reels/[id]/view` AYRI məqsəd daşıyır (qlobal
+analitika sayğacı) — təkrar-önləmə ilə qarışdırma.
+
+**Tükənmə:** hovuz boşalanda `exhausted: true` gəlir və `ReelExhaustedScreen`
+göstərilir ("Əvvəldən başla" → dəftər təmizlənir + yeni seed). Bu, `EmptyState` ilə
+QARIŞDIRILMAMALIDIR — o, "kataloqda heç video yoxdur" halıdır. Fərq dəftərin boş olub
+olmamasından bilinir.
+
+## "Saxla" düyməsi
+
+Bir düymə, **iki fərqli hədəf** — reel kateqoriyasına görə:
+
+| Kateqoriya | Hara yazılır | Niyə |
+| --- | --- | --- |
+| `GAME` | mövcud **`Favorite`** cədvəli (`/api/favorites`) | Orada endirim bildirişləri var və saxlanan şey konkret OYUN-dur |
+| `STREAMING` | yeni **`ReelBookmark`** (`POST /api/reels/[id]/bookmark`) | Film/serial heç bir məhsula bağlı deyil — yalnız videonun özü var |
+
+⚠️ Oyun favoritə düşəndə **panelde SEÇİLİ sürüm** yazılır, `ctaTargetId` yox —
+istifadəçi Ultimate sürümə baxıb saxlayırsa favoritlərdə Standart görməməlidir.
+Seçim `ReelStateProvider.selectedEditions`-dədir, çünki sürüm çipləri `ReelBuyPanel`-də
+(ReelSlot içində), "Saxla" düyməsi isə həm orada, həm də **desktop yan raildə**
+(ReelSlot-dan KƏNARDA) olur — hər ikisi eyni seçimi görməlidir.
+
+Per-user "saxlanıldı" vəziyyəti: film/serial üçün `/api/reels/state` (batch, `saved`
+sahəsi), oyun üçün `useFavorites().has()`.
+
+**"Saxladıqlarım" feed-i** (`category=SAVED`) hər iki mənbəni birləşdirir: bookmark
+edilmiş reels + favorit oyuna aid reels (`ctaTargetId` VƏ `editionGameIds hasSome`
+üzrə — istifadəçi hansı sürümü saxlayıbsa reel yenə çıxsın).
+
+⚠️ `SAVED`-də NƏ görülmüş süzgəci, NƏ də qarışdırma tətbiq olunur — saxlanılan siyahı
+proqnozlaşdırılan olmalıdır. Həmçinin `localStorage`-a **yazılmır**: müvəqqəti baxışdır,
+yoxsa növbəti giriş boş siyahı ilə açılardı.
+
 ## Deep link — `/reels?r=<id>`
 
 ⚠️ `page.tsx`-də `searchParams` işlətmək route-u **dinamik edir** və bütün keşləmə
 arxitekturasını sındırır. Parametr **client-də** `useSearchParams()` + məcburi
 `<Suspense>` sərhədi ilə oxunur, reel `GET /api/reels/[id]`-dən çəkilib feed-in başına
 qoyulur. Saxlanmış seçim **dəyişdirilmir** — bu, bir dəfəlik baxışdır.
+
+Linki hər iki rail-dəki **Paylaş** düyməsi yaradır (`useReelInteractions().share()`):
+mobil-də `navigator.share` native vərəqi açır, masaüstündə link buferə kopyalanır və
+düymə qısa müddət "Kopyalandı" göstərir (`navigator.clipboard` HTTPS tələb edir).
 
 ## Keşləmə arxitekturası (ƏN VACİB QAYDA)
 
@@ -438,5 +526,114 @@ realdır). Səhv `secret_token` webhook-u tamamilə sındırar.
   `"reels"` tag-ını sıfırlamır, yalnız `revalidate: 300` işləyir. Səbətə/checkout-a düşən
   qiymət onsuz da yenidən hesablanır, ona görə bu göstərim gecikməsidir, qiymət səhvi yox.
 - Şərh sayı client-də `commentDeltas` ilə düzəldilir (keşlənmiş sayın üstünə delta).
-</content>
-</invoke>
+
+---
+
+# Oyun axtarışı (navbar modalı + kataloq)
+
+Navbar modalı və `/oyunlar` kataloqu **eyni** axtarış mühərrikini işlədir.
+Əvvəl hər ikisi `title ILIKE '%q%'` idi və real kataloqda (8.5K aktiv PS sətri)
+aşağıdakıların HAMISI **0 nəticə** verirdi:
+
+```
+"gta 5"               → Grand Theft Auto V        (abbreviatura + rum rəqəmi)
+"spiderman"           → Marvel's Spider-Man       (defis/apostrof)
+"god of war ragnarok" → God of War Ragnarök       (diakritik)
+"fifa"                → EA SPORTS FC 26           (seriya adı dəyişib)
+```
+
+## Fayl xəritəsi
+
+| Qat | Fayl |
+| --- | --- |
+| Sorğu normallaşdırması (saf) | [lib/gameSearchTerms.ts](lib/gameSearchTerms.ts) + [scripts/gameSearch.test.ts](scripts/gameSearch.test.ts) |
+| SQL fraqmentləri | [lib/gameSearchSql.ts](lib/gameSearchSql.ts) |
+| Navbar API | [app/api/search/route.ts](app/api/search/route.ts) |
+| Navbar UI | [components/NavSearch.tsx](components/NavSearch.tsx) |
+| Kataloq API (fuzzy budaq) | [app/api/games/route.ts](app/api/games/route.ts) |
+
+## Necə işləyir
+
+Sorğu `slugifyText` ilə normallaşdırılır, sonra **söz qruplarına** bölünür; hər
+qrupun içi OR (variantlar), qruplar arası AND-dir. Variantlar: abbreviatura
+açılışı (`gta` → `grand theft auto`, `fifa` → `ea sports fc`), rum⇄ərəb rəqəmi
+(`5` ⇄ `v`), hərf/rəqəm ayrılması (`gta5` → `gta` + `5`).
+
+Başlıq SQL-də **eyni qaydada** normallaşdırılır (LATERAL-da bir dəfə):
+`gn.n` = boşluqla əhatələnmiş normal forma, `gs.s` = boşluqsuz forma.
+`gs.s` defis/apostrof fərqlərini udur (`spiderman` → `marvelsspiderman2`).
+
+- **Stopword-lar** (`ps5`, `oyun`, `ucuz`…) atılır — "spiderman 2 ps5" əvvəl
+  boş nəticə verirdi. ⚠️ Süzgəc hərf/rəqəm ayrılmasından **ƏVVƏL** işləməlidir,
+  yoxsa `ps5` → `ps` + `5` qalır və `5` başlıqda tələb olunur.
+- **4+ sözlü sorğuda bir söz buraxılır** (`required = n - 1`), 3 və azında
+  hamısı tələb olunur — "of"/"war" kimi sözlər tək başına kataloqu qaytarardı.
+- Typo toleransı `similarity(title, phrase) >= 0.15` (pg_trgm) ilə OR olunur.
+
+**Sıralama sırası vacibdir:** tam söz uyğunluğu → ifadə uyğunluğu → uyğun söz
+sayı → similarity. Tam söz birinci olmasa `cod` sorğusu **"Code Blue"**-nu
+Call of Duty-dən yuxarı qaldırır (prefiks uyğunluğu aldadıcıdır).
+
+⚠️ Dəyişəndə **`npm run test:gamesearch`** işlət — SQL-in JS referansı
+(`titleMatchesTerms`) həmin fayldadır və **birlikdə yenilənməlidir**, yoxsa
+test yaşıl qalıb istifadəçi boş nəticə görər.
+
+⚠️ Normallaşdırma ifadəsi **indekslənmir** (`regexp_replace` sətir-sətir).
+Kataloq sorğusu onsuz da `similarity()` səbəbindən seq scan idi, ona görə
+əlavə yük kiçikdir — amma yeni çağırış yeri əlavə edəndə bunu nəzərə al.
+
+## Modal davranışı
+
+- Oyunlar **12-lik səhifələrlə** gəlir; "Daha çox oyun göstər" eyni sorğunu
+  `&offset=` ilə təkrarlayır (`take: PAGE+1` → COUNT sorğusu yoxdur).
+  `offset > 0` olanda servis/streaming budaqları **ümumiyyətlə sorğulanmır**.
+- Sıralamada tam oyunlar DLC/valyutadan öndədir (`productType = 'GAME'`) —
+  "fifa 26" yazan istifadəçi əvvəlcə oyunu görməlidir, "FC Points 500"-ü yox.
+- "Kataloqda filtrlərlə axtar" keçidi `/oyunlar?q=`-ə aparır. `GameBrowser`
+  `initialQuery` alır və **sessionStorage restore-u atlanır** — köhnə filtrlər
+  yeni sorğunu boşaltmasın.
+
+# Oyun-içi kredit qiymət importu (PUBG UC)
+
+`/pubg-uc` variantları (`ServiceProduct.type = "PUBG_UC"`) rəqib saytların qiymət
+siyahısından doldurulur. Admin `/admin/pubg-uc` → **"Qiymət importu"** düyməsi.
+
+## Fayl xəritəsi
+
+| Qat | Fayl |
+| --- | --- |
+| Oyunfor parser (saf) | [lib/oyunforParser.ts](lib/oyunforParser.ts) + [scripts/oyunforParser.test.ts](scripts/oyunforParser.test.ts) |
+| Bynogame parser (saf) | [lib/bynogameParser.ts](lib/bynogameParser.ts) |
+| API (preview + tətbiq) | [app/api/admin/in-game-credit/route.ts](app/api/admin/in-game-credit/route.ts) |
+| Admin UI | [components/admin/InGameCreditAdminClient.tsx](components/admin/InGameCreditAdminClient.tsx) |
+
+## İki mənbə, tək format
+
+`collectImportItems()` hər ikisini `NormalizedImportItem`-ə çevirir, ona görə
+`PREVIEW_IMPORT` və `APPLY_IMPORT` mənbədən asılı deyil:
+
+- **OYUNFOR** — admin yalnız **kateqoriya linkini** verir, HTML-i server çəkir
+  (`fetchOyunforHtml`). Host allowlist `parseOyunforUrl`-dədir (SSRF).
+- **BYNOGAME** — admin səhifəni Ctrl+A/Ctrl+C edib mətni yapışdırır.
+
+Qiymət: `AZN = TRY × Settings.tryToAznRate × (1 + xeyir%/100)`.
+
+⚠️ Parser məntiqini dəyişəndə **`npm run test:oyunfor`** işlət — fixture-lar real
+səhifə markup-undan götürülüb, səhv parse = müştəriyə yanlış qiymətlə satış.
+
+## Tələlər
+
+- **Oyunfor-un JSON-LD-si YANILDIR.** Stokda olmayan variantlarda `availability`
+  həmişə `InStock` yazır və `offers.price` **endirimsiz** qiyməti verir (16200 UC:
+  JSON-LD 9540.00, DOM-dakı real qiymət 8872.20). Ona görə `parseOyunforHtml`
+  bütün `<script>` bloklarını atır və yalnız `.productBox` DOM-unu oxuyur.
+  Stokda olmayan blokda `addToCart`/`data-price` yoxdur — qiymət `.notranslate`-dən
+  götürülür.
+- **`inStock` bizim stokumuz DEYİL** — mənbənin təchizat siqnalıdır. Import bu
+  sahəyə görə `isActive`-ə **toxunmur** (bizim öz `ServiceCode` e-pin stokumuz var);
+  yalnız preview-də göstərilir.
+- **Yeni yaradılan variant `isActive: false`** olur — şəkil yüklənənə qədər vitrində
+  görünmür. Mövcud variantların şəkli/təsviri import zamanı qorunur.
+- `APPLY_IMPORT` köhnə `IMPORT_FROM_TEXT` adını da qəbul edir (açıq admin tabı).
+- Variantlar `metadata.amount` + `metadata.deliveryMethod` cütü ilə uyğunlaşdırılır,
+  başlıqla yox — başlıq formatını dəyişsən import dublikat yaratmır.

@@ -1,11 +1,14 @@
 "use client";
 
+import { Bookmark } from "lucide-react";
 import type { ReelCategory, ReelPlatformChip } from "./types";
 
 const TABS: { value: ReelCategory; label: string }[] = [
   { value: "GAME", label: "Oyun" },
   { value: "STREAMING", label: "Film" },
   { value: "ALL", label: "Hamısı" },
+  // "Saxladıqlarım" — oyun favoritləri + film izləmə siyahısı birlikdə.
+  { value: "SAVED", label: "★" },
 ];
 
 /**
@@ -38,7 +41,14 @@ export default function ReelCategorySwitch({
               category === t.value ? "bg-white text-zinc-900" : "text-white/75 hover:text-white"
             }`}
           >
-            {t.label}
+            {t.value === "SAVED" ? (
+              <span className="inline-flex items-center gap-1">
+                <Bookmark className={`h-3.5 w-3.5 ${category === "SAVED" ? "fill-zinc-900" : ""}`} />
+                Saxladıqlarım
+              </span>
+            ) : (
+              t.label
+            )}
           </button>
         ))}
       </div>

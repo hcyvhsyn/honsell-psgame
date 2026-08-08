@@ -17,7 +17,7 @@ export type ReelProduct = {
 };
 
 /** lib/reels.ts-dəki `ReelCategory` ilə EYNİ olmalıdır. */
-export type ReelCategory = "GAME" | "STREAMING" | "ALL";
+export type ReelCategory = "GAME" | "STREAMING" | "ALL" | "SAVED";
 
 /** Feed-də göstərilən platforma çipi (yalnız film/serial rejimində). */
 export type ReelPlatformChip = { code: string; label: string };

@@ -34,7 +34,7 @@ export async function findEditionCandidates(
 ): Promise<{ baseTitle: string; items: EditionCandidate[] } | null> {
   const base = await prisma.game.findUnique({
     where: { id: gameId },
-    select: { id: true, title: true, productType: true },
+    select: { id: true, title: true, productType: true, store: true },
   });
   if (!base) return null;
 
@@ -47,6 +47,9 @@ export async function findEditionCandidates(
         isActive: true,
         // Sürümlər eyni məhsul tipində olur; DLC/valyuta sətirləri sürüm deyil.
         productType: base.productType,
+        // Eyni MAĞAZA — eyni başlıqlı Epic sətri PS oyununun "sürümü" kimi
+        // görünüb səbətə yad məhsul ata bilər.
+        store: base.store,
         title: { startsWith: prefix, mode: "insensitive" },
       },
       take: 200,

@@ -19,12 +19,26 @@ const PLATFORM_LABELS: Record<string, string> = {
 };
 
 /**
- * Anasayfada "Rəy yaz" düyməsi + modal forma. Yalnız uyğun (rəy yazılmamış
- * uğurlu alışı olan) istifadəçiyə render olunur. Modal açılanda müştərinin
- * real alışlarını (məhsul + qiymət) çəkir; müştəri konkret alışı seçib rəy
- * yazır. Rəy təsdiqlənəndə məhsul qiymətinin müəyyən %-i cashback qazanılır.
+ * Alışa bağlı OLMAYAN ("ümumi") rəy seçimi. Alışı olmayan — və ya bütün
+ * alışlarına artıq rəy yazmış — istifadəçi də rəy yaza bilsin deyə var.
+ * Bu seçimlə göndərilən rəydə `transactionId` yoxdur → cashback verilmir.
  */
-export default function HomeReviewModal({ defaultName }: { defaultName: string }) {
+const GENERAL_KEY = "__general__";
+
+/**
+ * Anasayfada "Rəy yaz" düyməsi + modal forma. Daxil olmuş hər istifadəçiyə
+ * render olunur. Modal açılanda müştərinin rəy yazılmamış alışlarını (məhsul +
+ * qiymət) çəkir; müştəri ya konkret alışı seçir (təsdiqdən sonra həmin alışın
+ * müəyyən %-i cashback), ya da "ümumi rəy" seçir (cashbacksiz).
+ */
+export default function HomeReviewModal({
+  defaultName,
+  hasPurchases = false,
+}: {
+  defaultName: string;
+  /** Sessiyadan gələn siqnal — yalnız düymə mətnindəki cashback vədi üçün. */
+  hasPurchases?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [purchases, setPurchases] = useState<ReviewablePurchase[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -43,6 +57,7 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
     () => purchases?.find((p) => p.transactionId === selected) ?? null,
     [purchases, selected],
   );
+  const isGeneral = selected === GENERAL_KEY;
   const cashbackFor = (cents: number) => (cents * cashbackRatePct) / 100 / 100;
 
   // Modal ilk dəfə açılanda rəy yazıla bilən alışları çək.
@@ -55,9 +70,15 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
         const list: ReviewablePurchase[] = Array.isArray(d.purchases) ? d.purchases : [];
         setPurchases(list);
         if (typeof d.cashbackRatePct === "number") setCashbackRatePct(d.cashbackRatePct);
+        // Tək alış varsa onu, heç alış yoxdursa ümumi rəyi avtomatik seç —
+        // müştəri boş formaya baxıb "niyə göndərə bilmirəm?" deməsin.
         if (list.length === 1) setSelected(list[0].transactionId);
+        else if (list.length === 0) setSelected(GENERAL_KEY);
       })
-      .catch(() => setPurchases([]))
+      .catch(() => {
+        setPurchases([]);
+        setSelected(GENERAL_KEY);
+      })
       .finally(() => setLoading(false));
   }, [open, purchases, loading]);
 
@@ -89,7 +110,13 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
       const res = await fetch("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rating, text: text.trim(), transactionId: selected }),
+        // Ümumi rəydə transactionId ümumiyyətlə göndərilmir — server onu
+        // "alışa bağlı deyil" kimi oxuyur və cashback hesablamır.
+        body: JSON.stringify({
+          rating,
+          text: text.trim(),
+          ...(isGeneral ? {} : { transactionId: selected }),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -111,7 +138,7 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
         className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-bold text-zinc-950 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 dark:border-white/10 dark:bg-white/[0.06] dark:text-white dark:hover:bg-white/[0.1]"
       >
         <PenLine className="h-4 w-4" />
-        Rəy yaz · {cashbackRatePct}% cashback
+        {hasPurchases ? `Rəy yaz · ${cashbackRatePct}% cashback` : "Rəy yaz"}
       </button>
 
       {open && (
@@ -155,14 +182,25 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
                   Rəyin <span className="font-semibold">{defaultName}</span> adı ilə görünəcək.
                 </p>
 
-                {/* Cashback məlumat zolağı */}
-                <div className="mt-3 flex items-start gap-2 rounded-xl border border-emerald-300/50 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-200">
-                  <Gift className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    Ən azı {REVIEW_TEXT_MIN} simvolluq rəy yaz — təsdiqdən sonra məhsulun{" "}
-                    <b>{cashbackRatePct}%-i cashback</b> hesabına keçsin.
-                  </span>
-                </div>
+                {/* Cashback məlumat zolağı — cashback yalnız alışa bağlı rəydə
+                    verilir, ona görə ümumi rəydə vəd verməyən neytral mətn. */}
+                {isGeneral ? (
+                  <div className="mt-3 flex items-start gap-2 rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-xs text-zinc-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300">
+                    <PenLine className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      Bu rəy alışa bağlı deyil — <b>cashback qazandırmır</b>, amma təsdiqdən
+                      sonra anasayfada görünəcək. Ən azı {REVIEW_TEXT_MIN} simvol yaz.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex items-start gap-2 rounded-xl border border-emerald-300/50 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-200">
+                    <Gift className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      Ən azı {REVIEW_TEXT_MIN} simvolluq rəy yaz — təsdiqdən sonra məhsulun{" "}
+                      <b>{cashbackRatePct}%-i cashback</b> hesabına keçsin.
+                    </span>
+                  </div>
+                )}
 
                 {/* Alış seçimi — istifadəçinin real alışları */}
                 <div className="mt-5">
@@ -174,12 +212,15 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
                     <div className="mt-3 flex items-center gap-2 text-sm text-zinc-500">
                       <Loader2 className="h-4 w-4 animate-spin" /> Alışların yüklənir...
                     </div>
-                  ) : purchases.length === 0 ? (
-                    <div className="mt-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-400">
-                      Rəy yazılmamış sifarişin yoxdur. Yeni bir məhsul aldıqdan sonra ona rəy yaza bilərsən.
-                    </div>
                   ) : (
                     <div className="mt-2 grid max-h-44 gap-1.5 overflow-y-auto pr-1">
+                      {purchases.length === 0 && (
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          Rəy yazılmamış sifarişin yoxdur — cashbacksiz ümumi rəy yaza
+                          bilərsən. Məhsul aldıqdan sonra həmin alışa rəy yazıb cashback
+                          qazanmaq mümkündür.
+                        </p>
+                      )}
                       {purchases.map((p) => {
                         const active = selected === p.transactionId;
                         return (
@@ -218,11 +259,45 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
                           </button>
                         );
                       })}
+
+                      {/* Alışa bağlı olmayan ümumi rəy — cashbacksiz. */}
+                      <button
+                        type="button"
+                        onClick={() => setSelected(GENERAL_KEY)}
+                        className={[
+                          "flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition",
+                          isGeneral
+                            ? "border-violet-500 bg-violet-50 dark:border-violet-400/60 dark:bg-violet-500/10"
+                            : "border-dashed border-zinc-300 hover:border-zinc-400 hover:bg-zinc-50 dark:border-white/15 dark:hover:bg-white/[0.04]",
+                        ].join(" ")}
+                      >
+                        <span
+                          className={[
+                            "grid h-9 w-9 shrink-0 place-items-center rounded-lg",
+                            isGeneral
+                              ? "bg-violet-600 text-white"
+                              : "bg-zinc-100 text-zinc-500 dark:bg-white/10 dark:text-zinc-300",
+                          ].join(" ")}
+                        >
+                          <PenLine className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-zinc-900 dark:text-white">
+                            Ümumi rəy
+                          </span>
+                          <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">
+                            Konkret alışa bağlı deyil
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-right text-[11px] font-semibold text-zinc-400 dark:text-zinc-500">
+                          Cashbacksiz
+                        </span>
+                      </button>
                     </div>
                   )}
                 </div>
 
-                {purchases && purchases.length > 0 && (
+                {purchases !== null && (
                   <>
                     <div className="mt-5">
                       <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
@@ -285,7 +360,7 @@ export default function HomeReviewModal({ defaultName }: { defaultName: string }
                       className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:opacity-50"
                     >
                       {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-                      {selectedPurchase
+                      {selectedPurchase && !isGeneral
                         ? `Rəyi göndər · +${cashbackFor(selectedPurchase.priceAznCents).toFixed(2)}₼`
                         : "Rəyi göndər"}
                     </button>

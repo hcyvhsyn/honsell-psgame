@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ShoppingCart } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import { useReelState } from "./ReelStateProvider";
 import type { ReelFeedItem, ReelProduct } from "./types";
 
 /**
@@ -29,13 +30,18 @@ export default function ReelBuyPanel({ item }: { item: ReelFeedItem }) {
   const { add, has } = useCart();
   const editions = item.cta.editions;
 
-  const [selectedId, setSelectedId] = useState<string | null>(editions[0]?.id ?? null);
+  // Seçim CONTEXT-dədir: desktop yan raildəki "Saxla" düyməsi də EYNİ sürümü
+  // görməlidir (izah ReelStateProvider-dədir), yoxsa istifadəçi Ultimate sürümə
+  // baxıb saxlayanda favoritlərə Standart düşər.
+  const { selectedEditions, setSelectedEdition } = useReelState();
+  const selectedId = selectedEditions[item.id] ?? null;
 
-  // Feed səhifələnəndə/sürümlər dəyişəndə seçimi ən ucuza qaytar. Silinmiş
-  // sürümün id-si state-də qalsa panel qiymətsiz görünərdi.
+  // Sürümlər dəyişəndə (feed səhifələnəndə) seçimi ən ucuza qaytar — silinmiş
+  // sürümün id-si qalsa panel qiymətsiz görünərdi.
   useEffect(() => {
-    setSelectedId((prev) => (prev && editions.some((e) => e.id === prev) ? prev : (editions[0]?.id ?? null)));
-  }, [editions]);
+    const valid = selectedId && editions.some((e) => e.id === selectedId);
+    if (!valid && editions[0]) setSelectedEdition(item.id, editions[0].id);
+  }, [editions, selectedId, item.id, setSelectedEdition]);
 
   const selected: ReelProduct | null = useMemo(
     () => editions.find((e) => e.id === selectedId) ?? editions[0] ?? null,
@@ -78,7 +84,7 @@ export default function ReelBuyPanel({ item }: { item: ReelFeedItem }) {
             return (
               <button
                 key={e.id}
-                onClick={() => setSelectedId(e.id)}
+                onClick={() => setSelectedEdition(item.id, e.id)}
                 aria-pressed={active}
                 className={`shrink-0 rounded-xl border px-2.5 py-1.5 text-left transition ${
                   active

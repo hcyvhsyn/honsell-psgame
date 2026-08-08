@@ -1,6 +1,16 @@
 "use client";
 
-import { Heart, ThumbsDown, MessageCircle, ShoppingCart, Volume2, VolumeX } from "lucide-react";
+import {
+  Heart,
+  ThumbsDown,
+  MessageCircle,
+  ShoppingCart,
+  Volume2,
+  VolumeX,
+  Share2,
+  Check,
+  Bookmark,
+} from "lucide-react";
 import { fmtCount } from "./ReelActionRail";
 import { hasBuyPanel } from "./ReelBuyPanel";
 import { useReelInteractions } from "./useReelInteractions";
@@ -24,7 +34,18 @@ export default function ReelSideRail({
   onToggleMute: () => void;
   onOpenComments: () => void;
 }) {
-  const { myReaction, displayLikes, displayDislikes, inCart, react, buy } = useReelInteractions(item);
+  const {
+    myReaction,
+    displayLikes,
+    displayDislikes,
+    inCart,
+    copied,
+    isSaved,
+    react,
+    buy,
+    share,
+    toggleSave,
+  } = useReelInteractions(item);
   // Videonun altındakı alış paneli varsa (sürüm çipləri + qiymət) buradakı səbət
   // düyməsi eyni işi görür və iki fərqli qiymət mənbəyi təəssüratı yaradır.
   const hasCta = Boolean(item.cta.product || item.cta.href) && !hasBuyPanel(item);
@@ -51,6 +72,19 @@ export default function ReelSideRail({
 
       <RailBtn label={fmtCount(item.counts.comments + commentDelta)} onClick={onOpenComments}>
         <MessageCircle className="h-6 w-6" />
+      </RailBtn>
+
+      <RailBtn
+        label={isSaved ? "Saxlanıldı" : "Saxla"}
+        onClick={toggleSave}
+        active={isSaved}
+        activeClass="bg-amber-500/90"
+      >
+        <Bookmark className={`h-6 w-6 ${isSaved ? "fill-white" : ""}`} />
+      </RailBtn>
+
+      <RailBtn label={copied ? "Kopyalandı" : "Paylaş"} onClick={share}>
+        {copied ? <Check className="h-6 w-6" /> : <Share2 className="h-6 w-6" />}
       </RailBtn>
 
       <RailBtn label={muted ? "Səs" : "Səs"} onClick={onToggleMute}>

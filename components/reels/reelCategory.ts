@@ -13,6 +13,7 @@ export const REEL_CATEGORY_LABELS: Record<ReelCategory, string> = {
   GAME: "Oyun",
   STREAMING: "Film & Serial",
   ALL: "Hamısı",
+  SAVED: "Saxladıqlarım",
 };
 
 /** Saxlanmış seçim; yoxdursa/oxunmursa `null` (→ ilk giriş sualı göstərilir). */

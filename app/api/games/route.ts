@@ -15,6 +15,12 @@ import {
   buildPriceFilter,
 } from "@/lib/gameQuery";
 import { buildGameCard } from "@/lib/gameCardMapper";
+import { buildGameSearchTerms } from "@/lib/gameSearchTerms";
+import {
+  gameSearchFromSql,
+  gameSearchMatchSql,
+  gameSearchRelevanceSql,
+} from "@/lib/gameSearchSql";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -463,7 +469,7 @@ async function fetchFuzzy({
       // sort in JS (same approach as the non-fuzzy codepath).
       const discountWhere = PrismaSql.sql`${whereSql} AND g."discountTryCents" IS NOT NULL`;
       const all = (await prisma.$queryRaw(
-        PrismaSql.sql`SELECT g.* FROM "Game" g WHERE ${discountWhere}`
+        PrismaSql.sql`SELECT g.* FROM ${gameSearchFromSql()} WHERE ${discountWhere}`
       )) as Game[];
 
       const filteredCount =
@@ -478,12 +484,12 @@ async function fetchFuzzy({
     }
 
     const countRow = (await prisma.$queryRaw(
-      PrismaSql.sql`SELECT COUNT(*)::int AS count FROM "Game" g WHERE ${whereSql}`
+      PrismaSql.sql`SELECT COUNT(*)::int AS count FROM ${gameSearchFromSql()} WHERE ${whereSql}`
     )) as Array<{ count: number }>;
 
     const orderSql = buildFuzzyOrderSql(sort, q);
     const rows = (await prisma.$queryRaw(
-      PrismaSql.sql`SELECT g.* FROM "Game" g WHERE ${whereSql} ORDER BY ${orderSql} LIMIT ${limit} OFFSET ${offset}`
+      PrismaSql.sql`SELECT g.* FROM ${gameSearchFromSql()} WHERE ${whereSql} ORDER BY ${orderSql} LIMIT ${limit} OFFSET ${offset}`
     )) as Game[];
 
     return { filteredCount: countRow?.[0]?.count ?? 0, rows };
@@ -548,10 +554,12 @@ function buildGameWhereSql({
     priceMaxTryCents,
     ...metadata,
   });
-  // Fuzzy match:
-  // - keep a permissive similarity threshold so short queries like "gta" still work
-  // - always allow substring hits (ILIKE) as a strong signal
-  const titleClause = PrismaSql.sql`(g."title" ILIKE ${`%${q}%`} OR similarity(g."title", ${q}) >= 0.15)`;
+  // Başlıq uyğunluğu navbar modalı ilə EYNİ mühərrikdən keçir
+  // (lib/gameSearchSql.ts): abbreviatura ("gta 5" → Grand Theft Auto V),
+  // defis/apostrof ("spiderman" → Marvel's Spider-Man), diakritik
+  // ("ragnarok" → Ragnarök) və typo toleransı. Sadə `ILIKE '%q%'` bunların
+  // heç birini tutmurdu.
+  const titleClause = gameSearchMatchSql(buildGameSearchTerms(q));
   return PrismaSql.sql`${baseSql} AND ${titleClause}`;
 }
 
@@ -559,10 +567,7 @@ function buildFuzzyOrderSql(sort: Sort, q: string) {
   // Rank relevance first, then apply the chosen sort as a tie-breaker.
   // Note: "popular" is handled as a filter in the Prisma path; here we keep it
   // as a deterministic secondary order.
-  const relevance = PrismaSql.sql`
-    (CASE WHEN g."title" ILIKE ${`%${q}%`} THEN 1 ELSE 0 END) DESC,
-    similarity(g."title", ${q}) DESC
-  `;
+  const relevance = gameSearchRelevanceSql(buildGameSearchTerms(q));
 
   switch (sort) {
     case "alpha":

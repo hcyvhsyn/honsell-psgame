@@ -1,6 +1,17 @@
 "use client";
 
-import { Heart, ThumbsDown, MessageCircle, Eye, ShoppingCart, Volume2, VolumeX } from "lucide-react";
+import {
+  Heart,
+  ThumbsDown,
+  MessageCircle,
+  Eye,
+  ShoppingCart,
+  Volume2,
+  VolumeX,
+  Share2,
+  Check,
+  Bookmark,
+} from "lucide-react";
 import type { ReelFeedItem } from "./types";
 
 export function fmtCount(n: number): string {
@@ -23,6 +34,10 @@ export default function ReelActionRail({
   onLike,
   onDislike,
   onComments,
+  onShare,
+  copied,
+  onToggleSave,
+  isSaved,
   onBuy,
   onToggleMute,
   hideBuy = false,
@@ -36,6 +51,12 @@ export default function ReelActionRail({
   onLike: () => void;
   onDislike: () => void;
   onComments: () => void;
+  onShare: () => void;
+  /** Link buferə kopyalandı (native paylaşma yoxdursa) — qısa müddət göstərilir. */
+  copied: boolean;
+  onToggleSave: () => void;
+  /** Oyun → favoritlərdədir; film/serial → izləmə siyahısındadır. */
+  isSaved: boolean;
   onBuy: () => void;
   onToggleMute: () => void;
   /** Altdakı alış paneli göstərilirsə true — rail-dəki səbət düyməsi təkrar olur. */
@@ -63,6 +84,19 @@ export default function ReelActionRail({
 
       <RailButton label={fmtCount(comments)} onClick={onComments}>
         <MessageCircle className="h-7 w-7" />
+      </RailButton>
+
+      <RailButton
+        label={isSaved ? "Saxlanıldı" : "Saxla"}
+        onClick={onToggleSave}
+        active={isSaved}
+        activeClass="text-amber-400"
+      >
+        <Bookmark className={`h-7 w-7 ${isSaved ? "fill-amber-400" : ""}`} />
+      </RailButton>
+
+      <RailButton label={copied ? "Kopyalandı" : "Paylaş"} onClick={onShare}>
+        {copied ? <Check className="h-7 w-7" /> : <Share2 className="h-7 w-7" />}
       </RailButton>
 
       <div className="flex flex-col items-center gap-1">

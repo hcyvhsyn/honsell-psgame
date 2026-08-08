@@ -496,7 +496,7 @@ export default function ReelsAdminClient() {
               </div>
               <div className="space-y-2 p-3">
                 <div className="truncate text-sm font-semibold" title={r.title}>
-                  {r.title}
+                  {r.title || <span className="text-zinc-400">(başlıqsız)</span>}
                 </div>
                 <div className="flex items-center gap-3 text-[11px] text-zinc-500">
                   <span className="inline-flex items-center gap-1">
