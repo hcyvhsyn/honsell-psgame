@@ -10,7 +10,7 @@ import type { ReelCategory } from "./types";
 export const REEL_CATEGORY_STORAGE_KEY = "honsell:reels-feed";
 
 export const REEL_CATEGORY_LABELS: Record<ReelCategory, string> = {
-  GAME: "Oyun",
+  GAME: "Oyunlar",
   STREAMING: "Film & Serial",
   ALL: "Hamısı",
   SAVED: "Saxladıqlarım",

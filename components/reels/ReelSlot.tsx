@@ -263,8 +263,12 @@ function ReelSlotImpl({
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0 flex-1 pb-2 text-white">
             {/* Başlıq boş ola bilər (Telegram-dan caption-suz gələn video) —
-                boş <h2> alt gradientdə yersiz boşluq yaradır. */}
-            {item.title && <h2 className="text-base font-bold drop-shadow">{item.title}</h2>}
+                boş <h2> alt gradientdə yersiz boşluq yaradır.
+                Alış kartı varkən də gizlədilir: oyun reels-ində `title` onsuz da
+                oyunun adı ilə dolur və kartın başlığı ilə eynidir. */}
+            {item.title && !showBuyPanel && (
+              <h2 className="text-base font-bold drop-shadow">{item.title}</h2>
+            )}
             {item.caption && (
               <p className="mt-1 line-clamp-2 text-sm text-white/85 drop-shadow">{item.caption}</p>
             )}

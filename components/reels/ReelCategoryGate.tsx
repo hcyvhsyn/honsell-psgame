@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Clapperboard, Gamepad2, Layers, X, Check } from "lucide-react";
+import { Clapperboard, Gamepad2, Layers, X, Check } from "lucide-react";
 import type { ReelCategory, ReelPlatformChip } from "./types";
 
 /**
@@ -44,13 +44,8 @@ const OPTIONS: {
     Icon: Layers,
     accent: "from-sky-500 to-emerald-500",
   },
-  {
-    value: "SAVED",
-    title: "Saxladıqlarım",
-    subtitle: "Favorit oyunlarına aid videolar",
-    Icon: Bookmark,
-    accent: "from-amber-500 to-yellow-600",
-  },
+  // "Saxladıqlarım" QƏSDƏN burada yoxdur — üst sətirdə öz düyməsi var. Saxlanmış
+  // siyahıya baxmaq tez-tez edilən hərəkətdir, kateqoriya isə bir dəfə seçilir.
 ];
 
 export default function ReelCategoryGate({
@@ -99,9 +94,6 @@ export default function ReelCategoryGate({
 
         <div className="mt-6 space-y-3">
           {OPTIONS.map(({ value, title, subtitle, Icon, accent }) => {
-            // "Saxladıqlarım" ilk girişdə seçim deyil — istifadəçinin hələ heç nəyi
-            // yoxdur, boş feed ilə qarşılaşardı.
-            if (value === "SAVED" && firstRun) return null;
             const active = current === value;
             return (
               <button

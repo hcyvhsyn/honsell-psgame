@@ -1,15 +1,8 @@
 "use client";
 
-import { Bookmark, ChevronDown, Clapperboard, Gamepad2, Layers } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { REEL_CATEGORY_LABELS } from "./reelCategory";
 import type { ReelCategory, ReelPlatformChip } from "./types";
-
-const ICONS: Record<ReelCategory, typeof Gamepad2> = {
-  GAME: Gamepad2,
-  STREAMING: Clapperboard,
-  ALL: Layers,
-  SAVED: Bookmark,
-};
 
 /**
  * Üst sətirdəki TƏK çip — əvvəlki 4 tab-lıq sətri əvəz edir.
@@ -32,7 +25,6 @@ export default function ReelCategoryChip({
   activePlatform: string | null;
   onOpen: () => void;
 }) {
-  const Icon = ICONS[category];
   const platformLabel =
     activePlatform != null
       ? (platforms.find((p) => p.code === activePlatform)?.label ?? activePlatform)
@@ -42,10 +34,9 @@ export default function ReelCategoryChip({
     <button
       onClick={onOpen}
       aria-label="Feed seçimi"
-      className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-2 text-sm font-bold text-white backdrop-blur transition hover:bg-black/70 active:scale-95"
+      className="pointer-events-auto inline-flex items-center gap-2 rounded-2xl bg-slate-900/80 px-5 py-3 text-base font-bold text-white shadow-lg shadow-black/30 ring-1 ring-white/10 backdrop-blur transition hover:bg-slate-900 active:scale-95"
     >
-      <Icon className="h-4 w-4" />
-      <span className="max-w-[9rem] truncate">
+      <span className="max-w-[11rem] truncate">
         {REEL_CATEGORY_LABELS[category]}
         {platformLabel ? ` · ${platformLabel}` : ""}
       </span>

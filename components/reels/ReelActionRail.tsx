@@ -60,15 +60,15 @@ export default function ReelActionRail({
         activeClass="text-rose-500"
         label="Bəyən"
       >
-        <Heart className={`h-7 w-7 ${myReaction === 1 ? "fill-rose-500" : ""}`} />
+        <Heart className={`h-8 w-8 ${myReaction === 1 ? "fill-rose-500" : ""}`} />
       </RailButton>
 
-      <RailButton count={comments} onClick={onComments} label="Şərhlər">
-        <MessageCircle className="h-7 w-7" />
+      <RailButton count={comments} onClick={onComments} label="Rəy yaz">
+        <MessageCircle className="h-8 w-8" />
       </RailButton>
 
-      <RailButton count={0} onClick={onShare} label="Paylaş">
-        {copied ? <Check className="h-7 w-7" /> : <Share2 className="h-7 w-7" />}
+      <RailButton count={0} onClick={onShare} label={copied ? "Kopyalandı" : "Paylaş"}>
+        {copied ? <Check className="h-8 w-8" /> : <Share2 className="h-8 w-8" />}
       </RailButton>
 
       {!hideBuy && (item.cta.product || item.cta.href) && (
@@ -105,13 +105,15 @@ function RailButton({
     <button
       onClick={onClick}
       aria-label={label}
-      title={label}
       className={`flex flex-col items-center gap-1 drop-shadow-lg transition active:scale-90 ${
         active ? activeClass : "text-white"
       }`}
     >
       {children}
-      {count > 0 && <span className="text-xs font-semibold">{fmtCount(count)}</span>}
+      <span className="text-[13px] font-bold">{label}</span>
+      {/* Say ETİKETDƏN AŞAĞIDA və yalnız 0-dan böyük olanda — "0" məhsulun boş
+          olduğunu elan edir, boşluqdan pisdir. */}
+      {count > 0 && <span className="text-sm font-bold">{fmtCount(count)}</span>}
     </button>
   );
 }

@@ -44,7 +44,7 @@ export default function ReelSideRail({
 
       <RailBtn
         count={item.counts.comments + commentDelta}
-        label="Şərhlər"
+        label="Rəy yaz"
         onClick={onOpenComments}
       >
         <MessageCircle className="h-6 w-6" />
@@ -107,8 +107,9 @@ function RailBtn({
       >
         {children}
       </span>
+      <span className="text-xs font-bold text-white/85">{label}</span>
       {count > 0 && (
-        <span className="text-xs font-semibold text-white/85">{fmtCount(count)}</span>
+        <span className="text-xs font-bold text-white/70">{fmtCount(count)}</span>
       )}
     </button>
   );

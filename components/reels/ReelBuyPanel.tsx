@@ -1,25 +1,28 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ShoppingCart } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { useReelState } from "./ReelStateProvider";
-import type { ReelFeedItem, ReelProduct } from "./types";
+import type { ReelFeedItem } from "./types";
 
 /**
- * Videonun altındakı alış paneli — sürüm çipləri + canlı qiymət + səbət düyməsi.
+ * Videonun altındakı məhsul kartı — kaver + ad + qiymət + səbət düyməsi.
  *
- *  • Sürümlər feed-dən UCUZDAN BAHAYA gəlir, ona görə default seçim `[0]` —
- *    müştəri ən ucuzu axtarmadan görür.
- *  • Endirim varsa köhnə qiymət üstündən xətli + faiz nişanı göstərilir. Endirim
- *    bitibsə server (computeDisplayPrice) onsuz da tam qiymət qaytarır, burada
- *    ayrıca "bitib" məntiqi YOXDUR — tək həqiqət mənbəyi serverdir.
- *  • Tək sürüm varsa çip sətri gizlənir (boş yerə yer tutmasın).
+ * ⚠️ **YALNIZ ƏN UCUZ SÜRÜM göstərilir.** Əvvəllər burada sürüm çipləri sırası vardı
+ * (2–4 ədəd, hər biri öz qiyməti ilə); feed-də sürətlə sürüşdürülən video altında bu,
+ * müştəridən qərar tələb edirdi və kartı 3 sətir uzadırdı. Sürümlər onsuz da
+ * UCUZDAN BAHAYA gəlir, ona görə `editions[0]` götürülür — müştəri ən sərfəli
+ * variantı seçim etmədən görür, tam siyahı isə məhsul səhifəsindədir.
+ *
+ * Qiymət/endirim serverdən gəlir (`computeDisplayPrice`) — bitmiş endirimləri o özü
+ * ləğv edir, burada ayrıca "endirim bitib" məntiqi YOXDUR.
  */
+
 /**
- * Bu reel üçün alış paneli göstərilirmi? Rail-lərdəki köhnə səbət düyməsi panel
- * varkən təkrardır — hər iki tərəf EYNİ şərti işlətsin deyə burada saxlanılır.
+ * Bu reel üçün alış kartı göstərilirmi? Rail-lərdəki köhnə səbət düyməsi kart varkən
+ * təkrardır — hər iki tərəf EYNİ şərti işlətsin deyə burada saxlanılır.
  */
 export function hasBuyPanel(item: ReelFeedItem): boolean {
   return item.cta.editions.length > 0;
@@ -28,36 +31,22 @@ export function hasBuyPanel(item: ReelFeedItem): boolean {
 export default function ReelBuyPanel({ item }: { item: ReelFeedItem }) {
   const router = useRouter();
   const { add, has } = useCart();
-  const editions = item.cta.editions;
+  // Sürümlər ucuzdan bahaya sıralıdır → [0] ən ucuzdur.
+  const selected = item.cta.editions[0] ?? null;
 
-  // Seçim CONTEXT-dədir: desktop yan raildəki "Saxla" düyməsi də EYNİ sürümü
-  // görməlidir (izah ReelStateProvider-dədir), yoxsa istifadəçi Ultimate sürümə
-  // baxıb saxlayanda favoritlərə Standart düşər.
-  const { selectedEditions, setSelectedEdition } = useReelState();
-  const selectedId = selectedEditions[item.id] ?? null;
-
-  // Sürümlər dəyişəndə (feed səhifələnəndə) seçimi ən ucuza qaytar — silinmiş
-  // sürümün id-si qalsa panel qiymətsiz görünərdi.
+  // Seçim hələ də CONTEXT-də saxlanılır: "Saxla" düyməsi qaytarılsa favoritə məhz
+  // göstərilən sürüm düşməlidir (izah ReelStateProvider-dədir). Çip sırası silinib,
+  // ona görə dəyər həmişə ən ucuz sürümdür.
+  const { setSelectedEdition } = useReelState();
   useEffect(() => {
-    const valid = selectedId && editions.some((e) => e.id === selectedId);
-    if (!valid && editions[0]) setSelectedEdition(item.id, editions[0].id);
-  }, [editions, selectedId, item.id, setSelectedEdition]);
+    if (selected) setSelectedEdition(item.id, selected.id);
+  }, [selected, item.id, setSelectedEdition]);
 
-  const selected: ReelProduct | null = useMemo(
-    () => editions.find((e) => e.id === selectedId) ?? editions[0] ?? null,
-    [editions, selectedId],
-  );
-
-  // Sürüm YOXDURSA (URL CTA-sı və ya silinmiş məhsul) panel göstərilmir —
-  // o hallarda yan/alt rail-dəki mövcud CTA düyməsi işini görür.
+  // Sürüm YOXDURSA (URL CTA-sı və ya silinmiş məhsul) kart göstərilmir —
+  // o hallarda rail-dəki mövcud CTA düyməsi işini görür.
   if (!selected) return null;
 
   const inCart = has(selected.id);
-  // "ən ucuz" nişanı YALNIZ həqiqi qiymət fərqi olanda. Sürümlərin hamısı eyni
-  // qiymətdədirsə birinə "ən ucuz" yazmaq müştərini aldadır (skrinşotda iki çip də
-  // 66.26 ₼ idi, biri nişanla).
-  const cheapestId =
-    editions.length > 1 && editions[0].finalAzn < editions[1].finalAzn ? editions[0].id : null;
 
   function onAdd() {
     if (!selected) return;
@@ -76,91 +65,67 @@ export default function ReelBuyPanel({ item }: { item: ReelFeedItem }) {
   }
 
   return (
-    <div className="pointer-events-auto w-full rounded-2xl bg-black/55 p-2.5 backdrop-blur-md">
-      {/* Sürüm çipləri — yalnız birdən çox sürüm varsa. */}
-      {editions.length > 1 && (
-        <div
-          className="mb-2 flex gap-1.5 overflow-x-auto pb-0.5"
-          style={{ scrollbarWidth: "none" }}
-        >
-          {editions.map((e) => {
-            const active = e.id === selected.id;
-            return (
-              <button
-                key={e.id}
-                onClick={() => setSelectedEdition(item.id, e.id)}
-                aria-pressed={active}
-                className={`shrink-0 rounded-xl border px-2.5 py-1.5 text-left transition ${
-                  active
-                    ? "border-white bg-white text-zinc-900"
-                    : "border-white/25 bg-white/10 text-white hover:bg-white/20"
-                }`}
-              >
-                <span className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold leading-tight">
-                    {e.editionName ?? "Sürüm"}
-                  </span>
-                  {e.platform && (
-                    <span className={`text-[9px] ${active ? "text-zinc-500" : "text-white/50"}`}>
-                      {e.platform}
-                    </span>
-                  )}
-                  {e.id === cheapestId && (
-                    <span
-                      className={`rounded px-1 py-px text-[9px] font-black uppercase ${
-                        active ? "bg-emerald-600 text-white" : "bg-emerald-500/90 text-white"
-                      }`}
-                    >
-                      ən ucuz
-                    </span>
-                  )}
-                </span>
-                {/* Endirim faizi QƏSDƏN yoxdur — 4 çipdə 4 qırmızı nişan olurdu və
-                    aşağıdakı böyük sətir onsuz da endirimi göstərir. Çipin işi
-                    sürümlər arasında qiymət MÜQAYİSƏSİDİR. */}
-                <span className="mt-0.5 block text-xs font-black">
-                  {e.finalAzn.toFixed(2)} ₼
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+    <div className="pointer-events-auto w-full rounded-3xl border border-violet-500/40 bg-black/60 p-3 shadow-lg shadow-black/40 backdrop-blur-md">
+      <div className="flex items-start gap-3">
+        {/* Kaver — Next optimizer-dən keçmir (birbaşa CDN), digər məhsul kartları
+            ilə eyni prinsip. */}
+        {selected.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={selected.imageUrl}
+            alt=""
+            className="h-20 w-20 shrink-0 rounded-2xl object-cover"
+          />
+        )}
 
-      {/* Qiymət + səbət */}
-      <div className="flex items-center gap-2.5">
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-black leading-none text-white">
+          <h3 className="truncate text-lg font-black leading-tight text-white">
+            {selected.title}
+          </h3>
+          {/* Platforma burada TƏKRARLANMIR — aşağıdakı çipdədir. */}
+          <p className="mt-0.5 truncate text-sm text-white/60">
+            {selected.editionName ?? "Standart"}
+          </p>
+
+          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            <span className="text-2xl font-black leading-none text-white">
               {selected.finalAzn.toFixed(2)} ₼
             </span>
             {selected.originalAzn != null && (
-              <span className="text-xs font-semibold text-white/50 line-through">
+              <span className="text-sm font-semibold text-white/45 line-through">
                 {selected.originalAzn.toFixed(2)} ₼
               </span>
             )}
             {selected.discountPct != null && (
-              <span className="rounded bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+              <span className="rounded-lg bg-violet-600 px-2 py-0.5 text-xs font-black text-white">
                 −{selected.discountPct}%
               </span>
             )}
           </div>
-          {/* "Standart · PS5" alt sətri QƏSDƏN silinib — seçili çip onsuz da ağ fonla
-              işarələnib, sətir eyni məlumatı üçüncü dəfə təkrarlayırdı. */}
         </div>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-3">
+        {selected.platform ? (
+          <span className="shrink-0 rounded-lg border border-white/20 px-2.5 py-1 text-xs font-bold text-white/80">
+            {selected.platform}
+          </span>
+        ) : (
+          <span />
+        )}
 
         <button
           onClick={onAdd}
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-black transition active:scale-95 ${
+          className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-3 text-sm font-black text-white shadow-lg transition active:scale-95 ${
             inCart
-              ? "bg-emerald-500 text-white hover:bg-emerald-400"
-              : "bg-white text-zinc-900 hover:bg-zinc-100"
+              ? "bg-emerald-600 shadow-emerald-600/30 hover:bg-emerald-500"
+              : "bg-gradient-to-r from-violet-600 to-fuchsia-600 shadow-violet-600/40 hover:from-violet-500 hover:to-fuchsia-500"
           }`}
         >
           {inCart ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
           {/* `ctaLabel` qəsdən işlədilmir: onun defaultu "Hesab al"dır və oyun
-              sürümü üçün yanlış səslənir. Panelin özü səbət hərəkətidir. */}
-          {inCart ? "Səbətdə" : "Səbətə at"}
+              sürümü üçün yanlış səslənir. Kartın özü səbət hərəkətidir. */}
+          {inCart ? "Səbətdə" : "Səbətə əlavə et"}
         </button>
       </div>
     </div>

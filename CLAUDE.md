@@ -212,22 +212,26 @@ bütün seriyanı tutur. Əvəzinə iki mərhələ:
    (SQL `startsWith` → *recall*, `isSameGameFamily` → *precision*), admin işarələyir,
    yekun `Reel.editionGameIds`-ə yazılır. Səhv qruplaşma müştəriyə çatmır.
 
-Sürümlər feed-ə **ucuzdan bahaya** sıralı gəlir və panel `[0]`-ı default seçir — sıralama
-məhsul qərarıdır, kosmetika deyil (müştəri ən ucuzu axtarmadan görməlidir).
+Sürümlər feed-ə **ucuzdan bahaya** sıralı gəlir və kart `[0]`-ı göstərir — sıralama
+kosmetika deyil, MƏHSUL QƏRARIDIR: müştəri ən ucuzu axtarmadan görməlidir.
 
-### Qiymət YALNIZ bir yerdə
+### ⚠️ Kartda YALNIZ ƏN UCUZ SÜRÜM göstərilir
 
-Panel əvvəllər eyni qiyməti **üç dəfə** yazırdı (çipdə, böyük sətirdə, altdakı
-`Standart · PS5` sətrində). İndi işbölgüsü belədir:
+`ReelBuyPanel` bir vaxtlar sürüm çipləri sırası idi (2–4 çip, hər biri öz qiyməti ilə).
+Feed-də sürətlə sürüşdürülən video altında bu, müştəridən **qərar tələb edirdi** və
+kartı üç sətir uzadırdı. İndi kart `editions[0]`-ı götürür — sıralama onsuz da
+ucuzdan bahayadır, yəni müştəri ən sərfəli variantı seçim etmədən görür.
 
-| Element | Nə göstərir |
-| --- | --- |
-| Çip | sürüm adı + platforma + **qiymət** — işi sürümlər arası MÜQAYİSƏDİR |
-| Böyük sətir | seçilmişin qiyməti + köhnə qiymət + `−N%` — **endirim yalnız burada** |
+Kart tərkibi: kaver + oyun adı + sürüm adı + qiymət (+ köhnə qiymət və `−N%`) +
+platforma çipi + "Səbətə əlavə et".
 
-⚠️ Çipdə endirim faizi YOXDUR — 4 çipdə 4 qırmızı nişan olurdu.
-⚠️ **"ən ucuz" nişanı yalnız `editions[0].finalAzn < editions[1].finalAzn` olanda.**
-Bütün sürümlər eyni qiymətdədirsə birinə "ən ucuz" yazmaq müştərini aldadır.
+⚠️ `Reel.editionGameIds` **hələ də lazımdır** — ən ucuzu tapmaq üçün siyahı olmalıdır,
+sadəcə hamısı GÖSTƏRİLMİR. Tam sürüm siyahısı məhsul səhifəsindədir.
+
+⚠️ Kart varkən videonun `title`-ı **gizlədilir** — oyun reels-ində `title` onsuz da
+oyunun adı ilə dolur və kartın başlığı ilə eyni olur.
+
+⚠️ Platforma yalnız **bir yerdə** yazılır (aşağıdakı çipdə), sürüm sətrində təkrarlanmır.
 
 ### Sürüm siyahısının təmizliyi
 
@@ -471,10 +475,11 @@ nəyi çıxardığını da de.
 
 | Yer | Nə var |
 | --- | --- |
-| Sol üst | home + kateqoriya çipi |
+| Sol üst | home |
+| Üst mərkəz | kateqoriya çipi (`Oyunlar ▾`) + "Saxladıqlarım" düyməsi |
 | Sağ üst | səs |
-| Sağ rail | bəyən, şərh, paylaş — **yazısız**, say yalnız `> 0` olanda |
-| Alt | alış paneli (çiplər + qiymət + səbət) |
+| Sağ rail | bəyən, rəy yaz, paylaş — ikon + etiket + **say yalnız `> 0` olanda** |
+| Alt | məhsul kartı (kaver + ad + qiymət + səbət) |
 
 **Rail-dən qəsdən çıxarılanlar:** dislike (sıralama ona baxmır — `lib/reelRanking.ts`
 yalnız `createdAt`+seed işlədir; ticarət feed-ində mənfi siqnal yersizdir), baxış sayı
@@ -505,6 +510,11 @@ fərq `onClose` prop-undan bilinir:
 | --- | --- | --- |
 | İlk giriş qapısı | **verilmir** | bağlana bilmir — seçim məcburidir |
 | Çipdən açılan vərəq | verilir | X + fon toxunuşu ilə bağlanır, hazırkı seçim ✓ ilə işarəli |
+
+⚠️ **"Saxladıqlarım" vərəqdə YOXDUR** — çipin yanında öz düyməsi var (toggle: SAVED-də
+ikən basmaq əvvəlki feed-ə qaytarır, `previousCategoryRef`). Səbəb: saxlanmış siyahıya
+baxmaq tez-tez edilən hərəkətdir, kateqoriya isə bir dəfə seçilir — ikisi eyni menyuda
+olmamalıdır.
 
 ⚠️ İlk girişdə vərəq bağlana bilməməlidir: seçim həll olunana qədər feed ümumiyyətlə
 render olunmur (SSR-də hansısa kateqoriyanı göstərsək qayıdan istifadəçi bir an yanlış
@@ -537,15 +547,39 @@ yaradılır. Sonra:
 
 ```
 video → "Bu nədir?"  ┌─ 🎬 Film/Serial → platforma düymələri → yayım
-                     └─ 🎮 Oyun → "Oyunun adını yaz" → mətn → oyun düymələri
-                                → sürümlər AVTO doldurulur → yayım
+                     ├─ 🎮 Oyun → "Oyunun adını yaz" → mətn → oyun düymələri
+                     │            → sürümlər AVTO doldurulur → yayım
+                     │            └─ 🕹️ "Oyunsuz yayımla" ────┐
+                     └─ 🕹️ Ümumi (məhsulsuz) ─────────────────┴→ CTA-sız yayım
 ```
+
+## "Ümumi oyun məzmunu" (məhsulsuz reel)
+
+Hər video konkret oyunun reklamı deyil — setup turu, konsol müqayisəsi, məzəli an,
+kanal anonsu. Əvvəllər yeganə yol oyun seçmək idi: admin ya **səhv oyun bağlayırdı**,
+ya da qaralama asılı qalırdı (`tgStage` mətn gözləyən halda).
+
+İndi çıxış **iki yerdə** var və hər ikisi eyni callback-ə (`rk|<reelId>|X`) gedir:
+növ sualında ayrıca düymə, və oyun axtarışının hər nəticəsində (siyahı gələndə də,
+`0 nəticə` olanda da) "🕹️ Oyunsuz yayımla" sətri.
+
+**Necə saxlanılır:** `category: "GAME"` + `ctaType: "URL"` + `ctaHref: null` = **CTA
+yoxdur**. Ayrıca bayraq LAZIM DEYİL — feed bunu onsuz da düzgün oxuyur: `lib/reels.ts`
+məhsulu boş qoyur, `hasBuyPanel` false olur, rail-dəki səbət düyməsi `product || href`
+şərti ilə gizlənir. Kart olmadığı üçün videonun başlığı **görünür** (kart varkən gizlənir).
+
+⚠️ Bu budaqda `tgStage` mütləq sıfırlanır — istifadəçi əvvəl "🎮 Oyun" basıb, sonra
+fikrini dəyişib bu düyməyə basa bilər; qaralama mətn gözləyən qalsa növbəti yazdığı söz
+yenidən oyun axtarışı kimi oxunardı.
+
+Admin paneldən də eyni şey alınır: CTA tipi `URL`, link xanası **boş** (admin API-si
+`ctaHref`-i məcbur etmir).
 
 Callback formatları (limit **64 bayt**, cuid = 25 simvol):
 
 | Prefiks | Format | Uzunluq |
 | --- | --- | --- |
-| `rk` | `rk\|<reelId>\|G⎮S` — növ seçimi | 30 |
+| `rk` | `rk\|<reelId>\|G⎮S⎮X` — növ seçimi (`X` = məhsulsuz) | 30 |
 | `rp` | `rp\|<reelId>\|<platformCode>` — platforma | ~35 |
 | `rg` | `rg\|<reelId>\|<gameId>` — oyun seçimi | 54 |
 

@@ -10,7 +10,7 @@ import {
   useTransition,
 } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, ChevronUp, ChevronDown } from "lucide-react";
+import { Loader2, ChevronUp, ChevronDown, Bookmark } from "lucide-react";
 import { ReelStateProvider } from "./ReelStateProvider";
 import ReelSlot from "./ReelSlot";
 import ReelSideRail from "./ReelSideRail";
@@ -75,6 +75,8 @@ export default function ReelsFeedClient({
   const loadingRef = useRef(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
+  /** Bookmark düyməsindən SAVED-ə keçəndə qayıdılacaq feed. */
+  const previousCategoryRef = useRef<ReelCategory>("GAME");
   /** Ziyarətə məxsus qarışdırma toxumu — səhifələmə boyu SABİT qalmalıdır. */
   const seedRef = useRef("");
   /** Dəftərin CANLI vəziyyəti — yeni tamamlanan videolar buraya düşür. */
@@ -185,8 +187,12 @@ export default function ReelsFeedClient({
 
   function pickCategory(next: ReelCategory) {
     // "Saxladıqlarım" MƏZMUN SEÇİMİ deyil, müvəqqəti baxışdır — yadda saxlasaq
-    // növbəti giriş boş siyahı ilə açılardı.
-    if (next !== "SAVED") storeReelCategory(next);
+    // növbəti giriş boş siyahı ilə açılardı. Əvəzinə əvvəlki feed ref-də saxlanılır
+    // ki, bookmark düyməsi geri qaytara bilsin.
+    if (next !== "SAVED") {
+      storeReelCategory(next);
+      previousCategoryRef.current = next;
+    }
     setCategory(next);
     setGateOpen(false);
     setSheetOpen(false);
@@ -351,15 +357,31 @@ export default function ReelsFeedClient({
         />
       )}
 
-      {/* Kateqoriya çipi — home linkinin yanında (sol üst). `app/reels/page.tsx`-dəki
-          home düyməsi `left-4 top-4`-dədir, ona görə çip `left-16`-dan başlayır. */}
-      <div className="pointer-events-none fixed left-16 top-4 z-[90]">
+      {/* Üst sətir — kateqoriya çipi + "Saxladıqlarım" qısayolu, mərkəzdə.
+          `app/reels/page.tsx`-dəki home düyməsi solda ayrıca overlay-dədir. */}
+      <div className="pointer-events-none fixed inset-x-0 top-4 z-[90] flex items-center justify-center gap-2 px-16">
         <ReelCategoryChip
           category={category}
           platforms={platforms}
           activePlatform={platform}
           onOpen={() => setSheetOpen(true)}
         />
+
+        {/* "Saxladıqlarım" ayrıca düymədir, vərəqin içində seçim deyil — saxlanmış
+            siyahıya baxmaq TEZ-TEZ edilən hərəkətdir, kateqoriya isə bir dəfə seçilir.
+            Toggle: SAVED-də ikən basmaq əvvəlki feed-ə qaytarır. */}
+        <button
+          onClick={() => pickCategory(category === "SAVED" ? previousCategoryRef.current : "SAVED")}
+          aria-label="Saxladıqlarım"
+          aria-pressed={category === "SAVED"}
+          className={`pointer-events-auto grid h-[46px] w-[46px] place-items-center rounded-2xl shadow-lg shadow-black/30 ring-1 backdrop-blur transition active:scale-95 ${
+            category === "SAVED"
+              ? "bg-white text-slate-900 ring-white/40"
+              : "bg-slate-900/80 text-white ring-white/10 hover:bg-slate-900"
+          }`}
+        >
+          <Bookmark className={`h-5 w-5 ${category === "SAVED" ? "fill-slate-900" : ""}`} />
+        </button>
       </div>
 
       <div className="flex justify-center bg-black">

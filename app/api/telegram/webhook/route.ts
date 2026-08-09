@@ -105,6 +105,8 @@ const CB_PREFIX = "rp"; // platforma seçimi (film/serial)
 const CB_KIND = "rk"; // "oyun, yoxsa film/serial?"
 const CB_GAME = "rg"; // oyun seçimi
 const CB_SKIP = "-"; // "platformasız yayımla"
+/** "Ümumi oyun məzmunu" — oyun feed-inə düşür, amma heç bir məhsula bağlanmır. */
+const CB_KIND_GENERAL = "X";
 
 /** `tgStage` dəyəri: bot bu qaralama üçün MƏTNLƏ oyun adı gözləyir. */
 const STAGE_GAME_NAME = "GAME_NAME";
@@ -158,6 +160,9 @@ async function createDraftAndAskKind(chatId: number, assets: ReelAssets, caption
         { text: "🎮 Oyun", callback_data: `${CB_KIND}|${reel.id}|G` },
         { text: "🎬 Film / Serial", callback_data: `${CB_KIND}|${reel.id}|S` },
       ],
+      // Hər video konkret məhsula bağlanmır: setup turu, konsol müqayisəsi, məzəli
+      // an, kanal anonsu… Belə videolar üçün oyun adı soruşmaq mənasızdır.
+      [{ text: "🕹️ Ümumi (məhsulsuz)", callback_data: `${CB_KIND}|${reel.id}|${CB_KIND_GENERAL}` }],
     ],
   });
 }
@@ -230,6 +235,11 @@ async function handleKindCallback(cb: TgCallbackQuery) {
     return;
   }
 
+  if (kind === CB_KIND_GENERAL) {
+    await publishGeneralGameReel(chatId, messageId, reelId);
+    return;
+  }
+
   // Oyun: kateqoriyanı yaz + mətn cavabını bu qaralamaya bağla.
   try {
     await prisma.reel.update({
@@ -243,6 +253,66 @@ async function handleKindCallback(cb: TgCallbackQuery) {
 
   if (messageId != null) await telegramEditMessageText(chatId, messageId, "🎮 Oyun");
   await telegramSendMessage(chatId, "🔎 Oyunun adını yaz (məs. “God of War Ragnarök”):");
+}
+
+/**
+ * "Ümumi oyun məzmunu" — oyun feed-inə düşür, amma HEÇ BİR məhsula bağlanmır.
+ *
+ * Hər video konkret oyunun reklamı olmur: setup turu, konsol müqayisəsi, məzəli an,
+ * kanal anonsu. Belə videoda oyun adı soruşmaq boş yerə addım idi, "oyunsuz" seçim
+ * isə ümumiyyətlə yox idi — admin ya səhv oyun bağlayır, ya da qaralama asılı qalırdı.
+ *
+ * `ctaType: "URL"` + `ctaHref: null` = CTA YOXDUR. Feed bunu onsuz da düzgün oxuyur:
+ * `lib/reels.ts` məhsulu boş qoyur, `hasBuyPanel` false olur, rail-dəki səbət düyməsi
+ * `product || href` şərti ilə gizlənir. Yəni ayrıca "CTA yoxdur" bayrağı lazım deyil.
+ *
+ * ⚠️ `tgStage` mütləq sıfırlanır — istifadəçi əvvəl "🎮 Oyun" basıb, sonra fikrini
+ * dəyişib bu düyməyə basa bilər; qaralama mətn gözləyən qalsa növbəti yazdığı söz
+ * yenidən oyun axtarışı kimi oxunardı.
+ */
+async function publishGeneralGameReel(
+  chatId: number,
+  messageId: number | undefined,
+  reelId: string,
+) {
+  let reel: { title: string } | null = null;
+  try {
+    reel = await prisma.reel.update({
+      where: { id: reelId },
+      data: {
+        category: "GAME",
+        ctaType: "URL",
+        ctaTargetId: null,
+        ctaHref: null,
+        ctaLabel: null,
+        editionGameIds: [],
+        platformCode: "PS",
+        platformLabel: "PlayStation",
+        platformLogoUrl: null,
+        isPublished: true,
+        tgStage: null,
+      },
+      select: { title: true },
+    });
+  } catch {
+    if (messageId != null) await telegramEditMessageText(chatId, messageId, "⚠️ Reel tapılmadı.");
+    return;
+  }
+
+  revalidateReels();
+  // Başlıqsız video feed-də sadəcə başlıqsız görünür (boş <h2> render olunmur), amma
+  // admin siyahısında "(başlıqsız)" kimi tapmaq çətindir — ona görə xəbərdarlıq.
+  const titleNote =
+    reel.title.trim().length === 0
+      ? "\n📝 Başlıq yoxdur — admin panelindən əlavə edə bilərsən."
+      : "";
+  if (messageId != null) {
+    await telegramEditMessageText(
+      chatId,
+      messageId,
+      `✅ Yayımlandı — ümumi oyun məzmunu (məhsul bağlanmadı).${titleNote}`,
+    );
+  }
 }
 
 /**
@@ -295,19 +365,33 @@ async function handleGameNameText(chatId: number, text: string): Promise<boolean
     if (unique.length >= 8) break;
   }
 
+  // Hər iki halda "məhsulsuz yayımla" çıxışı verilir: axtarış boş qayıdanda qaralama
+  // əks halda asılı qalırdı, siyahı gələndə isə video ümumi məzmun ola bilər və admin
+  // siyahıdan MƏCBUR səhv oyun seçməməlidir.
+  const skipRow: TgInlineButton[] = [
+    { text: "🕹️ Oyunsuz yayımla", callback_data: `${CB_KIND}|${pending.id}|${CB_KIND_GENERAL}` },
+  ];
+
   if (unique.length === 0) {
-    await telegramSendMessage(chatId, `“${q}” üzrə oyun tapılmadı. Başqa ad yaz və ya adın bir hissəsini yoxla.`);
+    await telegramSendMessage(
+      chatId,
+      `“${q}” üzrə oyun tapılmadı. Başqa ad yaz və ya adın bir hissəsini yoxla.`,
+      { keyboard: [skipRow] },
+    );
     return true;
   }
 
   await telegramSendMessage(chatId, "Hansı oyundur?", {
-    keyboard: unique.map((g) => [
-      {
-        // Telegram düymə mətni uzun olanda kəsilir — başlığı özümüz qısaldırıq.
-        text: `${g.title.slice(0, 50)}${g.platform ? ` · ${g.platform}` : ""}`,
-        callback_data: `${CB_GAME}|${pending.id}|${g.id}`,
-      },
-    ]),
+    keyboard: [
+      ...unique.map((g) => [
+        {
+          // Telegram düymə mətni uzun olanda kəsilir — başlığı özümüz qısaldırıq.
+          text: `${g.title.slice(0, 50)}${g.platform ? ` · ${g.platform}` : ""}`,
+          callback_data: `${CB_GAME}|${pending.id}|${g.id}`,
+        },
+      ]),
+      skipRow,
+    ],
   });
   return true;
 }
