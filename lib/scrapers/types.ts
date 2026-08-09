@@ -26,6 +26,9 @@ export interface ScrapedTitle {
   voteCount?: number;
   /** TMDB populyarlıq skoru — "ən çox baxılan" sıralaması üçün. */
   popularity?: number;
+  /** ISO 639-1 orijinal dil kodu (TMDB enrichment-dən). IMDb ad idxalı orijinal
+   *  adı bu kodla etiketləyir — boş qalsa ad "und" kimi yazılır. */
+  originalLanguage?: string;
   /** Yalnız streamingLanguages.ts-dəki LanguageCode-lardan biri saxlanır;
    *  digər dillər scraper səviyyəsində süzülməlidir. */
   audioLanguages: LanguageCode[];

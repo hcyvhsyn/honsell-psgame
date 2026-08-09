@@ -32,6 +32,7 @@ interface TmdbHit {
   vote_average?: number | null;
   vote_count?: number | null;
   popularity?: number | null;
+  original_language?: string | null;
 }
 
 interface TmdbFindResponse {
@@ -47,6 +48,10 @@ interface TmdbEnrichment {
   rating?: number;
   voteCount?: number;
   popularity?: number;
+  /** ISO 639-1 orijinal dil kodu. IMDb ad idxalı (`importImdbData`) orijinal
+   *  adı məhz bu kodla etiketləyir — bu sahə boş qalsa ad DB-yə "und"
+   *  (undetermined) kimi düşür, çünki IMDb datasetlərində dil kodu yoxdur. */
+  originalLanguage?: string;
 }
 
 /** IMDb ID → enrichment nəticəsi (null = TMDB-də tapılmadı). Ölkələr arası
@@ -89,6 +94,8 @@ async function lookupByImdb(
     enrichment.rating = hit.vote_average;
   if (typeof hit.vote_count === "number") enrichment.voteCount = hit.vote_count;
   if (typeof hit.popularity === "number") enrichment.popularity = hit.popularity;
+  if (hit.original_language && hit.original_language.trim().length > 0)
+    enrichment.originalLanguage = hit.original_language.toLowerCase();
   return enrichment;
 }
 
@@ -152,6 +159,7 @@ export async function enrichTitlesWithTmdb(
       rating: enrichment.rating ?? t.rating,
       voteCount: enrichment.voteCount ?? t.voteCount,
       popularity: enrichment.popularity ?? t.popularity,
+      originalLanguage: enrichment.originalLanguage ?? t.originalLanguage,
     });
   }
 

@@ -21,6 +21,8 @@
     "test:analytics": "tsx scripts/analytics.test.ts",
     "test:oyunfor": "tsx scripts/oyunforParser.test.ts",
     "test:gamesearch": "tsx scripts/gameSearch.test.ts",
+    "test:imdb": "tsx scripts/imdbDatasets.test.ts",
+    "import:imdb": "tsx scripts/importImdbData.ts",
     "lootbox:drain": "tsx scripts/lootBoxDrain.ts",
     "db:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate"

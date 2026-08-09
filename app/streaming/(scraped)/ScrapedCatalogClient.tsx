@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Check, ChevronDown, Film, Search, SlidersHorizontal, Tv, X } from "lucide-react";
-import ScrapedTitleCard, { type ScrapedCardData } from "@/components/ScrapedTitleCard";
+import ScrapedTitleCard, {
+  ratingRankScore,
+  type ScrapedCardData,
+} from "@/components/ScrapedTitleCard";
 import ScrapedTrailerModal from "@/components/ScrapedTrailerModal";
 
 type Platform = ScrapedCardData["platforms"][number]["platform"];
@@ -80,7 +83,7 @@ const LANG_GROUPS: Array<{
 
 const SORT_OPTIONS = [
   { value: "popularity-desc", label: "Ən çox baxılan" },
-  { value: "rating-desc", label: "Ən yüksək reytinq" },
+  { value: "rating-desc", label: "Ən yüksək IMDb xalı" },
   { value: "year-desc", label: "Yeni → Köhnə" },
   { value: "year-asc", label: "Köhnə → Yeni" },
   { value: "title-asc", label: "Ad: A → Z" },
@@ -142,7 +145,9 @@ export default function ScrapedCatalogClient({ titles, initialKind = "ALL" }: Pr
     for (const t of titles) {
       if (kind !== "ALL" && t.kind !== kind) continue;
 
-      if (q && !t.title.toLowerCase().includes(q)) continue;
+      // `searchText` türkcə/rusca/orijinal adları da daşıyır — istifadəçi
+      // "Yüzüklerin Efendisi" yazanda ingiliscə başlıqlı kart da tapılsın.
+      if (q && !t.searchText.includes(q)) continue;
 
       if (platforms.size > 0) {
         const has = t.platforms.some((p) => platforms.has(p.platform));
@@ -171,10 +176,11 @@ export default function ScrapedCatalogClient({ titles, initialKind = "ALL" }: Pr
         return (b.popularity ?? 0) - (a.popularity ?? 0) || a.title.localeCompare(b.title);
       }
       if (sort === "rating-desc") {
-        // Reytinq azalan; bərabərdə çox səsli üstün (az-səsli "10.0" noise-u aşağı).
+        // Xam reytinq yox, çəkili bal — az səsli "10.0"-lar siyahının başını
+        // tutmasın (bax: ratingRankScore).
         return (
-          (b.rating ?? 0) - (a.rating ?? 0) ||
-          (b.voteCount ?? 0) - (a.voteCount ?? 0) ||
+          ratingRankScore(b) - ratingRankScore(a) ||
+          (b.imdbVotes ?? b.voteCount ?? 0) - (a.imdbVotes ?? a.voteCount ?? 0) ||
           a.title.localeCompare(b.title)
         );
       }
@@ -191,7 +197,7 @@ export default function ScrapedCatalogClient({ titles, initialKind = "ALL" }: Pr
     const q = query.trim().toLowerCase();
     return titles.filter((t) => {
       if (kind !== "ALL" && t.kind !== kind) return false;
-      if (q && !t.title.toLowerCase().includes(q)) return false;
+      if (q && !t.searchText.includes(q)) return false;
       return true;
     });
   }, [titles, kind, query]);
@@ -292,10 +298,10 @@ export default function ScrapedCatalogClient({ titles, initialKind = "ALL" }: Pr
                 }}
                 placeholder={
                   kind === "MOVIE"
-                    ? "Film adı axtar..."
+                    ? "Film adı — türkcə, rusca, ingiliscə..."
                     : kind === "SERIES"
-                      ? "Serial adı axtar..."
-                      : "Film və ya serial axtar..."
+                      ? "Serial adı — türkcə, rusca, ingiliscə..."
+                      : "Film və ya serial — istənilən dildə axtar..."
                 }
                 className="h-12 w-full rounded-lg border border-white/[0.08] bg-black/35 pl-10 pr-11 text-sm font-bold text-[#ffffff] outline-none transition placeholder:text-zinc-600 focus:border-indigo-400/60 focus:bg-black/50 focus:ring-4 focus:ring-indigo-500/10"
               />

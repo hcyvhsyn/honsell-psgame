@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { buildSearchText } from "@/lib/imdbDatasets";
 import type { ScrapedCardData } from "@/components/ScrapedTitleCard";
 
 /**
@@ -11,6 +12,11 @@ import type { ScrapedCardData } from "@/components/ScrapedTitleCard";
  * hər kartda `kind` sahəsi olduğu üçün client tərəf daxildən filtrləyə bilir.
  *
  * Dil siyahısı bütün availability-lərdən birləşdirilir (deduped, sıralı tr/ru/en).
+ *
+ * Hər kart `searchText` daşıyır — türkcə/rusca/orijinal adları da içinə alan
+ * kiçik hərfli sətir. Client filtri məhz onun üzərində işləyir ki, istifadəçi
+ * "Yüzüklerin Efendisi" və ya "Властелин колец" yazanda da filmi tapsın
+ * (kataloqdakı əsas ad ingiliscədir).
  */
 export async function loadScrapedTitles(
   kind?: "MOVIE" | "SERIES"
@@ -32,6 +38,9 @@ export async function loadScrapedTitles(
       tmdbRating: true,
       tmdbVoteCount: true,
       tmdbPopularity: true,
+      imdbRating: true,
+      imdbVotes: true,
+      names: { select: { name: true } },
       availabilities: {
         where: { isAvailable: true },
         select: {
@@ -73,6 +82,9 @@ export async function loadScrapedTitles(
       rating: r.tmdbRating,
       voteCount: r.tmdbVoteCount,
       popularity: r.tmdbPopularity,
+      imdbRating: r.imdbRating,
+      imdbVotes: r.imdbVotes,
+      searchText: buildSearchText(r.title, r.names),
     };
   });
 }

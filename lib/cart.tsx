@@ -13,6 +13,12 @@ import {
 // Bu fayl `app/layout.tsx`-dən import olunur; tranzitiv `lib/prisma` `next build`-i
 // sındırar (tsc təmiz keçsə də).
 import { trackEvent } from "@/lib/track";
+// `lib/serviceBundleShared.ts` client-safe-dir (prisma-ya toxunmur) —
+// bax həmin faylın başlığındakı xəbərdarlığa.
+import {
+  SERVICE_BUNDLE_PRODUCT_TYPE,
+  type ServiceInputRequirement,
+} from "@/lib/serviceBundleShared";
 
 /** Səbətdə PSN hesab açılışı üçün müştəri məlumatları (checkout zamanı serverə göndərilir). */
 export type AccountCreationCartDetails = {
@@ -90,6 +96,28 @@ export type BundleCartItems = {
   bundleAznCents: number;
 }[];
 
+/**
+ * Xidmət dəsti sətrinin bir üzvü.
+ *
+ * Oyun paketindən FƏRQLİ olaraq bu massiv yalnız göstərim üçün deyil: bəzi
+ * xidmətlər müştəri məlumatı tələb edir (Spotify Family → 5 email+şifrə, YouTube →
+ * gmail+şifrə) və həmin məlumat burada, üzv-üzv saxlanılır. Checkout serverdə dəsti
+ * id-yə görə yenidən açır və qiyməti özü hesablayır, yəni `bundleAznCents` köhnəlsə
+ * də müştəri yanlış məbləğ ödəmir; `details` isə serverə göndərilir.
+ */
+export type ServiceBundleCartItem = {
+  serviceProductId: string;
+  title: string;
+  imageUrl: string | null;
+  /** `ServiceProduct.type` — səbət UI-si PSN hesabı tələbini bundan çıxarır. */
+  serviceType: string;
+  listAznCents: number;
+  bundleAznCents: number;
+  requirement: ServiceInputRequirement;
+  /** Müştərinin doldurduğu məlumat (`requirement.kind !== "NONE"` olduqda). */
+  details?: StreamingCartDetails;
+};
+
 export type CartItem = {
   id: string;
   title: string;
@@ -98,6 +126,8 @@ export type CartItem = {
   productType: string;
   /** `productType === "BUNDLE"` olduqda paketin tərkibi (səbətdə açılan siyahı). */
   bundleItems?: BundleCartItems;
+  /** `productType === "SERVICE_BUNDLE"` olduqda dəstin tərkibi + müştəri məlumatları. */
+  serviceBundleItems?: ServiceBundleCartItem[];
   /** Storefront for catalog items: "PS" (default) or "EPIC". Distinguishes an
    *  Epic PC game (delivered to an Epic account) from a PS game — both have
    *  productType "GAME". */
@@ -153,6 +183,11 @@ type CartContextValue = {
   updateAccountCreation: (id: string, details: AccountCreationCartDetails) => void;
   updateEpicAccountCreation: (id: string, details: EpicAccountCreationCartDetails) => void;
   updateStreaming: (id: string, details: StreamingCartDetails) => void;
+  updateServiceBundleMember: (
+    bundleId: string,
+    serviceProductId: string,
+    details: StreamingCartDetails,
+  ) => void;
   updateInGameCredit: (id: string, details: InGameCreditCartDetails) => void;
   /** `gift=true` verilsə yalnız hədiyyə sətrini silir, əks halda adi alış sətrini. */
   remove: (id: string, gift?: boolean) => void;
@@ -195,6 +230,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     let data: {
       prices?: { id: string; finalAzn: number; store?: string }[];
       missing?: string[];
+      serviceBundles?: { id: string; items: ServiceBundleCartItem[] }[];
     } | null = null;
     try {
       const res = await fetch("/api/cart/refresh", {
@@ -218,6 +254,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
     }
     const missing = new Set<string>(data.missing ?? []);
+    // Xidmət dəstlərinin TƏZƏ tərkibi: admin dəsti dəyişəndə (üzv əlavə/silmə,
+    // qiymət, tələb olunan məlumat) səbətdəki snapshot köhnə qalmasın.
+    const freshBundles = new Map<string, ServiceBundleCartItem[]>();
+    for (const b of data.serviceBundles ?? []) {
+      if (typeof b?.id === "string" && Array.isArray(b.items)) freshBundles.set(b.id, b.items);
+    }
     const notices: CartPriceChange[] = [];
 
     setItems((prev) => {
@@ -233,6 +275,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const freshStore = storeMap.get(it.id);
         const storePatch =
           freshStore && freshStore !== it.store ? { store: freshStore } : null;
+
+        // Dəst tərkibi serverdən gəlirsə onunla əvəzlənir, amma müştərinin
+        // doldurduğu `details` üzv-üzv KÖÇÜRÜLÜR — yoxsa hər refresh formu sıfırlayar.
+        const freshItems = freshBundles.get(it.id);
+        const bundlePatch = freshItems
+          ? {
+              serviceBundleItems: freshItems.map((m) => {
+                const old = it.serviceBundleItems?.find(
+                  (o) => o.serviceProductId === m.serviceProductId,
+                );
+                return old?.details ? { ...m, details: old.details } : m;
+              }),
+            }
+          : null;
+
         const fresh = priceMap.get(it.id);
         if (typeof fresh === "number" && Math.abs(fresh - it.finalAzn) > 0.0049) {
           notices.push({
@@ -242,9 +299,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             oldAzn: it.finalAzn,
             newAzn: fresh,
           });
-          next.push({ ...it, finalAzn: fresh, ...storePatch });
-        } else if (storePatch) {
-          next.push({ ...it, ...storePatch });
+          next.push({ ...it, finalAzn: fresh, ...storePatch, ...bundlePatch });
+        } else if (storePatch || bundlePatch) {
+          next.push({ ...it, ...storePatch, ...bundlePatch });
         } else {
           next.push(it);
         }
@@ -319,7 +376,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         item.productType === "ACCOUNT_CREATION" ||
         item.productType === "EPIC_ACCOUNT_CREATION" ||
         item.productType === "STREAMING" ||
-        item.productType === "PLATFORM"
+        item.productType === "PLATFORM" ||
+        // Xidmət dəsti də müştəri məlumatı daşıyır — təkrar əlavə onu təzələməlidir.
+        item.productType === SERVICE_BUNDLE_PRODUCT_TYPE
       ) {
         // Bu tiplər heç vaxt hədiyyə olmur — yalnız adi alış sətrini əvəz edirik.
         const rest = prev.filter((i) => !(i.id === item.id && !i.gift));
@@ -426,6 +485,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  /**
+   * Xidmət dəstinin BİR üzvünün müştəri məlumatını yeniləyir.
+   *
+   * Dəst səbətdə atomik tək sətirdir, ona görə üzvlər `serviceProductId` ilə
+   * ünvanlanır — eyni sətirdə həm Spotify hesabları, həm Netflix e-poçtu ola bilər.
+   */
+  const updateServiceBundleMember = useCallback(
+    (bundleId: string, serviceProductId: string, details: StreamingCartDetails) => {
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === bundleId && i.productType === SERVICE_BUNDLE_PRODUCT_TYPE
+            ? {
+                ...i,
+                serviceBundleItems: (i.serviceBundleItems ?? []).map((m) =>
+                  m.serviceProductId === serviceProductId ? { ...m, details } : m,
+                ),
+              }
+            : i,
+        ),
+      );
+    },
+    [],
+  );
+
   const updateInGameCredit = useCallback((id: string, details: InGameCreditCartDetails) => {
     setItems((prev) =>
       prev.map((i) =>
@@ -467,6 +550,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       updateAccountCreation,
       updateEpicAccountCreation,
       updateStreaming,
+      updateServiceBundleMember,
       updateInGameCredit,
       remove,
       clear,
@@ -486,6 +570,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     updateAccountCreation,
     updateEpicAccountCreation,
     updateStreaming,
+    updateServiceBundleMember,
     updateInGameCredit,
     remove,
     clear,

@@ -38,6 +38,11 @@ import AccountCreationCartEditModal from "@/components/AccountCreationCartEditMo
 import EpicAccountOfferModal from "@/components/EpicAccountOfferModal";
 import EpicAccountLinkModal from "@/components/EpicAccountLinkModal";
 import PlatformCartEditModal from "@/components/PlatformCartEditModal";
+import ServiceBundleMemberEditModal from "@/components/ServiceBundleMemberEditModal";
+import {
+  SERVICE_BUNDLE_PRODUCT_TYPE,
+  validateServiceBundleMemberDetails,
+} from "@/lib/serviceBundleShared";
 import EpointWidgetModal from "@/components/EpointWidgetModal";
 import ReferralShareButtons from "@/components/ReferralShareButtons";
 import CartSimilarGames from "@/components/CartSimilarGames";
@@ -226,6 +231,13 @@ export default function CartView({
 
   const [accountEdit, setAccountEdit] = useState<{ itemId: string; key: number } | null>(null);
   const [platformEdit, setPlatformEdit] = useState<{ itemId: string; key: number } | null>(null);
+  // Xidmət dəstinin bir ÜZVÜNÜN redaktəsi — dəst sətri atomikdir, ona görə hədəf
+  // (sətir id-si + üzvün serviceProductId-si) cütü ilə göstərilir.
+  const [bundleMemberEdit, setBundleMemberEdit] = useState<{
+    itemId: string;
+    serviceProductId: string;
+    key: number;
+  } | null>(null);
   // Default to the user's flagged-default PSN account; fall back to the first.
   const defaultId = psnAccounts.find((a) => a.isDefault)?.id ?? psnAccounts[0]?.id ?? "";
   const [psnAccountId, setPsnAccountId] = useState<string>(defaultId);
@@ -285,6 +297,20 @@ export default function CartView({
     }));
   }, []);
 
+  useEffect(() => {
+    if (bundleMemberEdit && !items.some((i) => i.id === bundleMemberEdit.itemId)) {
+      setBundleMemberEdit(null);
+    }
+  }, [items, bundleMemberEdit]);
+
+  const openBundleMemberEdit = useCallback((itemId: string, serviceProductId: string) => {
+    setBundleMemberEdit((prev) => ({
+      itemId,
+      serviceProductId,
+      key: (prev?.key ?? 0) + 1,
+    }));
+  }, []);
+
   if (!hydrated) {
     return (
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-10 text-center text-sm text-zinc-400">
@@ -301,7 +327,14 @@ export default function CartView({
     (i) =>
       !i.gift &&
       ((i.productType === "GAME" && i.store !== "EPIC") ||
-        ["PS_PLUS", "EA_PLAY", "TRY_BALANCE"].includes(i.productType))
+        ["PS_PLUS", "EA_PLAY", "TRY_BALANCE"].includes(i.productType) ||
+        // Xidmət dəsti serverdə üzvlərinə açılır — içində PSN-ə çatdırılan
+        // xidmət varsa hesab tələbi UI-də DƏ tetiklənməlidir, yoxsa müştəri
+        // "Ödə"yə basanda serverdən `NO_PSN_ACCOUNT` alır.
+        (i.serviceBundleItems?.some((m) =>
+          ["PS_PLUS", "EA_PLAY", "TRY_BALANCE"].includes(m.serviceType),
+        ) ??
+          false))
   );
   const deliveryNeedsEpic = items.some(
     (i) => !i.gift && i.productType === "GAME" && i.store === "EPIC"
@@ -568,6 +601,22 @@ export default function CartView({
       });
       return;
     }
+    // Xidmət dəsti: hər üzv ayrıca məlumat tələb edə bilər (Spotify Family → 5
+    // hesab, YouTube → gmail+şifrə). Server onsuz da yoxlayır, amma bura düşməsə
+    // müştəri 400 xətasını hansı üzvün səbəb olduğunu bilmədən görür.
+    for (const it of items) {
+      if (it.gift || it.productType !== SERVICE_BUNDLE_PRODUCT_TYPE) continue;
+      for (const member of it.serviceBundleItems ?? []) {
+        const problem = validateServiceBundleMemberDetails(member.requirement, member.details);
+        if (problem) {
+          setMessage({
+            kind: "error",
+            text: `${it.title} dəstindəki "${member.title}" üçün məlumatları doldurun (Redaktə et).`,
+          });
+          return;
+        }
+      }
+    }
     // Bütün validasiya maneələri keçildikdən SONRA — yəni bu, real ödəniş
     // cəhdidir, doldurulmamış formaya görə dayanan klik deyil.
     trackEvent("begin_checkout", {
@@ -594,6 +643,17 @@ export default function CartView({
               : {}),
             ...(!i.gift && i.productType === "EPIC_ACCOUNT_CREATION" && i.epicAccountCreation
               ? { epicAccountCreation: i.epicAccountCreation }
+              : {}),
+            // Xidmət dəsti: üzvlərin məlumatları `serviceProductId` ilə açarlanır —
+            // server dəsti açanda hər üzvə öz payını ötürür.
+            ...(!i.gift && i.productType === SERVICE_BUNDLE_PRODUCT_TYPE && i.serviceBundleItems
+              ? {
+                  serviceBundle: Object.fromEntries(
+                    i.serviceBundleItems
+                      .filter((m) => m.details)
+                      .map((m) => [m.serviceProductId, m.details]),
+                  ),
+                }
               : {}),
           })),
           psnAccountId: deliveryNeedsPsn && !hasPsnCreationInCart ? psnAccountId : null,
@@ -751,6 +811,18 @@ export default function CartView({
     platformEdit != null
       ? items.find((i) => i.id === platformEdit.itemId && i.productType === "PLATFORM")
       : undefined;
+  // Dəst üzvü hər refresh-də yenilənə bilər (admin dəsti dəyişəndə), ona görə
+  // modal state-də snapshot saxlanmır — hədəf hər render-də səbətdən tapılır.
+  const bundleMemberEditTarget = (() => {
+    if (!bundleMemberEdit) return null;
+    const line = items.find(
+      (i) => i.id === bundleMemberEdit.itemId && i.productType === SERVICE_BUNDLE_PRODUCT_TYPE,
+    );
+    const member = line?.serviceBundleItems?.find(
+      (m) => m.serviceProductId === bundleMemberEdit.serviceProductId,
+    );
+    return line && member ? { line, member } : null;
+  })();
   const cartItemCount = items.reduce((n, i) => n + i.qty, 0);
   const hasCheckoutMeta =
     (isAuthed && deliveryNeedsPsn && hasPsnCreationInCart) ||
@@ -811,6 +883,11 @@ export default function CartView({
                 item.productType === "PLATFORM" &&
                 (item.streaming?.gmail || item.streaming?.accounts?.length)
                   ? () => openPlatformCartEdit(item)
+                  : undefined
+              }
+              onEditBundleMember={
+                item.productType === SERVICE_BUNDLE_PRODUCT_TYPE
+                  ? (serviceProductId) => openBundleMemberEdit(item.id, serviceProductId)
                   : undefined
               }
               onSetGiftMessage={
@@ -1205,6 +1282,16 @@ export default function CartView({
         />
       ) : null}
 
+      {bundleMemberEditTarget ? (
+        <ServiceBundleMemberEditModal
+          key={bundleMemberEdit!.key}
+          bundleId={bundleMemberEditTarget.line.id}
+          bundleTitle={bundleMemberEditTarget.line.title}
+          member={bundleMemberEditTarget.member}
+          onClose={() => setBundleMemberEdit(null)}
+        />
+      ) : null}
+
       {widget ? (
         <EpointWidgetModal
           widgetUrl={widget.url}
@@ -1422,6 +1509,7 @@ function CartLine({
   onRemove,
   onEditAccountCreation,
   onEditPlatform,
+  onEditBundleMember,
   onSetGiftMessage,
 }: {
   item: CartItem;
@@ -1430,14 +1518,16 @@ function CartLine({
   onRemove: () => void;
   onEditAccountCreation?: () => void;
   onEditPlatform?: () => void;
+  onEditBundleMember?: (serviceProductId: string) => void;
   onSetGiftMessage?: (message: string) => void;
 }) {
   // Hədiyyə həmişə tək nüsxə (qty 1) — say düymələri gizlədilir.
   const isSingleLicense =
     Boolean(item.gift) ||
     item.productType === "GAME" ||
-    // Oyun paketi atomikdir: bir sətir = bir dəst lisenziya.
+    // Oyun paketi / xidmət dəsti atomikdir: bir sətir = bir dəst.
     item.productType === "BUNDLE" ||
+    item.productType === SERVICE_BUNDLE_PRODUCT_TYPE ||
     item.productType === "PS_PLUS" ||
     item.productType === "EA_PLAY" ||
     item.productType === "ACCOUNT_CREATION" ||
@@ -1503,6 +1593,49 @@ function CartLine({
                     </span>
                   </li>
                 ))}
+              </ul>
+            ) : null}
+            {item.serviceBundleItems?.length ? (
+              // Dəst atomikdir — üzvün yanında ayrıca silmə düyməsi YOXDUR.
+              // Məlumat tələb edən üzvdə "Redaktə et", doldurulmayıbsa qırmızı nişan.
+              <ul className="mt-2 space-y-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] p-2">
+                {item.serviceBundleItems.map((m) => {
+                  const problem = validateServiceBundleMemberDetails(m.requirement, m.details);
+                  return (
+                    <li key={m.serviceProductId} className="text-[11px] text-zinc-300">
+                      <div className="flex items-center gap-2">
+                        <span className="h-1 w-1 shrink-0 rounded-full bg-emerald-400" />
+                        <span className="min-w-0 flex-1 truncate">{m.title}</span>
+                        <span className="shrink-0 tabular-nums text-zinc-500">
+                          {(m.bundleAznCents / 100).toFixed(2)}₼
+                        </span>
+                      </div>
+                      {m.requirement.kind !== "NONE" && onEditBundleMember ? (
+                        <div className="mt-1 flex flex-wrap items-center gap-2 pl-3">
+                          {problem ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-red-500/35 bg-red-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-red-300">
+                              Məlumat tələb olunur
+                            </span>
+                          ) : (
+                            <span className="truncate text-[10px] text-zinc-500">
+                              {m.requirement.kind === "ACCOUNTS"
+                                ? `${m.details?.accounts?.length ?? 0} hesab daxil edilib`
+                                : m.details?.gmail}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => onEditBundleMember(m.serviceProductId)}
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-300 transition hover:text-emerald-200"
+                          >
+                            <Pencil className="h-3 w-3" />
+                            Redaktə
+                          </button>
+                        </div>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             ) : null}
             {item.gift?.discountEndAt ? (
@@ -1700,6 +1833,8 @@ function labelForType(t: string) {
       return "Platform abunəliyi";
     case "BUNDLE":
       return "Oyun paketi";
+    case SERVICE_BUNDLE_PRODUCT_TYPE:
+      return "Xidmət dəsti";
     default:
       return "Digər";
   }

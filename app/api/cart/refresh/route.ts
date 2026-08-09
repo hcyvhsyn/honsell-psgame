@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { applyFlashDeal, getFlashDealOverrides } from "@/lib/flashDeals";
 import { resolveBundlesForCart } from "@/lib/gameBundles";
+import { resolveServiceBundlesForCart } from "@/lib/serviceBundles";
 
 export const runtime = "nodejs";
 
@@ -78,8 +79,29 @@ export async function POST(req: Request) {
     prices.push({ id: b.id, finalAzn: b.pricing.totalAznCents / 100 });
   }
 
+  // Xidmət dəstləri. Qiymətdən ƏLAVƏ olaraq tam tərkib də qaytarılır: dəst sətri
+  // müştəri məlumatlarını (gmail/şifrə/hesablar) üzv-üzv daşıyır və admin dəsti
+  // dəyişəndə (üzv əlavə/silmə, tələb olunan məlumatın dəyişməsi) səbətdəki
+  // snapshot özünü yeniləməlidir. Client doldurulmuş `details`-i saxlayır.
+  const serviceBundles = await resolveServiceBundlesForCart(ids);
+  const serviceBundlePayload = Array.from(serviceBundles.values()).map((b) => {
+    prices.push({ id: b.id, finalAzn: b.pricing.totalAznCents / 100 });
+    return {
+      id: b.id,
+      items: b.pricing.items.map((i) => ({
+        serviceProductId: i.serviceProductId,
+        title: i.title,
+        imageUrl: i.imageUrl,
+        serviceType: i.serviceType,
+        listAznCents: i.listAznCents,
+        bundleAznCents: i.bundleAznCents,
+        requirement: i.requirement,
+      })),
+    };
+  });
+
   const available = new Set(prices.map((p) => p.id));
   const missing = ids.filter((id) => !available.has(id));
 
-  return NextResponse.json({ prices, missing });
+  return NextResponse.json({ prices, missing, serviceBundles: serviceBundlePayload });
 }

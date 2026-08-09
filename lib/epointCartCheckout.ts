@@ -23,7 +23,20 @@ import { stampOrderCode } from "@/lib/attribution";
 
 export const EPOINT_CART_PAYMENT_TYPE = "CHECKOUT_PAYMENT";
 
-export type EpointCartLineSnapshot =
+/**
+ * Sətir xidmət DƏSTİNDƏN açılıbsa dəstin damğası.
+ *
+ * Dəst açılışı checkout route-unda baş verir, snapshot artıq açılmış xidmət
+ * sətirlərindən qurulur — burada damğa yalnız `Transaction.metadata`-ya ötürülür
+ * (admin sifarişləri dəst üzrə görsün). Bütün variantlara birdən şamil olunur,
+ * çünki dəstə istənilən xidmət tipi girə bilər.
+ */
+type EpointServiceBundleStamp = {
+  serviceBundleId?: string;
+  serviceBundleTitle?: string;
+};
+
+type EpointCartLineSnapshotBase =
   | {
       kind: "GAME";
       title: string;
@@ -161,6 +174,8 @@ export type EpointCartLineSnapshot =
       imageUrl: string | null;
       giftMessage: string | null;
     };
+
+export type EpointCartLineSnapshot = EpointCartLineSnapshotBase & EpointServiceBundleStamp;
 
 export type EpointCartPaymentMetadata = {
   gateway: "epoint";
@@ -329,6 +344,15 @@ export async function finalizeEpointCartCheckout(
     let tryBalancePendingCount = 0;
 
     for (const line of meta.checkout.lines) {
+      // Xidmət dəstindən açılmış sətrin damğası — cüzdan yolundakı (`app/api/cart/
+      // checkout/route.ts`) `bundleMeta` ilə eyni sahələr. İki yolun metadata-sı
+      // fərqli olsa admin panelində Epoint sifarişləri dəst üzrə qruplaşmır.
+      const bundleMeta = line.serviceBundleId
+        ? {
+            serviceBundleId: line.serviceBundleId,
+            serviceBundleTitle: line.serviceBundleTitle,
+          }
+        : {};
       for (let n = 0; n < line.qty; n++) {
         if (line.kind === "GAME") {
           const isEpicGame = line.store === "EPIC";
@@ -351,6 +375,7 @@ export async function finalizeEpointCartCheckout(
                 store: isEpicGame ? "EPIC" : "PS",
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
+                ...bundleMeta,
                 ...(line.bundleId
                   ? { bundleId: line.bundleId, bundleTitle: line.bundleTitle }
                   : {}),
@@ -389,6 +414,7 @@ export async function finalizeEpointCartCheckout(
                   paymentSource: "EPOINT",
                   orderCode: meta.orderCode,
                   epointPaymentId: payment.id,
+                  ...bundleMeta,
                 }),
               },
             });
@@ -417,6 +443,7 @@ export async function finalizeEpointCartCheckout(
                 paymentSource: "EPOINT",
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
+                ...bundleMeta,
               }),
             },
           });
@@ -469,6 +496,7 @@ export async function finalizeEpointCartCheckout(
                   paymentSource: "EPOINT",
                   orderCode: meta.orderCode,
                   epointPaymentId: payment.id,
+                  ...bundleMeta,
                 }),
               },
             });
@@ -497,6 +525,7 @@ export async function finalizeEpointCartCheckout(
                 paymentSource: "EPOINT",
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
+                ...bundleMeta,
               }),
             },
           });
@@ -540,6 +569,7 @@ export async function finalizeEpointCartCheckout(
                 paymentSource: "EPOINT",
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
+                ...bundleMeta,
               }),
             },
           });
@@ -562,6 +592,7 @@ export async function finalizeEpointCartCheckout(
                 paymentSource: "EPOINT",
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
+                ...bundleMeta,
               }),
             },
           });
@@ -584,6 +615,7 @@ export async function finalizeEpointCartCheckout(
                 paymentSource: "EPOINT",
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
+                ...bundleMeta,
                 firstName: line.detail.firstName,
                 lastName: line.detail.lastName,
                 birthDate: line.detail.birthDate,
@@ -611,6 +643,7 @@ export async function finalizeEpointCartCheckout(
                 paymentSource: "EPOINT",
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
+                ...bundleMeta,
                 firstName: line.detail.firstName,
                 lastName: line.detail.lastName,
                 birthDate: line.detail.birthDate,
@@ -639,6 +672,7 @@ export async function finalizeEpointCartCheckout(
                 paymentSource: "EPOINT",
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
+                ...bundleMeta,
                 ...(line.deliveryMode === "GMAIL" && line.gmail ? { gmail: line.gmail } : {}),
               }),
             },
@@ -667,6 +701,7 @@ export async function finalizeEpointCartCheckout(
                 paymentSource: "EPOINT",
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
+                ...bundleMeta,
                 honsellGiftCardAmountAznCents: line.unitListCents,
                 honsellGiftCardExpiresAt: expiresAt.toISOString(),
               }),
@@ -708,6 +743,7 @@ export async function finalizeEpointCartCheckout(
                 paymentSource: "EPOINT",
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
+                ...bundleMeta,
                 giftCode: code,
                 store: line.store,
               }),
@@ -750,6 +786,7 @@ export async function finalizeEpointCartCheckout(
               paymentSource: "EPOINT",
               orderCode: meta.orderCode,
               epointPaymentId: payment.id,
+              ...bundleMeta,
               ...(line.musicBrand ? { musicBrand: line.musicBrand } : {}),
               ...(line.planType ? { planType: line.planType } : {}),
               ...(line.gmail ? { gmail: line.gmail } : {}),

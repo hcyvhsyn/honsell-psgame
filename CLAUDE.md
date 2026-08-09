@@ -128,8 +128,118 @@ metadata-ya ötürülür.
   paket sətrini buraxır, detal səhifəsində hədiyyə düyməsi yoxdur.
 - `revalidateGames()` **`"bundles"` tag-ını da sıfırlayır** — PERCENT paketin qiyməti
   oyun qiymətindən asılıdır, yoxsa scrape sonrası vitrin köhnə qalır.
-- Ana səhifə keşi `tags: ["home", "bundles"]` ilə bağlıdır; detal səhifəsi isə
-  `["bundles", "games"]`.
+- Ana səhifə keşi `tags: ["home", "bundles", "service-bundles"]` ilə bağlıdır; detal
+  səhifəsi isə `["bundles", "games"]`.
+
+---
+
+# Xidmət dəstləri (ServiceBundle — abunəlik dəstləri)
+
+Bir neçə **xidməti** sərfəli qiymətə bir dəst kimi satır: "Netflix + HBO Max",
+"Prime Video + Spotify", "Disney+ reklamlı + VPN". Müştəri dəsti **tək toxunuşla**
+səbətə atır, səbətdə **atomik tək sətir** görür.
+
+`GameBundle`-dan fərqi: oyun yox, `ServiceProduct` bağlayır və **yeni problem** var —
+bəzi xidmətlər müştəri məlumatı tələb edir (Spotify Family → 5 email+şifrə, YouTube →
+gmail+şifrə, Netflix VVIP → e-poçt). Oyun paketində bu problem yox idi.
+
+## Fayl xəritəsi
+
+| Qat | Fayl |
+| --- | --- |
+| Client-safe tip + tələb məntiqi | [lib/serviceBundleShared.ts](lib/serviceBundleShared.ts) |
+| Server (DB + qiymət) | [lib/serviceBundles.ts](lib/serviceBundles.ts) |
+| Ana səhifə rail | [components/HomeServiceBundles.tsx](components/HomeServiceBundles.tsx) |
+| Səbətdə üzv redaktəsi | [components/ServiceBundleMemberEditModal.tsx](components/ServiceBundleMemberEditModal.tsx) |
+| Admin UI | [app/admin/service-bundles/ServiceBundlesAdminClient.tsx](app/admin/service-bundles/ServiceBundlesAdminClient.tsx) |
+| Admin API | [app/api/admin/service-bundles/route.ts](app/api/admin/service-bundles/route.ts) |
+
+## Data modeli ([prisma/schema.prisma](prisma/schema.prisma) ~765)
+
+- **`ServiceBundle`** — `slug`, `title/subtitle/description`, `imageUrl` (boşdursa üzv
+  şəkillərindən kollaj), `badgeText`, `isActive/isFeatured/sortOrder`, `startsAt/endsAt`.
+- **`ServiceBundleItem`** — `@@id([bundleId, serviceProductId])`, `position`,
+  `priceAznCents Int?` (`null` → xidmətin adi qiyməti).
+- **Qiymət rejimi YALNIZ CUSTOM-dur** — `pricingMode`/`discountPct` sütunları YOXDUR.
+  Üzvlərin sayı azdır və qiymətlər əl ilə tənzimlənir; faiz lazım olsa
+  `allocateBundlePrices` ([lib/gameBundleShared.ts](lib/gameBundleShared.ts)) hazırdır.
+
+## Qiymət
+
+`computeServiceBundlePricing` — list qiymət birbaşa `ServiceProduct.priceAznCents`-dir.
+Xidmətlərdə `computeDisplayPrice`/flash deal **yoxdur** (oyunlardan fərq budur).
+Override **yalnız aşağı sala bilər** (`Math.min(item.priceAznCents, list)`).
+
+## "Dəst açılışı" — ƏN VACİB QAYDA
+
+Checkout-da `SERVICE_BUNDLE` adlı **fulfillment budağı YOXDUR**. Səbətdəki dəst sətri
+serverdə **sintetik payload-lara** açılır və mövcud per-type budaqlardan keçir:
+
+```
+Səbətdə:   [SERVICE_BUNDLE — 22.00₼]                    ← müştəri 1 sətir görür
+Checkout:  [STREAMING netflix 12₼ bundleId=abc] [PLATFORM spotify 10₼ …]
+```
+
+Açılış `expandedPayloads` massivində baş verir ([checkout/route.ts](app/api/cart/checkout/route.ts)
+~324) və **`services` sorğusundan ƏVVƏL** olmalıdır — üzv id-ləri həmin sorğuya düşməlidir.
+Sonra `services.find(...)` sətrindən dərhal sonra hesablanan `unitListCents` bütün
+budaqlarda `service.priceAznCents`-i əvəz edir.
+
+Beləcə Spotify-ın `accountSlots` validasiyası, Netflix-in `deliveryMode` məntiqi,
+`Subscription` yaradılması, komissiya və admin təsdiqi **dəyişmir**.
+
+⚠️ **`games.length + services.length !== payloads.length` yoxlaması SİLİNİB.** O, say
+müqayisəsi idi və paket/dəst id-si heç bir kataloq cədvəlində olmadığı üçün **səbətdə
+paket olan hər checkout-u 409-a salırdı** (yəni oyun paketləri də satıla bilmirdi).
+İndi `resolvedIds` çoxluğu üzərində yoxlama var — eyni məhsulun həm adi, həm hədiyyə
+sətri olan səbəti də sındırmır (Prisma `id: { in: ids }` nəticəsini dedupe edir).
+
+## Müştəri məlumatları (kredensiallar)
+
+**`serviceInputRequirement(product)`** ([lib/serviceBundleShared.ts](lib/serviceBundleShared.ts))
+— SAF funksiya, `NONE | EMAIL | EMAIL_PASSWORD | ACCOUNTS` qaytarır.
+⚠️ Məntiqi checkout-dakı STREAMING/PLATFORM budaqları ilə **eyni** olmalıdır (yoxlama
+sırası da: əvvəl `accountSlots`, sonra kredensial tələbi).
+
+Toplama **səbətdə** olur (detal səhifəsi yoxdur): dəst sətrinin içində hər üzvün yanında
+"Redaktə" düyməsi. Doldurulmayıbsa qırmızı nişan + checkout bloklanır.
+`validateServiceBundleMemberDetails` **hər iki tərəfdə** (modal + səbət bloklaması)
+işlədilir.
+
+Məlumat `CartItem.serviceBundleItems[].details`-də saxlanılır və checkout-a
+`serviceBundle: { [serviceProductId]: details }` kimi göndərilir.
+
+## Tələlər / bilinməli məqamlar
+
+- **Detal səhifəsi YOXDUR** — rail kartı birbaşa səbətə atır. `slug` sütunu var, gələcəkdə
+  `/xidmet-paket/<slug>` əlavə edilə bilər.
+- **Deaktiv xidmət → dəst tamamilə gizlənir** (`isServiceBundleSellable`), oyun paketindəki
+  qayda ilə eyni.
+- **`ACCOUNT_CREATION` / `EPIC_ACCOUNT_CREATION` / `HONSELL_GIFT_CARD` dəstə salına
+  bilməz** (`SERVICE_BUNDLE_EXCLUDED_TYPES`) — hesab açılışı onsuz da başqa məhsulun ön
+  şərtidir, endirimli hədiyyə kartı isə pul çap etməkdir. **Qalan bütün tiplər icazəlidir**,
+  yəni yeni tip (məs. VPN) əlavə olunanda dəst sistemi onu avtomatik qəbul edir.
+- **Kupon dəstə düşmür** — `checkout/route.ts`-dəki `scopeItems` (`serviceBundleId` olan
+  sətirlər atılır) və `/api/cart/coupon` preview-i (`SERVICE_BUNDLE_PRODUCT_TYPE`).
+  Biri unudulsa müştəri preview-də bir rəqəm görür, kassada `COUPON_INVALID` alır.
+- **Dəst hədiyyə olunmur** — checkout `isGift` gələn dəst sətrini buraxır.
+- **`/api/cart/refresh` tərkibi də qaytarır** (`serviceBundles` sahəsi) — admin dəsti
+  dəyişəndə səbətdəki snapshot özünü yeniləyir, amma müştərinin doldurduğu `details`
+  `serviceProductId` üzrə **köçürülür** (yoxsa hər refresh formu sıfırlayardı).
+- **Səbətdə `add()` replace budağındadır** (`STREAMING`/`PLATFORM` kimi) — sətir müştəri
+  məlumatı daşıyır, təkrar əlavə onu təzələməlidir. Qty həmişə 1.
+- **PSN tələbi** — dəstdə `PS_PLUS`/`EA_PLAY`/`TRY_BALANCE` üzvü varsa `deliveryNeedsPsn`
+  UI-də də tetiklənir ([CartView.tsx](components/CartView.tsx)). ⚠️ Oyun paketində bu
+  hələ də boşluqdur (`BUNDLE` sətri tetikləmir, server `NO_PSN_ACCOUNT` verir).
+- **İkiqat fulfillment yolu** — cüzdan ([checkout/route.ts](app/api/cart/checkout/route.ts))
+  və kart ([lib/epointCartCheckout.ts](lib/epointCartCheckout.ts)) ayrıdır; damğa
+  (`serviceBundleId`/`serviceBundleTitle`) **hər ikisinə** yazılır.
+- **Komissiya endirimli məbləğdən** yazılır — açılmış sətrin `amountAznCents`-i dəst
+  qiymətidir, admin təsdiqi vaxtı `awardStreamingReferralCommission` onu götürür.
+- **Yeni tab lazım deyil** — açılmış sətirlər adi `SERVICE_PURCHASE` sətirləridir və
+  `/admin/orders`-un mövcud səbətlərinə düşür; başlıqda `📦 <dəst adı> → <xidmət>` görünür.
+- `revalidateServices()` və `revalidateStreaming()` **`"service-bundles"` tag-ını da**
+  sıfırlayır — dəstin üstündən xətlənmiş list qiyməti xidmətin öz qiymətindən gəlir.
 
 ---
 
@@ -730,6 +840,123 @@ Kataloq sorğusu onsuz da `similarity()` səbəbindən seq scan idi, ona görə
 - "Kataloqda filtrlərlə axtar" keçidi `/oyunlar?q=`-ə aparır. `GameBrowser`
   `initialQuery` alır və **sessionStorage restore-u atlanır** — köhnə filtrlər
   yeni sorğunu boşaltmasın.
+
+# Film/serial kataloqu — çoxdilli adlar və IMDb reytinqi
+
+Streaming kataloqundakı (`StreamingTitle`) başlıqlar **türkcə, rusca, ingiliscə və
+orijinal dildə** adlarını daşıyır və **həqiqi IMDb xalı** ilə göstərilir. Mənbə
+IMDb-nin rəsmi datasetləridir (`datasets.imdbws.com`) — pulsuz, açar tələb etmir,
+sorğu limiti yoxdur.
+
+## Fayl xəritəsi
+
+| Qat | Fayl |
+| --- | --- |
+| TSV parse + ad seçimi (saf) | [lib/imdbDatasets.ts](lib/imdbDatasets.ts) + [scripts/imdbDatasets.test.ts](scripts/imdbDatasets.test.ts) |
+| İdxal runner-i | [scripts/importImdbData.ts](scripts/importImdbData.ts) — `npm run import:imdb` |
+| Kataloq loader-i | [app/streaming/(scraped)/loadScrapedTitles.ts](app/streaming/(scraped)/loadScrapedTitles.ts) |
+| Kart + reytinq seçimi | [components/ScrapedTitleCard.tsx](components/ScrapedTitleCard.tsx) |
+| Kataloq filtri/sıralaması | [app/streaming/(scraped)/ScrapedCatalogClient.tsx](app/streaming/(scraped)/ScrapedCatalogClient.tsx) |
+
+## Data modeli
+
+- **`StreamingTitleName`** — `@@id([titleId, lang, name])`, `isOriginal`, `source`
+  (`IMDB_AKAS` | `TMDB` | `MANUAL`). Ayrıca cədvəldir, `titleTr/titleRu` sütunları
+  DEYİL: yeni dil əlavə etmək miqrasiya tələb etməsin və bir dildə birdən çox
+  variant saxlana bilsin.
+- **`StreamingTitle.imdbRating` / `imdbVotes`** — `title.ratings.tsv.gz`-dən.
+
+⚠️ **`imdbRating` ilə `tmdbRating` eyni şey DEYİL.** İkincisi TMDB istifadəçilərinin
+səsidir; rəqəmlər yaxın olsa da fərqli metrikdir. Vitrin IMDb-ni üstün tutur,
+yoxdursa TMDB-yə düşür (`displayRating()`) — **cəmlənmir/ortalanmır**, çünki
+qarışdırılmış rəqəm heç bir mənbəni təmsil etmir və istifadəçi IMDb-də yoxlayanda
+başqa rəqəm görər.
+
+## Ad seçimi (`pickNames`) — ən səhvə meyilli hissə
+
+Bir başlığın `title.akas.tsv.gz`-də **40-a qədər** sətri olur. Hər hədəf dil üçün
+`scoreAka()` ən yaxşısını seçir:
+
+| Siqnal | Bal |
+| --- | --- |
+| `types` = `imdbDisplay` | **+100** |
+| `language` xanası dolu | +30 |
+| `types` ∈ {working, alternative, festival, video, dvd, tv} | −200 |
+| `attributes` dolu ("short title" və s.) | −60 |
+
+⚠️ **`imdbDisplay` açıq `language` xanasından AĞIR olmalıdır.** Əvvəlcə tərsi idi və
+LOTR-də ingiliscə ad kimi *"The Fellowship of the Ring"* (region=XWW, "short title")
+seçilirdi — tam ad isə region=US sətrində, `language` boş halda dururdu. Yəni dil
+xanasının doldurulması keyfiyyət göstəricisi deyil.
+
+⚠️ **Hədəf olmayan dil region-a görə XİLAS EDİLMİR.** `language=de` + `region=US`
+sətri "en" sayılmır — almanca ad ingiliscə kimi göstərilərdi. Region→dil map-i
+(`REGION_TO_LANG`) qəsdən dardır: `CA` (Kanada) iki dilli olduğu üçün YOXDUR.
+
+⚠️ Bərabər balda IMDb-nin öz `ordering` sırası həll edir — **determinizm** üçün,
+yoxsa hər idxalda DB-dəki ad dəyişər.
+
+⚠️ Orijinal sətrin dili çox vaxt boşdur. Sıra: sətrin öz `language` → region map →
+`StreamingTitle.originalLanguage` (TMDB) → ISO 639-2 **`"und"`**. Uydurma kod yazma.
+
+⚠️ **Orijinal dil kodunun YEGANƏ mənbəyi TMDB-dir** — IMDb datasetlərində belə sütun
+yoxdur. `tmdbEnrich.ts` onu `/find` cavabından götürüb `ScrapedTitle.originalLanguage`
+ilə daşıyır, `persist.ts` isə boş olan sətirlərə backfill edir. Bu zəncir qırılsa ad
+DB-yə düzgün yazılır, amma **hamısı `und` etiketi ilə** — ilk dry-run-da məhz belə
+olmuşdu (1778 başlığın 1778-i `und`), çünki scrape yolu həmin sahəni götürmürdü.
+
+⚠️ Məntiqi dəyişəndə **`npm run test:imdb`** işlət.
+
+## Real örtük (2026-08, 1826 IMDb ID-li başlıq)
+
+| Data | Örtük |
+| --- | --- |
+| IMDb reytinqi | 1755 (96%) |
+| Orijinal ad | 1778 (97%) |
+| İngiliscə ad | 1651 (90%) |
+| Rusca ad | 783 (43%) |
+| **Türkcə ad** | **474 (26%)** |
+
+⚠️ **Türkcə örtük aşağıdır və bu, kodun qüsuru deyil** — IMDb `title.akas` Prime-ın
+Avropa kataloqundakı əksər başlıq üçün türkcə ad daşımır. Artırmaq lazımdırsa yol
+TMDB `/translations`-dır (icma tərcümələri IMDb-dən zəngindir); o, başlıq başına bir
+HTTP sorğu tələb edir, ona görə yalnız `tr`/`ru` adı ÇATIŞMAYAN başlıqlar üçün
+işlədilməlidir. Bu hələ qurulmayıb.
+
+## İdxal
+
+```
+npm run import:imdb                # reytinq + adlar
+npm run import:imdb -- --dry-run   # DB-yə yazmadan statistika
+npm run import:imdb -- --skip-akas # yalnız reytinqlər (~7MB, 10 saniyə)
+```
+
+⚠️ **Fayllar TAM oxunmur.** `title.akas.tsv.gz` açılmış halda ~2GB-dır; `readFile`
+ilə oxumaq 4GB serverdə prosesi öldürər. Skript gunzip + readline ilə sətir-sətir
+axıdır və yaddaşda **yalnız bizim IMDb ID-lərimizə** aid sətirləri saxlayır.
+
+⚠️ Hər sətri parse etmə — əvvəlcə `line.indexOf("\t")` ilə ilk xananı yoxla.
+Sətirlərin %99.9-u bizə aid deyil.
+
+`IMDB_DATASET_DIR` təyin olunsa fayllar ora endirilir və təkrar işə salmada şəbəkəyə
+çıxılmır. Yarımçıq endirmə `.part` adı ilə yazılır — kəsilmiş fayl "keş" kimi qalmasın.
+
+İdxal köhnə `source="IMDB_AKAS"` sətirlərini silib yenidən yazır; **`MANUAL`/`TMDB`
+mənbəli adlara toxunmur** (admin əl düzəlişi idxalla silinməməlidir).
+
+⚠️ `/streaming/katalog` **prerender olunur** (`revalidate = 600`) və yeni sütunları
+sorğulayır — yəni miqrasiya tətbiq olunmayıbsa `next build`-in ÖZÜ sınır, sadəcə
+runtime yox. `/reels` ilə eyni tələdir; `deploy.yml` onsuz da `prisma migrate deploy`-u
+build-dən əvvəl işlədir.
+
+## Vitrin
+
+- **Axtarış** `searchText` üzərində işləyir — `buildSearchText()` bütün dil
+  variantlarını kiçik hərfli tək sətirdə birləşdirir. Massiv yox, tək string:
+  kataloq RSC payload-una ~2000 başlıq düşür və client bir `includes()` ilə yoxlayır.
+- **Sıralama** xam reytinqlə DEYİL, `ratingRankScore()` çəkili balı ilə (IMDb
+  Top-250 formulu). Xam reytinq işlətsək 8 səsli "10.0" başlıqlar siyahının başını
+  tutur — kataloqda belələri çoxdur.
 
 # Oyun-içi kredit qiymət importu (PUBG UC)
 

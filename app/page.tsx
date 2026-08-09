@@ -20,6 +20,8 @@ import HomeTrustBar from "@/components/HomeTrustBar";
 import HomeFlashDeals, { type FlashDealCard } from "@/components/HomeFlashDeals";
 import HomeBundles from "@/components/HomeBundles";
 import { loadActiveBundles } from "@/lib/gameBundles";
+import HomeServiceBundles from "@/components/HomeServiceBundles";
+import { loadActiveServiceBundles } from "@/lib/serviceBundles";
 import HomeTestimonials from "@/components/HomeTestimonials";
 import HomeGiveaways from "@/components/HomeGiveaways";
 import HomeLootBoxes from "@/components/HomeLootBoxes";
@@ -526,7 +528,7 @@ async function fetchFlashDeals(
 const getHomePageData = unstable_cache(
   async () => {
   const settings = await getSettings();
-  const [banners, landingProducts, bestSellers, totalsArr, orderCount, testimonialAgg, flashDeals, bundles] = await Promise.all([
+  const [banners, landingProducts, bestSellers, totalsArr, orderCount, testimonialAgg, flashDeals, bundles, serviceBundles] = await Promise.all([
     prisma.banner
       .findMany({
         where: { isActive: true, scope: "HOME" },
@@ -547,6 +549,9 @@ const getHomePageData = unstable_cache(
     // Oyun paketləri — qiymət tərkib oyunlarının cari qiymətindən hesablanır,
     // ona görə keş `"bundles"` tag-ına da bağlıdır (aşağıdakı `tags`).
     loadActiveBundles().catch(() => []),
+    // Xidmət dəstləri. ⚠️ `.catch` vacibdir: ana səhifə prerender olunur və
+    // miqrasiya tətbiq olunmayıbsa `next build`-in özü sınardı.
+    loadActiveServiceBundles().catch(() => []),
   ]);
 
   const totalsAll = totalsArr.reduce((sum, row) => sum + row._count._all, 0);
@@ -627,10 +632,11 @@ const getHomePageData = unstable_cache(
     bestSellers,
     flashDeals,
     bundles,
+    serviceBundles,
   };
   },
   ["home-page-data"],
-  { revalidate: 1800, tags: ["home", "bundles"] },
+  { revalidate: 1800, tags: ["home", "bundles", "service-bundles"] },
 );
 
 export default async function HomePage() {
@@ -641,6 +647,7 @@ export default async function HomePage() {
     bestSellers,
     flashDeals,
     bundles,
+    serviceBundles,
   } = await getHomePageData();
 
   const websiteJsonLd = {
@@ -746,6 +753,10 @@ export default async function HomePage() {
       {/* Oyun paketləri — HomeFlashDeals kimi öz başlıqlı paneldir, ona görə
           qabağına SectionFlowDivider qoyulmur. Paket yoxdursa özü null qaytarır. */}
       <HomeBundles bundles={bundles} />
+
+      {/* Xidmət dəstləri (Netflix + HBO Max və s.) — HomeBundles ilə eyni qayda:
+          öz başlıqlı paneldir, dəst yoxdursa özü null qaytarır. */}
+      <HomeServiceBundles bundles={serviceBundles} />
 
       <SectionFlowDivider text="Bu həftə ən çox alınanlar" tone="amber" />
       <BestSellersSection items={bestSellers} />

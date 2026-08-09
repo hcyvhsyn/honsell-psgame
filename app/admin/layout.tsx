@@ -112,9 +112,10 @@ const NAV_GROUPS: NavGroupSpec[] = [
   {
     label: "Yayım (Streaming)",
     iconName: "Tv",
-    description: "Streaming abunəlikləri, posterlər və kataloq",
+    description: "Streaming abunəlikləri, dəstlər, posterlər və kataloq",
     items: [
       { href: "/admin/streaming", label: "Streaming Abunəlikləri", iconName: "Tv" },
+      { href: "/admin/service-bundles", label: "Xidmət dəstləri", iconName: "Package" },
       { href: "/admin/streaming/titles", label: "Posterlər", iconName: "Tv" },
       { href: "/admin/streaming/featured", label: "Streaming Banner", iconName: "ImageIcon" },
       { href: "/admin/streaming/scrape", label: "Kataloq Yığımı", iconName: "RefreshCw" },

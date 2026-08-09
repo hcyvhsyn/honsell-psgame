@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { validatePromoForOrder, type PromoScopeItem } from "@/lib/promoCodes";
 import { BUNDLE_PRODUCT_TYPE } from "@/lib/gameBundleShared";
+import { SERVICE_BUNDLE_PRODUCT_TYPE } from "@/lib/serviceBundleShared";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,10 +33,15 @@ export async function POST(req: Request) {
       const lineCents = Math.round(finalAzn * 100) * qty;
       return { productId, productType, lineCents };
     })
-    // Oyun paketi onsuz da endirimlidir — kupon bazasına daxil edilmir.
-    // Checkout-dakı `scopeItems` da paket sətirlərini kənarlaşdırır; iki tərəf
-    // fərqli baza götürsə müştəri "COUPON_INVALID" xətası ilə üzləşərdi.
-    .filter((i) => i.lineCents > 0 && i.productType !== BUNDLE_PRODUCT_TYPE);
+    // Oyun paketi və xidmət dəsti onsuz da endirimlidir — kupon bazasına daxil
+    // edilmir. Checkout-dakı `scopeItems` da həmin sətirləri kənarlaşdırır; iki
+    // tərəf fərqli baza götürsə müştəri "COUPON_INVALID" xətası ilə üzləşərdi.
+    .filter(
+      (i) =>
+        i.lineCents > 0 &&
+        i.productType !== BUNDLE_PRODUCT_TYPE &&
+        i.productType !== SERVICE_BUNDLE_PRODUCT_TYPE,
+    );
 
   if (items.length === 0) {
     return NextResponse.json({ ok: false, message: "Kupon bu səbətə tətbiq olunmur", discountCents: 0 });

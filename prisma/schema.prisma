@@ -761,6 +761,65 @@ model GameBundleItem {
   @@index([gameId])
 }
 
+// ─── Xidmət dəstləri (Netflix + HBO Max, Prime Video + Spotify …) ────────────
+
+/// Bir neçə `ServiceProduct`-u sərfəli qiymətə TƏK sətir kimi satan dəst.
+/// `GameBundle` ilə eyni prinsip: müştəri səbətdə atomik bir sətir görür,
+/// checkout serverdə dəsti üzvlərinə "açır" və hər üzv ADİ xidmət sətri kimi
+/// emal olunur (bax `app/api/cart/checkout/route.ts`). Beləcə çatdırılma,
+/// admin təsdiqi, abunəlik yaradılması və komissiya axını dəyişmir.
+///
+/// Qiymət YALNIZ CUSTOM-dur: admin hər üzvə dəst-daxili qiymət yazır. Faiz
+/// rejimi yoxdur, çünki üzvlərin sayı azdır və qiymətlər əl ilə tənzimlənir.
+/// (Sonradan lazım olsa `lib/gameBundleShared.ts`-dəki `allocateBundlePrices`
+/// olduğu kimi işlədilə bilər.)
+///
+/// Dəst vitrində YALNIZ bütün üzvləri aktiv olduqda görünür.
+model ServiceBundle {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  title       String
+  /// Kartda başlığın altındakı qısa sətir, məs. "2 xidmət bir dəstdə".
+  subtitle    String?
+  description String?
+  /// Boşdursa vitrin üzv xidmətlərin şəkillərindən kollaj qurur.
+  imageUrl    String?
+  /// Kartın üstündəki rəngli etiket, məs. "SƏRFƏLİ DƏST".
+  badgeText   String?
+
+  isActive   Boolean   @default(true)
+  isFeatured Boolean   @default(false)
+  sortOrder  Int       @default(0)
+  startsAt   DateTime?
+  endsAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items ServiceBundleItem[]
+
+  @@index([isActive, sortOrder])
+  @@index([isFeatured])
+}
+
+model ServiceBundleItem {
+  bundleId         String
+  serviceProductId String
+  position         Int    @default(0)
+  /// Bu xidmətin dəst daxilindəki qiyməti (AZN qəpik). NULL → xidmətin adi
+  /// qiyməti. Server onsuz da list qiymətə clamp edir — override YALNIZ
+  /// aşağı sala bilər.
+  priceAznCents Int?
+  createdAt     DateTime @default(now())
+
+  bundle         ServiceBundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  serviceProduct ServiceProduct @relation(fields: [serviceProductId], references: [id], onDelete: Cascade)
+
+  @@id([bundleId, serviceProductId])
+  @@index([bundleId, position])
+  @@index([serviceProductId])
+}
+
 // ─── Service Products (TRY Balans, PS Plus, Account Creation) ────────────────
 
 model ServiceProduct {
@@ -789,6 +848,7 @@ model ServiceProduct {
   transactions  Transaction[]
   subscriptions Subscription[]
   banners       Banner[]
+  bundleItems   ServiceBundleItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1193,8 +1253,15 @@ model StreamingTitle {
   tmdbVoteCount  Int? // vote_count — reytinq tie-breaker / az-səsli başlıqları filtr
   tmdbPopularity Float? // popularity — trend/"ən çox baxılan" skoru
 
+  // IMDb-nin RƏSMİ datasetindən (title.ratings.tsv.gz) gələn həqiqi reytinq.
+  // `tmdbRating` ilə QARIŞDIRILMAMALIDIR — o, TMDB istifadəçilərinin səsidir;
+  // yaxın olsa da eyni deyil. Vitrin bunu üstün tutur, yoxdursa TMDB-yə düşür.
+  imdbRating Float? // averageRating, 0-10
+  imdbVotes  Int? // numVotes — tie-breaker (az səsli "9.8"-lər aşağı düşsün)
+
   featured       StreamingFeatured[]
   availabilities ContentAvailability[]
+  names          StreamingTitleName[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1204,6 +1271,39 @@ model StreamingTitle {
   @@index([externalId])
   @@index([service, tmdbPopularity])
   @@index([service, tmdbRating])
+  @@index([service, imdbRating])
+}
+
+/// Bir başlığın dil variantı — "The Lord of the Rings" / "Yüzüklerin Efendisi" /
+/// "Властелин колец". Mənbə IMDb `title.akas.tsv.gz` datasetidir.
+///
+/// Niyə ayrıca cədvəl (titleTr/titleRu sütunları yox)? — dil əlavə etmək
+/// miqrasiya tələb etməsin və bir dildə birdən çox variant saxlana bilsin
+/// (IMDb-də eyni dildə həm "imdbDisplay", həm "alternative" adlar olur).
+///
+/// `lang` ISO 639-1-dir; IMDb bəzi sətirlərdə dili boş verib yalnız region
+/// yazır, ona görə import region → dil map-i ilə doldurur (TR→tr, RU→ru,
+/// US/GB→en). Orijinal ad `isOriginal=true` ilə işarələnir və onun dili
+/// başlığın öz dilidir, hansısa sabit siyahıdan deyil.
+model StreamingTitleName {
+  titleId String
+  title   StreamingTitle @relation(fields: [titleId], references: [id], onDelete: Cascade)
+
+  /// "tr" | "ru" | "en" | orijinal dil kodu (məs. "ko", "ja").
+  lang String
+  name String
+
+  /// IMDb `isOriginalTitle=1` sətri. Hər başlıqda ən çoxu bir dənə olur.
+  isOriginal Boolean @default(false)
+
+  /// "IMDB_AKAS" | "TMDB" | "MANUAL" — sonrakı idxal mənbələrini ayırmaq üçün.
+  source String @default("IMDB_AKAS")
+
+  createdAt DateTime @default(now())
+
+  @@id([titleId, lang, name])
+  @@index([titleId])
+  @@index([lang, name])
 }
 
 /// Streaming overview və ya konkret service səhifəsində göstərilən banner
@@ -1385,6 +1485,9 @@ model WhatsappReviewInvite {
   usedAt        DateTime?
   createdUserId String?
   testimonialId String?
+  // Xarici sistemin öz açarı, məs. CRM bank ödənişi: "crm:cardTransaction:<id>".
+  // İdempotentlik açarıdır — eyni ref ilə ikinci sorğu yeni satış qeydi yaratmır.
+  externalRef   String?   @unique
   expiresAt     DateTime
   createdAt     DateTime  @default(now())
 

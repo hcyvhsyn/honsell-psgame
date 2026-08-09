@@ -26,13 +26,66 @@ export type ScrapedCardData = {
   /** "tr"|"ru"|"en" — bütün platformlardan birləşik. */
   audioLanguages: string[];
   subtitleLanguages: string[];
-  /** TMDB reytinqi (0-10). Sıralama + kartda ulduz rozetkası. */
+  /** TMDB reytinqi (0-10) — IMDb xalı yoxdursa fallback. */
   rating: number | null;
   /** TMDB səs sayı — reytinq tie-breaker (kartda göstərilmir). */
   voteCount: number | null;
   /** TMDB populyarlıq skoru — "ən çox baxılan" sıralaması (kartda göstərilmir). */
   popularity: number | null;
+  /** IMDb-nin rəsmi datasetindən gələn həqiqi reytinq (0-10). Rozetkada və
+   *  sıralamada TMDB-dən ÜSTÜNDÜR. */
+  imdbRating: number | null;
+  /** IMDb səs sayı — tie-breaker (kartda göstərilmir). */
+  imdbVotes: number | null;
+  /** Bütün dil variantlarını (tr/ru/en/orijinal) birləşdirən kiçik hərfli
+   *  axtarış sətri. Kartda göstərilmir — yalnız kataloq filtri işlədir. */
+  searchText: string;
 };
+
+/**
+ * Kartda göstəriləcək reytinq: IMDb varsa o, yoxsa TMDB.
+ *
+ * İki mənbəni cəmləmirik/ortalamırıq — fərqli auditoriyaların səsidir və
+ * qarışdırılmış rəqəm heç birini təmsil etmir. Hansının göstərildiyi rozetkanın
+ * etiketindən bilinir ki, istifadəçi IMDb-də yoxlayanda eyni rəqəmi görsün.
+ */
+export function displayRating(data: {
+  imdbRating: number | null;
+  imdbVotes: number | null;
+  rating: number | null;
+  voteCount: number | null;
+}): { value: number; votes: number | null; source: "IMDb" | "TMDB" } | null {
+  if (data.imdbRating != null) {
+    return { value: data.imdbRating, votes: data.imdbVotes, source: "IMDb" };
+  }
+  if (data.rating != null) {
+    return { value: data.rating, votes: data.voteCount, source: "TMDB" };
+  }
+  return null;
+}
+
+/** Səs sayı bu həddən aşağı olan başlıq xam reytinqi ilə sıralanmır. IMDb-də
+ *  hədd yüksəkdir, çünki onun səs bazası TMDB-dən qat-qat böyükdür. */
+const VOTE_FLOOR = { IMDb: 1000, TMDB: 300 } as const;
+/** Kataloqun təxmini orta reytinqi — az səsli başlıq bura doğru çəkilir. */
+const MEAN_RATING = 6.8;
+
+/**
+ * "Ən yüksək reytinq" sıralaması üçün çəkili bal (IMDb Top-250 formulu):
+ *   (v / (v + m)) * R + (m / (v + m)) * C
+ *
+ * Xam reytinqlə sıralamaq OLMAZ — kataloqda 8 səsli "10.0" başlıqlar var və
+ * onlar siyahının başını tutub Prime-ın tanınmış filmlərini aşağı atırdı.
+ * Formul az səsli başlığı ortaya (`MEAN_RATING`) doğru çəkir; səs sayı artdıqca
+ * xam reytinqə yaxınlaşır.
+ */
+export function ratingRankScore(data: Parameters<typeof displayRating>[0]): number {
+  const shown = displayRating(data);
+  if (!shown) return -1; // reytinqsiz başlıqlar həmişə sonda
+  const m = VOTE_FLOOR[shown.source];
+  const v = shown.votes ?? 0;
+  return (v / (v + m)) * shown.value + (m / (v + m)) * MEAN_RATING;
+}
 
 const PLATFORM_META: Record<
   ScrapedCardPlatform["platform"],
@@ -83,6 +136,7 @@ export default function ScrapedTitleCard({
   onPlay?: (data: ScrapedCardData) => void;
 }) {
   const Kind = data.kind === "SERIES" ? TvIcon : Film;
+  const shownRating = displayRating(data);
   const dubs = data.audioLanguages.slice(0, 3);
   const subs = data.subtitleLanguages.slice(0, 3);
   const platformOverflow = Math.max(data.platforms.length - 3, 0);
@@ -153,13 +207,19 @@ export default function ScrapedTitleCard({
 
         <div className="absolute inset-x-0 bottom-0 p-4">
           <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-white/[0.72]">
-            {data.rating != null ? (
+            {shownRating ? (
               <span
                 className="inline-flex items-center gap-1 rounded-full bg-amber-400/95 px-1.5 py-0.5 text-[10px] font-black text-[#211a02]"
-                title={`TMDB reytinqi${data.voteCount ? ` · ${data.voteCount.toLocaleString("az")} səs` : ""}`}
+                title={`${shownRating.source} reytinqi${
+                  shownRating.votes ? ` · ${shownRating.votes.toLocaleString("az")} səs` : ""
+                }`}
               >
-                <Star className="h-3 w-3 fill-current" />
-                {data.rating.toFixed(1)}
+                {shownRating.source === "IMDb" ? (
+                  <span className="text-[9px] font-black tracking-tight">IMDb</span>
+                ) : (
+                  <Star className="h-3 w-3 fill-current" />
+                )}
+                {shownRating.value.toFixed(1)}
               </span>
             ) : null}
             {data.year ? <span>{data.year}</span> : null}

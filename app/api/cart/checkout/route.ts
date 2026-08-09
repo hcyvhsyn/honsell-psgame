@@ -10,6 +10,7 @@ import {
 } from "@/lib/pricing";
 import { applyFlashDeal, getFlashDealOverrides } from "@/lib/flashDeals";
 import { resolveBundlesForCart } from "@/lib/gameBundles";
+import { resolveServiceBundlesForCart } from "@/lib/serviceBundles";
 import { getEffectiveTier } from "@/lib/customerTier";
 import {
   applyCashbackToBalance,
@@ -100,10 +101,25 @@ type CartLinePayload = {
   accountCreation?: unknown;
   epicAccountCreation?: unknown;
   streaming?: unknown;
+  /**
+   * Xidmət dəsti sətrində hər üzvün müştəri məlumatı, `serviceProductId` ilə
+   * açarlanır. Dəst səbətdə tək sətirdir, amma içindəki Spotify öz hesab
+   * cütlərini, Netflix isə öz e-poçtunu tələb edə bilər.
+   */
+  serviceBundle?: Record<string, unknown>;
   /** Bu sətir dostuna HƏDİYYƏ olaraq alınır — çatdırılma hesabı tələb olunmur,
    *  ödənişdən sonra hər nüsxə üçün 11 simvollu kod yaranır. */
   isGift?: boolean;
   giftMessage?: string;
+};
+
+/**
+ * Xidmət dəstindən "açılmış" sətir. Dəst üzvləri ADİ xidmət payload-ları kimi
+ * emal olunur (per-type validasiya, fulfillment, komissiya dəyişmir) — yeganə
+ * fərq `unitListCents`-in dəst qiyməti ilə əvəzlənməsi və damğadır.
+ */
+type ExpandedPayload = CartLinePayload & {
+  bundleRef?: { bundleId: string; bundleTitle: string; unitListCents: number };
 };
 
 function splitFullName(full: string): { firstName: string; lastName: string } {
@@ -263,6 +279,10 @@ export async function POST(req: Request) {
       accountCreation: i?.accountCreation,
       epicAccountCreation: i?.epicAccountCreation,
       streaming: i?.streaming,
+      serviceBundle:
+        i?.serviceBundle && typeof i.serviceBundle === "object"
+          ? (i.serviceBundle as Record<string, unknown>)
+          : undefined,
       isGift: i?.isGift === true,
       giftMessage:
         typeof i?.giftMessage === "string" ? i.giftMessage.trim().slice(0, 300) : undefined,
@@ -286,13 +306,53 @@ export async function POST(req: Request) {
   // Validasiya award vaxtı edilir; burada sadəcə dəyər saxlanır.
   const reviewAffiliateId = await readReviewAffiliateCookie();
 
+  // ─── Paketlər/dəstlər kataloq sorğusundan ƏVVƏL həll olunur ────────────────
+  // Paket və dəst id-si nə `Game`, nə `ServiceProduct` cədvəlindədir. Aşağıdakı
+  // mövcudluq yoxlaması onları tanımalıdır, xidmət dəstinin üzvləri isə `services`
+  // sorğusuna daxil olmalıdır — ona görə hər ikisi burada həll edilir.
+  //
+  // Satıla bilməyən paket/dəst (deaktiv, vaxtı bitmiş, tərkibində deaktiv məhsul)
+  // map-ə düşmür → aşağıda "artıq mövcud deyil" cavabı gedir.
+  const [cartBundles, cartServiceBundles] = await Promise.all([
+    resolveBundlesForCart(ids),
+    resolveServiceBundlesForCart(ids),
+  ]);
+
+  // Xidmət dəsti N sintetik xidmət sətrinə açılır — beləcə Spotify-ın hesab
+  // validasiyası, Netflix-in `deliveryMode` məntiqi, abunəlik yaradılması və admin
+  // təsdiqi üçün AYRICA fulfillment budağı lazım gəlmir.
+  const expandedPayloads: ExpandedPayload[] = [];
+  for (const p of payloads) {
+    const sb = cartServiceBundles.get(p.id);
+    if (!sb) {
+      expandedPayloads.push(p);
+      continue;
+    }
+    // Dəst hədiyyə kimi göndərilmir (hər xidmət ayrıca çatdırılma tələb edərdi).
+    if (p.isGift) continue;
+    const memberDetails = p.serviceBundle ?? {};
+    for (const item of sb.pricing.items) {
+      expandedPayloads.push({
+        id: item.serviceProductId,
+        qty: 1,
+        streaming: memberDetails[item.serviceProductId],
+        bundleRef: {
+          bundleId: sb.id,
+          bundleTitle: sb.title,
+          unitListCents: item.bundleAznCents,
+        },
+      });
+    }
+  }
+  const expandedIds = expandedPayloads.map((p) => p.id);
+
   const [games, services] = await Promise.all([
     prisma.game.findMany({
       where: { id: { in: ids }, isActive: true },
     }),
     prisma.serviceProduct.findMany({
       where: {
-        id: { in: ids },
+        id: { in: expandedIds },
         isActive: true,
         type: {
           in: [
@@ -314,7 +374,21 @@ export async function POST(req: Request) {
   type GameModel = (typeof games)[number];
   type ServiceModel = (typeof services)[number];
 
-  type LineUnion =
+  /**
+   * Bu sətir xidmət DƏSTİNDƏN açılıbsa dəstin id/başlığı.
+   *
+   * Oyun paketindəki `bundleId`/`bundleTitle` ilə eyni rolu oynayır, sadəcə bütün
+   * sətir növlərinə birdən şamil olunur (intersection) — çünki dəstə istənilən
+   * xidmət tipi girə bilər və hər variantı ayrıca genişləndirmək lazım deyil.
+   * Damğa `Transaction.metadata`-ya yazılır (admin sifarişləri dəst üzrə görsün)
+   * və sətri kupon bazasından kənarlaşdırır.
+   */
+  type ServiceBundleStamp = {
+    serviceBundleId?: string;
+    serviceBundleTitle?: string;
+  };
+
+  type LineBase =
     | {
         kind: "GAME";
         game: GameModel;
@@ -421,7 +495,21 @@ export async function POST(req: Request) {
         lineCents: number;
       };
 
-  if (games.length + services.length !== payloads.length) {
+  type LineUnion = LineBase & ServiceBundleStamp;
+
+  // ⚠️ Bu, ÇOXLUQ yoxlamasıdır, say müqayisəsi DEYİL.
+  //
+  // Əvvəl `games.length + services.length !== payloads.length` yazılırdı və bu,
+  // iki halda yalançı 409 verirdi: (a) səbətdə paket/dəst olanda — onların id-si
+  // heç bir kataloq cədvəlində yoxdur, (b) eyni məhsul həm adi, həm hədiyyə sətri
+  // kimi olanda — Prisma `id: { in: ids }` nəticəsini dedupe edir, ona görə say
+  // həmişə az çıxırdı.
+  const resolvedIds = new Set<string>([
+    ...games.map((g) => g.id),
+    ...services.map((s) => s.id),
+    ...cartBundles.keys(),
+  ]);
+  if (expandedPayloads.some((p) => !resolvedIds.has(p.id))) {
     return NextResponse.json(
       { error: "Some items are no longer available" },
       { status: 409 }
@@ -451,9 +539,6 @@ export async function POST(req: Request) {
   // burada da tutulmalıdır — yoxsa vitrində bir qiymət, kassada başqa qiymət olar.
   const flashDeals = await getFlashDealOverrides(games.map((g) => g.id));
 
-  // Oyun paketləri. Satıla bilməyən paket (deaktiv, vaxtı bitmiş, tərkibində
-  // deaktiv oyun) map-ə düşmür → sətir sadəcə nəzərə alınmır.
-  const cartBundles = await resolveBundlesForCart(ids);
   // Paketdən açılan oyunlar da tam `Game` sətri kimi lazımdır (PSN/Epic seçimi,
   // çatdırılma, komissiya) — kataloqdan ayrıca yüklənir.
   const bundleGameIds = Array.from(
@@ -469,7 +554,9 @@ export async function POST(req: Request) {
     [...games, ...bundleGames].map((g) => [g.id, g]),
   );
 
-  for (const p of payloads) {
+  // ⚠️ Dövr `payloads` üzərində DEYİL, `expandedPayloads` üzərindədir — xidmət
+  // dəstləri artıq üzvlərinə açılıb və hər üzv adi xidmət sətri kimi keçir.
+  for (const p of expandedPayloads) {
     // ─── Oyun PAKETİ: serverdə N adi GAME sətrinə açılır ──────────────────
     // ⚠️ Bu yoxlama aşağıdakı `services.find(...)!` sətrindən ƏVVƏL olmalıdır —
     // paket id-si nə `games`, nə `services` içində olduğu üçün orada crash verər.
@@ -572,14 +659,23 @@ export async function POST(req: Request) {
     const service = services.find((s) => s.id === p.id);
     if (!service) continue;
 
+    // Xidmət dəstindən açılan sətir üçün qiymət DƏSTİN qiymətidir; adi sətirdə
+    // xidmətin öz qiyməti qalır. Aşağıdakı bütün budaqlar bu iki dəyişəni işlədir
+    // ki, `service.priceAznCents` təkrarı dəst qiymətini "sızdırmasın".
+    const unitListCents = p.bundleRef?.unitListCents ?? service.priceAznCents;
+    const bundleStamp: ServiceBundleStamp = p.bundleRef
+      ? { serviceBundleId: p.bundleRef.bundleId, serviceBundleTitle: p.bundleRef.bundleTitle }
+      : {};
+
     if (service.type === "TRY_BALANCE") {
       lines.push({
         kind: "TRY_BALANCE",
         service,
         qty: p.qty,
-        unitListCents: service.priceAznCents,
-        unitCostCents: service.priceAznCents,
-        lineCents: service.priceAznCents * p.qty,
+        unitListCents,
+        unitCostCents: unitListCents,
+        lineCents: unitListCents * p.qty,
+        ...bundleStamp,
       });
       continue;
     }
@@ -589,9 +685,10 @@ export async function POST(req: Request) {
         kind: "POINT_BLANK",
         service,
         qty: p.qty,
-        unitListCents: service.priceAznCents,
-        unitCostCents: service.priceAznCents,
-        lineCents: service.priceAznCents * p.qty,
+        unitListCents,
+        unitCostCents: unitListCents,
+        lineCents: unitListCents * p.qty,
+        ...bundleStamp,
       });
       continue;
     }
@@ -601,9 +698,10 @@ export async function POST(req: Request) {
         kind: "PS_PLUS",
         service,
         qty: p.qty,
-        unitListCents: service.priceAznCents,
-        unitCostCents: service.priceAznCents,
-        lineCents: service.priceAznCents * p.qty,
+        unitListCents,
+        unitCostCents: unitListCents,
+        lineCents: unitListCents * p.qty,
+        ...bundleStamp,
       });
       continue;
     }
@@ -613,9 +711,10 @@ export async function POST(req: Request) {
         kind: "EA_PLAY",
         service,
         qty: p.qty,
-        unitListCents: service.priceAznCents,
-        unitCostCents: service.priceAznCents,
-        lineCents: service.priceAznCents * p.qty,
+        unitListCents,
+        unitCostCents: unitListCents,
+        lineCents: unitListCents * p.qty,
+        ...bundleStamp,
       });
       continue;
     }
@@ -629,9 +728,10 @@ export async function POST(req: Request) {
         kind: "ACCOUNT_CREATION",
         service,
         qty: p.qty,
-        unitListCents: service.priceAznCents,
-        unitCostCents: service.priceAznCents,
-        lineCents: service.priceAznCents * p.qty,
+        unitListCents,
+        unitCostCents: unitListCents,
+        lineCents: unitListCents * p.qty,
+        ...bundleStamp,
         detail: parsed.value,
       });
       continue;
@@ -646,9 +746,10 @@ export async function POST(req: Request) {
         kind: "EPIC_ACCOUNT_CREATION",
         service,
         qty: p.qty,
-        unitListCents: service.priceAznCents,
-        unitCostCents: service.priceAznCents,
-        lineCents: service.priceAznCents * p.qty,
+        unitListCents,
+        unitCostCents: unitListCents,
+        lineCents: unitListCents * p.qty,
+        ...bundleStamp,
         detail: parsed.value,
       });
       continue;
@@ -675,9 +776,10 @@ export async function POST(req: Request) {
         kind: "STREAMING",
         service,
         qty: p.qty,
-        unitListCents: service.priceAznCents,
-        unitCostCents: service.priceAznCents,
-        lineCents: service.priceAznCents * p.qty,
+        unitListCents,
+        unitCostCents: unitListCents,
+        lineCents: unitListCents * p.qty,
+        ...bundleStamp,
         deliveryMode,
         gmail,
       });
@@ -738,9 +840,10 @@ export async function POST(req: Request) {
         kind: "PLATFORM",
         service,
         qty: p.qty,
-        unitListCents: service.priceAznCents,
-        unitCostCents: service.priceAznCents,
-        lineCents: service.priceAznCents * p.qty,
+        unitListCents,
+        unitCostCents: unitListCents,
+        lineCents: unitListCents * p.qty,
+        ...bundleStamp,
         gmail,
         password,
         accounts,
@@ -754,9 +857,10 @@ export async function POST(req: Request) {
         kind: "HONSELL_GIFT_CARD",
         service,
         qty: p.qty,
-        unitListCents: service.priceAznCents,
-        unitCostCents: service.priceAznCents,
-        lineCents: service.priceAznCents * p.qty,
+        unitListCents,
+        unitCostCents: unitListCents,
+        lineCents: unitListCents * p.qty,
+        ...bundleStamp,
       });
       continue;
     }
@@ -858,11 +962,12 @@ export async function POST(req: Request) {
   let promoForOrder: PromoCode | null = null;
   if (couponCode) {
     const scopeItems: PromoScopeItem[] = [
-      // Paketdən açılan sətirlər kupon bazasına DAXİL EDİLMİR — paket onsuz da
-      // endirimlidir, ikiqat endirim mənfəəti yeyir. `/api/cart/coupon`
-      // preview-i də eyni istisnanı tətbiq edir.
+      // Paketdən/dəstdən açılan sətirlər kupon bazasına DAXİL EDİLMİR — onlar
+      // onsuz da endirimlidir, ikiqat endirim mənfəəti yeyir. `/api/cart/coupon`
+      // preview-i də eyni istisnanı tətbiq edir (fərqli olsalar müştəri preview-də
+      // bir rəqəm görür, kassada `COUPON_INVALID` alır).
       ...lines
-        .filter((l) => !(l.kind === "GAME" && l.bundleId))
+        .filter((l) => !(l.kind === "GAME" && l.bundleId) && !l.serviceBundleId)
         .map((l) => ({
           productId: l.kind === "GAME" ? l.game.id : l.service.id,
           productType:
@@ -924,146 +1029,161 @@ export async function POST(req: Request) {
 
     const orderCode = `HON-${randomBytes(3).toString("hex").toUpperCase()}`;
     const createdAt = new Date().toISOString();
-    const snapshotLines: EpointCartLineSnapshot[] = lines.map((line) => {
-      if (line.kind === "GAME") {
-        const isEpicGame = line.game.store === "EPIC";
-        return {
-          kind: "GAME",
-          title: line.game.title,
-          qty: line.qty,
-          gameId: line.game.id,
-          unitListCents: line.unitListCents,
-          unitSavingsCents: line.unitSavingsCents,
-          unitCostCents: line.unitCostCents,
-          psnAccountId: isEpicGame ? null : (psnAccount?.id ?? null),
-          epicAccountId: isEpicGame ? epicAccount?.id ?? null : null,
-          store: isEpicGame ? "EPIC" : "PS",
-          reviewAffiliateId,
-          bundleId: line.bundleId,
-          bundleTitle: line.bundleTitle,
-        };
-      }
+    const snapshotLines: EpointCartLineSnapshot[] = lines
+      .map((line): EpointCartLineSnapshot => {
+        if (line.kind === "GAME") {
+          const isEpicGame = line.game.store === "EPIC";
+          return {
+            kind: "GAME",
+            title: line.game.title,
+            qty: line.qty,
+            gameId: line.game.id,
+            unitListCents: line.unitListCents,
+            unitSavingsCents: line.unitSavingsCents,
+            unitCostCents: line.unitCostCents,
+            psnAccountId: isEpicGame ? null : (psnAccount?.id ?? null),
+            epicAccountId: isEpicGame ? epicAccount?.id ?? null : null,
+            store: isEpicGame ? "EPIC" : "PS",
+            reviewAffiliateId,
+            bundleId: line.bundleId,
+            bundleTitle: line.bundleTitle,
+          };
+        }
 
-      if (line.kind === "TRY_BALANCE") {
+        if (line.kind === "TRY_BALANCE") {
+          return {
+            kind: "TRY_BALANCE",
+            title: line.service.title,
+            qty: line.qty,
+            serviceProductId: line.service.id,
+            unitListCents: line.unitListCents,
+            psnAccountId: psnAccount?.id ?? null,
+          };
+        }
+
+        if (line.kind === "POINT_BLANK") {
+          return {
+            kind: "POINT_BLANK",
+            title: line.service.title,
+            qty: line.qty,
+            serviceProductId: line.service.id,
+            unitListCents: line.unitListCents,
+          };
+        }
+
+        if (line.kind === "PS_PLUS") {
+          return {
+            kind: "PS_PLUS",
+            title: line.service.title,
+            qty: line.qty,
+            serviceProductId: line.service.id,
+            unitListCents: line.unitListCents,
+            psnAccountId: psnAccount?.id ?? null,
+          };
+        }
+
+        if (line.kind === "EA_PLAY") {
+          return {
+            kind: "EA_PLAY",
+            title: line.service.title,
+            qty: line.qty,
+            serviceProductId: line.service.id,
+            unitListCents: line.unitListCents,
+            psnAccountId: psnAccount?.id ?? null,
+          };
+        }
+
+        if (line.kind === "ACCOUNT_CREATION") {
+          const names = splitFullName(line.detail.fullName);
+          return {
+            kind: "ACCOUNT_CREATION",
+            title: line.service.title,
+            qty: line.qty,
+            serviceProductId: line.service.id,
+            unitListCents: line.unitListCents,
+            psnAccountId: psnAccount?.id ?? null,
+            detail: {
+              firstName: names.firstName,
+              lastName: names.lastName,
+              birthDate: line.detail.birthDate,
+              email: line.detail.email,
+              password: line.detail.password,
+            },
+          };
+        }
+
+        if (line.kind === "EPIC_ACCOUNT_CREATION") {
+          return {
+            kind: "EPIC_ACCOUNT_CREATION",
+            title: line.service.title,
+            qty: line.qty,
+            serviceProductId: line.service.id,
+            unitListCents: line.unitListCents,
+            epicAccountId: epicAccount?.id ?? null,
+            detail: {
+              firstName: line.detail.firstName,
+              lastName: line.detail.lastName,
+              birthDate: line.detail.birthDate,
+              email: line.detail.email,
+              password: line.detail.password,
+              displayName: line.detail.displayName,
+            },
+          };
+        }
+
+        if (line.kind === "STREAMING") {
+          return {
+            kind: "STREAMING",
+            title: line.service.title,
+            qty: line.qty,
+            serviceProductId: line.service.id,
+            unitListCents: line.unitListCents,
+            deliveryMode: line.deliveryMode,
+            gmail: line.gmail,
+          };
+        }
+
+        if (line.kind === "HONSELL_GIFT_CARD") {
+          return {
+            kind: "HONSELL_GIFT_CARD",
+            title: line.service.title,
+            qty: line.qty,
+            serviceProductId: line.service.id,
+            unitListCents: line.unitListCents,
+          };
+        }
+
+        const platformMeta = (line.service.metadata as Record<string, unknown> | null) ?? {};
         return {
-          kind: "TRY_BALANCE",
+          kind: "PLATFORM",
           title: line.service.title,
           qty: line.qty,
           serviceProductId: line.service.id,
           unitListCents: line.unitListCents,
-          psnAccountId: psnAccount?.id ?? null,
-        };
-      }
-
-      if (line.kind === "POINT_BLANK") {
-        return {
-          kind: "POINT_BLANK",
-          title: line.service.title,
-          qty: line.qty,
-          serviceProductId: line.service.id,
-          unitListCents: line.unitListCents,
-        };
-      }
-
-      if (line.kind === "PS_PLUS") {
-        return {
-          kind: "PS_PLUS",
-          title: line.service.title,
-          qty: line.qty,
-          serviceProductId: line.service.id,
-          unitListCents: line.unitListCents,
-          psnAccountId: psnAccount?.id ?? null,
-        };
-      }
-
-      if (line.kind === "EA_PLAY") {
-        return {
-          kind: "EA_PLAY",
-          title: line.service.title,
-          qty: line.qty,
-          serviceProductId: line.service.id,
-          unitListCents: line.unitListCents,
-          psnAccountId: psnAccount?.id ?? null,
-        };
-      }
-
-      if (line.kind === "ACCOUNT_CREATION") {
-        const names = splitFullName(line.detail.fullName);
-        return {
-          kind: "ACCOUNT_CREATION",
-          title: line.service.title,
-          qty: line.qty,
-          serviceProductId: line.service.id,
-          unitListCents: line.unitListCents,
-          psnAccountId: psnAccount?.id ?? null,
-          detail: {
-            firstName: names.firstName,
-            lastName: names.lastName,
-            birthDate: line.detail.birthDate,
-            email: line.detail.email,
-            password: line.detail.password,
-          },
-        };
-      }
-
-      if (line.kind === "EPIC_ACCOUNT_CREATION") {
-        return {
-          kind: "EPIC_ACCOUNT_CREATION",
-          title: line.service.title,
-          qty: line.qty,
-          serviceProductId: line.service.id,
-          unitListCents: line.unitListCents,
-          epicAccountId: epicAccount?.id ?? null,
-          detail: {
-            firstName: line.detail.firstName,
-            lastName: line.detail.lastName,
-            birthDate: line.detail.birthDate,
-            email: line.detail.email,
-            password: line.detail.password,
-            displayName: line.detail.displayName,
-          },
-        };
-      }
-
-      if (line.kind === "STREAMING") {
-        return {
-          kind: "STREAMING",
-          title: line.service.title,
-          qty: line.qty,
-          serviceProductId: line.service.id,
-          unitListCents: line.unitListCents,
-          deliveryMode: line.deliveryMode,
+          category: String(platformMeta.category ?? ""),
+          musicBrand: typeof platformMeta.musicBrand === "string" ? platformMeta.musicBrand : null,
+          planType: typeof platformMeta.planType === "string" ? platformMeta.planType : null,
+          durationMonths: Number(platformMeta.durationMonths) || null,
           gmail: line.gmail,
+          password: line.password,
+          accounts: line.accounts,
+          hasAccount: line.hasAccount,
         };
-      }
-
-      if (line.kind === "HONSELL_GIFT_CARD") {
-        return {
-          kind: "HONSELL_GIFT_CARD",
-          title: line.service.title,
-          qty: line.qty,
-          serviceProductId: line.service.id,
-          unitListCents: line.unitListCents,
-        };
-      }
-
-      const platformMeta = (line.service.metadata as Record<string, unknown> | null) ?? {};
-      return {
-        kind: "PLATFORM",
-        title: line.service.title,
-        qty: line.qty,
-        serviceProductId: line.service.id,
-        unitListCents: line.unitListCents,
-        category: String(platformMeta.category ?? ""),
-        musicBrand: typeof platformMeta.musicBrand === "string" ? platformMeta.musicBrand : null,
-        planType: typeof platformMeta.planType === "string" ? platformMeta.planType : null,
-        durationMonths: Number(platformMeta.durationMonths) || null,
-        gmail: line.gmail,
-        password: line.password,
-        accounts: line.accounts,
-        hasAccount: line.hasAccount,
-      };
-    });
+      })
+      // Xidmət dəsti damğası snapshot-un BÜTÜN variantlarında eyni iki sahədir,
+      // ona görə hər budaqda təkrarlanmaq əvəzinə nəticəyə ayrıca addımda yazılır
+      // (`map` sıranı və uzunluğu qoruyur, ona görə indeks `lines` ilə üst-üstə düşür).
+      // ⚠️ Kart yolu cüzdan yolundan AYRIDIR — damğa burada da olmalıdır, yoxsa
+      // Epoint ilə alınan dəstin sətirləri admin panelində qruplaşmır.
+      .map((snap, i) => {
+        const line = lines[i];
+        return line.serviceBundleId
+          ? Object.assign(snap, {
+              serviceBundleId: line.serviceBundleId,
+              serviceBundleTitle: line.serviceBundleTitle,
+            })
+          : snap;
+      });
 
     // Hədiyyə sətirləri — finalize zamanı (ödəniş təsdiqindən sonra) hər nüsxə
     // üçün ProductGift yaradılacaq.
@@ -1343,6 +1463,15 @@ export async function POST(req: Request) {
       const attachEpic = epicAccount?.id ?? null;
 
       for (const line of lines) {
+        // Xidmət DƏSTİNDƏN açılmış sətrin damğası. Admin sifarişləri dəst üzrə
+        // qruplaşdıra bilsin deyə hər fulfillment budağının metadata-sına düşür
+        // (Order/OrderItem modeli yoxdur, `orderCode` + bu damğa yeganə əlaqədir).
+        const bundleMeta = line.serviceBundleId
+          ? {
+              serviceBundleId: line.serviceBundleId,
+              serviceBundleTitle: line.serviceBundleTitle,
+            }
+          : {};
         for (let n = 0; n < line.qty; n++) {
           if (line.kind === "GAME") {
             const isEpicGame = line.game.store === "EPIC";
@@ -1364,6 +1493,7 @@ export async function POST(req: Request) {
                   fulfillmentStage: "NEW",
                   store: isEpicGame ? "EPIC" : "PS",
                   orderCode,
+                  ...bundleMeta,
                   // Paketdən açılmış sətir — admin sifarişləri paket üzrə
                   // qruplaşdıra bilsin (Order/OrderItem modeli yoxdur).
                   ...(line.bundleId
@@ -1396,6 +1526,7 @@ export async function POST(req: Request) {
                     reason: "OUT_OF_STOCK",
                     paymentSource: payTag,
                     orderCode,
+                    ...bundleMeta,
                   }),
                 },
               });
@@ -1421,6 +1552,7 @@ export async function POST(req: Request) {
                     kind: "TRY_BALANCE",
                     paymentSource: payTag,
                     orderCode,
+                    ...bundleMeta,
                   }),
                 },
               });
@@ -1472,6 +1604,7 @@ export async function POST(req: Request) {
                     reason: "OUT_OF_STOCK",
                     paymentSource: payTag,
                     orderCode,
+                    ...bundleMeta,
                   }),
                 },
               });
@@ -1497,6 +1630,7 @@ export async function POST(req: Request) {
                     kind: "POINT_BLANK_TG",
                     paymentSource: payTag,
                     orderCode,
+                    ...bundleMeta,
                   }),
                 },
               });
@@ -1539,6 +1673,7 @@ export async function POST(req: Request) {
                   kind: "PS_PLUS",
                   paymentSource: payTag,
                   orderCode,
+                  ...bundleMeta,
                 }),
               },
             });
@@ -1557,6 +1692,7 @@ export async function POST(req: Request) {
                   kind: "EA_PLAY",
                   paymentSource: payTag,
                   orderCode,
+                  ...bundleMeta,
                 }),
               },
             });
@@ -1576,6 +1712,7 @@ export async function POST(req: Request) {
                   kind: "ACCOUNT_CREATION",
                   paymentSource: payTag,
                   orderCode,
+                  ...bundleMeta,
                   firstName: names.firstName,
                   lastName: names.lastName,
                   birthDate: line.detail.birthDate,
@@ -1599,6 +1736,7 @@ export async function POST(req: Request) {
                   kind: "EPIC_ACCOUNT_CREATION",
                   paymentSource: payTag,
                   orderCode,
+                  ...bundleMeta,
                   firstName: line.detail.firstName,
                   lastName: line.detail.lastName,
                   birthDate: line.detail.birthDate,
@@ -1625,6 +1763,7 @@ export async function POST(req: Request) {
                   deliveryMode: line.deliveryMode,
                   paymentSource: payTag,
                   orderCode,
+                  ...bundleMeta,
                   ...(line.deliveryMode === "GMAIL" && line.gmail ? { gmail: line.gmail } : {}),
                 }),
               },
@@ -1649,6 +1788,7 @@ export async function POST(req: Request) {
                   kind: "HONSELL_GIFT_CARD",
                   paymentSource: payTag,
                   orderCode,
+                  ...bundleMeta,
                   honsellGiftCardAmountAznCents: line.unitListCents,
                   honsellGiftCardExpiresAt: expiresAt.toISOString(),
                 }),
@@ -1690,6 +1830,7 @@ export async function POST(req: Request) {
                   durationMonths: Number(platformMeta.durationMonths) || null,
                   paymentSource: payTag,
                   orderCode,
+                  ...bundleMeta,
                   ...(line.gmail ? { gmail: line.gmail } : {}),
                   ...(line.password ? { customerPassword: line.password } : {}),
                   ...(line.accounts?.length ? { accounts: line.accounts } : {}),

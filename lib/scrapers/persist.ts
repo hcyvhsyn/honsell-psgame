@@ -79,6 +79,7 @@ type TitleMediaRow = {
   tmdbRating: number | null;
   tmdbVoteCount: number | null;
   tmdbPopularity: number | null;
+  originalLanguage: string | null;
 };
 
 /**
@@ -93,6 +94,7 @@ function computeTitleBackfill(t: TitleMediaRow, item: ScrapedTitle): Record<stri
   if (!t.posterUrl && item.posterUrl) data.posterUrl = item.posterUrl;
   if (!t.backdropUrl && item.backdropUrl) data.backdropUrl = item.backdropUrl;
   if (!t.description && item.description) data.description = item.description;
+  if (!t.originalLanguage && item.originalLanguage) data.originalLanguage = item.originalLanguage;
   if (item.rating != null && item.rating !== t.tmdbRating) data.tmdbRating = item.rating;
   if (item.voteCount != null && item.voteCount !== t.tmdbVoteCount) data.tmdbVoteCount = item.voteCount;
   if (item.popularity != null && item.popularity !== t.tmdbPopularity) data.tmdbPopularity = item.popularity;
@@ -146,6 +148,7 @@ export async function persistPlatformScrape(
           tmdbRating: true,
           tmdbVoteCount: true,
           tmdbPopularity: true,
+          originalLanguage: true,
         },
       })
     : [];
@@ -214,6 +217,7 @@ export async function persistPlatformScrape(
         tmdbRating: n.scraped.rating ?? null,
         tmdbVoteCount: n.scraped.voteCount ?? null,
         tmdbPopularity: n.scraped.popularity ?? null,
+        originalLanguage: n.scraped.originalLanguage ?? null,
         azAvailable: true,
         isActive: true,
       })),

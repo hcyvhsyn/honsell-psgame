@@ -51,10 +51,20 @@ export function revalidateBundles(): void {
   revalidatePath("/paket/[slug]", "page");
 }
 
+/** Xidmət dəstləri (Netflix + HBO Max və s.) admin əməliyyatları. */
+export function revalidateServiceBundles(): void {
+  revalidateTag("service-bundles");
+  revalidateTag("home");
+  revalidatePath("/");
+}
+
 /** Servis məhsulları (PS Plus, gift cards, hesab açma) dəyişəndə. */
 export function revalidateServices(): void {
   revalidateTag("home");
   revalidateTag("site-header");
+  // Dəstin üstündən xətlənmiş list qiyməti üzv xidmətin öz qiymətindən gəlir —
+  // xidmət qiyməti dəyişəndə dəst kartı da təzələnməlidir.
+  revalidateTag("service-bundles");
   revalidatePath("/");
   revalidatePath("/ps-plus");
   revalidatePath("/ea-play");
@@ -98,6 +108,8 @@ export function revalidateReels(): void {
 /** Streaming title və featured banner dəyişiklikləri. */
 export function revalidateStreaming(): void {
   revalidateTag("home");
+  // Streaming paketinin qiyməti dəyişəndə onu daşıyan dəstin qənaət rəqəmi də dəyişir.
+  revalidateTag("service-bundles");
   revalidatePath("/");
   revalidatePath("/streaming");
   revalidatePath("/streaming/[slug]", "page");

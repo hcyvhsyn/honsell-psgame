@@ -159,6 +159,30 @@ function parseStreamingMeta(metadata?: string | null): {
   }
 }
 
+/**
+ * Sətir xidmət DƏSTİNDƏN açılıbsa dəstin adı.
+ *
+ * Order/OrderItem modeli olmadığı üçün bir alışın sətirləri yalnız `orderCode` ilə
+ * bağlıdır — dəst adı olmadan admin "niyə bu Netflix 8₼-dir?" sualına cavab tapa bilmir.
+ */
+function parseServiceBundleTitle(metadata?: string | null): string | null {
+  if (!metadata) return null;
+  try {
+    const m = JSON.parse(metadata) as Record<string, unknown>;
+    return typeof m.serviceBundleTitle === "string" && m.serviceBundleTitle
+      ? m.serviceBundleTitle
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Sifariş sətrinin başlığı — dəstdən gəlibsə dəstin adı ilə prefikslənir. */
+function itemLabelWithBundle(title: string, metadata?: string | null): string {
+  const bundleTitle = parseServiceBundleTitle(metadata);
+  return bundleTitle ? `📦 ${bundleTitle} → ${title}` : title;
+}
+
 type AccountCreationDetails = {
   firstName?: string;
   lastName?: string;
@@ -1084,7 +1108,7 @@ export default function OrdersAdminClient() {
                   userId: o.user.id,
                   userLabel: o.user.name ?? o.user.email,
                   userSub: o.user.email,
-                  item: o.serviceProduct?.title ?? "Streaming",
+                  item: itemLabelWithBundle(o.serviceProduct?.title ?? "Streaming", o.metadata),
                   itemSub:
                     meta.deliveryMode === "GMAIL"
                       ? meta.gmail
@@ -2353,7 +2377,7 @@ function PlatformOrdersTable({
           userId: o.user.id,
           userLabel: o.user.name ?? o.user.email,
           userSub: o.user.email,
-          item: o.serviceProduct?.title ?? "Platform",
+          item: itemLabelWithBundle(o.serviceProduct?.title ?? "Platform", o.metadata),
           itemSub,
           paymentSource: getPaymentSource(o.metadata),
           amount: fmtAzn(o.amountAznCents),
