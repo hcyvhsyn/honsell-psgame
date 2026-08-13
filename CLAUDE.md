@@ -777,6 +777,202 @@ realdır). Səhv `secret_token` webhook-u tamamilə sındırar.
 
 ---
 
+# Qiymət güdmə (GamePriceWatch — admin əl ilə qeyd edir)
+
+Oyunla maraqlanan, amma **qiyməti baha görüb almayan** müştəri üçün: admin
+`/admin/price-watch`-də nömrə + oyun qeyd edir, oyun **endirimə düşən kimi**
+avtomatik WhatsApp mesajı gedir.
+
+`Favorite`-dan fərqi QƏSDƏNDİR: favorit **qeydiyyatlı istifadəçi** tələb edir
+(`userId` + e-poçt), güdülən müştərilərin isə əksəriyyəti WhatsApp/Instagram-dan
+yazır və hesabı yoxdur. Ona görə `GamePriceWatch`-də **`userId` sütunu YOXDUR** —
+telefon nömrəsi tək identifikatordur.
+
+## Fayl xəritəsi
+
+| Qat | Fayl |
+| --- | --- |
+| Client-safe tip + status məntiqi | [lib/priceWatchShared.ts](lib/priceWatchShared.ts) |
+| Server (DB + göndəriş) | [lib/priceWatch.ts](lib/priceWatch.ts) |
+| WhatsApp mətni | `sendPriceWatchWhatsApp` ([lib/orderNotifications.ts](lib/orderNotifications.ts)) |
+| Tetikləyici | [app/api/scrape-ps-store/route.ts](app/api/scrape-ps-store/route.ts) Phase 4 |
+| Admin UI | [app/admin/price-watch/PriceWatchAdminClient.tsx](app/admin/price-watch/PriceWatchAdminClient.tsx) |
+| Admin API | [app/api/admin/price-watch/route.ts](app/api/admin/price-watch/route.ts) |
+
+## Data modeli ([prisma/schema.prisma](prisma/schema.prisma) ~1850)
+
+- **`GamePriceWatch`** — `phone` (E.164), `name?`, `gameId`, `note?`,
+  `basePriceAznCents?` (qeyd anındaki qiymət möhürü), `isActive`,
+  `lastNotifiedAt?`, `notifyCount`. `@@unique([phone, gameId])`.
+- **`GamePriceWatchNotification`** — dedup, `@@unique([watchId, discountStartedAt])`.
+
+## Trigger
+
+**Yalnız endirimsiz → endirimli keçidi.** Ayrıca cron YOXDUR — qiymət yalnız
+scrape-də dəyişir, ona görə mövcud favorit bildirişləri ilə **eyni yerdən**
+(Phase 4, `newlyDiscounted` dövrü) tetiklənir.
+
+Dalğa açarı `discountWaveKey()` = `discountEndAt ?? now` — `FavoriteNotification`
+ilə eyni prinsip. Oyun tam qiymətə qayıdıb yenidən endirimə düşsə açar dəyişir və
+müştəri **yeni mesaj alır**; eyni dalğada təkrar scrape unique constraint-ə düşür.
+
+## Tələlər / bilinməli məqamlar
+
+- ⚠️ **Güdmə bloku `favRows.length === 0` yoxlamasından ƏVVƏL olmalıdır.** Phase
+  4-dəki dövr favorit sətri olmayan oyunu `continue` ilə atır; güdmə blokunu ondan
+  sonra qoysan güdülən oyunların əksəriyyətində (favoriti olmayanlar) mesaj **heç
+  vaxt getmir**. Səhv səssizdir — log-da heç nə görünmür.
+- ⚠️ **Dedup sətri mesajdan ƏVVƏL yaradılır, uğursuzluqda geri alınır.** Tərsi
+  (əvvəl göndər, sonra yaz) olsa yazma sınanda müştəri hər scrape-də təkrar mesaj
+  alar — spam riski uğursuz göndərişdən betərdir.
+- ⚠️ **`basePriceAznCents` yalnız YARADILANDA yazılır.** Admin eyni cütü təkrar
+  əlavə edəndə API upsert kimi davranır, amma baza qiymətinə **toxunmur** — yoxsa
+  müştərinin ilk soruşduğu (baha) qiymət itər və mesajdaki "əvvəl 62 ₼ idi"
+  müqayisəsi mənasız olar.
+- ⚠️ **`isOnSale` üçün `discountPct` işlədilir, `discountTryCents != null` YOX.**
+  `computeDisplayPrice` bitmiş endirimi özü ləğv edir
+  ([lib/pricing.ts:288](lib/pricing.ts#L288)), ona görə xam sütuna baxsan bitmiş
+  endirim admin panelində "aktiv" görünər.
+- **"İndi göndər"** düyməsi yalnız endirim AKTİV olanda görünür (qeyd endirim
+  başladıqdan sonra yazılıbsa keçid anı qaçıb). Dedup sətrini `upsert` edir —
+  admin qərarı dedup-dan üstündür, amma sonrakı scrape təkrar göndərmir.
+- **Mesaj mətni favorit mesajından AYRIDIR** — bu müştəri saytda favorit
+  qoymamışdır, ona "favoritinizdəki oyun" yazsan nədən danışdığımızı anlamaz.
+  Əvəzinə "soruşduğunuz oyun".
+- Oyun kataloqdan silinsə qeyd də gedir (`onDelete: Cascade`); oyun **deaktiv**
+  olsa qeyd qalır və admin panelində "Oyun deaktiv" xəbərdarlığı görünür.
+- `WASENDER_API_KEY` yoxdursa qeydlər saxlanılır, **mesaj getmir** — admin
+  panelində bu, banner kimi göstərilir.
+
+---
+
+# PS Store skreypi — concept ↔ SKU (ƏN VACİB TƏLƏ)
+
+PS Store iki fərqli obyekt qaytarır və skreyperin **hər iki mənbəyi** var:
+
+| Mənbə | Nə qaytarır | id forması |
+| --- | --- | --- |
+| Kateqoriya hub-ları (`/category/<uuid>/<n>`) | **concept** (oyunun özü) | sırf rəqəm — `230079` |
+| Axtarış (`/search/<q>`) | **SKU** (satıla bilən sürüm) | `EP9000-PPSA15508_00-…` |
+
+Uzun müddət hər ikisi eyni `Game` cədvəlinə eyni cür yazılırdı. Dörd nəticə:
+
+1. **`/tr-tr/product/<rəqəm>` 302 ilə ana səhifəyə atır** — concept yalnız
+   `/tr-tr/concept/<id>`-dədir. Ölü link həm məhsul səhifəsində, həm də admin
+   sifariş panelində (fulfiller-in açdığı link) görünürdü.
+2. **`platform` NULL qalır** — `resolvePlatform` CUSA/PPSA koduna baxır.
+   Vitrində PS4/PS5 çipi olmayan kart = concept sətridir (ayırd edici əlamət).
+3. **Eyni oyun iki kart** — concept sətri + seed-dən gələn SKU sətri.
+4. **Ad concept-in, qiymət default SKU-nun.** `Concept:230079` adı
+   "The Last of Us™ Part II", `defaultProduct`-u isə Part II **Remastered** →
+   vitrində mövcud olmayan "Part II −40%" məhsulu görünürdü. Eyni hal:
+   concept "Call of Duty®" ⇒ SKU "Call of Duty®: Modern Warfare® 4".
+
+## Həll
+
+`Phase 2.4` ([app/api/scrape-ps-store/route.ts](app/api/scrape-ps-store/route.ts))
+upsert-dən **əvvəl** hər concept-i öz SKU-suna çevirir. Qiymət/media concept qrid
+sətrindən onsuz da doğrudur (concept-in qiyməti = default SKU-nun qiyməti) —
+yalnız `productId`, **ad**, `platform` və `productUrl` dəyişir.
+
+| Qat | Fayl |
+| --- | --- |
+| Saf parser + link qurucu | [lib/psStoreConcept.ts](lib/psStoreConcept.ts) + [scripts/psStoreConcept.test.ts](scripts/psStoreConcept.test.ts) |
+| Skreyp fazası | `Phase 2.4` — [app/api/scrape-ps-store/route.ts](app/api/scrape-ps-store/route.ts) |
+| Köhnə sətirlərin təmizlənməsi | [scripts/resolveConceptGames.ts](scripts/resolveConceptGames.ts) — `npm run fix:concepts` |
+| Keş cədvəli | `PsStoreConcept` ([prisma/schema.prisma](prisma/schema.prisma)) |
+
+⚠️ **`PsStoreConcept.productTitle` mütləqdir.** Yalnız `productId` keşlənsə
+ikinci run-da SKU keşdən gələr, ad isə yenidən concept qridindən götürülərdi —
+yəni keşin özü hətanı geri gətirərdi.
+
+⚠️ **Faza discount-end fazasından ƏVVƏL olmalıdır** — o faza `/product/<id>`
+açır və concept id-si ilə həmişə 302 alırdı (endirim bitmə tarixi heç vaxt
+yazılmırdı). Eyni səbəbdən Phase 3.6 stale-refresh də concept sətirlərini
+həmişə `refreshFailures`-a yazıb boş sorğu yandırırdı.
+
+⚠️ **Çevirmə uğursuz olsa sətir OLDUĞU KİMİ qalır** — kataloqdan oyun düşməsin.
+`productUrl` isə o halda da `/concept/` ilə qurulur (`psStoreProductUrl`).
+
+⚠️ **Köhnə sətirləri SİLMƏ.** `Favorite`, `GamePriceWatch`, `LootBoxItem`,
+`GameBundleItem`, `CollectionGame`, `GameReview` cascade ilə uçar,
+`Transaction.gameId` isə köhnə sifarişlərdə NULL-a düşər. `fix:concepts`
+dublikatı `isActive: false` edir və favorit/qiymət-izləmə sətirlərini əsl SKU
+sətrinə **köçürür**; SKU kataloqda yoxdursa concept sətrinin özünü yeniləyir
+(`Game.id` dəyişmir → bütün əlaqələr yerində qalır).
+
+⚠️ Dəyişəndə **`npm run test:concept`** işlət. `npm run fix:concepts -- --dry-run`
+heç nə yazmır, yalnız hesabat verir.
+
+## Kataloq örtüyü — hub səhifə limiti
+
+`maxPages` default-u **25**-dir və admin paneli parametr göndərmir. Səhifə
+ölçüsü artıq 24 deyil, **250** (`CATEGORY_PAGE_SIZE`), yəni hub başına 6250
+sətir taranır. Real hub ölçüləri: PS5 6793, PS4 9524, AllDeals 4623,
+ReadySetPlay 4436, yeni oyunlar 147, PS5 Pro 281 — PS4 istisna hamısı tam
+gəlir (PS4 üçün `?pages=40`).
+
+⚠️ Səhifələmə **`pageInfo.isLast` ilə** dayanır, "bu səhifədə yeni sətir yoxdur"
+ilə YOX — hub-lar üst-üstə düşür (iki endirim hub-ının ilk səhifələri eynidir)
+və köhnə `pageAdded === 0` şərti hub-ı erkən kəsirdi.
+
+API `?pages=` və `?seeds=` qəbul edir — dar bir scrape kataloqu bozmur, çünki
+toxunulmayan sətirlər deaktiv edilmir.
+
+# PS Store listinq mənbəyi — HTML DEYİL, GraphQL
+
+**2026-08:** mağaza listinq səhifələrini (`/tr-tr/category/<uuid>/<n>`,
+`/tr-tr/search/<q>`) tam client-side yükləməyə keçdi. HTML hələ gəlir,
+`__NEXT_DATA__` hələ var, amma içində yalnız naviqasiya olur
+(`pageProps.batarangs = {}`). Skreyper 200 OK alırdı, parse keçirdi və
+**0 məhsul** çıxırdı → admin paneldəki
+*"No products extracted. The PS Store markup may have changed."*
+
+⚠️ Bu, User-Agent/başlıq məsələsi DEYİL — brauzerin tam başlıq dəsti ilə də
+cavab boşdur. HTML-ə qayıtmağa çalışma.
+
+⚠️ **Yalnız listinq qatı dəyişdi.** `/tr-tr/product/<sku>` hələ də batarang-ları,
+`/tr-tr/concept/<id>` hələ də apolloState-i SSR edir — yəni
+[lib/psStoreOffer.ts](lib/psStoreOffer.ts) (endirim bitmə tarixi),
+[lib/psStoreConcept.ts](lib/psStoreConcept.ts) və
+[lib/psStoreMetadata.ts](lib/psStoreMetadata.ts) toxunulmadı.
+
+| Qat | Fayl |
+| --- | --- |
+| API client + sətir çıxarışı | [lib/psStoreListing.ts](lib/psStoreListing.ts) |
+| Testlər (real fixture) | [scripts/psStoreListing.test.ts](scripts/psStoreListing.test.ts) — `npm run test:listing` |
+
+Endpoint `https://web.np.playstation.com/api/graphql/v1/op`, GET, **cookie/auth
+tələb etmir**. `x-psn-store-locale-override: tr-TR` başlığı bölgəni təyin edir.
+Ölçülmüş limitlər: kateqoriya `size` 1000-ə qədər (biz 250 işlədirik), axtarış
+**50**-də dayanır (100 → validation error).
+
+## ⚠️ Persisted query hash (ƏN VACİB TƏLƏ)
+
+Endpoint yalnız whitelist-dəki sorğuları qəbul edir — sorğu mətnini göndərmək
+olmur (`{"message":"Query not whitelisted"}`), yalnız
+`extensions.persistedQuery.sha256Hash`. Mağaza sorğuya bir sahə əlavə etsə hash
+dəyişir və **bizim bütün listinq sorğuları 400 verir**.
+
+Hash-i bundle-dan hesablamağa **çalışma** — apollo-nun `sortAST` + `print` +
+`__typename` transformasiyasının bütün variantları sınandı, heç biri tutmadı.
+İşləyən yol brauzerin öz sorğusunu tutmaqdır:
+
+```
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
+  --user-data-dir=/tmp/psprof --log-net-log=/tmp/net.json \
+  --net-log-capture-mode=IncludeSensitive --virtual-time-budget=20000 \
+  --dump-dom "https://store.playstation.com/tr-tr/category/<uuid>/1" >/dev/null
+grep -o 'operationName=[A-Za-z]*[^"]*sha256Hash[^"]*' /tmp/net.json
+```
+
+`categoryGridRetrieve` və `getSearchResults` sətirlərindəki hash götürülür.
+Deploy gözləməmək üçün hər ikisi env ilə override oluna bilir:
+`PS_STORE_GQL_CATEGORY_HASH`, `PS_STORE_GQL_SEARCH_HASH`.
+
+Sıfır məhsul halında xəta mətni **iki yerə ayrılır** — API sorğuları uğursuz
+olubsa mesaj birbaşa hash-i göstərir, yoxsa köhnə "markup" mətni yanıldırdı.
+
 # Oyun axtarışı (navbar modalı + kataloq)
 
 Navbar modalı və `/oyunlar` kataloqu **eyni** axtarış mühərrikini işlədir.

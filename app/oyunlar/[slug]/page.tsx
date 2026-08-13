@@ -580,6 +580,7 @@ export default async function GameDetailPage({
                       title: game.title,
                       imageUrl: game.imageUrl,
                       finalAzn: display.finalAzn,
+                      originalAzn: display.originalAzn,
                       productType: game.productType,
                     }}
                     discounted={display.discountPct != null}

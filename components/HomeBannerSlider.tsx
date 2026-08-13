@@ -362,6 +362,7 @@ export default function HomeBannerSlider({ banners }: { banners: BannerSlide[] }
                       title: product.title,
                       imageUrl: product.imageUrl,
                       finalAzn: product.finalAzn,
+                      originalAzn: product.originalAzn,
                       productType: product.productType,
                     });
                   }

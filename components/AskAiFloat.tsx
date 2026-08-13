@@ -481,6 +481,7 @@ function ProductRow({
             title: product.title,
             imageUrl: product.imageUrl,
             finalAzn: product.finalAzn,
+            originalAzn: product.originalAzn,
             productType: product.productType,
             store: product.store,
           })

@@ -45,6 +45,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
     description: "İstifadəçilər və affiliate komissiya faizləri",
     items: [
       { href: "/admin/users", label: "İstifadəçilər", iconName: "Users" },
+      { href: "/admin/price-watch", label: "Qiymət güdmə", iconName: "BellRing" },
       { href: "/admin/referral-tree", label: "Referral ağacı", iconName: "Network" },
       { href: "/admin/campaigns", label: "Reklam / Kampaniya", iconName: "Megaphone" },
       { href: "/admin/giveaways", label: "Çəkilişlər", iconName: "Gift" },

@@ -9,16 +9,26 @@ import { Sparkles } from "lucide-react";
 export default function CartSummary({
   itemCount,
   subtotalAzn,
+  itemSavingsAzn = 0,
   discountAzn,
   bonusHint,
 }: {
   itemCount: number;
+  /**
+   * Məhsulların LIST (endirimsiz) cəmi. Endirim sətri həm məhsul endirimini,
+   * həm kuponu göstərdiyi üçün burada xətlənməmiş rəqəm olmalıdır — yoxsa
+   * "Məhsullar − Endirim = Yekun" hesabı tutmur.
+   */
   subtotalAzn: number;
+  /** Məhsulların öz endirimlərindən yaranan qənaət (kupondan AYRI). */
+  itemSavingsAzn?: number;
+  /** Kupon endirimi. */
   discountAzn: number;
   /** Növbəti bonus haqqında qısa təşviq mətni (varsa). */
   bonusHint?: string | null;
 }) {
-  const finalAzn = Math.max(0, subtotalAzn - discountAzn);
+  const totalDiscountAzn = itemSavingsAzn + discountAzn;
+  const finalAzn = Math.max(0, subtotalAzn - totalDiscountAzn);
 
   return (
     <div className="rounded-2xl border border-zinc-800/60 bg-zinc-950/45 p-4">
@@ -52,13 +62,24 @@ export default function CartSummary({
           <p className="text-zinc-500">Endirim</p>
           <p
             className={`mt-1 font-semibold tabular-nums ${
-              discountAzn > 0 ? "text-emerald-300" : "text-zinc-100"
+              totalDiscountAzn > 0 ? "text-emerald-300" : "text-zinc-100"
             }`}
           >
-            {discountAzn > 0 ? `−${discountAzn.toFixed(2)} AZN` : "Yoxdur"}
+            {totalDiscountAzn > 0 ? `−${totalDiscountAzn.toFixed(2)} AZN` : "Yoxdur"}
           </p>
+          {itemSavingsAzn > 0 && discountAzn > 0 ? (
+            <p className="mt-0.5 text-[10px] leading-tight text-zinc-500">
+              {itemSavingsAzn.toFixed(2)} endirim + {discountAzn.toFixed(2)} kupon
+            </p>
+          ) : null}
         </div>
       </div>
+
+      {itemSavingsAzn > 0 ? (
+        <p className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.07] px-3 py-2 text-xs font-medium text-emerald-200">
+          Bu səbətdə {itemSavingsAzn.toFixed(2)} AZN qənaət edirsən.
+        </p>
+      ) : null}
 
       {bonusHint && (
         <div className="mt-3 flex items-start gap-2 rounded-xl border border-fuchsia-500/20 bg-fuchsia-500/[0.06] px-3 py-2 text-xs text-fuchsia-100/90">

@@ -144,6 +144,9 @@ export default function GameCard({
     title: game.title,
     imageUrl: game.imageUrl,
     finalAzn: game.finalAzn,
+    // Səbətdə xətlənmiş qiymət göstərilsin deyə. `/api/cart/refresh` sahəni
+    // onsuz da yeniləyir; bunu ötürmək endirimi DƏRHAL görünən edir.
+    originalAzn: game.originalAzn,
     productType: game.productType,
     store: isEpic ? "EPIC" : "PS",
   };

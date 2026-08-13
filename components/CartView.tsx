@@ -211,6 +211,22 @@ export default function CartView({
 
   const discountAzn = appliedCoupon ? Math.min(appliedCoupon.discountCents / 100, totalAzn) : 0;
   const finalPayAzn = Math.max(0, totalAzn - discountAzn);
+
+  // Məhsulların öz endirimlərindən yaranan qənaət. `totalAzn` onsuz da endirimli
+  // cəmdir — xülasədə "Məhsullar" sətri list qiymətlə göstərilir ki, müştəri nə
+  // qədər qazandığını görsün.
+  const listTotalAzn = useMemo(
+    () =>
+      items.reduce(
+        (sum, i) =>
+          sum +
+          (i.originalAzn != null && i.originalAzn > i.finalAzn ? i.originalAzn : i.finalAzn) *
+            i.qty,
+        0,
+      ),
+    [items],
+  );
+  const itemSavingsAzn = Math.max(0, listTotalAzn - totalAzn);
   const needsTerms = cartNeedsTermsAcceptance(items);
   const termsBlocked = needsTerms && !termsAccepted;
   const [widget, setWidget] = useState<{
@@ -900,7 +916,8 @@ export default function CartView({
         <aside className="h-fit space-y-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-4 shadow-2xl backdrop-blur-md sm:p-5 xl:sticky xl:top-4">
           <CartSummary
             itemCount={items.length}
-            subtotalAzn={totalAzn}
+            subtotalAzn={listTotalAzn}
+            itemSavingsAzn={itemSavingsAzn}
             discountAzn={discountAzn}
             bonusHint={nextBonusHint(totalAzn, cartItemCount)}
           />
@@ -1536,6 +1553,12 @@ function CartLine({
   const showTypeLabel = item.productType !== "GAME";
   const productTerms =
     item.gift ? null : getProductTerms(item.productType, item.store, item.streaming?.platformKind);
+  // Endirim nişanı yalnız list qiymət REAL olaraq yuxarıdadırsa (qəpik fərqi
+  // yuvarlaqlaşdırmadan gələ bilər → 0% nişan göstərməyək).
+  const lineDiscountPct =
+    item.originalAzn != null && item.originalAzn > item.finalAzn + 0.005
+      ? Math.round(((item.originalAzn - item.finalAzn) / item.originalAzn) * 100)
+      : null;
   return (
     <li className="flex gap-3 rounded-xl border border-zinc-800/60 bg-zinc-900/30 p-2.5 shadow-sm transition hover:border-zinc-700/60 hover:bg-zinc-900/50">
       <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900 shadow-inner sm:h-16 sm:w-16">
@@ -1800,9 +1823,21 @@ function CartLine({
             </div>
           )}
 
-          <span className="ml-auto text-sm font-bold tabular-nums text-white">
-            {(item.finalAzn * item.qty).toFixed(2)} AZN
-          </span>
+          <div className="ml-auto flex items-center gap-2">
+            {lineDiscountPct != null ? (
+              <>
+                <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-emerald-300">
+                  −{lineDiscountPct}%
+                </span>
+                <span className="text-xs tabular-nums text-zinc-500 line-through">
+                  {(item.originalAzn! * item.qty).toFixed(2)}
+                </span>
+              </>
+            ) : null}
+            <span className="text-sm font-bold tabular-nums text-white">
+              {(item.finalAzn * item.qty).toFixed(2)} AZN
+            </span>
+          </div>
         </div>
       </div>
     </li>

@@ -402,6 +402,7 @@ model Game {
   collections  CollectionGame[]
   bundleItems  GameBundleItem[]
   favorites    Favorite[]
+  priceWatches GamePriceWatch[]
   reviews      GameReview[]
   flashDeal    FlashDeal?
   // Qutu açılışı reseptləri. Bilet/açılış sətirləri snapshot olduğu üçün
@@ -1112,6 +1113,37 @@ model ScrapeRun {
 
   @@index([startedAt])
   @@index([kind, startedAt])
+}
+
+/// PS Store concept id → satıla bilən SKU keşi (lib/psStoreConcept.ts).
+///
+/// Kateqoriya hub-ları oyunları **concept** kimi qaytarır (id sırf rəqəm),
+/// axtarış səhifəsi isə SKU kimi. Concept sətri kataloqa düşəndə üç problem
+/// yaradırdı: `/product/<rəqəm>` linki 302 ilə ölür, `platform` NULL qalır və
+/// ad concept-in, qiymət isə default SKU-nun olur (TLOU "Part II −40%" kartı
+/// əslində Part II **Remastered**-in endirimi idi).
+///
+/// Bu cədvəl olmasa hər skreyp run-ı gördüyü hər concept üçün ayrıca səhifə
+/// çəkməli olardı (~1300 sorğu). Burada keşlənir və yalnız yeni concept-lər
+/// şəbəkəyə çıxır.
+model PsStoreConcept {
+  conceptId String @id
+  /// Həll olunmuş SKU. **NULL = cəhd edildi, alınmadı** (concept silinib və ya
+  /// markup dəyişib) — mənfi nəticə də saxlanılır ki, hər run eyni ölü
+  /// concept-i yenidən çəkməsin.
+  productId String?
+  /// SKU-nun **ÖZ adı** — concept adı DEYİL.
+  /// ⚠️ Bunsuz keş özü hətəni geri gətirər: ikinci run-da SKU keşdən gəlir,
+  /// ad isə yenidən concept qridindən götürülərdi (concept "Call of Duty®",
+  /// SKU "Call of Duty®: Modern Warfare® 4"). Ona görə ad da keşlənir.
+  productTitle String?
+  /// Son cəhdin vaxtı. Uğursuz sətirlər bundan sonra yalnız `CONCEPT_RETRY_DAYS`
+  /// keçdikdə yenidən yoxlanılır.
+  attemptedAt DateTime @default(now())
+  attempts    Int      @default(1)
+
+  @@index([productId])
+  @@index([attemptedAt])
 }
 
 // ─── Banners (homepage hero carousel) ────────────────────────────────────────
@@ -1843,6 +1875,75 @@ model FavoriteNotification {
 
   @@unique([userId, gameId, discountStartedAt])
   @@index([gameId])
+}
+
+// ─── Qiymət güdmə (admin əl ilə qeyd edir) ───────────────────────────────────
+
+/// Satışa çevrilməyən maraq: müştəri oyunu istəyir, amma qiyməti baha görür.
+/// Admin onun nömrəsini + oyunu qeyd edir; oyun endirimə düşən kimi WhatsApp
+/// mesajı gedir.
+///
+/// `Favorite`-dan fərqi QƏSDƏNDİR və vacibdir: favorit **qeydiyyatlı istifadəçi**
+/// tələb edir (`userId` + e-poçt), bu isə yalnız **telefon nömrəsi** ilə işləyir —
+/// güdülən müştərilərin əksəriyyətinin hesabı yoxdur (WhatsApp/Instagram-dan yazır).
+/// Ona görə `userId` sütunu YOXDUR; nömrə tək identifikatordur.
+model GamePriceWatch {
+  id     String @id @default(cuid())
+  /// E.164 (`normalizeToE164` ilə yazılır) — həm dedup açarı, həm göndəriş ünvanı.
+  phone  String
+  /// Mesajda adla müraciət üçün. Admin əl ilə yazır, boş ola bilər.
+  name   String?
+  gameId String
+  /// Admin qeydi ("instagram-dan yazdı", "40 manata razıdır" və s.) — yalnız
+  /// admin panelində görünür, mesaja düşmür.
+  note   String?
+
+  /// Qeyd anındaki vitrin qiyməti (qəpik). Endirim faizi deyil, **məbləğ**
+  /// müqayisəsi üçün: admin paneldə "62 ₼-dən 45 ₼-ə düşdü" göstərilir.
+  /// Trigger buna baxmır (trigger endirimə keçiddir), sadəcə kontekstdir.
+  basePriceAznCents Int?
+
+  /// false → mesaj getmir (admin dayandırıb). Silmək əvəzinə söndürmək tarixi saxlayır.
+  isActive Boolean @default(true)
+
+  /// Son göndərilən mesajın vaxtı + ümumi göndəriş sayı. Admin siyahısında
+  /// "neçə dəfə xəbər verilib" göstərmək üçün — dedup buna GÜVƏNMİR
+  /// (dedup `GamePriceWatchNotification` unique açarındadır).
+  lastNotifiedAt DateTime?
+  notifyCount    Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  game          Game                         @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  notifications GamePriceWatchNotification[]
+
+  /// Eyni nömrəyə eyni oyunu iki dəfə qeyd etmək olmaz — admin təkrar
+  /// əlavə edəndə upsert kimi davranır (not/ad yenilənir).
+  @@unique([phone, gameId])
+  @@index([gameId])
+  @@index([isActive, createdAt])
+}
+
+/// Dedup cədvəli — bir güdmə sətri × bir endirim dalğası = bir mesaj.
+/// `FavoriteNotification` ilə eyni prinsip: `discountStartedAt` həmin endirim
+/// pəncərəsinin möhürüdür (`discountEndAt`, yoxdursa scrape vaxtı), ona görə
+/// oyun tam qiymətə qayıdıb YENİDƏN endirimə düşəndə açar dəyişir və müştəri
+/// yeni mesaj alır. Eyni dalğada təkrar scrape isə unique constraint-ə düşür.
+model GamePriceWatchNotification {
+  id      String @id @default(cuid())
+  watchId String
+  /// Endirim pəncərəsinin möhürü — unique açarın bir hissəsi.
+  discountStartedAt DateTime
+  /// Göndəriş anındaki qiymət (qəpik) — admin "hansı qiymətlə xəbər verildi"
+  /// sualına cavab tapsın.
+  priceAznCents Int?
+  sentAt        DateTime @default(now())
+
+  watch GamePriceWatch @relation(fields: [watchId], references: [id], onDelete: Cascade)
+
+  @@unique([watchId, discountStartedAt])
+  @@index([watchId, sentAt])
 }
 
 /// Həftəlik endirim bülleteninin göndəriş qeydi. Hər istifadəçiyə bir həftə

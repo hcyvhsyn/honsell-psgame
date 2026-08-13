@@ -49,6 +49,8 @@ type CartPayload = {
   title: string;
   imageUrl: string | null;
   finalAzn: number;
+  /** Endirim aktivdirsə list qiymət — səbətdə xətlənmiş rəqəm kimi göstərilir. */
+  originalAzn?: number | null;
   productType: string;
   store?: string;
 };

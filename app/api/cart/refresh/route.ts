@@ -58,16 +58,28 @@ export async function POST(req: Request) {
   // rəqəmi göstərsin deyə eyni override burada da tətbiq olunur.
   const flashDeals = await getFlashDealOverrides(games.map((g) => g.id));
 
-  const prices: { id: string; finalAzn: number; store?: string }[] = [];
+  // `originalAzn` — üstündən xətlənən list qiymət. Səbət onu YALNIZ buradan alır:
+  // add-yolları çoxdur (kart, detal, reels, banner, axtarış, AI paneli) və hamısına
+  // ayrı-ayrı sahə əlavə etmək əvəzinə tək server mənbəyi saxlanılır. Endirim
+  // bitibsə `computeDisplayPrice` onsuz da `null` qaytarır, yəni köhnə səbətdəki
+  // xətlənmiş qiymət özü sönür.
+  const prices: {
+    id: string;
+    finalAzn: number;
+    originalAzn?: number | null;
+    store?: string;
+  }[] = [];
   for (const g of games) {
+    const display = applyFlashDeal(computeDisplayPrice(g, settings), flashDeals.get(g.id));
     prices.push({
       id: g.id,
-      finalAzn: applyFlashDeal(computeDisplayPrice(g, settings), flashDeals.get(g.id)).finalAzn,
+      finalAzn: display.finalAzn,
+      originalAzn: display.originalAzn,
       store: g.store ?? "PS",
     });
   }
   for (const s of services) {
-    prices.push({ id: s.id, finalAzn: s.priceAznCents / 100 });
+    prices.push({ id: s.id, finalAzn: s.priceAznCents / 100, originalAzn: null });
   }
 
   // Oyun paketləri. Satıla bilməyən paket (deaktiv, vaxtı bitmiş, tərkibində
@@ -76,7 +88,14 @@ export async function POST(req: Request) {
   // hesabladığı qiymətlə uyğunsuz qalır.
   const bundles = await resolveBundlesForCart(ids);
   for (const b of bundles.values()) {
-    prices.push({ id: b.id, finalAzn: b.pricing.totalAznCents / 100 });
+    prices.push({
+      id: b.id,
+      finalAzn: b.pricing.totalAznCents / 100,
+      originalAzn:
+        b.pricing.listTotalAznCents > b.pricing.totalAznCents
+          ? b.pricing.listTotalAznCents / 100
+          : null,
+    });
   }
 
   // Xidmət dəstləri. Qiymətdən ƏLAVƏ olaraq tam tərkib də qaytarılır: dəst sətri
@@ -85,7 +104,14 @@ export async function POST(req: Request) {
   // snapshot özünü yeniləməlidir. Client doldurulmuş `details`-i saxlayır.
   const serviceBundles = await resolveServiceBundlesForCart(ids);
   const serviceBundlePayload = Array.from(serviceBundles.values()).map((b) => {
-    prices.push({ id: b.id, finalAzn: b.pricing.totalAznCents / 100 });
+    prices.push({
+      id: b.id,
+      finalAzn: b.pricing.totalAznCents / 100,
+      originalAzn:
+        b.pricing.listTotalAznCents > b.pricing.totalAznCents
+          ? b.pricing.listTotalAznCents / 100
+          : null,
+    });
     return {
       id: b.id,
       items: b.pricing.items.map((i) => ({

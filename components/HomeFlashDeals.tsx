@@ -271,6 +271,7 @@ function FlashDealTile({ deal, now }: { deal: FlashDealCard; now: number | null 
                 title: deal.title,
                 imageUrl: deal.imageUrl,
                 finalAzn: deal.finalAzn,
+                originalAzn: deal.originalAzn,
                 productType: deal.productType,
                 store: deal.store === "EPIC" || deal.platform === "PC" ? "EPIC" : "PS",
               })

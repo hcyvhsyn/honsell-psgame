@@ -94,6 +94,7 @@ export default function CompactGameCard({ game }: { game: GameCardData }) {
               title: game.title,
               imageUrl: game.imageUrl,
               finalAzn: game.finalAzn,
+              originalAzn: game.originalAzn,
               productType: game.productType,
               store: game.store === "EPIC" || game.platform === "PC" ? "EPIC" : "PS",
             })

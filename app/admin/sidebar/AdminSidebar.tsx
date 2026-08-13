@@ -42,6 +42,7 @@ import {
   Clapperboard,
   TicketPercent,
   Zap,
+  BellRing,
   Package,
   Moon,
   Sun,
@@ -96,6 +97,7 @@ type IconName =
   | "Clapperboard"
   | "TicketPercent"
   | "Zap"
+  | "BellRing"
   | "Package";
 
 export type NavItemSpec = {
@@ -148,6 +150,7 @@ const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
   Clapperboard,
   TicketPercent,
   Zap,
+  BellRing,
   Package,
 };
 

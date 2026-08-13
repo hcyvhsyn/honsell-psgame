@@ -1,8 +1,8 @@
-import * as cheerio from "cheerio";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { sendFavoriteOnSaleEmail } from "@/lib/resend";
 import { sendFavoriteOnSaleWhatsApp } from "@/lib/orderNotifications";
+import { discountWaveKey, notifyPriceWatchersForGame } from "@/lib/priceWatch";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import {
   buildEmbeddingHash,
@@ -11,6 +11,20 @@ import {
 } from "@/lib/embeddings";
 import { isOpenAIConfigured } from "@/lib/openai";
 import { parsePsStoreOffer } from "@/lib/psStoreOffer";
+import {
+  fetchConceptDefaultProduct,
+  isConceptProductId,
+  psStoreProductUrl,
+} from "@/lib/psStoreConcept";
+import {
+  CATEGORY_PAGE_SIZE,
+  extractListingItems,
+  fetchCategoryPage,
+  fetchSearchPage,
+  psStoreCategoryId,
+  resolvePlatform,
+  type ScrapedGame,
+} from "@/lib/psStoreListing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,10 +33,14 @@ export const maxDuration = 300;
 /**
  * Scrapes PS Store TR. Two parallel strategies:
  *
- *  1. **Category hubs** — paginate `/tr-tr/category/<UUID>/<page>` for a
- *     curated set of stable hubs (all PS5/PS4 games, deals, new releases…).
- *  2. **Search seeds** — fetch `/tr-tr/search/<query>` for franchise terms
- *     to plug catalog gaps (e.g. GTA Online doesn't appear in the hubs).
+ *  1. **Category hubs** — paginate a curated set of stable hubs (all PS5/PS4
+ *     games, deals, new releases…).
+ *  2. **Search seeds** — franchise terms to plug catalog gaps (e.g. GTA Online
+ *     doesn't appear in the hubs).
+ *
+ * ⚠️ Hər ikisi **GraphQL API-dən** gəlir ([lib/psStoreListing.ts](lib/psStoreListing.ts)) —
+ * listinq HTML-i 2026-08-dən məhsul daşımır. Məhsul/concept SƏHİFƏLƏRİ isə hələ
+ * də SSR-dir və Phase 2.4/2.5/3.6 onları HTML kimi oxumağa davam edir.
  *
  * Streams progress as Server-Sent Events. The UI consumes this with
  * `EventSource` and renders running totals.
@@ -33,6 +51,9 @@ const DEFAULT_CATEGORY_URLS = [
   "https://store.playstation.com/tr-tr/category/3f772501-f6f8-49b7-abac-874a88ca4897",
   "https://store.playstation.com/tr-tr/category/e1699f77-77e1-43ca-a296-26d08abacb0f",
   "https://store.playstation.com/tr-tr/category/1d443305-2dcf-4543-8f7e-8c6ec409ecbf",
+  // "Ready Set Play" — AllDeals-dən ayrı endirim hub-ı (~4.4K sətir), üst-üstə
+  // düşən hissə çoxdur, amma hər ikisində olmayan endirimlər var.
+  "https://store.playstation.com/tr-tr/category/b24c16e8-6475-4477-8364-41ec777792d5",
 ];
 
 // Search seeds plug gaps the category hubs miss (e.g. GTA Online doesn't appear
@@ -261,214 +282,13 @@ const USER_AGENT =
 
 const REQUEST_DELAY_MS = 200;
 
-type ScrapedGame = {
-  productId: string;
-  title: string;
-  imageUrl: string | null;
-  productUrl: string | null;
-  platform: string | null;
-  productType: "GAME" | "ADDON" | "CURRENCY" | "OTHER";
-  priceTryCents: number;
-  discountTryCents: number | null;
-  discountEndAt: Date | null;
-  heroImageUrl: string | null;
-  trailerUrl: string | null;
-  screenshots: string[];
-  editionLabel: string | null;
-};
-
-// PS Store's `storeDisplayClassification` has many values beyond the canonical
-// FULL_GAME / ADD_ON_PACK pair. DLCs in particular surface as MAP, ITEM,
-// CHARACTER, SEASON_PASS, COSTUME, COSMETIC, etc. — depending on what the DLC
-// content actually is. Group them all under ADDON so they're treated uniformly.
-const GAME_CLASSIFICATIONS = new Set([
-  "FULL_GAME",
-  "GAME_BUNDLE",
-  "PREMIUM_EDITION",
-]);
-
-const ADDON_CLASSIFICATIONS = new Set([
-  "ADD_ON_PACK",
-  "MAP",
-  "ITEM",
-  "CHARACTER",
-  "SEASON_PASS",
-  "COSTUME",
-  "COSMETIC",
-  "CONSUMABLE",
-  "LEVEL",
-  "TRACK",
-  "MUSIC_TRACK",
-  "AVATAR",
-]);
-
-function classify(
-  raw: unknown,
-  topCategory?: unknown
-): ScrapedGame["productType"] {
-  // `topCategory` is the most reliable signal when present (only set on product
-  // detail pages). Falls back to `storeDisplayClassification` from listings.
-  if (typeof topCategory === "string") {
-    if (topCategory === "GAME") return "GAME";
-    if (topCategory === "ADD_ON") return "ADDON";
-    if (topCategory === "VIRTUAL_CURRENCY") return "CURRENCY";
-  }
-  if (raw == null) return "GAME"; // concept rows with no classification → base game
-  if (typeof raw === "string") {
-    if (GAME_CLASSIFICATIONS.has(raw)) return "GAME";
-    if (ADDON_CLASSIFICATIONS.has(raw)) return "ADDON";
-    if (raw === "VIRTUAL_CURRENCY") return "CURRENCY";
-  }
-  return "OTHER";
-}
-
-function parseTryToCents(raw: unknown): number | null {
-  if (typeof raw !== "string") return null;
-  const cleaned = raw.replace(/[^\d,]/g, "").replace(/\./g, "").replace(",", ".");
-  if (!cleaned) return null;
-  const num = Number(cleaned);
-  if (!Number.isFinite(num) || num <= 0) return null;
-  return Math.round(num * 100);
-}
-
-function resolvePlatform(productId: string, platforms: unknown): string | null {
-  if (Array.isArray(platforms) && platforms.length > 0) {
-    const valid = platforms
-      .map((p) => String(p))
-      .filter((p): p is "PS4" | "PS5" => p === "PS4" || p === "PS5");
-    if (valid.length > 0) {
-      const ordered = (["PS5", "PS4"] as const).filter((p) => valid.includes(p));
-      return ordered.join(",");
-    }
-  }
-  if (productId.includes("PPSA")) return "PS5";
-  if (productId.includes("CUSA")) return "PS4";
-  return null;
-}
-
-type RawProduct = {
-  id: string;
-  name: string;
-  price?: { basePrice?: unknown; discountedPrice?: unknown };
-  media?: Array<{ role?: string; type?: string; url?: string }>;
-  platforms?: unknown;
-  storeDisplayClassification?: unknown;
-  localizedStoreDisplayClassification?: unknown;
-  topCategory?: unknown;
-  [key: string]: unknown;
-};
-
-function* walkProducts(node: unknown): Generator<RawProduct> {
-  if (!node || typeof node !== "object") return;
-  if (Array.isArray(node)) {
-    for (const item of node) yield* walkProducts(item);
-    return;
-  }
-  const obj = node as Record<string, unknown>;
-  if (
-    typeof obj.id === "string" &&
-    typeof obj.name === "string" &&
-    obj.price &&
-    typeof obj.price === "object"
-  ) {
-    yield obj as RawProduct;
-  }
-  for (const key of Object.keys(obj)) yield* walkProducts(obj[key]);
-}
-
-function extractFromHtml(html: string): ScrapedGame[] {
-  const $ = cheerio.load(html);
-  const raw = $("#__NEXT_DATA__").contents().text();
-  if (!raw) return [];
-
-  let data: unknown;
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    return [];
-  }
-
-  const seen = new Set<string>();
-  const out: ScrapedGame[] = [];
-
-  for (const product of walkProducts(data)) {
-    if (seen.has(product.id)) continue;
-
-    const basePrice = parseTryToCents(product.price?.basePrice);
-    const discountPrice = parseTryToCents(product.price?.discountedPrice);
-    if (basePrice == null) continue;
-
-    const discountTryCents =
-      discountPrice != null && discountPrice < basePrice ? discountPrice : null;
-
-    const media = Array.isArray(product.media) ? product.media : [];
-    const findMedia = (role: string, type?: string) =>
-      media.find((m) => m?.role === role && (!type || m?.type === type))?.url;
-
-    const imageUrl =
-      findMedia("MASTER", "IMAGE") ??
-      findMedia("MASTER") ??
-      media[0]?.url ??
-      null;
-    const heroImageUrl =
-      findMedia("BACKGROUND", "IMAGE") ??
-      findMedia("BACKGROUND") ??
-      null;
-    const trailerUrl = findMedia("PREVIEW", "VIDEO") ?? findMedia("PREVIEW") ?? null;
-
-    // Collect supplemental screenshots: any IMAGE-role media that isn't the hero
-    // or the master cover, deduped.
-    const usedUrls = new Set([imageUrl, heroImageUrl].filter(Boolean) as string[]);
-    const screenshots: string[] = [];
-    for (const m of media) {
-      if (!m?.url || m.type !== "IMAGE") continue;
-      if (usedUrls.has(m.url)) continue;
-      usedUrls.add(m.url);
-      screenshots.push(String(m.url));
-    }
-
-    const editionLabel =
-      typeof product.localizedStoreDisplayClassification === "string"
-        ? product.localizedStoreDisplayClassification
-        : null;
-
-    const productId = String(product.id);
-    seen.add(productId);
-    out.push({
-      productId,
-      title: String(product.name).trim(),
-      imageUrl: imageUrl ? String(imageUrl) : null,
-      productUrl: `https://store.playstation.com/tr-tr/product/${productId}`,
-      platform: resolvePlatform(productId, product.platforms),
-      productType: classify(product.storeDisplayClassification, product.topCategory),
-      priceTryCents: basePrice,
-      discountTryCents,
-      discountEndAt: null,
-      heroImageUrl: heroImageUrl ? String(heroImageUrl) : null,
-      trailerUrl: trailerUrl ? String(trailerUrl) : null,
-      screenshots,
-      editionLabel,
-    });
-  }
-
-  return out;
-}
-
-async function fetchPage(url: string): Promise<ScrapedGame[]> {
-  try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": USER_AGENT,
-        "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
-      },
-      cache: "no-store",
-    });
-    if (!res.ok) return [];
-    return extractFromHtml(await res.text());
-  } catch {
-    return [];
-  }
-}
+// ─── Concept → SKU çevirməsi (Phase 2.4) ─────────────────────────────────────
+/** Bir run-da ən çoxu bu qədər YENİ concept səhifəsi çəkilir. */
+const CONCEPT_FETCH_PER_RUN = 400;
+/** Çevirmə fazası bu vaxtdan sonra dayanır — qalanı növbəti run-a qalır. */
+const CONCEPT_DEADLINE_MS = 120_000;
+/** Həll olunmayan concept bu qədər gün ərzində təkrar yoxlanmır. */
+const CONCEPT_RETRY_DAYS = 14;
 
 type RefreshedPrice = {
   priceTryCents: number;
@@ -539,15 +359,6 @@ async function fetchProductPrice(
   return fetchProductOffer(productId);
 }
 
-function categoryPageUrl(base: string, page: number): string {
-  const stripped = base.replace(/\/\d+\/?$/, "").replace(/\/$/, "");
-  return `${stripped}/${page}`;
-}
-
-function searchUrl(seed: string): string {
-  return `https://store.playstation.com/tr-tr/search/${encodeURIComponent(seed)}`;
-}
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function GET(req: Request) {
@@ -581,6 +392,10 @@ export async function GET(req: Request) {
         ]
       : DEFAULT_SEARCH_SEEDS;
 
+    // ⚠️ Səhifə ölçüsü artıq 24 deyil, `CATEGORY_PAGE_SIZE` (250) — API HTML
+    // listinqindən 10 dəfə böyük səhifə verir. Default 25 səhifə = hub başına
+    // 6250 sətir, yəni ən böyük hub (PS4, ~9.5K) istisna hamısı tam taranır.
+    // Köhnə default eyni rəqəm idi, amma cəmi 600 məhsul gətirirdi.
     maxPages = Math.max(1, Math.min(200, Number(pagesParam) || 25));
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Bad request";
@@ -651,14 +466,40 @@ export async function GET(req: Request) {
         const merged = new Map<string, ScrapedGame>();
 
         // Strategy 1: paginate category hubs.
+        let listingFailures = 0;
+
         for (let i = 0; i < categoryUrls.length; i++) {
           const source = categoryUrls[i];
+          const categoryId = psStoreCategoryId(source);
           let pagesFetched = 0;
           let added = 0;
 
+          if (!categoryId) {
+            emit({
+              type: "categoryDone",
+              sourceIndex: i,
+              url: source,
+              pagesFetched: 0,
+              added: 0,
+              error: "Kateqoriya id-si tapılmadı (URL `/category/<uuid>` olmalıdır)",
+              totalSoFar: merged.size,
+            });
+            continue;
+          }
+
           for (let page = 1; page <= maxPages; page++) {
-            const games = await fetchPage(categoryPageUrl(source, page));
+            const res = await fetchCategoryPage(categoryId, {
+              offset: (page - 1) * CATEGORY_PAGE_SIZE,
+            });
             pagesFetched++;
+            // null = şəbəkə/API xətası (ən çox: persisted query hash köhnəlib).
+            // Boş siyahıdan FƏRQLİDİR — hub-ın sonu deyil, ona görə ayrıca sayılır.
+            if (!res) {
+              listingFailures++;
+              break;
+            }
+
+            const games = extractListingItems(res.items);
             if (games.length === 0) break;
 
             let pageAdded = 0;
@@ -680,7 +521,10 @@ export async function GET(req: Request) {
               totalSoFar: merged.size,
             });
 
-            if (pageAdded === 0) break;
+            // ⚠️ `pageAdded === 0` ilə DAYANMA — hub-lar üst-üstə düşür (deals
+            // hub-ının ilk səhifələri əvvəlki hub-dan tanış ola bilər), amma
+            // sonrakı səhifələrdə yeni sətirlər var. Sonu yalnız API bildirir.
+            if (res.isLast) break;
             if (page < maxPages) await sleep(REQUEST_DELAY_MS);
           }
 
@@ -706,7 +550,9 @@ export async function GET(req: Request) {
               const i = cursor++;
               if (i >= seeds.length) return;
               const seed = seeds[i];
-              const games = await fetchPage(searchUrl(seed));
+              const res = await fetchSearchPage(seed);
+              if (!res) listingFailures++;
+              const games = res ? extractListingItems(res.items) : [];
               let seedAdded = 0;
               for (const g of games) {
                 if (!merged.has(g.productId)) {
@@ -733,8 +579,17 @@ export async function GET(req: Request) {
         }
 
         if (merged.size === 0) {
+          // ⚠️ İki fərqli səbəb, iki fərqli mətn — köhnə tək mətn ("markup may
+          // have changed") HTML dövründən qalmışdı və indi yanıldır: listinq
+          // artıq HTML-dən gəlmir. Ən ehtimallı səbəb persisted query hash-inin
+          // köhnəlməsidir (bax: lib/psStoreListing.ts bərpa resepti).
           const msg =
-            "No products extracted. The PS Store markup may have changed.";
+            listingFailures > 0
+              ? `PS Store listinq API-si cavab vermədi (${listingFailures} sorğu uğursuz). ` +
+                "Ən ehtimallı səbəb: persisted query hash köhnəlib — " +
+                "lib/psStoreListing.ts-dəki bərpa reseptinə bax " +
+                "(PS_STORE_GQL_CATEGORY_HASH / PS_STORE_GQL_SEARCH_HASH ilə override edilə bilər)."
+              : "No products extracted. PS Store cavab verdi, amma məhsul sətri yox idi.";
           await prisma.scrapeRun.update({
             where: { id: run.id },
             data: {
@@ -746,6 +601,146 @@ export async function GET(req: Request) {
           emit({ type: "error", error: msg });
           safeClose();
           return;
+        }
+
+        // Phase 2.4: concept → SKU.
+        //
+        // Kateqoriya hub-ları oyunları **concept** kimi qaytarır (id sırf
+        // rəqəm), axtarış səhifəsi isə SKU kimi. Concept sətri kataloqa
+        // düşəndə: `/product/<rəqəm>` linki ölür, `platform` NULL qalır, eyni
+        // oyun həm concept, həm SKU sətri kimi iki dəfə görünür və ən pisi —
+        // **ad concept-in, qiymət default SKU-nun olur**. TLOU concept-i
+        // "Part II" adlanır, `defaultProduct`-u isə Part II Remastered-dir;
+        // nəticədə vitrində olmayan bir "Part II −40%" məhsulu görünürdü.
+        //
+        // Ona görə upsert-dən ƏVVƏL concept-ləri öz SKU-larına çeviririk.
+        // Qiymət/media concept qrid sətrindən onsuz da doğrudur (concept-in
+        // qiyməti = default SKU-nun qiyməti) — yalnız `productId` və **ad**
+        // dəyişir.
+        //
+        // ⚠️ Bu faza discount-end fazasından ƏVVƏL olmalıdır: o faza
+        // `/product/<id>` açır və concept id-si ilə həmişə 302 alırdı.
+        {
+          const conceptIds = [...merged.keys()].filter(isConceptProductId);
+          if (conceptIds.length > 0) {
+            emit({ type: "conceptResolveStart", total: conceptIds.length });
+
+            // Keşdən oxu — yalnız bilinməyənlər (və çoxdan uğursuz olanlar)
+            // şəbəkəyə çıxır. Keş olmasa hər run ~1300 səhifə çəkərdi.
+            const cacheRows = await prisma.psStoreConcept
+              .findMany({ where: { conceptId: { in: conceptIds } } })
+              .catch(() => []);
+            const cache = new Map(cacheRows.map((r) => [r.conceptId, r]));
+
+            const retryBefore = new Date(
+              Date.now() - CONCEPT_RETRY_DAYS * 24 * 60 * 60 * 1000
+            );
+            const toFetch = conceptIds.filter((id) => {
+              const hit = cache.get(id);
+              if (!hit) return true;
+              if (hit.productId) return false; // həll olunub
+              return hit.attemptedAt < retryBefore; // ölü concept — nadirən təkrar yoxla
+            });
+
+            let resolved = 0;
+            let failed = 0;
+            let deferred = 0;
+            let fetched = 0;
+
+            // Hər run üçün tavan + deadline: ilk dəfə çoxlu yeni concept
+            // gələrsə run-ı uzatmasın. Qalanları növbəti run götürür (keş
+            // sayəsində irəliləyiş itmir).
+            const budget = Math.min(toFetch.length, CONCEPT_FETCH_PER_RUN);
+            const CONCEPT_CONCURRENCY = 6;
+            let cursor = 0;
+
+            async function conceptWorker() {
+              while (true) {
+                if (Date.now() - runStartedAt.getTime() > CONCEPT_DEADLINE_MS)
+                  return;
+                const idx = cursor++;
+                if (idx >= budget) return;
+                const conceptId = toFetch[idx];
+                const hit = await fetchConceptDefaultProduct(conceptId);
+                fetched++;
+                cache.set(conceptId, {
+                  conceptId,
+                  productId: hit?.productId ?? null,
+                  productTitle: hit?.title ?? null,
+                  attemptedAt: new Date(),
+                  attempts: (cache.get(conceptId)?.attempts ?? 0) + 1,
+                });
+                try {
+                  await prisma.psStoreConcept.upsert({
+                    where: { conceptId },
+                    create: {
+                      conceptId,
+                      productId: hit?.productId ?? null,
+                      productTitle: hit?.title ?? null,
+                    },
+                    update: {
+                      productId: hit?.productId ?? null,
+                      productTitle: hit?.title ?? null,
+                      attemptedAt: new Date(),
+                      attempts: { increment: 1 },
+                    },
+                  });
+                } catch (e) {
+                  console.error("scrape-ps-store: concept cache write failed", e);
+                }
+                if (fetched % 25 === 0 || fetched === budget) {
+                  emit({ type: "conceptResolveProgress", done: fetched, total: budget });
+                }
+              }
+            }
+
+            await Promise.all(
+              Array.from({ length: Math.min(CONCEPT_CONCURRENCY, budget) }, () =>
+                conceptWorker()
+              )
+            );
+
+            // Çevirmə: concept açarını SKU açarı ilə əvəzlə.
+            for (const conceptId of conceptIds) {
+              const hit = cache.get(conceptId);
+              const sku = hit?.productId;
+              const entry = merged.get(conceptId);
+              if (!entry) continue;
+              if (!sku) {
+                // `hit` var → cəhd edilib, alınmayıb (ölü concept).
+                // `hit` yox → büdcə/deadline səbəbindən bu run-a düşməyib;
+                // növbəti run götürəcək. İkisini eyni saymaq hesabatı yanıldır.
+                if (hit) failed++;
+                else deferred++;
+                continue; // sətir olduğu kimi qalır (geriyə uyğunluq)
+              }
+              merged.delete(conceptId);
+              resolved++;
+              // Eyni SKU artıq axtarış seed-indən gəlibsə ONU saxla — seed
+              // sətri SKU-nun öz adını, platformasını və media-sını daşıyır.
+              if (merged.has(sku)) continue;
+              merged.set(sku, {
+                ...entry,
+                productId: sku,
+                // ⚠️ `entry.title` CONCEPT adıdır. SKU-nun öz adı varsa mütləq
+                // o yazılmalıdır, yoxsa "Call of Duty®" sətri Modern Warfare 4
+                // qiyməti ilə, "The Last of Us™ Part II" isə Remastered-in
+                // endirimi ilə vitrinə düşür — düzəltdiyimiz hətanın özü.
+                title: hit?.productTitle ?? entry.title,
+                productUrl: psStoreProductUrl(sku),
+                platform: resolvePlatform(sku, null),
+              });
+            }
+
+            emit({
+              type: "conceptResolveDone",
+              total: conceptIds.length,
+              fetched,
+              resolved,
+              unresolved: failed,
+              deferred,
+            });
+          }
         }
 
         // Phase 2.5: fetch discount end dates for discounted products.
@@ -1141,6 +1136,10 @@ export async function GET(req: Request) {
           emit({ type: "favoriteNotifyStart", total: newlyDiscounted.length });
           let notified = 0;
           let failed = 0;
+          // Qiymət güdmə göndərişləri ayrıca sayılır — favorit e-poçtları ilə
+          // qarışdırılsa admin hansı kanalın işlədiyini ayırd edə bilmir.
+          let watchNotified = 0;
+          let watchFailed = 0;
 
           let settings: Awaited<ReturnType<typeof getSettings>> | null = null;
           try {
@@ -1181,13 +1180,42 @@ export async function GET(req: Request) {
                     },
                   },
                 });
-                if (favRows.length === 0) continue;
 
                 const display = computeDisplayPrice(game, settings);
                 // Use discountEndAt if available, otherwise the run's start
                 // time, as the dedup key — a future sale on the same SKU will
                 // have a different end date and re-notify.
-                const discountStartedAt = game.discountEndAt ?? new Date();
+                const discountStartedAt = discountWaveKey(
+                  game.discountEndAt,
+                  new Date()
+                );
+
+                // Qiymət güdmə (admin əl ilə qeyd etdiyi nömrələr) — favorit
+                // hovuzundan TAM AYRIDIR: bu müştərilərin hesabı yoxdur.
+                //
+                // ⚠️ Bu blok aşağıdaki `favRows.length === 0` yoxlamasından
+                // ƏVVƏL olmalıdır — əks halda favoriti olmayan oyunda `continue`
+                // işə düşür və güdən müştəriyə mesaj HEÇ VAXT getmir. Praktikada
+                // güdülən oyunların əksəriyyətində favorit sətri olmur.
+                try {
+                  const w = await notifyPriceWatchersForGame({
+                    game: {
+                      id: game.id,
+                      productId: game.productId,
+                      title: game.title,
+                      discountEndAt: game.discountEndAt,
+                    },
+                    finalAzn: display.finalAzn,
+                    discountPct: display.discountPct,
+                    discountStartedAt,
+                  });
+                  watchNotified += w.notified;
+                  watchFailed += w.failed;
+                } catch (e) {
+                  console.error("scrape-ps-store: price watch notify failed", e);
+                }
+
+                if (favRows.length === 0) continue;
 
                 for (const f of favRows) {
                   if (!f.user?.email) continue;
@@ -1259,6 +1287,8 @@ export async function GET(req: Request) {
             notified,
             failed,
             games: newlyDiscounted.length,
+            watchNotified,
+            watchFailed,
           });
         }
 

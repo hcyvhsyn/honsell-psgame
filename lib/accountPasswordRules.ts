@@ -22,6 +22,76 @@ export const ACCOUNT_PASSWORD_RULES_AZ = [
 
 
 
+/** Tək-tək yoxlanan şifrə qaydası. `key` UI-də sabit identifikatordur. */
+export type AccountPasswordCheck = {
+  key: "length" | "variety" | "noRepeat" | "noIdentifier";
+  /** Canlı çip üçün qısa etiket (formada yazılanla birlikdə görünür). */
+  label: string;
+  /** Pozulanda göstərilən tam mesaj (validator həmin mətni qaytarır). */
+  error: string;
+  ok: boolean;
+};
+
+/**
+ * Hər qaydanın vəziyyətini AYRI-AYRI qaytarır — forma canlı çipləri buradan
+ * qurur, `validateAccountPassword` isə ilk pozulanın mesajını götürür.
+ *
+ * ⚠️ İki qat (canlı çip + submit yoxlaması) EYNİ funksiyadan oxumalıdır: əvvəl
+ * çiplər ayrıca regexlərlə yazılsaydı, qayda dəyişəndə biri yaşıl qalıb digəri
+ * xəta verərdi — istifadəçi "hər şey yaşıldır, amma göndərmir" halına düşərdi.
+ */
+export function accountPasswordChecks(
+  password: string,
+  identifiers: (string | null | undefined)[] = [],
+): AccountPasswordCheck[] {
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasDigit = /[0-9]/.test(password);
+  const hasSymbol = /[^a-zA-Z0-9]/.test(password);
+  const typeCount = Number(hasLetter) + Number(hasDigit) + Number(hasSymbol);
+
+  // Şifrə giriş kimliyini (e-poçt) və ya online ID-ni ehtiva edə bilməz.
+  const lowerPw = password.toLowerCase();
+  let containsIdentifier = false;
+  for (const raw of identifiers) {
+    const id = (raw ?? "").trim().toLowerCase();
+    if (id.length < 3) continue;
+    // E-poçt üçün həm tam ünvanı, həm də @-dən əvvəlki hissəni yoxlayırıq.
+    const candidates = id.includes("@") ? [id, id.split("@")[0]] : [id];
+    for (const c of candidates) {
+      if (c.length >= 3 && lowerPw.includes(c)) containsIdentifier = true;
+    }
+  }
+
+  return [
+    {
+      key: "length",
+      label: `${ACCOUNT_PASSWORD_MIN}+ simvol`,
+      error: `Şifrə ən azı ${ACCOUNT_PASSWORD_MIN} simvol olmalıdır.`,
+      ok: password.length >= ACCOUNT_PASSWORD_MIN,
+    },
+    {
+      key: "variety",
+      label: "Hərf və rəqəm",
+      error: "Şifrə hərf, rəqəm və simvol növlərindən ən azı iki fərqlisini ehtiva etməlidir.",
+      ok: typeCount >= 2,
+    },
+    {
+      key: "noRepeat",
+      label: "Təkrar yoxdur",
+      error:
+        "Şifrə eyni hərf və ya rəqəmi art-arda 3 və ya daha çox dəfə təkrarlaya bilməz (məs.: BBB və ya 222).",
+      // Eyni hərf və ya rəqəm art-arda 3+ dəfə təkrarlana bilməz (BBB, 222).
+      ok: !/([a-zA-Z0-9])\1\1/.test(password),
+    },
+    {
+      key: "noIdentifier",
+      label: "E-poçtdan fərqli",
+      error: "Şifrə giriş kimliyinizi (e-poçt) və ya online ID-nizi ehtiva edə bilməz.",
+      ok: !containsIdentifier,
+    },
+  ];
+}
+
 /**
  * Şifrəni yoxlayır. `identifiers` — şifrənin içində OLMAMALI olan dəyərlər:
  * giriş kimliyi (e-poçt) və online ID (Epic görünən ad). Boş və ya çox qısa
@@ -31,37 +101,6 @@ export function validateAccountPassword(
   password: string,
   identifiers: (string | null | undefined)[] = [],
 ): string | null {
-  if (password.length < ACCOUNT_PASSWORD_MIN) {
-    return `Şifrə ən azı ${ACCOUNT_PASSWORD_MIN} simvol olmalıdır.`;
-  }
-
-  // Qayda 1: hərf, rəqəm və simvol növlərindən ən azı ikisi olmalıdır.
-  const hasLetter = /[a-zA-Z]/.test(password);
-  const hasDigit = /[0-9]/.test(password);
-  const hasSymbol = /[^a-zA-Z0-9]/.test(password);
-  const typeCount = Number(hasLetter) + Number(hasDigit) + Number(hasSymbol);
-  if (typeCount < 2) {
-    return "Şifrə hərf, rəqəm və simvol növlərindən ən azı iki fərqlisini ehtiva etməlidir.";
-  }
-
-  // Qayda 2: eyni hərf və ya rəqəm art-arda 3+ dəfə təkrarlana bilməz (BBB, 222).
-  if (/([a-zA-Z0-9])\1\1/.test(password)) {
-    return "Şifrə eyni hərf və ya rəqəmi art-arda 3 və ya daha çox dəfə təkrarlaya bilməz (məs.: BBB və ya 222).";
-  }
-
-  // Qayda 3: şifrə giriş kimliyini (e-poçt) və ya online ID-ni ehtiva edə bilməz.
-  const lowerPw = password.toLowerCase();
-  for (const raw of identifiers) {
-    const id = (raw ?? "").trim().toLowerCase();
-    if (id.length < 3) continue;
-    // E-poçt üçün həm tam ünvanı, həm də @-dən əvvəlki hissəni yoxlayırıq.
-    const candidates = id.includes("@") ? [id, id.split("@")[0]] : [id];
-    for (const c of candidates) {
-      if (c.length >= 3 && lowerPw.includes(c)) {
-        return "Şifrə giriş kimliyinizi (e-poçt) və ya online ID-nizi ehtiva edə bilməz.";
-      }
-    }
-  }
-
-  return null;
+  const failed = accountPasswordChecks(password, identifiers).find((c) => !c.ok);
+  return failed ? failed.error : null;
 }

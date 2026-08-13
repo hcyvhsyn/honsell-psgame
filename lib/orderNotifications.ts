@@ -194,3 +194,71 @@ export async function sendFavoriteOnSaleWhatsApp(params: {
     return { ok: false, reason: err instanceof Error ? err.message : "unknown" };
   }
 }
+
+/**
+ * Admin əl ilə qeyd etdiyi "qiyməti baha görən" müştəriyə endirim xəbəri.
+ *
+ * `sendFavoriteOnSaleWhatsApp`-dan mətni ilə fərqlənir və bu QƏSDƏNDİR: bu
+ * müştəri saytda favorit qoymamışdır — ona "favoritinizdəki oyun" yazsan nədən
+ * danışdığımızı anlamaz. Əvəzinə söhbətə istinad olunur ("soruşduğunuz oyun").
+ *
+ * Köhnə qiymət verilibsə mesajda göstərilir — müştərinin etirazı məhz qiymət
+ * olduğu üçün "62 → 45" müqayisəsi tək rəqəmdən güclüdür.
+ */
+export async function sendPriceWatchWhatsApp(params: {
+  phone: string | null | undefined;
+  customerName?: string | null;
+  productTitle: string;
+  productId: string;
+  finalAzn: number;
+  /** Güdmə qeyd olunanda gördüyümüz qiymət — varsa "əvvəl X idi" sətri çıxır. */
+  basePriceAzn?: number | null;
+  discountPct?: number | null;
+  discountEndAt?: Date | null;
+}): Promise<{ ok: boolean; reason?: string }> {
+  if (!isWasenderConfigured()) {
+    return { ok: false, reason: "WASENDER_NOT_CONFIGURED" };
+  }
+  const to = normalizeToE164(params.phone);
+  if (!to) {
+    return { ok: false, reason: "PHONE_INVALID" };
+  }
+
+  const greeting = params.customerName?.trim()
+    ? `Salam, ${params.customerName.trim()}! 👋`
+    : "Salam! 👋";
+  const pctLine =
+    params.discountPct != null && params.discountPct > 0 ? ` *-${params.discountPct}%*` : "";
+  // Yalnız REAL enmə göstərilir: baza qiyməti yeni qiymətdən böyük olmalıdır,
+  // yoxsa "əvvəl 45 idi, indi 45" kimi mənasız sətir çıxar.
+  const beforeLine =
+    params.basePriceAzn != null && params.basePriceAzn > params.finalAzn
+      ? `\nSoruşduğunuz vaxt: ~${params.basePriceAzn.toFixed(2)} AZN~`
+      : "";
+  const endLine = params.discountEndAt
+    ? `\n⏳ Endirim bitir: ${params.discountEndAt.toLocaleDateString("az-AZ", {
+        day: "numeric",
+        month: "long",
+      })}`
+    : "";
+  const link = `honsell.store/oyunlar/${params.productId}`;
+
+  const text =
+    `${greeting}\n\n` +
+    `Soruşduğunuz *${params.productTitle}* endirimə düşdü!${pctLine}\n` +
+    `Yeni qiymət: *${params.finalAzn.toFixed(2)} AZN*${beforeLine}${endLine}\n\n` +
+    `${link}\n` +
+    `Honsell.store`;
+
+  try {
+    const res = await sendWasenderText({ to, text });
+    if (!res.ok) {
+      console.error("price-watch whatsapp send failed", { reason: res.error });
+      return { ok: false, reason: res.error };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error("price-watch whatsapp threw", { err });
+    return { ok: false, reason: err instanceof Error ? err.message : "unknown" };
+  }
+}

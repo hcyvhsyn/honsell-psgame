@@ -117,7 +117,7 @@ export async function GET(req: Request) {
       id: g.id,
       productId: g.productId,
       title: g.title,
-      subtitle: productType === "ADDON" ? "DLC / Əlavə" : "PlayStation oyunu",
+      subtitle: gameSubtitle(g),
       imageUrl: g.imageUrl,
       href: gameDetailHref(g) ?? "/oyunlar",
       productType,
@@ -129,6 +129,7 @@ export async function GET(req: Request) {
         title: g.title,
         imageUrl: g.imageUrl ?? null,
         finalAzn: display.finalAzn,
+        originalAzn: display.originalAzn,
         productType,
         store: g.store ?? "PS",
       },
@@ -219,7 +220,26 @@ type GameRow = Pick<
   | "discountTryCents"
   | "discountEndAt"
   | "store"
+  | "platform"
 >;
+
+/**
+ * Modal sətrinin alt yazısı.
+ *
+ * ⚠️ Əvvəl sabit "PlayStation oyunu" yazılırdı — **Epic (PC) oyunları da**
+ * bu etiketlə çıxırdı. Kataloqda eyni oyunun həm PS, həm Epic sətri olduğu
+ * üçün istifadəçi iki eyni adlı sətir görüb hansının PS olduğunu ayırd edə
+ * bilmirdi (məs. "The Last of Us™ Part I" — 81.66₼ PS5, 54.52₼ Epic/PC).
+ *
+ * Platforma da yazılır: modal kartda çip yoxdur, ona görə PS4/PS5 fərqini
+ * göstərən yeganə yer budur.
+ */
+function gameSubtitle(g: GameRow): string {
+  if (g.productType === "ADDON") return "DLC / Əlavə";
+  if (g.store === "EPIC") return "PC oyunu · Epic Games";
+  const platform = g.platform?.trim();
+  return platform ? `PlayStation oyunu · ${platform}` : "PlayStation oyunu";
+}
 
 /**
  * Oyun axtarışı — kataloqla eyni fuzzy mühərriki (lib/gameSearchSql.ts).
@@ -242,7 +262,7 @@ async function searchGames(q: string, offset: number): Promise<GameRow[]> {
     return (await prisma.$queryRaw(
       PrismaSql.sql`SELECT g."id", g."productId", g."slug", g."title", g."imageUrl",
                           g."productType", g."priceTryCents", g."discountTryCents",
-                          g."discountEndAt", g."store"
+                          g."discountEndAt", g."store", g."platform"
          FROM ${gameSearchFromSql()}
          WHERE ${where}
          ORDER BY ${order}
@@ -262,6 +282,7 @@ async function searchGames(q: string, offset: number): Promise<GameRow[]> {
         discountTryCents: true,
         discountEndAt: true,
         store: true,
+        platform: true,
       },
       orderBy: [{ isFeatured: "desc" }, { lastScrapedAt: "desc" }],
       take: GAMES_PAGE_SIZE + 1,

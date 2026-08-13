@@ -123,6 +123,13 @@ export type CartItem = {
   title: string;
   imageUrl: string | null;
   finalAzn: number;
+  /**
+   * Üstündən xətlənən list qiymət (endirim aktivdirsə). Add-yolları bunu
+   * ötürməyə BİLƏR — `/api/cart/refresh` sahəni serverdən doldurur, yəni tək
+   * həqiqət mənbəyi yenə serverdir. Endirim bitəndə `null` gəlir və xətlənmiş
+   * qiymət səbətdən özü yox olur.
+   */
+  originalAzn?: number | null;
   productType: string;
   /** `productType === "BUNDLE"` olduqda paketin tərkibi (səbətdə açılan siyahı). */
   bundleItems?: BundleCartItems;
@@ -228,7 +235,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (snapshot.length === 0) return;
     const ids = snapshot.map((i) => i.id);
     let data: {
-      prices?: { id: string; finalAzn: number; store?: string }[];
+      prices?: { id: string; finalAzn: number; originalAzn?: number | null; store?: string }[];
       missing?: string[];
       serviceBundles?: { id: string; items: ServiceBundleCartItem[] }[];
     } | null = null;
@@ -246,10 +253,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (!data) return;
 
     const priceMap = new Map<string, number>();
+    const originalMap = new Map<string, number | null>();
     const storeMap = new Map<string, string>();
     for (const p of data.prices ?? []) {
       if (typeof p?.id === "string" && typeof p?.finalAzn === "number") {
         priceMap.set(p.id, p.finalAzn);
+        // `undefined` (köhnə server cavabı) ilə `null` (endirim yoxdur) fərqlidir:
+        // birincisində mövcud dəyərə toxunmuruq, ikincisində xətlənmiş qiyməti silirik.
+        if (p.originalAzn === null || typeof p.originalAzn === "number") {
+          originalMap.set(p.id, p.originalAzn);
+        }
         if (typeof p.store === "string") storeMap.set(p.id, p.store);
       }
     }
@@ -290,6 +303,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             }
           : null;
 
+        // Xətlənən list qiymət. `originalMap`-də açar yoxdursa server bu barədə
+        // heç nə deməyib → mövcud dəyər qalır.
+        let originalPatch: { originalAzn: number | null } | null = null;
+        if (originalMap.has(it.id)) {
+          const freshOriginal = originalMap.get(it.id) ?? null;
+          if ((it.originalAzn ?? null) !== freshOriginal) {
+            originalPatch = { originalAzn: freshOriginal };
+          }
+        }
+
         const fresh = priceMap.get(it.id);
         if (typeof fresh === "number" && Math.abs(fresh - it.finalAzn) > 0.0049) {
           notices.push({
@@ -299,9 +322,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             oldAzn: it.finalAzn,
             newAzn: fresh,
           });
-          next.push({ ...it, finalAzn: fresh, ...storePatch, ...bundlePatch });
-        } else if (storePatch || bundlePatch) {
-          next.push({ ...it, ...storePatch, ...bundlePatch });
+          next.push({ ...it, finalAzn: fresh, ...originalPatch, ...storePatch, ...bundlePatch });
+        } else if (originalPatch || storePatch || bundlePatch) {
+          next.push({ ...it, ...originalPatch, ...storePatch, ...bundlePatch });
         } else {
           next.push(it);
         }

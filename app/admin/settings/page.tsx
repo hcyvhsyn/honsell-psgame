@@ -64,6 +64,11 @@ type ScrapeEvent = {
   scraped?: number;
   upserts?: number;
   error?: string;
+  // Phase 2.4 — concept → SKU çevirməsi
+  fetched?: number;
+  resolved?: number;
+  unresolved?: number;
+  deferred?: number;
 };
 
 const initialScrape: ScrapeState = {
@@ -308,6 +313,22 @@ export default function AdminSettingsPage() {
           if ((p.added ?? 0) > 0) {
             log.push(`+ "${p.seed}": ${p.added} new`);
           }
+          break;
+        // Hub-lar oyunları concept kimi qaytarır; upsert-dən əvvəl hər concept
+        // öz satıla bilən SKU-suna çevrilir (yoxsa ölü link + dublikat kart).
+        case "conceptResolveStart":
+          next.currentLabel = `Resolving ${p.total} concept ids → SKU…`;
+          break;
+        case "conceptResolveProgress":
+          next.currentLabel = `Resolving concepts ${p.done}/${p.total}…`;
+          break;
+        case "conceptResolveDone":
+          log.push(
+            `✓ Concepts: ${p.resolved}/${p.total} → SKU (${p.fetched} fetched` +
+              ((p.unresolved ?? 0) > 0 ? `, ${p.unresolved} unresolved` : "") +
+              ((p.deferred ?? 0) > 0 ? `, ${p.deferred} deferred` : "") +
+              `)`
+          );
           break;
         case "upsertStart":
           next.upsertTotal = p.total ?? 0;

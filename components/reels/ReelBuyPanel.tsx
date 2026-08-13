@@ -59,6 +59,7 @@ export default function ReelBuyPanel({ item }: { item: ReelFeedItem }) {
       title: selected.title,
       imageUrl: selected.imageUrl,
       finalAzn: selected.finalAzn,
+      originalAzn: selected.originalAzn,
       productType: selected.productType,
       ...(selected.store && selected.store !== "SERVICE" ? { store: selected.store } : {}),
     });
