@@ -17,7 +17,7 @@ export const revalidate = 1800;
 type Params = { slug: string };
 
 const SPOTIFY_SLUG = "spotify-premium";
-const SPOTIFY_CANONICAL = "https://www.honsell.store/music/spotify-premium";
+const SPOTIFY_CANONICAL = "https://www.honsell.site/music/spotify-premium";
 const SPOTIFY_SEO_TITLE = "Spotify Premium 1 Aylıq | Honsell Store";
 const SPOTIFY_SEO_DESCRIPTION =
   "Spotify Premium Individual paketini 1 aylıq aktiv edin. Reklamsız musiqi, offline dinləmə, limitsiz keçid və sürətli qoşulma. Honsell Store ilə rahat sifariş.";

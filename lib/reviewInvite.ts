@@ -16,7 +16,7 @@ function generateToken(): string {
 }
 
 function getBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell.store";
+  return process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell.site";
 }
 
 /**

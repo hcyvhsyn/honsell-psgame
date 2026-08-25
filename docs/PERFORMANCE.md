@@ -30,7 +30,7 @@ istifadə olunur.
 | ORM | `Prisma 7.8` (`adapter-pg`) | Tipli DB sorğuları, PostgreSQL qoşulması |
 | Verilənlər bazası | PostgreSQL (Supabase) + `pgvector` | Bütün data; HNSW ANN semantik axtarış |
 | Auth | Xüsusi cookie sessiya (+`next-auth` mövcud) | `getCurrentUser()` cookie → DB lookup |
-| Storage | Supabase Storage / Cloudflare R2 (`@aws-sdk/s3`) | Şəkil/fayllar; `cdn.honsell.store` ilə verilir |
+| Storage | Supabase Storage / Cloudflare R2 (`@aws-sdk/s3`) | Şəkil/fayllar; `cdn.honsell.site` ilə verilir |
 | İkonlar | `lucide-react` | Tree-shake olunan SVG ikonlar |
 | AI | `openai` | Sayt köməkçisi + embeddings |
 | Email | `resend` + `@react-email` | Sifariş, OTP, marketinq |
@@ -79,7 +79,7 @@ Sayt **Vercel-də deyil** — öz serverinizdə `next start` ilə işləyir, qar
 
 **Rol: CDN · Edge keş · DNS · TLS**
 
-- **Şəkil CDN-i (`cdn.honsell.store`).** Supabase Storage origin-ini edge-də
+- **Şəkil CDN-i (`cdn.honsell.site`).** Supabase Storage origin-ini edge-də
   keşləyir. `cdnImageUrl()` Supabase URL-lərini bu hosta yönləndirir →
   **Supabase egress xərci yeyilmir** və şəkillər istifadəçiyə yaxın nöqtədən gəlir.
 - **HTML edge keşi.** Statik səhifələri (indi ana səhifə daxil) edge-də saxlayıb
@@ -112,7 +112,7 @@ Sayt **Vercel-də deyil** — öz serverinizdə `next start` ilə işləyir, qar
   `getCurrentUser()` çağırırdı → BÜTÜN sayt dinamik idi. User-vəziyyəti client-ə
   (`/api/session` + `useSession`) köçürüldü. Nəticə: `/` = statik + ~20 səhifə.
 - ✅ **Şəkillər Next optimizer-ini bypass edir.** Məhsul kartlarında `unoptimized` →
-  brauzer birbaşa `cdn.honsell.store`-dan paralel çəkir. Self-host optimizer növbəsi
+  brauzer birbaşa `cdn.honsell.site`-dan paralel çəkir. Self-host optimizer növbəsi
   (`pending` 5–7s) aradan qalxdı.
 - ✅ **Şəkil skeleton + fade-in.** `ProductImage` yüklənənə qədər shimmer, sonra
   yumşaq fade; `onError` fallback ilə qırıq şəkil yoxdur.
@@ -161,7 +161,7 @@ Then  Cache eligibility = Eligible
       Serve stale while revalidating = ON
 ```
 
-**Yoxlama:** `curl -I https://honsell.store/` → `cache-control` artıq `private,
+**Yoxlama:** `curl -I https://honsell.site/` → `cache-control` artıq `private,
 no-store` olmamalı; təkrar istəkdə `cf-cache-status: HIT`.
 ⚠️ `/api/*` (xüsusən `/api/session`) **heç vaxt keşlənməməlidir**.
 

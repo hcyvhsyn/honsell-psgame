@@ -189,10 +189,10 @@ export default async function FaqPage() {
             </h2>
           </div>
           <a
-            href="mailto:info@honsell.store"
+            href="mailto:info@honsell.site"
             className="inline-flex h-11 items-center justify-center rounded-xl bg-white px-4 text-sm font-black text-zinc-950 transition hover:bg-zinc-200"
           >
-            info@honsell.store
+            info@honsell.site
           </a>
         </div>
       </section>

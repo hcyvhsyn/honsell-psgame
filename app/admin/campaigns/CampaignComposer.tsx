@@ -69,7 +69,7 @@ function fmtDuration(totalSec: number): string {
   return remM ? `${h} saat ${remM} dəq` : `${h} saat`;
 }
 
-const STORE_BASE = "https://honsell.store";
+const STORE_BASE = "https://honsell.site";
 
 /** Müştəri tərəfi — server `buildCampaignWhatsappText` ilə eyni format. */
 const REVIEW_DEFAULT_TITLE = "Təcrübəni paylaş 💬";

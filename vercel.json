@@ -1,5 +1,5 @@
 {
-  "_comment": "⚠️ BU FAYL SELF-HOST MÜHİTDƏ İŞLƏMİR. Layihə öz serverində `next start` ilə qalxır (bax: docs/), Vercel cron planlaşdırıcısı yoxdur — yəni aşağıdakı cədvəl SƏNƏDDİR, icra olunan konfiqurasiya deyil. Cron-lar serverin öz crontab-ı (və ya Cloudflare Cron Trigger) ilə çağırılmalıdır: curl -fsS -H \"Authorization: Bearer $CRON_SECRET\" https://honsell.store/api/cron/<ad>. Yoxlama: crontab -l",
+  "_comment": "⚠️ BU FAYL SELF-HOST MÜHİTDƏ İŞLƏMİR. Layihə öz serverində `next start` ilə qalxır (bax: docs/), Vercel cron planlaşdırıcısı yoxdur — yəni aşağıdakı cədvəl SƏNƏDDİR, icra olunan konfiqurasiya deyil. Cron-lar serverin öz crontab-ı (və ya Cloudflare Cron Trigger) ilə çağırılmalıdır: curl -fsS -H \"Authorization: Bearer $CRON_SECRET\" https://honsell.site/api/cron/<ad>. Yoxlama: crontab -l",
   "crons": [
     {
       "path": "/api/cron/subscriptions",

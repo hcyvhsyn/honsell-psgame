@@ -18,7 +18,7 @@ export const maxDuration = 300;
  * Serverin öz crontab-ına yazılmalıdır:
  *
  *   0 4 * * 0 curl -fsS -H "Authorization: Bearer $CRON_SECRET" \
- *     https://honsell.store/api/cron/analytics-prune
+ *     https://honsell.site/api/cron/analytics-prune
  */
 export async function GET(req: Request) {
   const auth = req.headers.get("authorization") ?? "";

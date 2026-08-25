@@ -9,7 +9,7 @@ import {
 
 export const runtime = "nodejs";
 
-const APP_BASE_URL = "https://honsell.store";
+const APP_BASE_URL = "https://honsell.site";
 
 export async function POST(req: Request) {
   try {

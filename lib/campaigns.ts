@@ -59,7 +59,7 @@ export type CampaignRecipientUser = {
 };
 
 function storeBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL || "https://honsell.store").replace(/\/+$/, "");
+  return (process.env.NEXT_PUBLIC_APP_URL || "https://honsell.site").replace(/\/+$/, "");
 }
 
 export function gameUrl(productId: string): string {

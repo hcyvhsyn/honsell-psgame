@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Honsell PS Store — Next.js (App Router) + Prisma + Postgres (local Docker, pgvector).
-Öz serverində `next start` ilə işləyir (Vercel deyil). Media Cloudflare R2 → `cdn.honsell.store`.
+Öz serverində `next start` ilə işləyir (Vercel deyil). Media Cloudflare R2 → `cdn.honsell.site`.
 
 ---
 

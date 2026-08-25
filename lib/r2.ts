@@ -16,7 +16,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
  *   R2_ACCESS_KEY_ID         — R2 API token access key
  *   R2_SECRET_ACCESS_KEY     — R2 API token secret
  *   R2_BUCKET                — bucket adı (default: honsell-images)
- *   NEXT_PUBLIC_R2_PUBLIC_URL — public servis bazası (məs. https://cdn.honsell.store
+ *   NEXT_PUBLIC_R2_PUBLIC_URL — public servis bazası (məs. https://cdn.honsell.site
  *                               və ya https://pub-xxxx.r2.dev)
  */
 const accountId = process.env.R2_ACCOUNT_ID?.trim();

@@ -85,7 +85,7 @@ console.log("\n── ən kritik hal: self-referral ─────────�
 // tərəfindədir (son toxunuş yalnız XARİCİ host üçün yenilənir). Burada təsdiq
 // edirik ki, öz hostumuz gələndə heç olmasa "birbaşa"ya çevrilmir, yəni səhv
 // halda belə ilk toxunuş silinmir.
-channel("öz domenimiz referrer kimi", { referrerHost: "honsell.store" }, "referral_site");
+channel("öz domenimiz referrer kimi", { referrerHost: "honsell.site" }, "referral_site");
 
 console.log("\n── ?via= (rəy affiliate) hər şeydən üstündür ───────────────");
 channel("via + instagram utm", { hasVia: true, utmSource: "instagram" }, "review_affiliate");

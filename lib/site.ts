@@ -1,4 +1,4 @@
-export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell.store").replace(/\/$/, "");
+export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell.site").replace(/\/$/, "");
 export const SITE_NAME = "Honsell Store";
 export const SITE_TAGLINE = "Oyun, streaming və rəqəmsal xidmətlər";
 export const SITE_TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`;

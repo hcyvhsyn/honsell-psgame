@@ -21,7 +21,7 @@ function page(title: string, message: string, ok: boolean): Response {
       <div style="font-size:40px;margin-bottom:12px">${ok ? "✅" : "⚠️"}</div>
       <h1 style="margin:0 0 8px;font-size:20px;color:${accent}">${title}</h1>
       <p style="margin:0;color:#a1a1aa;font-size:14px;line-height:1.6">${message}</p>
-      <a href="https://honsell.store" style="display:inline-block;margin-top:24px;color:#a1a1aa;font-size:13px">honsell.store</a>
+      <a href="https://honsell.site" style="display:inline-block;margin-top:24px;color:#a1a1aa;font-size:13px">honsell.site</a>
     </div>
   </div>
 </body></html>`;

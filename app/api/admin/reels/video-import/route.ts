@@ -8,7 +8,7 @@ export const maxDuration = 120;
 const MAX_BYTES = 200 * 1024 * 1024;
 
 /**
- * Uzaq video URL-ini R2-yə (cdn.honsell.store) çəkir ki, native sürət (range,
+ * Uzaq video URL-ini R2-yə (cdn.honsell.site) çəkir ki, native sürət (range,
  * bizim keş) qalsın. R2 qurulmayıbsa (dev) URL olduğu kimi qaytarılır.
  */
 export async function POST(req: Request) {

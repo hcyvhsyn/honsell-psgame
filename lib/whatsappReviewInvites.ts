@@ -63,7 +63,7 @@ export type CreateReviewInviteResult =
     };
 
 export function reviewInviteBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell.store").replace(/\/$/, "");
+  return (process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell.site").replace(/\/$/, "");
 }
 
 export function reviewInviteText(productTitle: string, url: string): string {
@@ -71,7 +71,7 @@ export function reviewInviteText(productTitle: string, url: string): string {
     `Salam! 👋`,
     ``,
     `Honsell Store-dan aldığın *${productTitle}* üçün rəyini bizimlə bölüş.`,
-    `Bir neçə addımda tamamlanır və honsell.store hesabın da yaranır:`,
+    `Bir neçə addımda tamamlanır və honsell.site hesabın da yaranır:`,
     ``,
     url,
   ].join("\n");

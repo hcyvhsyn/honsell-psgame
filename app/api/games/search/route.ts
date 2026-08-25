@@ -157,5 +157,5 @@ function apiKeyMatches(provided: string, expected: string): boolean {
 function siteBaseUrl(): string {
   const env = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (env) return env.replace(/\/+$/, "");
-  return "https://www.honsell.store";
+  return "https://www.honsell.site";
 }

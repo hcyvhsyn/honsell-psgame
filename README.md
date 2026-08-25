@@ -41,7 +41,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 Set these environment variables before enabling card payments:
 
 ```bash
-NEXT_PUBLIC_APP_URL=https://honsell.store
+NEXT_PUBLIC_APP_URL=https://honsell.site
 EPOINT_PUBLIC_KEY=...
 EPOINT_PRIVATE_KEY=...
 ```
@@ -49,7 +49,7 @@ EPOINT_PRIVATE_KEY=...
 In the Epoint merchant cabinet, configure:
 
 ```text
-success_url: https://honsell.store/success
-error_url:   https://honsell.store/error
-result_url:  https://honsell.store/result
+success_url: https://honsell.site/success
+error_url:   https://honsell.site/error
+result_url:  https://honsell.site/result
 ```

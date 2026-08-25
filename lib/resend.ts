@@ -17,9 +17,9 @@ if (!process.env.RESEND_API_KEY) {
 
 export const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_ADDRESS = "Honsell Store <onboarding@honsell.store>";
+const FROM_ADDRESS = "Honsell Store <onboarding@honsell.site>";
 const ADMIN_NOTIFY_EMAIL = "huseynhajiyev0@gmail.com";
-const ADMIN_BASE_URL = "https://honsell.store";
+const ADMIN_BASE_URL = "https://honsell.site";
 
 function escapeHtml(value: string): string {
   return value
@@ -319,7 +319,7 @@ function subscriptionEmailShell(params: {
             </a>
           </div>
           <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center">
-            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a>
+            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.site</a>
           </p>
         </div>
       </div>
@@ -669,7 +669,7 @@ export async function sendDiscountDigestEmail(params: {
             </a>
           </div>
           <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center;line-height:1.6">
-            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
+            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.site</a><br/>
             Bu bültenləri almaq istəmirsiniz? <a href="${params.unsubscribeUrl}" style="color:#a1a1aa;text-decoration:underline">Abunəlikdən çıxın</a>.
           </p>
         </div>
@@ -755,7 +755,7 @@ export async function sendAbandonedCartEmail(params: {
             </a>
           </div>
           <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center;line-height:1.6">
-            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
+            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.site</a><br/>
             Belə xatırlatmaları almaq istəmirsiniz? <a href="${params.unsubscribeUrl}" style="color:#a1a1aa;text-decoration:underline">Abunəlikdən çıxın</a>.
           </p>
         </div>
@@ -833,7 +833,7 @@ export function renderCampaignEmailHtml(params: CampaignEmailContent): string {
             </a>
           </div>
           <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center;line-height:1.6">
-            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
+            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.site</a><br/>
             Bu mesajları almaq istəmirsiniz? <a href="${params.unsubscribeUrl}" style="color:#a1a1aa;text-decoration:underline">Abunəlikdən çıxın</a>.
           </p>
         </div>
@@ -890,7 +890,7 @@ export function renderCampaignEmailHtml(params: CampaignEmailContent): string {
             </a>
           </div>
           <p style="margin:24px 0 0;font-size:12px;color:#71717a;text-align:center;line-height:1.6">
-            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.store</a><br/>
+            Honsell Store — <a href="${ADMIN_BASE_URL}" style="color:#a1a1aa;text-decoration:none">honsell.site</a><br/>
             Bu mesajları almaq istəmirsiniz? <a href="${params.unsubscribeUrl}" style="color:#a1a1aa;text-decoration:underline">Abunəlikdən çıxın</a>.
           </p>
         </div>

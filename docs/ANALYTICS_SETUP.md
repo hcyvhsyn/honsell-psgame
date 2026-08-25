@@ -52,7 +52,7 @@ docker compose up -d umami
 
 ### 1.3 Reverse proxy
 
-`analytics.honsell.store` üçün DNS + proxy qurun (nginx/Caddy → `127.0.0.1:3002`).
+`analytics.honsell.site` üçün DNS + proxy qurun (nginx/Caddy → `127.0.0.1:3002`).
 
 > **Vacib:** analitika domenini **əsas domenin subdomeni** kimi saxlayın.
 > Ayrıca domen istifadə etsəniz, reklam bloklayıcıları skripti daha çox
@@ -61,12 +61,12 @@ docker compose up -d umami
 ### 1.4 Sayt əlavə edin və env qurun
 
 Umami panelinə girin (ilk giriş: `admin` / `umami` — **dərhal dəyişin**),
-Settings → Websites → Add website → `honsell.store`. Verilən `website id`-ni
+Settings → Websites → Add website → `honsell.site`. Verilən `website id`-ni
 götürün və app `.env`-inə yazın:
 
 ```bash
 NEXT_PUBLIC_ANALYTICS_PROVIDER=umami
-NEXT_PUBLIC_ANALYTICS_SRC=https://analytics.honsell.store/script.js
+NEXT_PUBLIC_ANALYTICS_SRC=https://analytics.honsell.site/script.js
 NEXT_PUBLIC_ANALYTICS_SITE_ID=<website id>
 ```
 
@@ -83,7 +83,7 @@ deyir, Search Console "hansı sorğuda neçənci sıradasan və neçə səhifən
 indekslənib" deyir.
 
 1. [search.google.com/search-console](https://search.google.com/search-console) →
-   URL prefix → `https://honsell.store`
+   URL prefix → `https://honsell.site`
 2. HTML tag üsulunu seçin, verilən `content="..."` dəyərini (yalnız tokeni,
    bütöv meta teqi yox) `.env`-ə yazın:
 
@@ -92,7 +92,7 @@ GOOGLE_SITE_VERIFICATION=<token>
 ```
 
 3. Build + deploy → Search Console-da "Verify".
-4. Sitemaps bölməsinə `https://honsell.store/sitemap.xml` əlavə edin
+4. Sitemaps bölməsinə `https://honsell.site/sitemap.xml` əlavə edin
    (bu, indeks faylıdır; shard-ları Google özü tapır).
 
 > DNS TXT üsulu ilə təsdiqləmisinizsə env-i boş buraxın — meta teq render
@@ -117,7 +117,7 @@ tədricən yeniləri ilə əvəz edir. İzləyin:
 indekslənmiş səhifə sayı artmırsa, 308-lər düzgün işləmir — dərhal yoxlayın:
 
 ```bash
-curl -sI https://honsell.store/oyunlar/<köhnə-productId> | head -3
+curl -sI https://honsell.site/oyunlar/<köhnə-productId> | head -3
 # HTTP/2 308 + location: /oyunlar/<slug> gözlənilir
 ```
 

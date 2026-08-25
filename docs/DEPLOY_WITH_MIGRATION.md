@@ -174,14 +174,14 @@ docker compose restart <servis-adı>
 
 ```bash
 # Köhnə productId URL-i slug-a 308 verirmi?
-curl -sI https://honsell.store/oyunlar/<productId> | head -3
+curl -sI https://honsell.site/oyunlar/<productId> | head -3
 
 # Sitemap indeksi və shard-lar açılırmı?
-curl -s https://honsell.store/sitemap.xml | head -20
-curl -s https://honsell.store/sitemap-games/0.xml | head -10
+curl -s https://honsell.site/sitemap.xml | head -20
+curl -s https://honsell.site/sitemap-games/0.xml | head -10
 
 # Facet səhifələri məhsul göstərirmi?
-curl -s https://honsell.store/ps5-oyunlari | grep -c "oyunlar/"
+curl -s https://honsell.site/ps5-oyunlari | grep -c "oyunlar/"
 ```
 
 Janr səhifələri (`/janr/*`) `enrichGameMetadata.ts` işləyənə qədər boş olacaq və

@@ -736,7 +736,7 @@ function ReelFormModal({
               value={form.platformLogoUrl}
               onChange={(e) => set("platformLogoUrl", e.target.value)}
               className="input"
-              placeholder="https://cdn.honsell.store/..."
+              placeholder="https://cdn.honsell.site/..."
             />
           </Field>
 

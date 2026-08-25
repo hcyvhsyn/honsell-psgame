@@ -176,7 +176,7 @@ export function verifyUnsubscribeToken(userId: string, token: string): boolean {
 }
 
 export function unsubscribeUrl(userId: string): string {
-  const base = (process.env.NEXT_PUBLIC_APP_URL || "https://honsell.store").replace(/\/+$/, "");
+  const base = (process.env.NEXT_PUBLIC_APP_URL || "https://honsell.site").replace(/\/+$/, "");
   const token = makeUnsubscribeToken(userId);
   return `${base}/api/marketing/unsubscribe?u=${encodeURIComponent(userId)}&t=${token}`;
 }

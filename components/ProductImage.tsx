@@ -94,7 +94,7 @@ export default function ProductImage({
         fill
         sizes={sizes}
         priority={priority}
-        // Şəkillər artıq cdn.honsell.store (Cloudflare) arxasında keşlənir.
+        // Şəkillər artıq cdn.honsell.site (Cloudflare) arxasında keşlənir.
         // Bir də self-hosted Next optimizer-indən (/_next/image, sharp) keçirmək
         // scroll burst-ında request-ləri növbəyə salıb 5-7s pending yaradırdı.
         // `unoptimized` ilə brauzer birbaşa CDN-dən paralel çəkir → blokaj yoxdur.

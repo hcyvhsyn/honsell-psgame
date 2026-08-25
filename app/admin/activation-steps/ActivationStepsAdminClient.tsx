@@ -436,7 +436,7 @@ export default function ActivationStepsAdminClient() {
                   value={editForm.imageUrl}
                   onChange={(e) => setEditForm({ ...editForm, imageUrl: e.target.value })}
                   className="mt-2 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-xs text-zinc-900 focus:border-violet-500 focus:outline-none"
-                  placeholder="Yaxud hazır URL yaz: https://cdn.honsell.store/..."
+                  placeholder="Yaxud hazır URL yaz: https://cdn.honsell.site/..."
                 />
                 <p className="mt-1 text-[11px] text-zinc-500">
                   PNG / JPEG / WEBP, maks 10MB. Şəkil brauzerdə sıxılır (webp, maks 1600px).

@@ -35,7 +35,7 @@ export type { EntryCondition, GiveawayStatus } from "@/lib/giveawaysShared";
 const WA_SEND_DELAY_MS = 400;
 
 function storeBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL || "https://honsell.store").replace(/\/+$/, "");
+  return (process.env.NEXT_PUBLIC_APP_URL || "https://honsell.site").replace(/\/+$/, "");
 }
 
 /** Çəkilişin ictimai linki (ana səhifə bölməsi). */

@@ -52,7 +52,7 @@ export default async function WhatsappReviewPage({
           <p className="mt-2 text-sm text-zinc-400">
             <span className="text-zinc-200">{invite.productTitle}</span> üçün təcrübəni
             qiymətləndir. Bir neçə addımda tamamlanır — həm rəyin dərc olunur, həm də
-            honsell.store hesabın yaranır.
+            honsell.site hesabın yaranır.
           </p>
         </header>
 

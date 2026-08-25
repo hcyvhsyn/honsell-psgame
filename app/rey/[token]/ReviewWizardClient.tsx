@@ -179,7 +179,7 @@ export default function ReviewWizardClient({
           <h2 className="text-lg font-semibold">Təşəkkürlər!</h2>
         </div>
         <p className="text-sm text-zinc-300">
-          Rəyin uğurla göndərildi və artıq saytda göstərilir. honsell.store hesabın da
+          Rəyin uğurla göndərildi və artıq saytda göstərilir. honsell.site hesabın da
           yaradıldı — indi daxil olmusan.
         </p>
         {referralCode && (

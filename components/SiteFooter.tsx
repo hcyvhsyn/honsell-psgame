@@ -90,7 +90,7 @@ export default function SiteFooter() {
               WhatsApp-da yaz
               <ArrowUpRight aria-hidden />
             </a>
-            <a href="mailto:info@honsell.store" className={styles.secondaryAction}>
+            <a href="mailto:info@honsell.site" className={styles.secondaryAction}>
               <Mail aria-hidden />
               E-poçt göndər
             </a>
@@ -115,9 +115,9 @@ export default function SiteFooter() {
                 <Phone aria-hidden />
                 +994 70 256 05 09
               </a>
-              <a href="mailto:info@honsell.store">
+              <a href="mailto:info@honsell.site">
                 <Mail aria-hidden />
-                info@honsell.store
+                info@honsell.site
               </a>
             </div>
           </div>
@@ -189,7 +189,7 @@ export default function SiteFooter() {
         <div className={styles.mobileContact}>
           <a href="tel:+994702560509">+994 70 256 05 09</a>
           <span aria-hidden>•</span>
-          <a href="mailto:info@honsell.store">info@honsell.store</a>
+          <a href="mailto:info@honsell.site">info@honsell.site</a>
         </div>
 
         <p className={styles.mobileLegal}>© {year} Honsell</p>

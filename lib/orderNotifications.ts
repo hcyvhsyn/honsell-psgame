@@ -32,7 +32,7 @@ export async function sendOrderApprovedWhatsApp(params: {
     `${greeting}\n\n` +
     `${product} üzrə sifarişiniz tamamlandı və tərəfimizdən təsdiqləndi. ✅` +
     `${extra}\n\n` +
-    `Daha ətraflı: honsell.store/profile/orders\n` +
+    `Daha ətraflı: honsell.site/profile/orders\n` +
     `Honsell.store`;
 
   try {
@@ -173,7 +173,7 @@ export async function sendFavoriteOnSaleWhatsApp(params: {
         month: "long",
       })}`
     : "";
-  const link = `honsell.store/oyunlar/${params.productId}`;
+  const link = `honsell.site/oyunlar/${params.productId}`;
 
   const text =
     `${greeting}\n\n` +
@@ -241,7 +241,7 @@ export async function sendPriceWatchWhatsApp(params: {
         month: "long",
       })}`
     : "";
-  const link = `honsell.store/oyunlar/${params.productId}`;
+  const link = `honsell.site/oyunlar/${params.productId}`;
 
   const text =
     `${greeting}\n\n` +

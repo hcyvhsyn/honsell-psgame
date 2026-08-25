@@ -9,8 +9,8 @@ import { loadEnvConfig } from "@next/env";
 loadEnvConfig(process.cwd());
 
 const ORIGINS = [
-  "https://honsell.store",
-  "https://www.honsell.store",
+  "https://honsell.site",
+  "https://www.honsell.site",
   "http://localhost:3000",
   "http://localhost:3003",
 ];

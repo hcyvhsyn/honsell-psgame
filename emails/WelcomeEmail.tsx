@@ -18,7 +18,7 @@ interface WelcomeEmailProps {
   referralCode?: string | null;
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell.store";
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://honsell.site";
 
 export default function WelcomeEmail({ userName, referralCode }: WelcomeEmailProps) {
   return (

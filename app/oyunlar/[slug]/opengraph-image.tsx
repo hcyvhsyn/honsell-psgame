@@ -193,7 +193,7 @@ export default async function OgImage({ params }: { params: { slug: string } }) 
                 color: "#9CA3AF",
               }}
             >
-              honsell.store
+              honsell.site
             </div>
           </div>
         </div>

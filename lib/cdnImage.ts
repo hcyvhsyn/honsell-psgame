@@ -7,8 +7,8 @@
  *
  * `NEXT_PUBLIC_SUPABASE_CDN_HOST` qurulmayıbsa URL DƏYİŞMİR (no-op) — yəni
  * Cloudflare qurulana qədər heç nə pozulmur. Quraşdırma:
- *   1. Cloudflare-də `cdn.honsell.store` → origin: `<ref>.supabase.co` (proxied).
- *   2. .env: NEXT_PUBLIC_SUPABASE_CDN_HOST=cdn.honsell.store
+ *   1. Cloudflare-də `cdn.honsell.site` → origin: `<ref>.supabase.co` (proxied).
+ *   2. .env: NEXT_PUBLIC_SUPABASE_CDN_HOST=cdn.honsell.site
  *   3. next.config remotePatterns bu host-u env-dən avtomatik əlavə edir.
  */
 const CDN_HOST = process.env.NEXT_PUBLIC_SUPABASE_CDN_HOST?.trim();

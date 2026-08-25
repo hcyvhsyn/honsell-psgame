@@ -165,7 +165,7 @@ export async function resolvePackageShortName(
       headers: {
         "content-type": "application/json",
         accept: "application/json",
-        "user-agent": "Mozilla/5.0 (compatible; honsell-streaming-sync/1.0; +https://honsell.store)",
+        "user-agent": "Mozilla/5.0 (compatible; honsell-streaming-sync/1.0; +https://honsell.site)",
       },
       body: JSON.stringify({ query: PACKAGES_QUERY, variables: { country } }),
       pacingMs: SCRAPER_CONFIG.rateLimitMs.PRIME,
@@ -211,7 +211,7 @@ export async function scrapeJustWatchProvider(
           "content-type": "application/json",
           "accept": "application/json",
           "user-agent":
-            "Mozilla/5.0 (compatible; honsell-streaming-sync/1.0; +https://honsell.store)",
+            "Mozilla/5.0 (compatible; honsell-streaming-sync/1.0; +https://honsell.site)",
         },
         body: JSON.stringify({
           query: POPULAR_TITLES_QUERY,

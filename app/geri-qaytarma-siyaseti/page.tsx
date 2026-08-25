@@ -134,11 +134,11 @@ export default function RefundPolicyPage() {
               verilib) olarsa, bizimlə əlaqə saxlayın. Belə halları fərdi qaydada araşdırırıq.
             </p>
             <a
-              href="mailto:info@honsell.store"
+              href="mailto:info@honsell.site"
               className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-4 text-sm font-bold text-white transition hover:bg-white/[0.09]"
             >
               <Mail className="h-4 w-4" />
-              info@honsell.store
+              info@honsell.site
             </a>
           </aside>
 
