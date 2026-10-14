@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import type { ProductCategoryNavAsset } from "@/lib/categoryAssets";
+import { isVisibleCategoryKey } from "@/lib/storeScope";
 import SiteHeader from "./SiteHeader";
 
 /**
@@ -42,7 +43,7 @@ const getCachedCategoryAssets = unstable_cache(
           sortOrder: true,
         },
       });
-      return assets && assets.length > 0 ? assets.filter((asset) => asset.isActive) : null;
+      return assets && assets.length > 0 ? assets.filter((asset) => asset.isActive && isVisibleCategoryKey(asset.key)) : null;
     } catch {
       return null;
     }

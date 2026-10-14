@@ -1,3 +1,5 @@
+import { meetsMinOrder, minOrderMessage } from "@/lib/cartLimits";
+import { isSellableGameStore } from "@/lib/storeScope";
 import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -26,7 +28,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     body.paymentSource === "referral" ? "referral" : "wallet";
 
   const game = await prisma.game.findUnique({ where: { id: params.id } });
-  if (!game || !game.isActive) {
+  if (!game || !game.isActive || !isSellableGameStore(game.store)) {
     return NextResponse.json({ error: "Game not found" }, { status: 404 });
   }
 
@@ -35,6 +37,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const flashDeals = await getFlashDealOverrides([game.id]);
   const price = applyFlashDeal(computeDisplayPrice(game, settings), flashDeals.get(game.id));
   const priceCents = Math.round(price.finalAzn * 100);
+  // Birbaşa alış səbətin minimum məbləğ qaydasını keçməsin (lib/cartLimits.ts).
+  if (!meetsMinOrder(priceCents)) {
+    return NextResponse.json({ error: minOrderMessage(priceCents), code: "MIN_ORDER" }, { status: 400 });
+  }
   const savingsCents =
     price.originalAzn != null
       ? Math.max(0, Math.round(price.originalAzn * 100) - priceCents)

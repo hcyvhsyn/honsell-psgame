@@ -24,6 +24,7 @@
     "test:concept": "tsx scripts/psStoreConcept.test.ts",
     "test:listing": "tsx scripts/psStoreListing.test.ts",
     "fix:concepts": "tsx scripts/resolveConceptGames.ts",
+    "fix:mediahost": "tsx scripts/rewriteMediaHost.ts",
     "test:imdb": "tsx scripts/imdbDatasets.test.ts",
     "import:imdb": "tsx scripts/importImdbData.ts",
     "lootbox:drain": "tsx scripts/lootBoxDrain.ts",

@@ -53,6 +53,13 @@ import {
 } from "@/lib/platformSubscriptions";
 import { gameDetailHref } from "@/lib/gameSlug";
 import { applyFlashDeal } from "@/lib/flashDeals";
+import {
+  PLAYSTATION_ONLY,
+  isOpenStorePath,
+  isSellableGameStore,
+  isSellableServiceType,
+  sellableGameWhere,
+} from "@/lib/storeScope";
 
 export const revalidate = 1800;
 
@@ -79,7 +86,9 @@ const HOME_FAQS = [
     id: "home-products",
     question: "Hansı məhsulları ala bilərəm?",
     answer:
-      "PlayStation oyunları, PS Plus, gift card, Epic Games, streaming, musiqi, AI və iş platformaları bir yerdədir.",
+      PLAYSTATION_ONLY
+        ? "PlayStation oyunları, PS Plus, EA Play, Türkiyə PSN gift card-ları və TR PSN hesabının açılması."
+        : "PlayStation oyunları, PS Plus, gift card, Epic Games, streaming, musiqi, AI və iş platformaları bir yerdədir.",
   },
   {
     id: "home-delivery",
@@ -292,7 +301,7 @@ async function fetchBestSellers(settings: Awaited<ReturnType<typeof getSettings>
 
   for (const row of gameSalesRows) {
     const game = gameById.get(row.id);
-    if (!game) continue;
+    if (!game || !isSellableGameStore(game.store)) continue;
     const price = computeDisplayPrice(game, settings);
     items.push({
       id: `game-${game.id}`,
@@ -310,7 +319,7 @@ async function fetchBestSellers(settings: Awaited<ReturnType<typeof getSettings>
 
   for (const row of serviceSalesRows) {
     const service = serviceById.get(row.id);
-    if (!service) continue;
+    if (!service || !isSellableServiceType(service.type)) continue;
     items.push({
       id: `service-${service.id}`,
       href: serviceHref(service.type, service.metadata, service.title),
@@ -333,7 +342,7 @@ async function fetchBestSellers(settings: Awaited<ReturnType<typeof getSettings>
 
   const [fallbackGames, fallbackServices] = await Promise.all([
     prisma.game.findMany({
-      where: { isActive: true, isFeatured: true },
+      where: { isActive: true, isFeatured: true, ...sellableGameWhere() },
       orderBy: [{ lastScrapedAt: "desc" }, { createdAt: "desc" }],
       take: 8,
       select: {
@@ -354,7 +363,11 @@ async function fetchBestSellers(settings: Awaited<ReturnType<typeof getSettings>
     prisma.serviceProduct.findMany({
       where: {
         isActive: true,
-        type: { in: ["PS_PLUS", "TRY_BALANCE", "STREAMING", "PLATFORM", "EA_PLAY", "PUBG_UC"] },
+        type: {
+          in: ["PS_PLUS", "TRY_BALANCE", "STREAMING", "PLATFORM", "EA_PLAY", "PUBG_UC"].filter(
+            isSellableServiceType,
+          ),
+        },
       },
       orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
       take: 8,
@@ -417,7 +430,7 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
   const services = await prisma.serviceProduct.findMany({
     where: {
       isActive: true,
-      type: { in: [...LANDING_SERVICE_TYPES] },
+      type: { in: LANDING_SERVICE_TYPES.filter(isSellableServiceType) },
     },
     orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }, { title: "asc" }],
     select: {
@@ -470,7 +483,7 @@ async function fetchFlashDeals(
       where: {
         isActive: true,
         OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-        game: { isActive: true },
+        game: { isActive: true, ...sellableGameWhere() },
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       take: 12,
@@ -563,6 +576,13 @@ const getHomePageData = unstable_cache(
   };
 
   const bannerSlides = banners
+    // Qeyri-PS məhsula/səhifəyə aparan bannerlər göstərilmir (lib/storeScope.ts).
+    .filter(
+      (b) =>
+        (!b.game || isSellableGameStore(b.game.store)) &&
+        (!b.serviceProduct || isSellableServiceType(b.serviceProduct.type)) &&
+        isOpenStorePath(b.linkUrl),
+    )
     .map((b) => {
       const price = b.game ? computeDisplayPrice(b.game, settings) : null;
       // Xidmət/məhsul banneri (streaming, platform, PS Plus...) — qiymət AZN
@@ -729,9 +749,9 @@ export default async function HomePage() {
                   Yeni rəqəmsal mağaza təcrübəsi
                 </span>
                 <p className="text-3xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-5xl">
-                  Oyun, film, musiqi və digər
+                  PlayStation oyunları,
                   <br />
-                  rəqəmsal məhsullar bir yerdə
+                  PS Plus və gift card-lar bir yerdə
                 </p>
               </div>
             </div>

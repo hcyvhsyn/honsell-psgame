@@ -4,6 +4,7 @@ import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { gameDetailHref } from "@/lib/gameSlug";
 import { dedupeEditions, editionSuffixLabel } from "@/lib/gameEditions";
 import { rankReels } from "@/lib/reelRanking";
+import { isSellableServiceType } from "@/lib/storeScope";
 
 /**
  * Reels feed data qatı — TƏK mənbə.
@@ -226,7 +227,9 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
       if (editions.length === 0 && product) editions = [product];
     } else if (r.ctaType === "SERVICE" && r.ctaTargetId) {
       const s = serviceById.get(r.ctaTargetId);
-      if (s) {
+      // PS-only rejimdə qeyri-PS xidmət (Netflix və s.) üçün alış paneli yoxdur —
+      // video qalır, səbət düyməsi göstərilmir (lib/storeScope.ts).
+      if (s && isSellableServiceType(s.type)) {
         product = {
           id: s.id,
           title: s.title,

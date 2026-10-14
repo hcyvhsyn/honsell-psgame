@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Honsell PS Store — Next.js (App Router) + Prisma + Postgres (local Docker, pgvector).
-Öz serverində `next start` ilə işləyir (Vercel deyil). Media Cloudflare R2 → `cdn.honsell.site`.
+Öz serverində `next start` ilə işləyir (Vercel deyil). Media Cloudflare R2 → `honsell.site/cdn` proxy-si (aşağıya bax).
 
 ---
 
@@ -40,6 +40,52 @@ həndəsəni verir, ona görə qarışıq olması problem deyil.
 
 ⚠️ Navbar-ın daxili padding-i (`px-4 md:px-5 xl:px-6`) qabığın **içindədir** — o, kartın
 sərhədini yerindən tərpətmir. Hizalanma meyarı qabığın **kənarı**dır, loqonun yeri yox.
+
+---
+
+# Mağaza əhatəsi — YALNIZ PlayStation (2026-10)
+
+Tək mənbə: [lib/storeScope.ts](lib/storeScope.ts) (client-safe, saf). Satılan:
+PS oyunları (`Game.store = "PS"`), `PS_PLUS`, `EA_PLAY`, `TRY_BALANCE`,
+`ACCOUNT_CREATION` (TR PSN hesabı). Qalan kateqoriyaların **səhifələri silinməyib** —
+sadəcə landing/naviqasiya/axtarışdan keçid yoxdur və satılmır.
+
+Süzgəc tətbiq olunan yerlər: header kateqoriyaları (`SiteHeaderServer` + `SiteHeader`),
+footer, ana səhifə (çox satılanlar, abunəlik matrisi, flash deal, bannerlər — banner
+`linkUrl`-i `isOpenStorePath` ilə), `isBundleSellable` / `isServiceBundleSellable`,
+navbar axtarışı, reels SERVICE CTA-sı, `/api/cart/refresh` (`missing` → səbətdən
+silinir), `/api/cart/checkout` (kataloq sorğusunda süzülür → 409), birbaşa alış
+endpoint-ləri (`/api/services/checkout`, `/api/games/[id]/purchase`).
+
+⚠️ Yeni satış yolu / vitrin bloku əlavə edəndə `isSellableServiceType` /
+`sellableGameWhere()` tətbiq et. Geri açmaq: `NEXT_PUBLIC_STORE_SCOPE=ALL` + `next build`.
+
+# Minimum sifariş məbləği
+
+[lib/cartLimits.ts](lib/cartLimits.ts) → `MIN_ORDER_AZN` (hazırda **20**). Səbətin
+**kupondan əvvəlki** cəmi bundan azdırsa checkout **bütün** ödəniş üsullarında
+bloklanır (`code: "MIN_ORDER"`). Birbaşa alış endpoint-ləri də eyni qaydanı yoxlayır.
+`EPOINT_MIN_CHARGE_AZN_CENTS` (5 AZN) ayrıdır — gateway limiti, round-up üçün.
+
+UI (hamısı `minOrderProgress()` oxuyur): səbətdə `MinOrderMeter` ("2.30 / 20 ₼" +
+zolaq, ödəniş düymələri kilidlənir), header səbət ikonunun ətrafında halqa
+(`CartIndicator`), səbətə əlavə olunanda `CartAddedToast` (layout-da, səbət
+vəziyyətini izləyir — yeni sətir/artan say = əlavə; ayrıca çağırış lazım deyil).
+
+# Media (R2) — öz proxy-miz `/cdn/<key>`
+
+`cdn.honsell.store` domeni bitib, `honsell.site` isə **Namecheap DNS**-dədir
+(Cloudflare yox) → R2 custom domain bağlana bilmir. Şəkil/video
+[app/cdn/[...key]/route.ts](app/cdn/[...key]/route.ts) ilə S3 API-dən ötürülür
+(`immutable` keş, Range/206, ETag/304). Prod env:
+`NEXT_PUBLIC_R2_PUBLIC_URL=https://honsell.site/cdn`. Köhnə DB linkləri:
+`npm run fix:mediahost -- --dry-run`, sonra `--dry-run`-sız.
+
+⚠️ `student-cards/` proxy-də **bloklanır** — private sənədlər yalnız signed URL ilə.
+Yeni private prefiks əlavə etsən `PRIVATE_PREFIXES`-ə də yaz.
+
+Uzunmüddətli: `honsell.site` zonasını Cloudflare-ə köçürüb `cdn.honsell.site`-ı R2
+custom domain etmək (Node prosesi media ötürməkdən azad olur) → env + `fix:mediahost -- --to=`.
 
 ---
 

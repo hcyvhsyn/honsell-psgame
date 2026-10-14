@@ -4,6 +4,12 @@ import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { applyFlashDeal, getFlashDealOverrides } from "@/lib/flashDeals";
 import { resolveBundlesForCart } from "@/lib/gameBundles";
 import { resolveServiceBundlesForCart } from "@/lib/serviceBundles";
+import { PLAYSTATION_ONLY, PLAYSTATION_SERVICE_TYPES, sellableGameWhere } from "@/lib/storeScope";
+
+/** PS-only rejimdə yalnız PS xidmət tipləri; əks halda süzgəcsiz (`undefined`). */
+function sellableServiceTypesFilter(): string[] | undefined {
+  return PLAYSTATION_ONLY ? [...PLAYSTATION_SERVICE_TYPES] : undefined;
+}
 
 export const runtime = "nodejs";
 
@@ -31,7 +37,8 @@ export async function POST(req: Request) {
 
   const [games, services, settings] = await Promise.all([
     prisma.game.findMany({
-      where: { id: { in: ids }, isActive: true },
+      // PS-only: Epic oyunu → `missing` → client səbətdən silir (lib/storeScope.ts).
+      where: { id: { in: ids }, isActive: true, ...sellableGameWhere() },
       select: {
         id: true,
         priceTryCents: true,
@@ -45,7 +52,7 @@ export async function POST(req: Request) {
       },
     }),
     prisma.serviceProduct.findMany({
-      where: { id: { in: ids }, isActive: true },
+      where: { id: { in: ids }, isActive: true, type: { in: sellableServiceTypesFilter() } },
       select: { id: true, priceAznCents: true },
     }),
     getSettings(),

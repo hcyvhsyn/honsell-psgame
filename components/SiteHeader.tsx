@@ -47,6 +47,7 @@ import {
   PRODUCT_CATEGORY_DEFINITIONS,
   type ProductCategoryNavAsset,
 } from "@/lib/categoryAssets";
+import { PLAYSTATION_ONLY, isVisibleCategoryKey } from "@/lib/storeScope";
 
 type NavLinkItem = {
   key?: string;
@@ -96,8 +97,10 @@ function buildProductCategoryItems(
         }))
       : categoryAssets;
 
+  // Yalnız PS kateqoriyaları (lib/storeScope.ts) — qalan səhifələr silinmir,
+  // sadəcə naviqasiyadan keçid verilmir.
   return source
-    .slice()
+    .filter((item) => isVisibleCategoryKey(item.key))
     .sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label, "az"))
     .map((item) => ({
       key: item.key,
@@ -356,9 +359,11 @@ export default function SiteHeader({
                   <DesktopContactButton onClick={openAiAssistant} />
                 </nav>
 
-                <div className="ml-auto flex shrink-0 items-center">
-                  <DesktopNavLink item={honsellGiftCardLink} pathname={pathname} />
-                </div>
+                {!PLAYSTATION_ONLY && (
+                  <div className="ml-auto flex shrink-0 items-center">
+                    <DesktopNavLink item={honsellGiftCardLink} pathname={pathname} />
+                  </div>
+                )}
               </div>
             </div>
           </div>

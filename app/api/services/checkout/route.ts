@@ -1,3 +1,5 @@
+import { meetsMinOrder, minOrderMessage } from "@/lib/cartLimits";
+import { isSellableServiceType } from "@/lib/storeScope";
 import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -29,9 +31,13 @@ export async function POST(req: Request) {
   if (!serviceProductId) return NextResponse.json({ error: "Xidmət seçilməyib." }, { status: 400 });
 
   const sp = await prisma.serviceProduct.findUnique({ where: { id: serviceProductId } });
-  if (!sp || !sp.isActive) return NextResponse.json({ error: "Xidmət tapılmadı və ya aktiv deyil." }, { status: 404 });
+  if (!sp || !sp.isActive || !isSellableServiceType(sp.type)) return NextResponse.json({ error: "Xidmət tapılmadı və ya aktiv deyil." }, { status: 404 });
 
   const price = sp.priceAznCents;
+  // Birbaşa alış səbətin minimum məbləğ qaydasını keçməsin (lib/cartLimits.ts).
+  if (!meetsMinOrder(price)) {
+    return NextResponse.json({ error: minOrderMessage(price), code: "MIN_ORDER" }, { status: 400 });
+  }
   if (paymentSource === "referral") {
     if (user.referralBalanceCents < price) {
       return NextResponse.json({ error: "Referal balansı kifayət etmir." }, { status: 400 });

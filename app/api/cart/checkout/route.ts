@@ -50,7 +50,8 @@ import {
   PRODUCT_GIFT_CLAIM_PATH,
 } from "@/lib/productGift";
 import { sendProductGiftCodeEmail } from "@/lib/resend";
-import { MIN_CART_AZN_CENTS } from "@/lib/cartLimits";
+import { EPOINT_MIN_CHARGE_AZN_CENTS, meetsMinOrder, minOrderMessage } from "@/lib/cartLimits";
+import { isSellableServiceType, sellableGameWhere } from "@/lib/storeScope";
 import { validateAccountPassword } from "@/lib/accountPasswordRules";
 import {
   validatePromoForOrder,
@@ -347,8 +348,11 @@ export async function POST(req: Request) {
   const expandedIds = expandedPayloads.map((p) => p.id);
 
   const [games, services] = await Promise.all([
+    // PS-only rejimdə Epic oyunları və qeyri-PS xidmətlər burada süzülür →
+    // aşağıdakı `resolvedIds` yoxlaması "artıq mövcud deyil" cavabı verir
+    // (lib/storeScope.ts). Paketlər `isBundleSellable`-də onsuz da süzülür.
     prisma.game.findMany({
-      where: { id: { in: ids }, isActive: true },
+      where: { id: { in: ids }, isActive: true, ...sellableGameWhere() },
     }),
     prisma.serviceProduct.findMany({
       where: {
@@ -365,7 +369,7 @@ export async function POST(req: Request) {
             "STREAMING",
             "PLATFORM",
             HONSELL_GIFT_CARD_SERVICE_TYPE,
-          ],
+          ].filter(isSellableServiceType),
         },
       },
     }),
@@ -957,6 +961,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Sifariş məbləği etibarsızdır." }, { status: 400 });
   }
 
+  // Minimum sifariş məbləği — KUPONDAN ƏVVƏLKİ cəm (səbət zolağı ilə eyni rəqəm).
+  if (!meetsMinOrder(totalCents)) {
+    return NextResponse.json(
+      { error: minOrderMessage(totalCents), code: "MIN_ORDER" },
+      { status: 400 },
+    );
+  }
+
   // ─── Kupon: server-də YENİDƏN validasiya (client preview-a etibar etmirik) ──
   let discountCents = 0;
   let promoForOrder: PromoCode | null = null;
@@ -1006,7 +1018,7 @@ export async function POST(req: Request) {
   const isCardPayment =
     body.paymentMethod === "epoint" || body.paymentMethod === "epoint-widget";
   const chargeCents = isCardPayment
-    ? Math.max(discountedTotalCents, MIN_CART_AZN_CENTS)
+    ? Math.max(discountedTotalCents, EPOINT_MIN_CHARGE_AZN_CENTS)
     : discountedTotalCents;
   const topUpCents = chargeCents - discountedTotalCents;
 

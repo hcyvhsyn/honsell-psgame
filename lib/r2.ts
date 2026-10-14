@@ -115,3 +115,27 @@ export async function putR2Object(
   );
   return r2PublicUrl(key);
 }
+
+/**
+ * Public media proxy üçün obyekt oxuma (`app/cdn/[...key]/route.ts`).
+ * `range` verilsə S3 206 qaytarır (video seek / Safari üçün vacib),
+ * `ifNoneMatch` uyğun gəlsə SDK `NotModified` (304) xətası atır.
+ */
+export async function getR2Object(
+  key: string,
+  opts: { range?: string | null; ifNoneMatch?: string | null } = {},
+) {
+  return r2Client().send(
+    new GetObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: key.replace(/^\/+/, ""),
+      Range: opts.range ?? undefined,
+      IfNoneMatch: opts.ifNoneMatch ?? undefined,
+    }),
+  );
+}
+
+/** R2 S3 API açarları varmı (public URL-dən asılı olmayaraq — proxy üçün). */
+export function hasR2Credentials(): boolean {
+  return Boolean(accountId && accessKeyId && secretAccessKey);
+}

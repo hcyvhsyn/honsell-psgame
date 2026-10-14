@@ -20,10 +20,12 @@ import {
   Send,
   Loader2,
   Copy,
+  Lock,
 } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 import { attributionPayload, trackEvent } from "@/lib/track";
-import { MIN_CART_AZN, MIN_CART_AZN_CENTS } from "@/lib/cartLimits";
+import { MIN_ORDER_AZN, minOrderMessage, minOrderProgress } from "@/lib/cartLimits";
+import MinOrderMeter from "@/components/cart/MinOrderMeter";
 import CartSummary from "@/components/cart/CartSummary";
 import CouponCodeBox, {
   validateCoupon,
@@ -520,13 +522,10 @@ export default function CartView({
 
   const insufficientWallet = isAuthed && walletBalanceAzn < finalPayAzn;
 
-  // Minimum sifariş məbləği yoxlaması — kupon endirimindən SONRAKI məbləğ üzərində.
-  // finalPayAzn float olduğu üçün qəpik vahidinə yuvarlayıb müqayisə edirik.
-  const totalCentsForCheck = Math.round(finalPayAzn * 100);
-  const belowMinimum = totalCentsForCheck > 0 && totalCentsForCheck < MIN_CART_AZN_CENTS;
-  const missingForMinimumAzn = belowMinimum
-    ? MIN_CART_AZN - finalPayAzn
-    : 0;
+  // Minimum sifariş məbləği — KUPONDAN ƏVVƏLKİ cəm üzərində (server
+  // `checkout/route.ts` eyni rəqəmi yoxlayır, lib/cartLimits.ts).
+  const minOrder = minOrderProgress(totalAzn);
+  const belowMinimum = !minOrder.reached;
 
   function checkoutBalanceSuffix(d: Record<string, unknown>): string {
     const nw = d.newWalletBalanceAzn;
@@ -545,6 +544,10 @@ export default function CartView({
     widgetBrand: "apple" | "google" = "google",
   ) {
     if (!isAuthed || blockedNoPsn || blockedNoEpic) return;
+    if (belowMinimum) {
+      setMessage({ kind: "error", text: minOrderMessage(minOrder.totalCents) });
+      return;
+    }
     if (termsBlocked) {
       setMessage({
         kind: "error",
@@ -922,6 +925,8 @@ export default function CartView({
             bonusHint={nextBonusHint(totalAzn, cartItemCount)}
           />
 
+          <MinOrderMeter totalAzn={totalAzn} />
+
           {hasCheckoutMeta ? (
             <div className="space-y-3 rounded-2xl border border-zinc-800/60 bg-zinc-950/35 p-3.5">
               {isAuthed && deliveryNeedsPsn && hasPsnCreationInCart && (
@@ -1007,7 +1012,26 @@ export default function CartView({
           ) : null}
 
           <div className="rounded-2xl border border-zinc-800/60 bg-zinc-950/35 p-3.5">
-            {!isAuthed ? (
+            {belowMinimum ? (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  disabled
+                  className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-dashed border-violet-400/40 bg-violet-500/10 px-4 py-3 text-sm font-semibold text-violet-200"
+                >
+                  <Lock className="h-4 w-4" />
+                  Sifariş {MIN_ORDER_AZN} ₼-dan başlayır
+                </button>
+                <Link
+                  href="/oyunlar"
+                  onClick={onNavigate}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98]"
+                >
+                  Daha {(minOrder.missingCents / 100).toFixed(2)} ₼-lik məhsul seç
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            ) : !isAuthed ? (
               onRequestLogin ? (
                 <button
                   type="button"
@@ -1089,19 +1113,6 @@ export default function CartView({
                   </span>
                 </div>
 
-                {belowMinimum && (
-                  <div
-                    role="status"
-                    className="flex items-start gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2.5 text-xs text-sky-200"
-                  >
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>
-                      Minimum məbləğ <b>{MIN_CART_AZN.toFixed(2)} AZN</b>-dir. Kartla ödənişdə artıq qalan{" "}
-                      <b>{missingForMinimumAzn.toFixed(2)} AZN</b> cüzdana düşəcək, cüzdanla isə yalnız{" "}
-                      <b>{finalPayAzn.toFixed(2)} AZN</b> tutulur.
-                    </span>
-                  </div>
-                )}
 
                 {insufficientWallet ? (
                   <Link

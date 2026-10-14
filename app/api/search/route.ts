@@ -4,6 +4,11 @@ import { Prisma as PrismaSql } from "@/lib/generated/prisma/client";
 import type { Game } from "@/lib/generated/prisma/client";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { STREAMING_SERVICE_META } from "@/lib/streamingCart";
+import {
+  PLAYSTATION_ONLY,
+  PLAYSTATION_SERVICE_TYPES,
+  sellableGameWhere,
+} from "@/lib/storeScope";
 import { gameDetailHref } from "@/lib/gameSlug";
 import { buildGameSearchTerms } from "@/lib/gameSearchTerms";
 import {
@@ -49,8 +54,9 @@ export async function GET(req: Request) {
   const lower = q.toLowerCase();
   const settings = await getSettings().catch(() => null);
 
-  // Streaming xidmətləri statikdir — DB sorğusu lazım deyil.
-  const streamingServices = Object.values(STREAMING_SERVICE_META)
+  // Streaming xidmətləri statikdir — DB sorğusu lazım deyil. PS-only rejimdə
+  // streaming (xidmət + film/serial) ümumiyyətlə göstərilmir (lib/storeScope.ts).
+  const streamingServices = Object.values(PLAYSTATION_ONLY ? {} : STREAMING_SERVICE_META)
     .filter((s) => s.label.toLowerCase().includes(lower) || s.slug.includes(lower))
     .slice(0, 4)
     .map((s) => ({
@@ -69,6 +75,7 @@ export async function GET(req: Request) {
     gamesOnly ? Promise.resolve([]) : prisma.serviceProduct.findMany({
       where: {
         isActive: true,
+        ...(PLAYSTATION_ONLY ? { type: { in: [...PLAYSTATION_SERVICE_TYPES] } } : {}),
         OR: [
           { title: { contains: q, mode: "insensitive" } },
           { description: { contains: q, mode: "insensitive" } },
@@ -85,7 +92,7 @@ export async function GET(req: Request) {
       orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
       take: 20,
     }),
-    gamesOnly ? Promise.resolve([]) : prisma.streamingTitle.findMany({
+    gamesOnly || PLAYSTATION_ONLY ? Promise.resolve([]) : prisma.streamingTitle.findMany({
       where: {
         isActive: true,
         title: { contains: q, mode: "insensitive" },
@@ -253,7 +260,8 @@ function gameSubtitle(g: GameRow): string {
 async function searchGames(q: string, offset: number): Promise<GameRow[]> {
   const terms = buildGameSearchTerms(q);
   try {
-    const where = PrismaSql.sql`g."isActive" = true AND ${gameSearchMatchSql(terms)}`;
+    const storeSql = PLAYSTATION_ONLY ? PrismaSql.sql` AND g."store" = 'PS'` : PrismaSql.empty;
+    const where = PrismaSql.sql`g."isActive" = true${storeSql} AND ${gameSearchMatchSql(terms)}`;
     const order = PrismaSql.sql`${gameSearchRelevanceSql(terms)},
       (CASE WHEN g."productType" = 'GAME' THEN 0 ELSE 1 END) ASC,
       g."isFeatured" DESC,
@@ -270,7 +278,7 @@ async function searchGames(q: string, offset: number): Promise<GameRow[]> {
     )) as GameRow[];
   } catch {
     return prisma.game.findMany({
-      where: { isActive: true, title: { contains: q, mode: "insensitive" } },
+      where: { isActive: true, ...sellableGameWhere(), title: { contains: q, mode: "insensitive" } },
       select: {
         id: true,
         productId: true,

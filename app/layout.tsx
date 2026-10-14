@@ -14,6 +14,7 @@ import FavoritesBootstrap from "@/components/FavoritesBootstrap";
 import FavoriteIntroModal from "@/components/FavoriteIntroModal";
 import AskAiFloat from "@/components/AskAiFloatLazy";
 import ReelsLauncher from "@/components/reels/ReelsLauncher";
+import CartAddedToast from "@/components/cart/CartAddedToast";
 import TopLoader from "@/components/TopLoader";
 import ScrollActivityFlag from "@/components/ScrollActivityFlag";
 import { Suspense } from "react";
@@ -159,6 +160,7 @@ export default async function RootLayout({
                     <CartProvider>
                       {children}
                       <AppModals />
+                      <CartAddedToast />
                       <FavoriteIntroModal />
                       <AskAiFloat />
                       <ReelsLauncher />

@@ -21,7 +21,7 @@ const linkGroups = [
       ["PlayStation oyunları", "/oyunlar"],
       ["Endirimdə olan oyunlar", "/endirimler"],
       ["PS Plus paketləri", "/ps-plus"],
-      ["Streaming", "/streaming"],
+      ["EA Play", "/ea-play"],
     ],
   },
   {
@@ -56,7 +56,7 @@ const linkGroups = [
 const mobileLinks = [
   ["Oyunlar", "/oyunlar"],
   ["PS Plus", "/ps-plus"],
-  ["Streaming", "/streaming"],
+  ["Gift Card", "/hediyye-kartlari"],
   ["FAQ", "/faq"],
 ] as const;
 

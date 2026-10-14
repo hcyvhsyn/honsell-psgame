@@ -26,6 +26,7 @@ import {
   type BundleItemPrice,
   type BundlePricing,
 } from "@/lib/gameBundleShared";
+import { isSellableGameStore } from "./storeScope";
 
 /** Qiymət hesablanması üçün oyundan lazım olan minimum sahələr (`embedding` YOX). */
 export const BUNDLE_GAME_SELECT = {
@@ -95,6 +96,8 @@ export function isBundleSellable(bundle: BundleRow, now = new Date()): boolean {
   if (!bundle.isActive) return false;
   if (bundle.items.length === 0) return false;
   if (bundle.items.some((i) => !i.game.isActive)) return false;
+  // Epic oyunu olan paket PS-only rejimdə satılmır (lib/storeScope.ts).
+  if (bundle.items.some((i) => !isSellableGameStore(i.game.store))) return false;
   if (bundle.startsAt && bundle.startsAt.getTime() > now.getTime()) return false;
   if (bundle.endsAt && bundle.endsAt.getTime() <= now.getTime()) return false;
   return true;
