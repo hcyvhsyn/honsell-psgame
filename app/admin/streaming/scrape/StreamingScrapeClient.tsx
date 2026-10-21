@@ -83,10 +83,11 @@ type StatusResp = {
   changes24h: { total: number; breakdown: Record<string, Record<string, number>> };
 };
 
-const ALL_PLATFORMS: Platform[] = ["NETFLIX", "HBOMAX", "PRIME", "GAIN"];
+// HBOMAX burada seçilmir — HBO Max AZ kataloqu `npm run hbomax:*` kollektoru ilə idarə olunur.
+const ALL_PLATFORMS: Platform[] = ["NETFLIX", "PRIME", "GAIN"];
 // Default seçim: Gain login arxasındadır və GAIN_COOKIE/GAIN_PROFILE_ID
 // məcburi env-lər tələb edir. Hazır olduqda istifadəçi əl ilə pill-i klikləyər.
-const DEFAULT_SELECTED: Platform[] = ["NETFLIX", "HBOMAX", "PRIME"];
+const DEFAULT_SELECTED: Platform[] = ["NETFLIX", "PRIME"];
 
 function initialPerPlatform(): PerPlatformState {
   return {

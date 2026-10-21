@@ -45,6 +45,8 @@ const nextConfig = {
     minimumCacheTTL: 2678400,
     remotePatterns: [
       ...(r2PublicHost ? [{ protocol: "https", hostname: r2PublicHost }] : []),
+      // Media proxy-si (app/cdn/[...key]/route.ts) — env köhnə host göstərsə də işləsin.
+      { protocol: "https", hostname: "honsell.site", pathname: "/cdn/**" },
       ...(supabaseCdnHost ? [{ protocol: "https", hostname: supabaseCdnHost }] : []),
       { protocol: "https", hostname: "image.api.playstation.com" },
       { protocol: "https", hostname: "**.playstation.net" },

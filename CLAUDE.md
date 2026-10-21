@@ -77,9 +77,15 @@ vəziyyətini izləyir — yeni sətir/artan say = əlavə; ayrıca çağırış
 `cdn.honsell.store` domeni bitib, `honsell.site` isə **Namecheap DNS**-dədir
 (Cloudflare yox) → R2 custom domain bağlana bilmir. Şəkil/video
 [app/cdn/[...key]/route.ts](app/cdn/[...key]/route.ts) ilə S3 API-dən ötürülür
-(`immutable` keş, Range/206, ETag/304). Prod env:
-`NEXT_PUBLIC_R2_PUBLIC_URL=https://honsell.site/cdn`. Köhnə DB linkləri:
-`npm run fix:mediahost -- --dry-run`, sonra `--dry-run`-sız.
+(`immutable` keş, Range/206, ETag/304).
+
+**Əl ilə addım lazım deyil:**
+- [lib/mediaUrl.ts](lib/mediaUrl.ts) `mediaPublicBase()` — env boşdursa və ya köhnə
+  host-u göstərirsə yeni yükləmələr avtomatik `https://honsell.site/cdn`-ə yazılır.
+- Köhnə DB linkləri `20261015000000_media_host_proxy` miqrasiyası ilə düzəlir
+  (deploy.yml onsuz da `migrate deploy` işlədir; bütün mətn/massiv/json sütunları).
+- `normalizeMediaUrl()` (`cdnImageUrl` → `ProductImage`) render vaxtı sığortadır.
+- `npm run fix:mediahost` yalnız gələcəkdə host yenidən dəyişərsə lazımdır.
 
 ⚠️ `student-cards/` proxy-də **bloklanır** — private sənədlər yalnız signed URL ilə.
 Yeni private prefiks əlavə etsən `PRIVATE_PREFIXES`-ə də yaz.

@@ -120,6 +120,7 @@ const NAV_GROUPS: NavGroupSpec[] = [
       { href: "/admin/streaming/titles", label: "Posterlər", iconName: "Tv" },
       { href: "/admin/streaming/featured", label: "Streaming Banner", iconName: "ImageIcon" },
       { href: "/admin/streaming/scrape", label: "Kataloq Yığımı", iconName: "RefreshCw" },
+      { href: "/admin/streaming/hbomax", label: "HBO Max Kollektor", iconName: "RefreshCw" },
     ],
   },
   {

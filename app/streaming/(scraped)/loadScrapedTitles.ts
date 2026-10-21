@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { buildSearchText } from "@/lib/imdbDatasets";
-import type { ScrapedCardData } from "@/components/ScrapedTitleCard";
+import type { ScrapedCardData, ScrapedCardPlatform } from "@/components/ScrapedTitleCard";
+import { loadHboCoverage, mergeLanguages } from "@/lib/hbomaxStorefront";
 
 /**
  * Bütün scrape-mənbəli StreamingTitle-ları yığır və UI kartı üçün denormalize
@@ -44,6 +45,7 @@ export async function loadScrapedTitles(
       availabilities: {
         where: { isAvailable: true },
         select: {
+          id: true,
           platform: true,
           deepLinkUrl: true,
           languages: { select: { code: true, kind: true } },
@@ -56,19 +58,14 @@ export async function loadScrapedTitles(
     // səhifələyir, ona görə ilkin render yüngül qalır (yalnız RSC payload böyüyür).
     take: 8000,
   });
+  const hboCoverage = await loadHboCoverage();
 
   return rows.map((r) => {
-    const audio = new Set<string>();
-    const sub = new Set<string>();
-    const platforms: ScrapedCardData["platforms"] = [];
-    for (const av of r.availabilities) {
-      if (!isKnownPlatform(av.platform)) continue;
-      platforms.push({ platform: av.platform, deepLinkUrl: av.deepLinkUrl });
-      for (const l of av.languages) {
-        if (l.kind === "AUDIO") audio.add(l.code);
-        else if (l.kind === "SUBTITLE") sub.add(l.code);
-      }
-    }
+    const known = r.availabilities.filter(
+      (av): av is typeof av & { platform: ScrapedCardPlatform["platform"] } => isKnownPlatform(av.platform)
+    );
+    const platforms: ScrapedCardData["platforms"] = known.map((av) => ({ platform: av.platform, deepLinkUrl: av.deepLinkUrl }));
+    const langs = mergeLanguages(known, hboCoverage);
     return {
       id: r.id,
       slug: r.slug,
@@ -77,8 +74,9 @@ export async function loadScrapedTitles(
       year: r.year,
       posterUrl: r.posterUrl,
       platforms,
-      audioLanguages: sortLangs([...audio]),
-      subtitleLanguages: sortLangs([...sub]),
+      audioLanguages: sortLangs(langs.audio),
+      subtitleLanguages: sortLangs(langs.sub),
+      languageCoverage: langs.coverage,
       rating: r.tmdbRating,
       voteCount: r.tmdbVoteCount,
       popularity: r.tmdbPopularity,

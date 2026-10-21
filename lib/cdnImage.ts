@@ -1,3 +1,5 @@
+import { normalizeMediaUrl } from "./mediaUrl";
+
 /**
  * Supabase storage URL-ini (env ilə təyin olunmuş) CDN host-una yönləndirir.
  *
@@ -14,7 +16,11 @@
 const CDN_HOST = process.env.NEXT_PUBLIC_SUPABASE_CDN_HOST?.trim();
 
 export function cdnImageUrl<T extends string | null | undefined>(url: T): T {
-  if (!url || !CDN_HOST) return url;
+  if (!url) return url;
+  // Köhnə R2 host-u (cdn.honsell.store/.site) → öz proxy-miz (lib/mediaUrl.ts).
+  const normalized = normalizeMediaUrl(url);
+  if (normalized !== url) return normalized;
+  if (!CDN_HOST) return url;
   try {
     const u = new URL(url);
     if (u.hostname.endsWith(".supabase.co") || u.hostname.endsWith(".supabase.in")) {

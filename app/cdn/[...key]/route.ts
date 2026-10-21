@@ -16,9 +16,8 @@ export const dynamic = "force-dynamic";
  * ⚠️ PRIVATE prefikslər burada bloklanır — tələbə kartları eyni bucket-dədir və
  * yalnız qısa-ömürlü signed URL ilə açılmalıdır (lib/imageUploadServer.ts).
  *
- * `NEXT_PUBLIC_R2_PUBLIC_URL=https://honsell.site/cdn` olanda yeni yükləmələr
- * avtomatik bu yola yazılır. Köhnə DB sətirləri üçün:
- * `npm run fix:mediahost -- --dry-run`.
+ * Yeni yükləmələr avtomatik bu yola yazılır (lib/mediaUrl.ts), köhnə DB
+ * linkləri `20261015000000_media_host_proxy` miqrasiyası ilə düzəlir.
  */
 const PRIVATE_PREFIXES = [`${STUDENT_CARD_PREFIX}/`];
 

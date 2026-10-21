@@ -41,3 +41,9 @@ next-env.d.ts
 
 .env
 .env.local
+
+# HBO Max kollektoru — brauzer sessiyası (cookie/token), debug JSON-ları və çıxış
+/.hbomax-profile/
+/.hbomax-admin/
+/debug-responses/
+/output/

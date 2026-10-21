@@ -129,7 +129,9 @@ export async function persistPlatformScrape(
   // ── 1. Bu (platform, country) üçün mövcud availability-ləri yüklə ──────────
   const existing = await prisma.contentAvailability.findMany({
     where: { platform, country },
-    include: { languages: true },
+    // Açıq select: `include: { languages: true }` BÜTÜN sütunları oxuyur və gözləyən
+    // ContentLanguage coverage miqrasiyası tətbiq olunmamış DB-də cron-u sındırardı.
+    include: { languages: { select: { code: true, kind: true } } },
   });
   const existingByExt = new Map(existing.map((e) => [e.platformExternalId, e]));
   const scrapedIds = new Set(scraped.map((s) => s.platformExternalId));

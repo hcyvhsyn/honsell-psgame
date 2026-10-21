@@ -21,7 +21,8 @@ export async function POST(req: Request) {
   }
 
   // Default: Gain skip (login arxasında, ayrı tələb olduqda body-də verilir).
-  let platforms: Platform[] | undefined = ["NETFLIX", "HBOMAX", "PRIME"];
+  // HBOMAX JustWatch-dan çəkilmir — HBO kollektoru idarə edir (bax lib/scrapers/orchestrator.ts).
+  let platforms: Platform[] | undefined = ["NETFLIX", "PRIME"];
   try {
     const raw = req.headers.get("content-type")?.includes("application/json")
       ? await req.json().catch(() => ({}))

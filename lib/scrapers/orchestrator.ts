@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Platform } from "@/lib/scrapers/config";
 import { netflixScraper } from "@/lib/scrapers/netflix";
-import { hboMaxScraper } from "@/lib/scrapers/hbomax";
 import { primeScraper } from "@/lib/scrapers/prime";
 import { gainScraper } from "@/lib/scrapers/gain";
 import { persistPlatformScrape, type PersistDiff } from "@/lib/scrapers/persist";
@@ -28,7 +27,14 @@ export interface OrchestratorResult {
   perPlatform: Record<Platform, PlatformSummary>;
 }
 
-const ALL_SCRAPERS: Scraper[] = [netflixScraper, hboMaxScraper, primeScraper, gainScraper];
+/**
+ * ⚠️ HBOMAX burada YOXDUR: HBO Max AZ kataloqunu artıq `lib/scrapers/hbomaxCollector`
+ * (AZ sessiyası + player validasiyası) idarə edir və `npm run hbomax:project` ilə
+ * ContentAvailability(platform=HBOMAX)-ə yazır. JustWatch HBO scraper-i işləsəydi,
+ * persist.ts öz siyahısında olmayan bütün HBOMAX sətirlərini `isAvailable=false` edərdi.
+ * `lib/scrapers/hbomax.ts` faylı saxlanılır (geri qaytarmaq import + bu siyahı), amma çağırılmır.
+ */
+const ALL_SCRAPERS: Scraper[] = [netflixScraper, primeScraper, gainScraper];
 
 /**
  * Progress event — SSE route bunu UI-yə yayır. Tip-ə görə UI fərqli rəftar

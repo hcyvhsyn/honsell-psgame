@@ -1,7 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Film, Tv as TvIcon, Star } from "lucide-react";
+import { Film, Info, Tv as TvIcon, Star } from "lucide-react";
+import TitleInfoModal from "@/components/streaming/TitleInfoModal";
+import { LanguageRows } from "@/components/streaming/LanguageSlots";
+import { languageSlots, type CoverageInfo } from "@/lib/streamingLanguageStates";
 
 /**
  * Scraping-dən gələn başlıq üçün kart. Mövcud `StreamingTitleCard`-dan fərqi:
@@ -15,6 +19,8 @@ export type ScrapedCardPlatform = {
   deepLinkUrl: string | null;
 };
 
+export type LanguageCoverage = CoverageInfo;
+
 export type ScrapedCardData = {
   id: string;
   slug: string;
@@ -26,6 +32,9 @@ export type ScrapedCardData = {
   /** "tr"|"ru"|"en" — bütün platformlardan birləşik. */
   audioLanguages: string[];
   subtitleLanguages: string[];
+  /** Yalnız HBO Max AZ player-də TƏSDİQLƏNMİŞ və başqa platformada olmayan dillər:
+   *  açar `${code}-dub` / `${code}-sub`. PARTIAL = şounun yalnız bəzi epizodlarında. */
+  languageCoverage?: Record<string, LanguageCoverage>;
   /** TMDB reytinqi (0-10) — IMDb xalı yoxdursa fallback. */
   rating: number | null;
   /** TMDB səs sayı — reytinq tie-breaker (kartda göstərilmir). */
@@ -115,16 +124,6 @@ const PLATFORM_META: Record<
   },
 };
 
-const LANGUAGE_LABEL: Record<string, string> = {
-  az: "AZ",
-  en: "EN",
-  ru: "RU",
-  tr: "TR",
-};
-
-function languageLabel(code: string) {
-  return LANGUAGE_LABEL[code.toLowerCase()] ?? code.toUpperCase();
-}
 
 export default function ScrapedTitleCard({
   data,
@@ -137,8 +136,12 @@ export default function ScrapedTitleCard({
 }) {
   const Kind = data.kind === "SERIES" ? TvIcon : Film;
   const shownRating = displayRating(data);
-  const dubs = data.audioLanguages.slice(0, 3);
-  const subs = data.subtitleLanguages.slice(0, 3);
+  const hasLangs = data.audioLanguages.length > 0 || data.subtitleLanguages.length > 0;
+  const slots = languageSlots(data);
+  const detailHref = titleDetailHref(data);
+  const [infoOpen, setInfoOpen] = useState(false);
+  // HBO Max-da olub dil məlumatı hələ AZ player-də yoxlanmayan başlıq — çip yox, qeyd var.
+  const awaitingCheck = !hasLangs && data.platforms.some((p) => p.platform === "HBOMAX");
   const platformOverflow = Math.max(data.platforms.length - 3, 0);
   const visiblePlatforms = data.platforms.slice(0, 3);
 
@@ -223,67 +226,63 @@ export default function ScrapedTitleCard({
               </span>
             ) : null}
             {data.year ? <span>{data.year}</span> : null}
-            {data.year && (dubs.length > 0 || subs.length > 0) ? (
-              <span className="h-1 w-1 rounded-full bg-white/35" />
-            ) : null}
-            {dubs.length > 0 || subs.length > 0 ? (
-              <span>Dublaj / Subtitle</span>
-            ) : null}
           </div>
 
           <p className="line-clamp-2 text-[20px] font-black leading-[1.05] text-[#ffffff] drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]">
             {data.title}
           </p>
 
-          <div className="mt-3 space-y-2">
-            {dubs.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="inline-flex h-6 items-center rounded-full bg-indigo-400 px-2 text-[10px] font-black uppercase text-[#101027]">
-                  Dub
-                </span>
-                {dubs.map((c) => (
-                  <span
-                    key={`d-${c}`}
-                    className="inline-flex h-6 items-center rounded-full border border-indigo-200/35 bg-indigo-500/25 px-2 text-[10px] font-extrabold uppercase text-[#ffffff] backdrop-blur-md"
-                    title={`Dublyaj: ${languageLabel(c)}`}
-                  >
-                    {languageLabel(c)}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-
-            {subs.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="inline-flex h-6 items-center rounded-full bg-emerald-300 px-2 text-[10px] font-black uppercase text-[#09231a]">
-                  Sub
-                </span>
-                {subs.map((c) => (
-                  <span
-                    key={`s-${c}`}
-                    className="inline-flex h-6 items-center rounded-full border border-emerald-100/35 bg-emerald-500/25 px-2 text-[10px] font-extrabold uppercase text-[#ffffff] backdrop-blur-md"
-                    title={`Subtitr: ${languageLabel(c)}`}
-                  >
-                    {languageLabel(c)}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          {hasLangs ? (
+            <div className="mt-3">
+              <LanguageRows slots={slots} />
+            </div>
+          ) : awaitingCheck ? (
+            <p className="mt-3 text-[11px] font-semibold text-white/55">Dillər Azərbaycan üçün yoxlanılır</p>
+          ) : null}
         </div>
       </div>
   );
 
-  if (onPlay) {
-    return (
-      <button type="button" onClick={() => onPlay(data)} className={wrapClassName} aria-label={`${data.title} — fragman`}>
-        {inner}
-      </button>
-    );
-  }
-  return (
-    <Link href={`/streaming/${data.slug}`} className={wrapClassName}>
+  const main = onPlay ? (
+    <button type="button" onClick={() => onPlay(data)} className="block w-full text-left" aria-label={`${data.title} — fragman`}>
+      {inner}
+    </button>
+  ) : (
+    <Link href={detailHref} className="block">
       {inner}
     </Link>
   );
+
+  // Məlumat düyməsi əsas düymənin QARDAŞIDIR (button içində button etibarlı HTML deyil).
+  // Modal yalnız açılanda mount olunur — kataloqda ~2000 kart var.
+  return (
+    <div className={wrapClassName}>
+      {main}
+      <button
+        type="button"
+        onClick={() => setInfoOpen(true)}
+        className="absolute right-3 top-12 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-black/60 text-[#ffffff] shadow-lg backdrop-blur-md transition hover:border-sky-300/70 hover:bg-sky-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300"
+        aria-label={`${data.title} — dublyaj və altyazı haqqında ətraflı`}
+        aria-haspopup="dialog"
+        title="Dublyaj və altyazı: sezon və epizodlar üzrə"
+      >
+        <Info className="h-4 w-4" />
+      </button>
+      {infoOpen ? (
+        <TitleInfoModal
+          open
+          onClose={() => setInfoOpen(false)}
+          slug={data.slug}
+          kind={data.kind === "SERIES" ? "SERIES" : "MOVIE"}
+          title={data.title}
+          detailHref={detailHref}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** Detal səhifəsi: /streaming/seriallar/<slug> və ya /streaming/filmler/<slug>. */
+export function titleDetailHref(data: Pick<ScrapedCardData, "kind" | "slug">): string {
+  return `/streaming/${data.kind === "SERIES" ? "seriallar" : "filmler"}/${data.slug}`;
 }
