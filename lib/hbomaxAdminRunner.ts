@@ -19,7 +19,7 @@ export const HBOMAX_ADMIN_RUNNER_ENABLED = process.env.HBOMAX_ADMIN_RUNNER === "
 const DIR = path.join(process.cwd(), ".hbomax-admin");
 const STATE_FILE = path.join(DIR, "job.json");
 
-export type HboJobKind = "catalog" | "validate" | "project";
+export type HboJobKind = "catalog" | "validate" | "project" | "publish";
 
 export interface HboJobRequest {
   kind: HboJobKind;
@@ -27,6 +27,8 @@ export interface HboJobRequest {
   limit?: number;
   /** catalog / validate bitəndən sonra vitrinə proyeksiya. */
   thenProject?: boolean;
+  /** catalog: yalnız metadata-sı çəkilməmiş başlıqlar (`--missing`). */
+  onlyMissing?: boolean;
 }
 
 export interface HboJobState {
@@ -44,18 +46,35 @@ export const JOB_LABEL: Record<HboJobKind, string> = {
   catalog: "Kataloq sync",
   validate: "AZ player validasiyası",
   project: "Vitrinə proyeksiya",
+  publish: "Prod-a göndər",
 };
 
-function npmScript(kind: HboJobKind, limit?: number): string {
-  const lim = limit ? ` -- --limit ${limit}` : "";
-  if (kind === "catalog") return `npm run -s hbomax:catalog-sync${lim}`;
-  if (kind === "validate") return `npm run -s hbomax:validate-pending${lim}`;
+/** Prod-a göndərmə konfiqurasiya olunubmu (lokal .env). */
+export const HBOMAX_PUBLISH_CONFIGURED = !!process.env.HBOMAX_PUBLISH_URL?.trim() && (process.env.HBOMAX_IMPORT_TOKEN?.trim().length ?? 0) >= 32;
+
+/** Son uğurlu göndəriş (publishToProd-un vəziyyət faylı). */
+export function lastPublish(): { url: string; at: string } | null {
+  try {
+    const s = JSON.parse(readFileSync(path.join(DIR, "publish-state.json"), "utf8")) as Record<string, string>;
+    const url = process.env.HBOMAX_PUBLISH_URL?.trim().replace(/\/+$/, "") ?? "";
+    return s[url] ? { url, at: s[url] } : null;
+  } catch {
+    return null;
+  }
+}
+
+function npmScript(req: HboJobRequest): string {
+  const flags = [req.limit ? `--limit ${req.limit}` : "", req.kind === "catalog" && req.onlyMissing ? "--missing" : ""].filter(Boolean).join(" ");
+  const tail = flags ? ` -- ${flags}` : "";
+  if (req.kind === "catalog") return `npm run -s hbomax:catalog-sync${tail}`;
+  if (req.kind === "validate") return `npm run -s hbomax:validate-pending${tail}`;
+  if (req.kind === "publish") return "npm run -s hbomax:publish";
   return "npm run -s hbomax:project";
 }
 
 export function stepsFor(req: HboJobRequest): string[] {
-  const steps = [npmScript(req.kind, req.limit)];
-  if (req.thenProject && req.kind !== "project") steps.push(npmScript("project"));
+  const steps = [npmScript(req)];
+  if (req.thenProject && req.kind !== "project" && req.kind !== "publish") steps.push(npmScript({ kind: "project" }));
   return steps;
 }
 
@@ -134,7 +153,8 @@ export async function startJob(req: HboJobRequest, opts: { force?: boolean } = {
   if (!HBOMAX_ADMIN_RUNNER_ENABLED) throw new HboJobError("Kollektor yalnız `npm run dev:hbomax` ilə işləyən lokal serverdə işə salına bilər.");
   const cur = currentJob();
   if (cur?.running) throw new HboJobError(`Artıq iş gedir: ${JOB_LABEL[cur.request.kind]}`);
-  if (!opts.force) {
+  if (req.kind === "publish" && !HBOMAX_PUBLISH_CONFIGURED) throw new HboJobError("Prod-a göndərmə konfiqurasiya olunmayıb: .env-də HBOMAX_PUBLISH_URL və HBOMAX_IMPORT_TOKEN lazımdır.");
+  if (!opts.force && req.kind !== "publish") {
     const ext = await externalRunningRun();
     if (ext) throw new HboJobError(`EXTERNAL:${ext.kind} ${ext.startedAt.toISOString()}`);
   }

@@ -8,7 +8,7 @@
  * itən başlıqların sayğacı artırıla bilər.
  */
 import { HBOMAX_CONFIG } from "@/lib/scrapers/hbomaxCollector/config";
-import { HboCollectorError } from "@/lib/scrapers/hbomaxCollector/errors";
+import { HboCollectorError, isBrowserClosed } from "@/lib/scrapers/hbomaxCollector/errors";
 import { FEATURE_SHOW_TYPES, SERIES_SHOW_TYPES, titlePageUrl } from "@/lib/scrapers/hbomaxCollector/parsers/jsonMetadata";
 import { hboLog } from "@/lib/scrapers/hbomaxCollector/log";
 import type { CmsClient } from "@/lib/scrapers/hbomaxCollector/catalog/cmsClient";
@@ -68,12 +68,13 @@ export async function crawlRails(cms: CmsClient, opts: { startPaths?: string[]; 
       const follow = GENRE_SOURCES.has(p) ? HUB_PATH : BRAND_PATH;
       for (const r of routePathsOf(doc)) if (follow.test(r) && !SKIP_PATH.test(r) && !visited.has(r) && !routeQueue.includes(r)) routeQueue.push(r);
     } catch (err) {
-      if (err instanceof HboCollectorError) throw err;
+      if (err instanceof HboCollectorError || isBrowserClosed(err)) throw err;
       if (err instanceof HttpStatusError && err.status === 404) {
         routesWithoutPage.push(p);
         continue;
       }
       failedRoutes.push({ path: p, error: err instanceof Error ? err.message.split("\n")[0] : String(err) });
+      hboLog.warn(`Route ${p} failed: ${failedRoutes[failedRoutes.length - 1].error}`);
     }
   }
   hboLog.info(`Routes crawled: ${visited.size}`, { withoutPage: routesWithoutPage.length, failed: failedRoutes.length, leftInQueue: routeQueue.length });

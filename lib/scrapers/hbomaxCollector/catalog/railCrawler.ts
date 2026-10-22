@@ -11,7 +11,8 @@
  * - `component.mandatoryParams` (məs. `pf[show.id]=…`) kolleksiya sorğusuna əlavə olunur.
  */
 import { HttpStatusError, type CmsClient } from "@/lib/scrapers/hbomaxCollector/catalog/cmsClient";
-import { HboCollectorError } from "@/lib/scrapers/hbomaxCollector/errors";
+import { HboCollectorError, isBrowserClosed } from "@/lib/scrapers/hbomaxCollector/errors";
+import { hboLog } from "@/lib/scrapers/hbomaxCollector/log";
 
 type Obj = Record<string, unknown>;
 export interface CmsEntity {
@@ -84,8 +85,9 @@ export async function scanCollection(cms: CmsClient, ref: CollectionRef, maxPage
       doc = await cms.get<CmsDoc>(`/cms/collections/${ref.id}?include=default&page[items.number]=${page}&page[items.size]=${PAGE_SIZE}${extra}`);
     } catch (err) {
       // Sessiya/şəbəkə ölümcül xətaları kəşfi dayandırır — kolleksiya-kolleksiya "uğursuz" yazılmır.
-      if (err instanceof HboCollectorError) throw err;
+      if (err instanceof HboCollectorError || isBrowserClosed(err)) throw err;
       scan.error = err instanceof Error ? err.message.split("\n")[0] : String(err);
+      hboLog.warn(`Collection ${ref.alias ?? ref.id} failed: ${scan.error}`);
       break;
     }
     scan.pages = page;

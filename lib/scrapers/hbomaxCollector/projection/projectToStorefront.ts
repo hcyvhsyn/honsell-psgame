@@ -34,6 +34,8 @@ export interface ProjectionOptions {
   title?: string;
   /** TMDB sorğusu etmə (yalnız ad/il uyğunlaşması). */
   skipTmdb?: boolean;
+  /** Prod idxalından sonra (`lib/hbomaxImport.ts`): tətbiqin öz DB-si — kollektor DB qoruyucusu tətbiq olunmur. */
+  appDb?: boolean;
 }
 
 export interface ProjectionSummary {
@@ -118,7 +120,7 @@ async function resolveStreamingTitle(t: TitleRow, opts: ProjectionOptions): Prom
 }
 
 export async function projectHboToStorefront(opts: ProjectionOptions): Promise<ProjectionSummary> {
-  assertCollectorDbSelected();
+  if (!opts.appDb) assertCollectorDbSelected();
   const { region } = opts;
   const summary: ProjectionSummary = {
     titles: 0,

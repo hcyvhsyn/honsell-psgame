@@ -1206,6 +1206,49 @@ build-dən əvvəl işlədir.
   Top-250 formulu). Xam reytinq işlətsək 8 səsli "10.0" başlıqlar siyahının başını
   tutur — kataloqda belələri çoxdur.
 
+# HBO Max kollektoru (AZ kataloqu + real dublyaj/altyazı)
+
+HBO Max-ın Azərbaycan kataloqu (seriallar + filmlər) və hər epizodun **AZ player-də görünən**
+dilləri. Metadata trekləri qlobaldır və AZ-da görünənlərdən çoxdur — vitrin YALNIZ player-də
+təsdiqlənmiş region treklərini göstərir.
+
+**Harada işləyir:** yalnız Mac-də (AZ IP + HBO-ya giriş edilmiş `.hbomax-profile/` + lokal
+kollektor DB `HBOMAX_DATABASE_URL`, docker `honsell-hbomax-dev` :55433). Prod serverdə brauzer
+YOXDUR — prod datanı HTTPS ilə alır.
+
+```
+npm run dev:hbomax                       # lokal DB + admin → Streaming → HBO Max Kollektor (düymələr)
+npm run hbomax:catalog-sync [-- --missing | --limit N | --show <id>]
+npm run hbomax:validate-pending          # AZ player, gündəlik 300 limit
+npm run hbomax:project                   # lokal vitrinə
+npm run hbomax:publish [-- --all]        # → prod (POST /api/hbomax/import, HBOMAX_IMPORT_TOKEN)
+```
+
+| Qat | Fayl |
+| --- | --- |
+| Kollektor (kəşf, detal, növbə, aqreqasiya, proyeksiya) | [lib/scrapers/hbomaxCollector/](lib/scrapers/hbomaxCollector/) |
+| Prod idxalı (server) | [lib/hbomaxImport.ts](lib/hbomaxImport.ts) + [app/api/hbomax/import/route.ts](app/api/hbomax/import/route.ts) |
+| Mac → prod göndəriş | [lib/scrapers/hbomaxCollector/publish/publishToProd.ts](lib/scrapers/hbomaxCollector/publish/publishToProd.ts) |
+| Admin düymələri (yalnız `dev:hbomax`) | [lib/hbomaxAdminRunner.ts](lib/hbomaxAdminRunner.ts) + [app/admin/streaming/hbomax/](app/admin/streaming/hbomax/) |
+| Vitrin (kart, ⓘ modal, detal) | [lib/streamingLanguageStates.ts](lib/streamingLanguageStates.ts), [components/streaming/](components/streaming/), [lib/streamingTitleDetail.ts](lib/streamingTitleDetail.ts) |
+
+⚠️ **Kollektor `.env`-dəki `DATABASE_URL`-ə heç vaxt yazmır** — `db/collectorDb.ts` ilk import
+olunmalıdır və lokal olmayan host `HBOMAX_ALLOW_REMOTE_DB=1` tələb edir.
+
+⚠️ **Film = 1 sezon × 1 epizod** (`showType` MOVIE/STANDALONE, `ProviderTitle.kind = MOVIE`) —
+növbə/validasiya/aqreqasiya seriallarla eynidir; UI filmdə sezon/epizod bölmələrini gizlədir.
+
+⚠️ **HBOMAX platformasını yalnız bu proyeksiya idarə edir** — JustWatch HBO scraper-i
+orchestrator-dan çıxarılıb (`persist.ts` öz siyahısında olmayan HBOMAX sətirlərini deaktiv edərdi).
+
+⚠️ **Brauzer bağlananda run DAYANIR** (`isBrowserClosed`) — əks halda qalan başlıqlar/epizodlar
+"uğursuz" yazılırdı (cəhd sayları yanırdı). Yarımçıq kataloq run-u `--missing` ilə davam edir.
+
+⚠️ Prod-da vitrinin coverage/modal hissəsi `HBOMAX_STOREFRONT_COVERAGE=1` tələb edir (miqrasiyadan
+SONRA). Token yoxdursa `/api/hbomax/import` 404 qaytarır.
+
+⚠️ Testlər: `npm run test:hbomax-queue`, `test:hbomax-lang`, `test:hbomax-db` (lokal test DB).
+
 # Oyun-içi kredit qiymət importu (PUBG UC)
 
 `/pubg-uc` variantları (`ServiceProduct.type = "PUBG_UC"`) rəqib saytların qiymət

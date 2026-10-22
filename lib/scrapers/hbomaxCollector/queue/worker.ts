@@ -13,7 +13,7 @@
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { HBOMAX_CONFIG, HBOMAX_REGION } from "@/lib/scrapers/hbomaxCollector/config";
-import { HboCollectorError, assertCollectorDbSelected, isHboError } from "@/lib/scrapers/hbomaxCollector/errors";
+import { HboCollectorError, assertCollectorDbSelected, isHboError, isBrowserClosed } from "@/lib/scrapers/hbomaxCollector/errors";
 import { hboLog } from "@/lib/scrapers/hbomaxCollector/log";
 import { assertDedicatedProfile, gotoHbo, openSession } from "@/lib/scrapers/hbomaxCollector/browser/session";
 import { readPlayerTracks, stopPlayback } from "@/lib/scrapers/hbomaxCollector/browser/playerTracks";
@@ -102,7 +102,7 @@ export async function runValidation(opts: ValidationRunOptions): Promise<Validat
         touchedTitles.add(job.titleId);
         hboLog.info(`Verified ${job.label}`, { audio: audio.length, subtitles: subtitles.length });
       } catch (err) {
-        if (isHboError(err) && FATAL.includes(err.code)) {
+        if ((isHboError(err) && FATAL.includes(err.code)) || isBrowserClosed(err)) {
           await release(job);
           throw err;
         }

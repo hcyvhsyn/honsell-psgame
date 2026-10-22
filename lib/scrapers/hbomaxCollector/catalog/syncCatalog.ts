@@ -11,7 +11,7 @@
 import type { Page } from "playwright";
 import { prisma } from "@/lib/prisma";
 import { HBOMAX_CONFIG, HBOMAX_REGION } from "@/lib/scrapers/hbomaxCollector/config";
-import { assertCollectorDbSelected, isHboError } from "@/lib/scrapers/hbomaxCollector/errors";
+import { assertCollectorDbSelected, isBrowserClosed, isHboError } from "@/lib/scrapers/hbomaxCollector/errors";
 import { hboLog } from "@/lib/scrapers/hbomaxCollector/log";
 import { openCmsClient } from "@/lib/scrapers/hbomaxCollector/catalog/cmsClient";
 import { crawlRails, isSourceComplete, showsFromCrawl, type DiscoveredShowRef, type DiscoverySource } from "@/lib/scrapers/hbomaxCollector/catalog/discovery";
@@ -25,6 +25,8 @@ export interface CatalogSyncOptions {
   showIds?: string[];
   /** Detalı çəkiləcək şou sayı (kəşf tam qalır). */
   limit?: number;
+  /** Yalnız metadata-sı HƏLƏ çəkilməmiş başlıqlar (yarımçıq run-un davamı). Kəşf tam qalır. */
+  onlyMissing?: boolean;
   dryRun?: boolean;
 }
 
@@ -86,7 +88,17 @@ export async function runCatalogSync(page: Page, opts: CatalogSyncOptions): Prom
     const createdIds = targeted ? new Set<string>() : await markShowsSeen(region, shows, now);
     summary.newTitles = createdIds.size;
 
-    const detailList = opts.limit ? shows.slice(0, opts.limit) : shows;
+    let pending = shows;
+    if (opts.onlyMissing) {
+      const done = await prisma.providerTitle.findMany({
+        where: { platform: "HBOMAX", providerId: { in: shows.map((x) => x.providerId) }, lastMetadataSyncAt: { not: null } },
+        select: { providerId: true },
+      });
+      const doneIds = new Set(done.map((d) => d.providerId));
+      pending = shows.filter((x) => !doneIds.has(x.providerId));
+      hboLog.info(`--missing: ${pending.length} title(s) without metadata (${doneIds.size} already synced)`);
+    }
+    const detailList = opts.limit ? pending.slice(0, opts.limit) : pending;
     for (const [i, ref] of detailList.entries()) {
       try {
         const detail = await fetchShowDetail(cms, ref.providerId);
@@ -120,7 +132,7 @@ export async function runCatalogSync(page: Page, opts: CatalogSyncOptions): Prom
           hboLog.warn(`Incomplete: ${detail.show.title}`, { problems: detail.problems.join("; ") });
         }
       } catch (err) {
-        if (isHboError(err, "AUTH_REQUIRED")) throw err;
+        if (isHboError(err, "AUTH_REQUIRED") || isBrowserClosed(err)) throw err;
         summary.failedShows++;
         hboLog.warn(`Show ${ref.providerId} (${ref.name}) failed: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`);
       }

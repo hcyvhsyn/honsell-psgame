@@ -47,6 +47,16 @@ export function isHboError(err: unknown, code?: HboErrorCode): err is HboCollect
   return err instanceof HboCollectorError && (code === undefined || err.code === code);
 }
 
+/**
+ * Brauzer / səhifə bağlanıb (pəncərə əl ilə bağlanıb, Chrome çöküb, proses dayandırılıb).
+ * Bundan sonra hər sorğu eyni xətanı verir — run DAYANMALIDIR, qalan başlıqlar/epizodlar
+ * "uğursuz" sayılmamalıdır (2026-10-21: 611 başlıq belə keçildi).
+ */
+export function isBrowserClosed(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /Target page, context or browser has been closed|Browser has been closed|browserContext\.\w+: Target closed/i.test(msg);
+}
+
 /** Kollektor DB modulu yüklənməyibsə (scriptdən kənar çağırış) dayan — `.env` Supabase-ə yazılmasın. */
 export function assertCollectorDbSelected(): void {
   if (process.env.HBOMAX_DB_SELECTED !== "1") {

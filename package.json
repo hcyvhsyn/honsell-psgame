@@ -40,6 +40,7 @@
     "hbomax:validate-episode": "tsx scripts/hbomax-validate.ts --mode episode",
     "hbomax:status": "tsx scripts/hbomax-status.ts",
     "hbomax:dev-copy-catalog": "tsx scripts/hbomax-dev-copy-catalog.ts",
+    "hbomax:publish": "tsx scripts/hbomax-publish.ts",
     "hbomax:project": "tsx scripts/hbomax-project.ts",
     "test:hbomax-lang": "tsx scripts/hbomaxLanguage.test.ts",
     "test:hbomax-queue": "tsx scripts/hbomaxQueue.test.ts",

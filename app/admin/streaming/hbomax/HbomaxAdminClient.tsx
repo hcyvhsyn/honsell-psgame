@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, Film, Loader2, Play, RefreshCw, Square, Tv, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Film, Loader2, Play, RefreshCw, Square, Tv, UploadCloud, XCircle } from "lucide-react";
 
-type JobKind = "catalog" | "validate" | "project";
+type JobKind = "catalog" | "validate" | "project" | "publish";
 
 interface Job {
   id: string;
-  request: { kind: JobKind; limit?: number; thenProject?: boolean };
+  request: { kind: JobKind; limit?: number; thenProject?: boolean; onlyMissing?: boolean };
   steps: string[];
   startedAt: string;
   finishedAt?: string;
@@ -34,6 +34,7 @@ interface StatusResponse {
   job?: Job | null;
   log?: string;
   external?: { kind: string; startedAt: string } | null;
+  publish?: { configured: boolean; last: { url: string; at: string } | null };
   stats?: {
     titles: { series: number; movies: number };
     detailed: { series: number; movies: number };
@@ -68,7 +69,12 @@ const JOBS: Array<{ kind: JobKind; title: string; desc: string; limitLabel?: str
   },
 ];
 
-const JOB_LABEL: Record<JobKind, string> = { catalog: "Kataloq sync", validate: "AZ player validasiyası", project: "Vitrinə proyeksiya" };
+const JOB_LABEL: Record<JobKind, string> = {
+  catalog: "Kataloq sync",
+  validate: "AZ player validasiyası",
+  project: "Vitrinə proyeksiya",
+  publish: "Prod-a göndər",
+};
 const RUN_LABEL: Record<string, string> = { HBOMAX_CATALOG: "Kataloq sync", HBOMAX_VALIDATE: "Validasiya" };
 
 function fmt(d: string | null | undefined) {
@@ -99,10 +105,11 @@ function JobCard({
 }: {
   job: (typeof JOBS)[number];
   busy: boolean;
-  onStart: (kind: JobKind, limit: string, thenProject: boolean) => void;
+  onStart: (kind: JobKind, limit: string, thenProject: boolean, onlyMissing: boolean) => void;
 }) {
   const [limit, setLimit] = useState("");
   const [thenProject, setThenProject] = useState(true);
+  const [onlyMissing, setOnlyMissing] = useState(false);
   return (
     <div className="flex flex-col rounded-xl border border-admin-line bg-admin-card p-5">
       <h3 className="font-semibold">{job.title}</h3>
@@ -120,6 +127,12 @@ function JobCard({
           />
         </label>
       ) : null}
+      {job.kind === "catalog" ? (
+        <label className="mt-3 inline-flex items-center gap-2 text-xs font-medium text-zinc-600">
+          <input type="checkbox" checked={onlyMissing} onChange={(e) => setOnlyMissing(e.target.checked)} />
+          yalnız metadata-sı çəkilməyənlər (yarımçıq run-un davamı)
+        </label>
+      ) : null}
       {job.canProject ? (
         <label className="mt-3 inline-flex items-center gap-2 text-xs font-medium text-zinc-600">
           <input type="checkbox" checked={thenProject} onChange={(e) => setThenProject(e.target.checked)} />
@@ -129,7 +142,7 @@ function JobCard({
       <button
         type="button"
         disabled={busy}
-        onClick={() => onStart(job.kind, limit, thenProject)}
+        onClick={() => onStart(job.kind, limit, thenProject, onlyMissing)}
         className="mt-4 inline-flex items-center justify-center gap-2 rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-[#ffffff] hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Play className="h-4 w-4" /> Başlat
@@ -199,13 +212,14 @@ export default function HbomaxAdminClient() {
     return (
       <div className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">
         <p className="flex items-center gap-2 font-semibold">
-          <AlertTriangle className="h-4 w-4" /> Kollektor bu serverdə işə salına bilməz
+          <AlertTriangle className="h-4 w-4" /> Bu, prod serverdir — kollektor burada işləmir
         </p>
         <p className="mt-2">
-          HBO Max kollektoru HBO-ya giriş edilmiş Chrome profili və lokal kollektor DB-si tələb edir. Kompüterində
+          HBO Max kollektoru Azərbaycan IP-si, HBO-ya giriş edilmiş Chrome profili və lokal kollektor DB-si tələb edir,
+          ona görə Mac-də işləyir. Prod sayt datanı Mac-dən alır: Mac-də
           <code className="mx-1 rounded bg-amber-100 px-1">npm run dev:hbomax</code>
-          ilə serveri qaldır və bu səhifəni <code className="mx-1 rounded bg-amber-100 px-1">localhost:3000/admin/streaming/hbomax</code> ünvanında aç.
-          İlk dəfədirsə əvvəlcə <code className="mx-1 rounded bg-amber-100 px-1">npm run hbomax:login</code> ilə HBO-ya daxil ol.
+          ilə <code className="mx-1 rounded bg-amber-100 px-1">localhost:3000/admin/streaming/hbomax</code> aç → sync /
+          validasiya → <b>Prod-a göndər</b>.
         </p>
       </div>
     );
@@ -250,6 +264,7 @@ export default function HbomaxAdminClient() {
               <h2 className="font-semibold">
                 {job ? JOB_LABEL[job.request.kind] : "Hələ iş başladılmayıb"}
                 {job?.request.limit ? ` · ${job.request.limit}` : ""}
+                {job?.request.onlyMissing ? " · yalnız çəkilməyənlər" : ""}
                 {job?.request.thenProject && job.request.kind !== "project" ? " → proyeksiya" : ""}
               </h2>
               {job ? (
@@ -292,9 +307,38 @@ export default function HbomaxAdminClient() {
             key={j.kind}
             job={j}
             busy={pending || running}
-            onStart={(kind, limit, thenProject) => post({ action: "start", kind, limit: limit || undefined, thenProject })}
+            onStart={(kind, limit, thenProject, onlyMissing) => post({ action: "start", kind, limit: limit || undefined, thenProject, onlyMissing })}
           />
         ))}
+      </section>
+
+      <section className="rounded-xl border border-admin-line bg-admin-card p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 font-semibold">
+              <UploadCloud className="h-4 w-4" /> Prod saytına göndər
+            </h2>
+            <p className="mt-1 text-sm text-zinc-600">
+              Son göndərişdən sonra dəyişən başlıqlar, yoxlanmış dillər və epizod datası prod-a gedir, sonra prod-da
+              proyeksiya işləyir. Brauzer açılmır.
+            </p>
+            <p className="mt-1 text-xs text-zinc-600">
+              {data.publish?.configured
+                ? data.publish.last
+                  ? `Son göndəriş: ${fmt(data.publish.last.at)} → ${data.publish.last.url}`
+                  : "Hələ göndərilməyib"
+                : "Konfiqurasiya yoxdur: .env-də HBOMAX_PUBLISH_URL və HBOMAX_IMPORT_TOKEN təyin et."}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={pending || running || !data.publish?.configured}
+            onClick={() => window.confirm("Dəyişikliklər prod sayta göndərilsin?") && post({ action: "start", kind: "publish" })}
+            className="inline-flex items-center gap-2 rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-[#ffffff] hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <UploadCloud className="h-4 w-4" /> Prod-a göndər
+          </button>
+        </div>
       </section>
 
       <section className="rounded-xl border border-admin-line bg-admin-card p-5">

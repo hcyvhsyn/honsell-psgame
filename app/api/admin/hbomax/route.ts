@@ -1,7 +1,7 @@
 /**
  * Admin — HBO Max kollektoru.
  *   GET  → { enabled, job, log, stats, dailyLimit, external }
- *   POST { action: "start", kind, limit?, thenProject?, force? } | { action: "stop" }
+ *   POST { action: "start", kind, limit?, thenProject?, onlyMissing?, force? } | { action: "stop" }
  * İşlər yalnız lokal `npm run dev:hbomax` serverində işə salınır (lib/hbomaxAdminRunner.ts).
  */
 import { NextResponse } from "next/server";
@@ -9,6 +9,8 @@ import { requireAdmin } from "@/lib/auth";
 import { HBOMAX_CONFIG, HBOMAX_REGION } from "@/lib/scrapers/hbomaxCollector/config";
 import {
   HBOMAX_ADMIN_RUNNER_ENABLED,
+  HBOMAX_PUBLISH_CONFIGURED,
+  lastPublish,
   HboJobError,
   collectorStats,
   currentJob,
@@ -22,7 +24,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const KINDS = new Set<HboJobKind>(["catalog", "validate", "project"]);
+const KINDS = new Set<HboJobKind>(["catalog", "validate", "project", "publish"]);
 
 async function admin() {
   try {
@@ -45,12 +47,13 @@ export async function GET() {
     log: job ? jobLogTail(job.id) : "",
     stats,
     external,
+    publish: { configured: HBOMAX_PUBLISH_CONFIGURED, last: lastPublish() },
   });
 }
 
 export async function POST(req: Request) {
   if (!(await admin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = (await req.json().catch(() => ({}))) as { action?: string; kind?: string; limit?: unknown; thenProject?: unknown; force?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { action?: string; kind?: string; limit?: unknown; thenProject?: unknown; onlyMissing?: unknown; force?: unknown };
   try {
     if (body.action === "stop") return NextResponse.json({ stopped: await stopJob() });
     if (body.action !== "start" || !KINDS.has(body.kind as HboJobKind)) return NextResponse.json({ error: "bad_request" }, { status: 400 });
@@ -58,7 +61,7 @@ export async function POST(req: Request) {
     if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > 5000)) {
       return NextResponse.json({ error: "Limit 1–5000 arası tam ədəd olmalıdır" }, { status: 400 });
     }
-    const job = await startJob({ kind: body.kind as HboJobKind, limit, thenProject: body.thenProject === true }, { force: body.force === true });
+    const job = await startJob({ kind: body.kind as HboJobKind, limit, thenProject: body.thenProject === true, onlyMissing: body.onlyMissing === true }, { force: body.force === true });
     return NextResponse.json({ job });
   } catch (err) {
     if (err instanceof HboJobError) {
