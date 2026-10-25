@@ -1342,6 +1342,7 @@ model StreamingTitleName {
 
 /// Streaming overview və ya konkret service səhifəsində göstərilən banner
 /// elementi. Admin hər scope üçün ayrıca banner siyahısı qurur.
+/// ARXİV — Streaming Banner kodu silinib (2026-10); cədvəl data üçün saxlanılır.
 model StreamingFeatured {
   id        String         @id @default(cuid())
   // "OVERVIEW" və ya konkret service kodu (HBO_MAX, GAIN, YOUTUBE_PREMIUM, NETFLIX)

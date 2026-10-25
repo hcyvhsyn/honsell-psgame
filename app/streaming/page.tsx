@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Tv, ArrowRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
-import StreamingFeaturedBanner, { type FeaturedSlide } from "@/components/StreamingFeaturedBanner";
 import StreamingTitleCard from "@/components/StreamingTitleCard";
 import StreamingReviewsPreview from "@/components/StreamingReviewsPreview";
 import PlatformGuidesSection from "@/components/PlatformGuidesSection";
@@ -28,26 +27,6 @@ export const metadata: Metadata = {
   },
 };
 
-function toSlideArr(rows: Array<{
-  id: string;
-  titleId: string;
-  title: { id: string; title: string; service: string; kind: string; year: number | null; description: string | null; posterUrl: string | null; backdropUrl: string | null; genres: unknown; trailerUrl: string | null };
-}>): FeaturedSlide[] {
-  return rows.map((r) => ({
-    id: r.id,
-    titleId: r.titleId,
-    title: r.title.title,
-    service: r.title.service,
-    kind: r.title.kind === "SERIES" ? "SERIES" : "MOVIE",
-    year: r.title.year,
-    description: r.title.description,
-    posterUrl: r.title.posterUrl,
-    backdropUrl: r.title.backdropUrl,
-    genres: Array.isArray(r.title.genres) ? (r.title.genres as string[]) : [],
-    trailerUrl: r.title.trailerUrl,
-  }));
-}
-
 export default async function StreamingPage() {
   // Bu səhifə yalnız film/serial yönlü streaming xidmətlərini göstərir.
   // MUSIC kateqoriyalı xidmətlər (YouTube Premium) /music səhifəsində listlənir.
@@ -58,20 +37,10 @@ export default async function StreamingPage() {
     (p) => !isHiddenFromStreamingGrid(p.slug),
   );
 
-  const [featuredOverview, allTitles] = await Promise.all([
-    prisma.streamingFeatured.findMany({
-      where: { scope: "OVERVIEW", isActive: true, title: { isActive: true, azAvailable: true } },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-      include: { title: true },
-      take: 12,
-    }),
-    prisma.streamingTitle.findMany({
-      where: { isActive: true, azAvailable: true },
-      orderBy: [{ service: "asc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
-    }),
-  ]);
-
-  const slides = toSlideArr(featuredOverview);
+  const allTitles = await prisma.streamingTitle.findMany({
+    where: { isActive: true, azAvailable: true },
+    orderBy: [{ service: "asc" }, { sortOrder: "asc" }, { createdAt: "desc" }],
+  });
 
   // Per-service title qruplaşdırması (overview rails üçün).
   const titlesByService = new Map<string, typeof allTitles>();
@@ -94,24 +63,20 @@ export default async function StreamingPage() {
       />
       <SiteHeaderServer />
 
-      {/* Hero / featured banner */}
+      {/* Hero */}
       <section className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
-        {slides.length > 0 ? (
-          <StreamingFeaturedBanner slides={slides} />
-        ) : (
-          <div className="rounded-3xl border border-fuchsia-500/20 bg-gradient-to-br from-fuchsia-600/15 via-purple-700/10 to-zinc-900/40 p-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-1 text-xs text-fuchsia-200">
-              <Tv className="h-3.5 w-3.5" />
-              Streaming xidmətləri
-            </div>
-            <h1 className="mt-4 text-3xl font-black text-white sm:text-4xl">
-              Netflix · HBO Max · Gain
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-              Hər platformanın səhifəsinə keçid edib Azərbaycanda yayımlanan film və serialları kəşf et.
-            </p>
+        <div className="rounded-3xl border border-fuchsia-500/20 bg-gradient-to-br from-fuchsia-600/15 via-purple-700/10 to-zinc-900/40 p-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-1 text-xs text-fuchsia-200">
+            <Tv className="h-3.5 w-3.5" />
+            Streaming xidmətləri
           </div>
-        )}
+          <h1 className="mt-4 text-3xl font-black text-white sm:text-4xl">
+            Netflix · HBO Max · Gain
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-zinc-400">
+            Hər platformanın səhifəsinə keçid edib Azərbaycanda yayımlanan film və serialları kəşf et.
+          </p>
+        </div>
       </section>
 
       {/* Platforma navigatoru — satışda olan platformalar PS Store stili kart sırası */}

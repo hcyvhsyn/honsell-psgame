@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import StreamingPlanPicker from "@/components/StreamingPlanPicker";
 import PlatformsPublicSection from "@/components/PlatformsPublicSection";
-import StreamingFeaturedBanner, { type FeaturedSlide } from "@/components/StreamingFeaturedBanner";
 import StreamingReviewsPreview from "@/components/StreamingReviewsPreview";
 import PlatformGuidesSection from "@/components/PlatformGuidesSection";
 import NewsSection from "@/components/NewsSection";
@@ -52,27 +51,13 @@ export default async function StreamingServiceDetail({
 }: Props) {
   const isMusic = svc.category === "MUSIC";
 
-  const [products, featured] = await Promise.all([
-    // Music kateqoriyasında paketlər PLATFORM tipində saxlanılır (musicBrand
-    // ilə taglənir), digər streaming xidmətləri STREAMING tipində.
-    prisma.serviceProduct.findMany({
-      where: { isActive: true, type: isMusic ? "PLATFORM" : "STREAMING" },
-      orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
-      include: { _count: { select: { codes: { where: { isUsed: false } } } } },
-    }),
-    isMusic
-      ? Promise.resolve([])
-      : prisma.streamingFeatured.findMany({
-          where: {
-            scope: svc.code,
-            isActive: true,
-            title: { isActive: true, azAvailable: true, service: svc.code },
-          },
-          orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-          include: { title: true },
-          take: 12,
-        }),
-  ]);
+  // Music kateqoriyasında paketlər PLATFORM tipində saxlanılır (musicBrand
+  // ilə taglənir), digər streaming xidmətləri STREAMING tipində.
+  const products = await prisma.serviceProduct.findMany({
+    where: { isActive: true, type: isMusic ? "PLATFORM" : "STREAMING" },
+    orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
+    include: { _count: { select: { codes: { where: { isUsed: false } } } } },
+  });
 
   const filtered = products.filter((p) => {
     const meta = (p.metadata as Record<string, unknown> | null) ?? null;
@@ -316,20 +301,6 @@ export default async function StreamingServiceDetail({
     };
   };
 
-  const slides: FeaturedSlide[] = featured.map((r) => ({
-    id: r.id,
-    titleId: r.titleId,
-    title: r.title.title,
-    service: r.title.service,
-    kind: r.title.kind === "SERIES" ? "SERIES" : "MOVIE",
-    year: r.title.year,
-    description: r.title.description,
-    posterUrl: r.title.posterUrl,
-    backdropUrl: r.title.backdropUrl,
-    genres: Array.isArray(r.title.genres) ? (r.title.genres as string[]) : [],
-    trailerUrl: r.title.trailerUrl,
-  }));
-
   const isYoutube = svc.code === "YOUTUBE_PREMIUM";
 
   const breadcrumbJsonLd = {
@@ -374,12 +345,6 @@ export default async function StreamingServiceDetail({
           <div className="mt-4 overflow-hidden rounded-3xl border border-white/10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={svc.heroImageUrl} alt={svc.label} className="h-48 w-full object-cover sm:h-64" />
-          </div>
-        )}
-
-        {!isMusic && !activeVariant && !showGroupLanding && !showGroupChooser && slides.length > 0 && (
-          <div className="mt-4">
-            <StreamingFeaturedBanner slides={slides} />
           </div>
         )}
       </section>
