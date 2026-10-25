@@ -38,7 +38,7 @@ export default function ReelsLauncher() {
       <span className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-rose-500 to-fuchsia-600 text-white shadow-xl shadow-fuchsia-600/40 transition group-hover:scale-105 group-active:scale-95">
         <Clapperboard className="h-6 w-6" />
       </span>
-      <span className="rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-bold text-white backdrop-blur">
+      <span className="rounded-full bg-black/75 px-2 py-0.5 text-[11px] font-bold text-white">
         Reels
       </span>
     </Link>

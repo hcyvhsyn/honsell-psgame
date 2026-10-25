@@ -376,7 +376,7 @@
 .launcher:active { transform: scale(.94); }
 .launcherImage { position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); border-radius: 17px; object-fit: cover; object-position: top; }
 .launcherRing { position: absolute; inset: -5px; border: 1px solid rgba(168, 153, 255, .2); border-radius: 25px; pointer-events: none; }
-.launcherPulse { position: absolute; inset: -6px; border: 1px solid rgba(168, 153, 255, .35); border-radius: 26px; animation: launcherPulse 2.4s ease-out infinite; }
+.launcherPulse { position: absolute; inset: -6px; border: 1px solid rgba(168, 153, 255, .35); border-radius: 26px; animation: launcherPulse 2.4s ease-out 3; } /* 3 dəfə vurub dayanır — sonsuz deyil */
 .launcherClose { position: relative; width: 25px; height: 25px; }
 
 @keyframes panelIn {

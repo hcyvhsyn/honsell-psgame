@@ -241,7 +241,7 @@ export default function AskAiFloat() {
           <header className={styles.header}>
             <div className={styles.avatarWrap}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/mascote.png" alt="Honsell maskotu" className={styles.headerAvatar} />
+              <img src="/mascote.webp" alt="Honsell maskotu" className={styles.headerAvatar} />
               <span className={styles.onlineDot} aria-label="Onlayn" />
             </div>
             <div className={styles.headerCopy}>
@@ -278,7 +278,7 @@ export default function AskAiFloat() {
                 {m.role === "assistant" && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src="/mascote.png"
+                    src="/mascote.webp"
                     alt=""
                     className={styles.messageAvatar}
                   />
@@ -337,7 +337,7 @@ export default function AskAiFloat() {
               <div className={`${styles.messageRow} ${styles.assistantRow}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/mascote.png"
+                  src="/mascote.webp"
                   alt=""
                   className={styles.messageAvatar}
                 />
@@ -405,7 +405,7 @@ export default function AskAiFloat() {
           {!open && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src="/mascote.png"
+              src="/mascote.webp"
               alt="Honsell maskotu"
               className={styles.launcherImage}
             />
@@ -707,7 +707,7 @@ function LoginGate({ pathname }: { pathname: string | null }) {
     <div className={styles.loginGate}>
       <div className={styles.loginAvatarWrap}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/mascote.png" alt="Honsell maskotu" className={styles.loginAvatar} />
+        <img src="/mascote.webp" alt="Honsell maskotu" className={styles.loginAvatar} />
         <span className={styles.loginLock} aria-hidden>✦</span>
       </div>
       <div>

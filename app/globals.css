@@ -465,6 +465,30 @@ html.theme-soft-transition *::after {
     inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
+/* Telefonda iki dəfə toxunub böyütmə olmasın (bax: components/DisablePinchZoom.tsx).
+   `manipulation` scroll və pinch-dən başqa jestləri saxlayır, 300ms gecikməni də götürür. */
+html {
+  touch-action: manipulation;
+}
+
+/* Toxunmalı cihazlarda (telefon/planşet) yapışqan navbar və alt menyu üçün
+   backdrop-filter YOXDUR: scroll zamanı arxadakı məzmun hər kadrda yenidən
+   bulanıqlaşdırılırdı — zəif GPU-larda (Android, köhnə iPhone) əsas donma
+   mənbəyi idi. Əvəzində fon TAM tutqundur — blur-suz yarımşəffaf fonda arxadakı
+   iri yazılar "kölgə" kimi seçilirdi. */
+@media (hover: none) and (pointer: coarse) {
+  .honsell-navbar-shell,
+  .honsell-mobile-bottom-bar {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: rgb(8, 8, 18) !important;
+  }
+  :root.light .honsell-navbar-shell,
+  :root.light .honsell-mobile-bottom-bar {
+    background: rgb(255, 255, 255) !important;
+  }
+}
+
 :root.light .honsell-mobile-bottom-bar .text-slate-400 { color: #475569 !important; }
 :root.light .honsell-mobile-bottom-bar .text-violet-100 { color: #5b21b6 !important; }
 :root.light .honsell-mobile-bottom-bar .text-sky-300 { color: #0284c7 !important; }
@@ -1408,8 +1432,8 @@ html.light .auth-page-shell input.auth-page-dropdown-input {
     overflow: visible;
     border: 1px solid rgba(124, 58, 237, 0.32);
     background: rgba(8, 8, 18, 0.72);
-    -webkit-backdrop-filter: blur(22px) saturate(150%);
-    backdrop-filter: blur(22px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
     box-shadow:
       0 24px 70px -48px rgba(124, 58, 237, 0.8),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -1428,8 +1452,8 @@ html.light .auth-page-shell input.auth-page-dropdown-input {
   .honsell-mobile-bottom-bar {
     border-color: rgba(124, 58, 237, 0.32);
     background: rgba(8, 8, 18, 0.72);
-    -webkit-backdrop-filter: blur(22px) saturate(150%);
-    backdrop-filter: blur(22px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
     box-shadow:
       0 -22px 70px -36px rgba(124, 58, 237, 0.8),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -1442,11 +1466,6 @@ html.light .auth-page-shell input.auth-page-dropdown-input {
       color 220ms ease,
       filter 220ms ease,
       opacity 220ms ease;
-    will-change: transform, filter;
-  }
-
-  .honsell-nav-action .honsell-nav-icon-motion {
-    animation: honsell-nav-icon-breathe 4.1s ease-in-out infinite;
   }
 
   .group:hover .honsell-nav-icon-motion,
@@ -1456,23 +1475,16 @@ html.light .auth-page-shell input.auth-page-dropdown-input {
     filter: drop-shadow(0 0 9px currentColor);
   }
 
-  .honsell-nav-icon-idle {
-    animation: honsell-nav-icon-breathe 5.4s ease-in-out infinite;
-  }
-
   .honsell-nav-action .honsell-nav-gift-icon,
   .honsell-nav-gift-icon {
-    animation: honsell-nav-gift-lift 4.6s ease-in-out infinite;
   }
 
   .honsell-nav-action .honsell-nav-cart-icon,
   .honsell-nav-cart-icon {
     transform-origin: 42% 28%;
-    animation: honsell-nav-cart-swing 5.2s ease-in-out infinite;
   }
 
   .honsell-nav-active-glow {
-    animation: honsell-nav-active-glow 2.6s ease-in-out infinite;
   }
 
   .honsell-nav-chevron {
@@ -1500,7 +1512,6 @@ html.light .auth-page-shell input.auth-page-dropdown-input {
     background-size: 180% 180%, 220% 100%;
     opacity: 0.22;
     pointer-events: none;
-    animation: honsell-nav-soft-glow 7.2s ease-in-out infinite;
   }
 
   .honsell-nav-soft-link:hover::before,
@@ -1544,7 +1555,6 @@ html.light .auth-page-shell input.auth-page-dropdown-input {
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.38));
-    animation: honsell-nav-featured-border-pulse 7.5s ease-in-out infinite;
   }
 
   .honsell-nav-featured-link::after {
@@ -1561,7 +1571,6 @@ html.light .auth-page-shell input.auth-page-dropdown-input {
     pointer-events: none;
     transform: translateX(-130%) skewX(-14deg);
     will-change: transform, opacity;
-    animation: honsell-nav-featured-sheen 8.5s cubic-bezier(0.45, 0, 0.25, 1) infinite;
   }
 
   .honsell-nav-featured-link > * {
@@ -1591,8 +1600,11 @@ html.light .auth-page-shell input.auth-page-dropdown-input {
       transparent 34%
     );
     background-size: 220% 100%;
+    background-position: 50% 0;
     background-repeat: no-repeat;
-    animation: honsell-img-shimmer 1.5s linear infinite;
+    /* Əvvəl `background-position` animasiyası idi — kataloq yüklənib sürüşdürülən
+       anda 24 skeleton hər kadrda yenidən boyanırdı. `opacity` kompozitordadır. */
+    animation: honsell-img-pulse 1.4s ease-in-out infinite;
   }
 }
 
@@ -1607,12 +1619,13 @@ html.dark .honsell-img-skeleton {
   );
 }
 
-@keyframes honsell-img-shimmer {
-  0% {
-    background-position: 220% 0;
-  }
+@keyframes honsell-img-pulse {
+  0%,
   100% {
-    background-position: -120% 0;
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
   }
 }
 
@@ -2775,18 +2788,6 @@ html[data-ai-chat-open] #theme-toggle {
   will-change: auto;
 }
 
-/* ── Scroll zamanı bütün dekorativ animasiyaları dayandır ────────────────────
-   ScrollAnimationManager scroll gedərkən <html>-ə `is-scrolling` əlavə edir.
-   Həmişə görünən header-dəki `filter: drop-shadow` / `background-position`
-   animasiyaları hər frame-də yenidən boyanaraq kompozitoru scroll ilə birlikdə
-   yükləyir və "boş/qara zolaq" yaradır. Scroll müddətində onları tam
-   dayandırırıq (yalnız @keyframes animasiyalarına təsir edir — hover/state
-   `transition`-ları toxunulmaz qalır), scroll bitən kimi davam edirlər. */
-html.is-scrolling *,
-html.is-scrolling *::before,
-html.is-scrolling *::after {
-  animation-play-state: paused !important;
-}
 
 /* Minimum sifariş zolağı (components/cart/MinOrderMeter.tsx) — yavaş parıltı. */
 .honsell-minorder-fill {

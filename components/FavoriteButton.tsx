@@ -91,10 +91,10 @@ export default function FavoriteButton({
           disabled={busy}
           aria-pressed={fav}
           aria-label={tooltip}
-          className={`grid h-9 w-9 place-items-center rounded-full border backdrop-blur-md transition ${
+          className={`grid h-9 w-9 place-items-center rounded-full border transition ${
             fav
-              ? "border-rose-400/60 bg-rose-500/30 text-rose-100 shadow-[0_4px_12px_-4px_rgba(244,63,94,0.6)]"
-              : "border-white/30 bg-black/40 text-white hover:bg-black/60"
+              ? "border-rose-400/60 bg-rose-500/70 text-rose-50 shadow-[0_4px_12px_-4px_rgba(244,63,94,0.6)]"
+              : "border-white/30 bg-black/60 text-white hover:bg-black/75"
           } ${busy ? "opacity-60" : ""}`}
         >
           <Heart

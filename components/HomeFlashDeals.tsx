@@ -194,6 +194,7 @@ function FlashDealTile({ deal, now }: { deal: FlashDealCard; now: number | null 
         src={deal.imageUrl}
         alt={deal.title}
         sizes="(max-width: 640px) 72vw, 276px"
+        psWidth={540}
         className="object-cover transition duration-500 group-hover:scale-[1.04]"
         badge={deal.platform ?? "Oyun"}
       />

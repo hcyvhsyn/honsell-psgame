@@ -71,10 +71,11 @@ export default function HomeProductMatrix({
                       src={product.imageUrl}
                       alt={product.title}
                       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
+                      psWidth={440}
                       className="object-cover transition duration-500 group-hover:scale-[1.04]"
                       badge={product.badge}
                     />
-                    <div className="absolute left-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full border border-white/10 bg-zinc-950/80 px-2 py-1 text-[10px] font-black text-white backdrop-blur">
+                    <div className="absolute left-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full border border-white/10 bg-zinc-950/85 px-2 py-1 text-[10px] font-black text-white">
                       {product.badge}
                     </div>
                   </div>

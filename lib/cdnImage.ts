@@ -32,3 +32,21 @@ export function cdnImageUrl<T extends string | null | undefined>(url: T): T {
     return url;
   }
 }
+
+/**
+ * PS Store şəkil serveri (`image.api.playstation.com`) `?w=` ilə ölçüləndirməni
+ * özü edir — bizim Node optimizer-inə yük salmadan. Kataloq qapaqları orijinalda
+ * 1024×1024 / ~324 KB-dır, kartda isə ~300px görünür; `w=540` → 592px / ~112 KB.
+ * Server ölçüləri pillələrlə qaytarır (370, 444, 592, 764). Digər hostlara toxunmur.
+ */
+export function psStoreSizedUrl<T extends string | null | undefined>(url: T, width: number): T {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    if (u.hostname !== "image.api.playstation.com") return url;
+    u.searchParams.set("w", String(width));
+    return u.toString() as T;
+  } catch {
+    return url;
+  }
+}

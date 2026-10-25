@@ -16,7 +16,9 @@ function resolveIconSrc(tier: TierBadgeData): string | null {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
 
-    if (LOYALTY_ICON_KEYS.has(normalized)) return `/${normalized}.svg`;
+    // 160px WebP (~8 KB). Eyni adlı .svg-lər içində 2.2 MB-lıq raster daşıyırdı
+    // və rəy kartlarında dəfələrlə rəsm olunaraq scroll-u ağırlaşdırırdı.
+    if (LOYALTY_ICON_KEYS.has(normalized)) return `/${normalized}.webp`;
   }
 
   return tier.icon ? `/tiers/${tier.icon}.svg` : null;

@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { cdnImageUrl } from "@/lib/cdnImage";
+import { cdnImageUrl, psStoreSizedUrl } from "@/lib/cdnImage";
+import { useSecondTicker } from "@/lib/useSecondTicker";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -46,25 +47,22 @@ export type { GameCardData };
  * kataloqda eyni anda 24 kart var).
  */
 function useDiscountDeadline(iso: string | null): DiscountDeadline | null {
-  const [now, setNow] = useState<number | null>(null);
+  const [mountNow, setMountNow] = useState<number | null>(null);
 
+  // SSR/hidrasiya uyğunsuzluğunu önləmək üçün ilk dəyər mount-dan sonra
+  // qoyulur — server "12 avqusta qədər", client isə eyni mətni render edir.
   useEffect(() => {
-    if (!iso) {
-      setNow(null);
-      return;
-    }
-    // SSR/hidrasiya uyğunsuzluğunu önləmək üçün ilk dəyər mount-dan sonra
-    // qoyulur — server "12 avqusta qədər", client isə eyni mətni render edir.
-    setNow(Date.now());
-    const end = new Date(iso).getTime();
-    if (Number.isNaN(end)) return;
-    if (end - Date.now() >= 86_400_000) return; // uzaq tarix — tick lazım deyil
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
+    setMountNow(iso ? Date.now() : null);
   }, [iso]);
 
-  if (!iso || now === null) return null;
-  return formatDiscountDeadline(iso, now);
+  const end = iso ? new Date(iso).getTime() : NaN;
+  // Yalnız son 24 saatda saniyəlik tik lazımdır (uzaq tarixdə mətn dəyişmir).
+  // Bütün kartlar TƏK ortaq taymerə abunə olur (lib/useSecondTicker.ts).
+  const near = mountNow !== null && !Number.isNaN(end) && end - mountNow < 86_400_000;
+  const tick = useSecondTicker(near);
+
+  if (!iso || mountNow === null) return null;
+  return formatDiscountDeadline(iso, tick ?? mountNow);
 }
 
 /**
@@ -184,21 +182,12 @@ export default function GameCard({
           {!imgLoaded && (
             <span aria-hidden className="honsell-img-skeleton absolute inset-0" />
           )}
-          <Image
-            src={cdnImageUrl(game.imageUrl)}
-            alt=""
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className={`scale-110 object-cover blur-xl transition-opacity duration-500 ease-out ${
-              imgLoaded ? "opacity-45" : "opacity-0"
-            }`}
-            priority={priority}
-            unoptimized
-            aria-hidden
-          />
+          {/* Tək şəkil, PS serverində ölçüləndirilmiş (1024px/324 KB → 592px/112 KB).
+              Əvvəl arxada eyni şəklin `blur-xl` nüsxəsi də vardı — kataloqda 24
+              kart × 2 böyük dekod + 24 bulanıqlıq filtri scroll-u donudurdu. */}
           <Image
             ref={sharpImgRef}
-            src={cdnImageUrl(game.imageUrl)}
+            src={psStoreSizedUrl(cdnImageUrl(game.imageUrl), 540)}
             alt={game.title}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
@@ -206,7 +195,7 @@ export default function GameCard({
               imgLoaded ? "opacity-100" : "opacity-0"
             }`}
             priority={priority}
-            // CDN keşli — Node optimizer-ini bypass et (bax: yuxarıdakı blur şəkil).
+            // Node optimizer-ini bypass et — ölçüləndirməni PS serveri edir.
             unoptimized
             onLoad={() => setImgLoaded(true)}
             onError={() => setImgFailed(true)}
@@ -219,7 +208,7 @@ export default function GameCard({
       )}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
       {detailHref && (
-        <span className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-white/25 bg-black/35 px-3 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg backdrop-blur-md transition group-hover:opacity-100">
+        <span className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-white/25 bg-black/65 px-3 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition group-hover:opacity-100">
           Ətraflı bax
           <ArrowUpRight className="h-3.5 w-3.5" />
         </span>
@@ -244,7 +233,7 @@ export default function GameCard({
 
           {isEpic ? (
             <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/55 px-2.5 py-1 backdrop-blur-md sm:gap-2 sm:px-3 sm:py-1.5">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/65 px-2.5 py-1 sm:gap-2 sm:px-3 sm:py-1.5">
                 <Image
                   src="/epic-white-logo.png"
                   alt="Epic Games"
@@ -265,17 +254,17 @@ export default function GameCard({
                   tabIndex={0}
                   title={getPlatformHelp(p)}
                   aria-label={getPlatformHelp(p)}
-                  className="group/platform relative rounded-full border border-white/40 bg-black/30 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white backdrop-blur-md outline-none transition focus-visible:ring-2 focus-visible:ring-white/80 sm:px-3 sm:py-1 sm:text-[11px]"
+                  className="group/platform relative rounded-full border border-white/40 bg-black/60 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white outline-none transition focus-visible:ring-2 focus-visible:ring-white/80 sm:px-3 sm:py-1 sm:text-[11px]"
                 >
                   {p}
-                  <span className="pointer-events-none absolute bottom-[calc(100%+0.5rem)] left-0 z-30 w-52 translate-y-1 rounded-xl border border-white/20 bg-zinc-950/90 px-3 py-2 text-left text-[11px] font-medium normal-case leading-snug tracking-normal text-zinc-100 opacity-0 shadow-2xl backdrop-blur-md transition group-hover/platform:translate-y-0 group-hover/platform:opacity-100 group-focus/platform:translate-y-0 group-focus/platform:opacity-100">
+                  <span className="pointer-events-none absolute bottom-[calc(100%+0.5rem)] left-0 z-30 w-52 translate-y-1 rounded-xl border border-white/20 bg-zinc-950/95 px-3 py-2 text-left text-[11px] font-medium normal-case leading-snug tracking-normal text-zinc-100 opacity-0 shadow-2xl transition group-hover/platform:translate-y-0 group-hover/platform:opacity-100 group-focus/platform:translate-y-0 group-focus/platform:opacity-100">
                     {getPlatformHelp(p)}
                   </span>
                 </span>
               ))}
               <PlatformInfoButton
                 variant="compact"
-                className="hidden h-7 w-7 border border-white/35 bg-black/35 text-white hover:bg-black/55 sm:inline-flex"
+                className="hidden h-7 w-7 border border-white/35 bg-black/60 text-white hover:bg-black/75 sm:inline-flex"
               />
             </div>
           ) : null}
@@ -283,7 +272,7 @@ export default function GameCard({
           {productTypeBadge && (
             <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3">
               <span
-                className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white backdrop-blur-md sm:px-2.5 sm:py-1 sm:text-[10px] ${productTypeBadge.className}`}
+                className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white sm:px-2.5 sm:py-1 sm:text-[10px] ${productTypeBadge.className}`}
               >
                 {productTypeBadge.label}
               </span>

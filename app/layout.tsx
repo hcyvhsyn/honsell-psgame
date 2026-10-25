@@ -8,6 +8,7 @@ import { ModalProvider } from "@/lib/modals";
 import { DialogProvider } from "@/lib/dialogs";
 import { ThemeProvider, THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme";
 import { SessionProvider } from "@/components/SessionProvider";
+import DisablePinchZoom from "@/components/DisablePinchZoom";
 import ThemeToggle from "@/components/ThemeToggle";
 import AppModals from "@/components/AppModals";
 import FavoritesBootstrap from "@/components/FavoritesBootstrap";
@@ -16,7 +17,6 @@ import AskAiFloat from "@/components/AskAiFloatLazy";
 import ReelsLauncher from "@/components/reels/ReelsLauncher";
 import CartAddedToast from "@/components/cart/CartAddedToast";
 import TopLoader from "@/components/TopLoader";
-import ScrollActivityFlag from "@/components/ScrollActivityFlag";
 import { Suspense } from "react";
 import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "@/lib/site";
 import SiteAnalytics from "@/components/SiteAnalytics";
@@ -119,6 +119,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: "#0A0A0F",
   colorScheme: "light dark",
+  // Telefonda təsadüfi böyütmə olmasın (mobil tətbiq hissi). iOS Safari pinch üçün
+  // bu kifayət deyil — bax: components/DisablePinchZoom.tsx.
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default async function RootLayout({
@@ -149,12 +155,12 @@ export default async function RootLayout({
         <Suspense fallback={null}>
           <TopLoader />
         </Suspense>
-        <ScrollActivityFlag />
 
         <ThemeProvider>
           <ReferralRatesProvider value={referralCategoryRates}>
             <DialogProvider>
               <ModalProvider>
+                <DisablePinchZoom />
                 <SessionProvider>
                   <FavoritesBootstrap>
                     <CartProvider>

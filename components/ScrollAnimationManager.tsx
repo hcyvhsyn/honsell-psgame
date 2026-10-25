@@ -20,8 +20,10 @@ import { useEffect } from "react";
  * Hər komponentin öz observer yaratması əvəzinə vahid idarə nöqtəsi: yeni
  * animasiyalı element sadəcə `data-scroll-anim` atributu ilə qeyd olunur.
  *
- * QEYD: scroll müddətində bütün animasiyaların dayandırılması ayrıca, qlobal
- * [[ScrollActivityFlag]] komponentindədir (header bütün səhifələrdə olduğu üçün).
+ * QEYD: əvvəl scroll müddətində BÜTÜN animasiyaları dayandıran qlobal yama
+ * (`ScrollActivityFlag`, `html.is-scrolling *`) da vardı — 2026-10-da silindi:
+ * navbar-ın daimi animasiyaları götürüldü, yamanın özü isə hər scroll başı/sonu
+ * bütün sənədin üslubunu yenidən hesablatdırırdı.
  *
  * Progressive enhancement: JS işləməsə, elementlər əvvəlki kimi (hamısı işlək)
  * qalır — heç bir vizual reqressiya olmur.

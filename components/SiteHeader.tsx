@@ -641,7 +641,7 @@ function MobileBottomNav({
       className="honsell-mobile-bottom-nav fixed inset-x-0 bottom-0 z-[70] px-2 xl:hidden"
       aria-label="Mobil naviqasiya"
     >
-      <div className="honsell-mobile-bottom-bar relative mx-auto grid min-h-[78px] max-w-[30rem] grid-cols-[1fr_1fr_1.12fr_1fr_1fr] items-end rounded-t-[28px] border border-b-0 px-2 pt-3 pb-[env(safe-area-inset-bottom)]">
+      <div className="honsell-mobile-bottom-bar relative mx-auto grid min-h-[62px] max-w-[30rem] grid-cols-[1fr_1fr_1.12fr_1fr_1fr] items-center rounded-t-[28px] border border-b-0 px-2 pt-1.5 pb-[env(safe-area-inset-bottom)]">
         <MobileBottomNavItem
           href="/"
           label="Ana səhifə"
@@ -657,16 +657,16 @@ function MobileBottomNav({
           iconClassName="text-violet-300"
         />
 
-	        <Link
-	          href="/profile"
-	          aria-current={profileActive ? "page" : undefined}
-	          className="group honsell-nav-action -mt-8 flex min-w-0 flex-col items-center justify-end gap-1 text-center"
-	        >
-	          <span className="honsell-mobile-profile-orb grid h-[58px] w-[58px] place-items-center rounded-full border-[6px] border-[#0a0716] bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-[0_18px_42px_-18px_rgba(124,58,237,1)] transition group-active:scale-95">
-	            <User className="honsell-nav-icon-motion h-6 w-6" />
-	          </span>
-          <span className="max-w-full truncate text-[11px] font-black leading-3 text-violet-100">
-            Profilim
+        {/* Yazılar qəsdən yoxdur — ikonlar tanışdır, ad `aria-label`-dadır. */}
+        <Link
+          href="/profile"
+          aria-label="Profilim"
+          title="Profilim"
+          aria-current={profileActive ? "page" : undefined}
+          className="group honsell-nav-action -mt-7 flex min-w-0 items-center justify-center"
+        >
+          <span className="honsell-mobile-profile-orb grid h-[58px] w-[58px] place-items-center rounded-full border-[6px] border-[#0a0716] bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-[0_18px_42px_-18px_rgba(124,58,237,1)] transition group-active:scale-95">
+            <User className="honsell-nav-icon-motion h-6 w-6" />
           </span>
         </Link>
 
@@ -708,38 +708,52 @@ function MobileBottomNavItem({
 }) {
   const content = (
     <>
-      <span className={`relative grid h-9 w-11 place-items-center rounded-2xl transition ${
+      <span className={`relative grid h-11 w-12 place-items-center rounded-2xl transition ${
         active
           ? "bg-violet-500/20 text-violet-100"
           : accent
             ? "text-emerald-300"
             : "text-slate-400"
       }`}>
-	        <Icon className={`honsell-nav-icon-motion h-5 w-5 ${active || accent ? "honsell-nav-icon-idle" : ""} ${iconClassName ?? ""}`} />
+        <Icon className={`honsell-nav-icon-motion h-6 w-6 ${iconClassName ?? ""}`} />
         {accent && (
           <span className="absolute right-1 top-0 h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.18)]" />
         )}
       </span>
-      <span className={`max-w-[76px] truncate text-[11px] font-black leading-3 ${
-        active ? "text-violet-100" : "text-slate-400"
-      }`}>
-        {label}
-      </span>
+      {/* Yazı əvəzinə aktiv nöqtə — hansı bölmədə olduğun yenə görünsün. */}
+      <span
+        aria-hidden
+        className={`h-1 w-1 rounded-full transition ${active ? "bg-violet-300" : "bg-transparent"}`}
+      />
     </>
   );
 
-  const className = "group honsell-nav-action flex min-w-0 flex-col items-center justify-end gap-1 pb-2 text-center transition active:scale-95";
+  // Yazı yoxdur — ad ekran oxuyucu üçün `aria-label`, uzun basanda `title`.
+  const className = "group honsell-nav-action flex min-w-0 flex-col items-center justify-center gap-1 transition active:scale-95";
 
   if (href) {
     return (
-      <Link href={href} aria-current={active ? "page" : undefined} className={className}>
+      <Link
+        href={href}
+        aria-label={label}
+        title={label}
+        aria-current={active ? "page" : undefined}
+        className={className}
+      >
         {content}
       </Link>
     );
   }
 
   return (
-    <button type="button" onClick={onClick} className={className} aria-pressed={active}>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={className}
+      aria-pressed={active}
+    >
       {content}
     </button>
   );

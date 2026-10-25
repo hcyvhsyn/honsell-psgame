@@ -43,6 +43,33 @@ sərhədini yerindən tərpətmir. Hizalanma meyarı qabığın **kənarı**dır
 
 ---
 
+# Performans — donma qaydaları (2026-10, ölçülüb)
+
+Sayt telefonda donurdu; səbəb JS/server DEYİL (TBT ≈ 0, TTFB 0.1–0.3s), **GPU və
+ağır şəkillər** idi. Ölçmə: `/oyunlar` mobil — blur elementi 142 → 2, şəkil 5.4 MB →
+2.0 MB, daimi animasiya 7 → 0. Yeni kod yazanda bunları POZMA:
+
+- **Təkrarlanan kartda / şəkil üstündə `backdrop-blur` YOX.** Hər nişan scroll-da
+  hər kadr arxasındakı şəkli yenidən bulanıqlaşdırır (kataloqda 24 kart × 6). Əvəzinə
+  yarımşəffaf tünd fon (`bg-black/60`). Yapışqan/`fixed` elementdə də (navbar, alt
+  menyu, Reels yazısı) — navbar-da desktop `blur(12px)`, toxunmalı cihazda
+  (`@media (hover: none) and (pointer: coarse)`) blur yoxdur, fon 94% tutqundur.
+- **Daimi (`infinite`) dekorativ animasiya YOX**, xüsusən `filter`/`background-position`/
+  `box-shadow` animasiya edən. Navbar ikonları yalnız hover-də "pop" edir. Lazımdırsa
+  yalnız `transform`/`opacity` və `ScrollAnimationManager` (`data-scroll-anim`) ilə
+  ekrandan çıxanda dayansın. Köhnə `html.is-scrolling *` yaması SİLİNİB — hər scroll
+  başı/sonu bütün sənədin üslubunu yenidən hesablatdırırdı; geri qaytarma.
+- **PS Store qapaqları `psStoreSizedUrl(url, en)` ilə** ([lib/cdnImage.ts](lib/cdnImage.ts)):
+  `image.api.playstation.com` `?w=` ilə özü ölçüləndirir (1024px/324 KB → 592px/112 KB),
+  Node optimizer-inə yük yoxdur. Pillələr: 370/444/592/764. `ProductImage`-də `psWidth`.
+  `GameCard`-da qapaq TƏKDİR — arxadakı `blur-xl` nüsxə silinib.
+- **`public/`-a böyük fayl qoyma.** `bronze/silver/gold/diamond.svg` hər biri 2.2 MB
+  idi (80px ikonun içində base64 raster), `mascote.png` 1.4 MB — indi `.webp`
+  (~8–10 KB). Köhnə fayllar qalıb, kod onları yükləmir.
+- **Saniyəlik taymer üçün `useSecondTicker`** ([lib/useSecondTicker.ts](lib/useSecondTicker.ts)) —
+  bütün səhifəyə TƏK `setInterval`; hər kartın öz taymeri olmasın.
+- Skeleton (`honsell-img-skeleton`) `opacity` nəbzidir, `background-position` yox.
+
 # Mağaza əhatəsi — YALNIZ PlayStation (2026-10)
 
 Tək mənbə: [lib/storeScope.ts](lib/storeScope.ts) (client-safe, saf). Satılan:

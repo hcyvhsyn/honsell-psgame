@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ImageOff } from "lucide-react";
-import { cdnImageUrl } from "@/lib/cdnImage";
+import { cdnImageUrl, psStoreSizedUrl } from "@/lib/cdnImage";
 
 /**
  * Bütün məhsul kartları üçün vahid şəkil komponenti.
@@ -35,6 +35,7 @@ export default function ProductImage({
   imgClassName,
   fallback,
   badge,
+  psWidth,
 }: {
   src: string | null | undefined;
   alt: string;
@@ -48,8 +49,10 @@ export default function ProductImage({
   fallback?: ReactNode;
   /** Standart placeholder altında göstəriləcək qısa etiket (məs. kateqoriya). */
   badge?: string;
+  /** PS Store şəkli bu enə ölçüləndirilir (`psStoreSizedUrl`) — kart/thumbnail üçün. */
+  psWidth?: number;
 }) {
-  const resolved = src ? cdnImageUrl(src) : null;
+  const resolved = src ? (psWidth ? psStoreSizedUrl(cdnImageUrl(src), psWidth) : cdnImageUrl(src)) : null;
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
     resolved ? "loading" : "error",
   );

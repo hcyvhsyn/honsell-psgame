@@ -26,7 +26,7 @@ export default function PlatformInfoButton({
         }}
         aria-label="Platforma haqqında məlumat"
         title="PS4 / PS5 nə deməkdir?"
-        className={`inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-zinc-200 backdrop-blur-md transition hover:bg-black/70 hover:text-white ${className}`}
+        className={`inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/65 text-zinc-200 transition hover:bg-black/80 hover:text-white ${className}`}
       >
         <Info className="h-3 w-3" />
       </button>
