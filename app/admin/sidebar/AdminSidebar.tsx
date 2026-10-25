@@ -59,7 +59,6 @@ type BadgeKey =
   | "pendingReviews"
   | "pendingTestimonials"
   | "pendingCommunity"
-  | "newWebsiteApplications"
   | "heldInviteBonuses";
 
 type IconName =

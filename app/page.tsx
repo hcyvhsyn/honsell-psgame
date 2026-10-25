@@ -450,7 +450,7 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
     })
     // Ana səhifə HTML-ini yüngül saxlamaq üçün maks. 12 kart server-render olunur
     // (əvvəl bütün aktiv landing məhsulları gəlirdi → onlarla kart, böyük HTML).
-    // Tam siyahı /xidmetler və kateqoriya səhifələrindədir.
+    // Tam siyahı kateqoriya səhifələrindədir.
     .slice(0, 12)
     .map((service) => ({
       id: service.id,

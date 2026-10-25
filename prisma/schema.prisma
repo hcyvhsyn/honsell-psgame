@@ -2788,6 +2788,7 @@ model RateLimitEvent {
 // Bu adi rəqəmsal məhsul kimi alınmır — müştəri ətraflı müraciət formu
 // göndərir, admin paneldə baxılır və WhatsApp üzərindən əlaqə saxlanılır.
 
+/// ARXİV — Website Xidməti kodu silinib (2026-10); cədvəl data üçün saxlanılır.
 model WebsiteServicePackage {
   id           String  @id @default(cuid())
   name         String // məs: "Basic Paket", "Standard Paket", "Premium Paket"
@@ -2809,6 +2810,7 @@ model WebsiteServicePackage {
   @@index([isActive, sortOrder])
 }
 
+/// ARXİV — Website Xidməti kodu silinib (2026-10); cədvəl data üçün saxlanılır.
 model WebsiteServiceApplication {
   id String @id @default(cuid())
 
@@ -2888,6 +2890,7 @@ model WebsiteServiceApplication {
 
 // Admin tərəfindən idarə olunan əlavə xidmətlər (add-on-lar).
 // Müştəri formunda canlı görünür, qiymət hesablamasında istifadə olunur.
+/// ARXİV — Website Xidməti kodu silinib (2026-10); cədvəl data üçün saxlanılır.
 model WebsiteServiceAddOn {
   id          String  @id @default(cuid())
   slug        String  @unique // məs: "dark-mode", "online-payment"
@@ -2918,6 +2921,7 @@ model WebsiteServiceAddOn {
 
 // Singleton qiymət konfiqurasiyası — AI üçün baza qiymət aralıqları.
 // Yalnız bir sətir saxlanılır (id="default").
+/// ARXİV — Website Xidməti kodu silinib (2026-10); cədvəl data üçün saxlanılır.
 model WebsitePricingConfig {
   id String @id @default("default")
 

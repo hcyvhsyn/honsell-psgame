@@ -17,8 +17,7 @@ export const dynamic = "force-dynamic";
  *   6. PlayStation kataloqu — PS oyunları, abunəlik, gift card, hesab
  *   7. Yayım                — streaming abunəlik/poster/kataloq
  *   8. Digər platformalar   — Epic, oyun-içi vahid, musiqi, AI/iş paketləri
- *   9. Website Xidməti      — sifarişlə website biznesi
- *  10. Sistem               — qlobal tənzimləmələr
+ *   9. Sistem                — qlobal tənzimləmələr
  *
  * Diqqət: `/admin/ai` (Süni İntellekt) məhsul KATALOQUDUR (ChatGPT/Claude
  * satışı) — sayt AI köməkçisi (`ai-knowledge`/`ai-chat-logs`) ilə qarışdırma.
@@ -137,26 +136,6 @@ const NAV_GROUPS: NavGroupSpec[] = [
     ],
   },
   {
-    label: "Website Xidməti",
-    iconName: "Briefcase",
-    description: "Sifarişlə website — paketlər, müraciətlər, qiymət",
-    items: [
-      { href: "/admin/website-services", label: "Website Paketləri", iconName: "Briefcase" },
-      {
-        href: "/admin/website-applications",
-        label: "Website Müraciətləri",
-        iconName: "ClipboardList",
-        badgeKey: "newWebsiteApplications",
-      },
-      { href: "/admin/website-add-ons", label: "Website Add-on-lar", iconName: "LayoutGrid" },
-      {
-        href: "/admin/website-pricing-config",
-        label: "Website Qiymət Konfiqurasiyası",
-        iconName: "SettingsIcon",
-      },
-    ],
-  },
-  {
     label: "Sistem",
     iconName: "SettingsIcon",
     description: "Qlobal tənzimləmələr (FX, kart, marjalar)",
@@ -207,10 +186,6 @@ export default async function AdminLayout({
     .count({ where: { isActive: false } })
     .catch(() => 0);
 
-  const newWebsiteApplications = await prisma.websiteServiceApplication
-    .count({ where: { status: "NEW" } })
-    .catch(() => 0);
-
   const heldInviteBonuses = await prisma.referralInviteBonus
     .count({ where: { status: "HELD" } })
     .catch(() => 0);
@@ -223,7 +198,6 @@ export default async function AdminLayout({
     pendingReviews,
     pendingTestimonials,
     pendingCommunity,
-    newWebsiteApplications,
     heldInviteBonuses,
   } as const;
 

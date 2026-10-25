@@ -139,13 +139,6 @@ export const PRODUCT_CATEGORY_DEFINITIONS: ProductCategoryDefinition[] = [
     description: "Nə harada var, tez tap",
     sortOrder: 16,
   },
-  {
-    key: "WEBSITE_SERVICE",
-    href: "/xidmetler/website",
-    label: "Website Hazırlanması",
-    description: "Biznes üçün satış yönümlü sayt",
-    sortOrder: 17,
-  },
 ];
 
 export const PRODUCT_CATEGORY_KEYS = new Set(
