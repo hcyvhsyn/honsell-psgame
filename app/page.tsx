@@ -82,7 +82,7 @@ const HOME_FAQS = [
     answer:
       PLAYSTATION_ONLY
         ? "PlayStation oyunları, PS Plus, EA Play, Türkiyə PSN gift card-ları və TR PSN hesabının açılması."
-        : "PlayStation oyunları, PS Plus, gift card, Epic Games, streaming, musiqi, AI və iş platformaları bir yerdədir.",
+        : "PlayStation oyunları, PS Plus, gift card, streaming, musiqi və iş platformaları bir yerdədir.",
   },
   {
     id: "home-delivery",
@@ -109,7 +109,6 @@ const SERVICE_TYPE_BADGES: Record<string, string> = {
   EA_PLAY: "EA Play",
   TRY_BALANCE: "Gift Card",
   ACCOUNT_CREATION: "Hesab",
-  EPIC_ACCOUNT_CREATION: "Epic",
   STREAMING: "Streaming",
   PLATFORM: "Platforma",
   PUBG_UC: "PUBG UC",
@@ -145,8 +144,6 @@ function serviceHref(type: string, metadata: unknown, title: string): string {
       return "/hediyye-kartlari";
     case "ACCOUNT_CREATION":
       return "/hesab-acma";
-    case "EPIC_ACCOUNT_CREATION":
-      return "/epic-games";
     case "PUBG_UC":
       return "/pubg-uc";
     case "POINT_BLANK_TG":
@@ -293,9 +290,9 @@ async function fetchBestSellers(settings: Awaited<ReturnType<typeof getSettings>
       id: `game-${game.id}`,
       href: gameDetailHref(game) ?? "/oyunlar",
       title: game.title,
-      subtitle: game.store === "EPIC" ? "Epic Games · PC" : `${game.platform ?? "PlayStation"} oyunu`,
+      subtitle: `${game.platform ?? "PlayStation"} oyunu`,
       imageUrl: game.imageUrl,
-      badge: game.store === "EPIC" ? "PC" : "Oyun",
+      badge: "Oyun",
       sales: Number(row.sales),
       finalAzn: price.finalAzn,
       originalAzn: price.originalAzn,
@@ -375,9 +372,9 @@ async function fetchBestSellers(settings: Awaited<ReturnType<typeof getSettings>
       id,
       href: gameDetailHref(game) ?? "/oyunlar",
       title: game.title,
-      subtitle: game.store === "EPIC" ? "Epic Games · PC" : `${game.platform ?? "PlayStation"} oyunu`,
+      subtitle: `${game.platform ?? "PlayStation"} oyunu`,
       imageUrl: game.imageUrl,
-      badge: game.store === "EPIC" ? "PC" : "Oyun",
+      badge: "Oyun",
       sales: 0,
       finalAzn: price.finalAzn,
       originalAzn: price.originalAzn,

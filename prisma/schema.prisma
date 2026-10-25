@@ -265,6 +265,7 @@ model PsnAccount {
 /// A customer's Epic Games (Türkiye) account — created by us on their behalf
 /// when they buy the Epic account-creation service, then used to deliver Epic
 /// game purchases. Mirrors PsnAccount but with Epic-specific fields.
+/// ARXİV — Epic silinib (2026-10); köhnə sifariş/hədiyyə datası üçün saxlanılır.
 model EpicAccount {
   id     String @id @default(cuid())
   userId String

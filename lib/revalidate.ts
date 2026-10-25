@@ -25,12 +25,6 @@ export function revalidateGames(): void {
   revalidatePath("/kolleksiya/[slug]", "page");
 }
 
-/** Epic Games kataloqu (scrape sonrası) dəyişəndə. */
-export function revalidateEpicGames(): void {
-  revalidateTag("epic-games");
-  revalidatePath("/epic-games");
-}
-
 /** Kolleksiya admin əməliyyatları (CRUD, oyun əlavə/sil/sırala). */
 export function revalidateCollections(): void {
   revalidateTag("collections");

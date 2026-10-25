@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  *   5. AI Köməkçi           — sayt AI köməkçisinin bilik bazası/loqları
  *   6. PlayStation kataloqu — PS oyunları, abunəlik, gift card, hesab
  *   7. Yayım                — streaming abunəlik/poster/kataloq
- *   8. Digər platformalar   — Epic, oyun-içi vahid, musiqi, iş paketləri
+ *   8. Digər platformalar   — oyun-içi vahid, musiqi, iş paketləri
  *   9. Sistem                — qlobal tənzimləmələr
  *
  * Yeni admin səhifəsi əlavə olunduqda uyğun qrupa yazırsan — sidebar avtomatik
@@ -120,9 +120,8 @@ const NAV_GROUPS: NavGroupSpec[] = [
   {
     label: "Digər platformalar",
     iconName: "LayoutGrid",
-    description: "Epic, oyun-içi vahid, musiqi və iş paketləri",
+    description: "Oyun-içi vahid, musiqi və iş paketləri",
     items: [
-      { href: "/admin/epic-games", label: "Epic kataloqu", iconName: "Monitor" },
       { href: "/admin/pubg-uc", label: "PUBG UC", iconName: "Coins" },
       { href: "/admin/point-blank", label: "Point Blank TG", iconName: "Coins" },
       { href: "/admin/music", label: "Musiqi", iconName: "Music" },

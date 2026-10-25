@@ -48,9 +48,7 @@ type EpointCartLineSnapshotBase =
       // Maya dəyəri snapshot-u (AZN qəpik). Köhnə epoint payment-lərində
       // olmaya bilər — completeEpointCartCheckout-da fallback ilə işlənir.
       unitCostCents?: number;
-      // PS oyunları üçün PSN, Epic (PC) oyunları üçün epicAccountId istifadə olunur.
       psnAccountId: string | null;
-      epicAccountId?: string | null;
       store?: string;
       reviewAffiliateId?: string | null;
     }
@@ -101,22 +99,6 @@ type EpointCartLineSnapshotBase =
         birthDate: string;
         email: string;
         password: string;
-      };
-    }
-  | {
-      kind: "EPIC_ACCOUNT_CREATION";
-      title: string;
-      qty: number;
-      serviceProductId: string;
-      unitListCents: number;
-      epicAccountId: string | null;
-      detail: {
-        firstName: string;
-        lastName: string;
-        birthDate: string;
-        email: string;
-        password: string;
-        displayName: string;
       };
     }
   | {
@@ -351,7 +333,6 @@ export async function finalizeEpointCartCheckout(
         : {};
       for (let n = 0; n < line.qty; n++) {
         if (line.kind === "GAME") {
-          const isEpicGame = line.store === "EPIC";
           const purchase = await tx.transaction.create({
             data: {
               userId: payment.userId,
@@ -361,14 +342,13 @@ export async function finalizeEpointCartCheckout(
               savingsAznCents: line.unitSavingsCents,
               costAznCents: line.unitCostCents ?? 0,
               gameId: line.gameId,
-              psnAccountId: isEpicGame ? null : line.psnAccountId,
-              epicAccountId: isEpicGame ? line.epicAccountId ?? null : null,
+              psnAccountId: line.psnAccountId,
               metadata: JSON.stringify({
                 paymentSource: "EPOINT",
                 fromCart: true,
                 manualDelivery: true,
                 fulfillmentStage: "NEW",
-                store: isEpicGame ? "EPIC" : "PS",
+                store: "PS",
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
                 ...bundleMeta,
@@ -614,35 +594,6 @@ export async function finalizeEpointCartCheckout(
                 birthDate: line.detail.birthDate,
                 email: line.detail.email,
                 password: line.detail.password,
-              }),
-            },
-          });
-          serviceOrderIds.push(serviceOrder.id);
-          continue;
-        }
-
-        if (line.kind === "EPIC_ACCOUNT_CREATION") {
-          const serviceOrder = await tx.transaction.create({
-            data: {
-              userId: payment.userId,
-              type: "SERVICE_PURCHASE",
-              status: "PENDING",
-              amountAznCents: -line.unitListCents,
-              serviceProductId: line.serviceProductId,
-              epicAccountId: line.epicAccountId,
-              metadata: JSON.stringify({
-                fromCart: true,
-                kind: "EPIC_ACCOUNT_CREATION",
-                paymentSource: "EPOINT",
-                orderCode: meta.orderCode,
-                epointPaymentId: payment.id,
-                ...bundleMeta,
-                firstName: line.detail.firstName,
-                lastName: line.detail.lastName,
-                birthDate: line.detail.birthDate,
-                email: line.detail.email,
-                password: line.detail.password,
-                displayName: line.detail.displayName,
               }),
             },
           });

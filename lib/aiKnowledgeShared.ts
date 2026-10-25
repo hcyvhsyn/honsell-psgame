@@ -48,7 +48,7 @@ export const DEFAULT_AI_KNOWLEDGE: Array<{
     category: "PLAYSTATION",
     sortOrder: 10,
     content:
-      "PS4 və PS5 oyunları: /oyunlar. Endirimli oyunlar: /endirimler. PS Plus abunəlikləri (Essential, Extra, Deluxe): /ps-plus. EA Play: /ea-play. Türkiyə PSN hesabı açma: /hesab-acma. Epic Games oyunları: /epic-games. Oyun valyutaları/top-up: PUBG UC /pubg-uc, Point Blank /point-blank. (Konkret oyun və qiymətlər dinamik kataloqdan gəlir.)",
+      "PS4 və PS5 oyunları: /oyunlar. Endirimli oyunlar: /endirimler. PS Plus abunəlikləri (Essential, Extra, Deluxe): /ps-plus. EA Play: /ea-play. Türkiyə PSN hesabı açma: /hesab-acma. Oyun valyutaları/top-up: PUBG UC /pubg-uc, Point Blank /point-blank. (Konkret oyun və qiymətlər dinamik kataloqdan gəlir.)",
   },
   {
     title: "Streaming abunəlikləri",

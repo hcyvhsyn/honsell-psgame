@@ -7,9 +7,6 @@ import ProfileCredentialCard from "@/components/profile/ProfileCredentialCard";
 import PsnAccountsManager, {
   type PsnAccountSummary,
 } from "@/components/PsnAccountsManager";
-import EpicAccountsManager, {
-  type EpicAccountSummary,
-} from "@/components/EpicAccountsManager";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +67,7 @@ export default async function ProfilesPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [transactions, psnAccounts, epicAccounts] = await Promise.all([
+  const [transactions, psnAccounts] = await Promise.all([
     prisma.transaction.findMany({
       where: {
         userId: user.id,
@@ -97,32 +94,7 @@ export default async function ProfilesPage() {
         isDefault: true,
       },
     }),
-    prisma.epicAccount.findMany({
-      where: { userId: user.id },
-      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-      select: {
-        id: true,
-        label: true,
-        firstName: true,
-        lastName: true,
-        epicEmail: true,
-        epicPassword: true,
-        displayName: true,
-        isDefault: true,
-      },
-    }),
   ]);
-
-  const epicInitial: EpicAccountSummary[] = epicAccounts.map((a) => ({
-    id: a.id,
-    label: a.label,
-    firstName: a.firstName,
-    lastName: a.lastName,
-    epicEmail: a.epicEmail,
-    epicPassword: a.epicPassword,
-    displayName: a.displayName,
-    isDefault: a.isDefault,
-  }));
 
   const platformProfilesByKey = new Map<string, PlatformProfile>();
   for (const t of transactions) {
@@ -175,14 +147,6 @@ export default async function ProfilesPage() {
           count={psnInitial.length}
         >
           <PsnAccountsManager initial={psnInitial} />
-        </ProfileGroup>
-
-        <ProfileGroup
-          title="Epic hesabları"
-          icon={<Gamepad2 className="h-4 w-4 text-violet-300" />}
-          count={epicInitial.length}
-        >
-          <EpicAccountsManager initial={epicInitial} />
         </ProfileGroup>
 
         <ProfileGroup

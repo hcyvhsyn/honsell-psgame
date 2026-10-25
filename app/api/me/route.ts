@@ -2,31 +2,21 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getEffectiveTier } from "@/lib/customerTier";
-import { getOrCreateEpicAccountProduct } from "@/lib/epicAccount";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const user = await getCurrentUser();
-  const epicProduct = await getOrCreateEpicAccountProduct();
-  const epicAccountProduct = {
-    id: epicProduct.id,
-    title: epicProduct.title,
-    imageUrl: epicProduct.imageUrl,
-    priceAznCents: epicProduct.priceAznCents,
-  };
   if (!user) {
     return NextResponse.json({
       user: null,
       psnAccounts: [],
-      epicAccounts: [],
-      epicAccountProduct,
       loyalty: null,
     });
   }
 
-  const [psnAccounts, epicAccounts, spentAgg] = await Promise.all([
+  const [psnAccounts, spentAgg] = await Promise.all([
     prisma.psnAccount.findMany({
       where: { userId: user.id },
       orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
@@ -35,17 +25,6 @@ export async function GET() {
         label: true,
         psnEmail: true,
         psModel: true,
-        isDefault: true,
-      },
-    }),
-    prisma.epicAccount.findMany({
-      where: { userId: user.id },
-      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-      select: {
-        id: true,
-        label: true,
-        epicEmail: true,
-        displayName: true,
         isDefault: true,
       },
     }),
@@ -72,8 +51,6 @@ export async function GET() {
       referralCode: user.referralCode,
     },
     psnAccounts,
-    epicAccounts,
-    epicAccountProduct,
     loyalty,
   });
 }

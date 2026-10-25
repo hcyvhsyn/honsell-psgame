@@ -782,14 +782,17 @@ export default function OrdersAdminClient() {
                 count={counts.account}
                 onClick={setTab}
               />
-              <NavItem
-                id="epic"
-                active={tab === "epic"}
-                icon={<UserPlus className="h-4 w-4" />}
-                label="Epic hesab açma"
-                count={counts.epic}
-                onClick={setTab}
-              />
+              {/* Epic silinib (2026-10) — tab yalnız köhnə Epic hesab açma sifarişləri qalıbsa görünür. */}
+              {counts.epic > 0 && (
+                <NavItem
+                  id="epic"
+                  active={tab === "epic"}
+                  icon={<UserPlus className="h-4 w-4" />}
+                  label="Epic hesab açma"
+                  count={counts.epic}
+                  onClick={setTab}
+                />
+              )}
               <NavItem
                 id="streaming"
                 active={tab === "streaming"}

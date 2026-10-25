@@ -42,13 +42,6 @@ export const PRODUCT_CATEGORY_DEFINITIONS: ProductCategoryDefinition[] = [
     sortOrder: 3,
   },
   {
-    key: "EPIC_GAMES",
-    href: "/epic-games",
-    label: "Epic Games Oyunları",
-    description: "PC üçün Epic Games kataloqu",
-    sortOrder: 4,
-  },
-  {
     key: "NETFLIX",
     href: "/streaming/netflix",
     label: "Netflix",

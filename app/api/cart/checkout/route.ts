@@ -87,20 +87,10 @@ type PlatformAccount = {
   password: string;
 };
 
-type EpicAccountBody = {
-  firstName: string;
-  lastName: string;
-  birthDate: string;
-  email: string;
-  password: string;
-  displayName: string;
-};
-
 type CartLinePayload = {
   id: string;
   qty: number;
   accountCreation?: unknown;
-  epicAccountCreation?: unknown;
   streaming?: unknown;
   /**
    * Xidmət dəsti sətrində hər üzvün müştəri məlumatı, `serviceProductId` ilə
@@ -214,30 +204,6 @@ function parseAccountCreationBody(raw: unknown):
   return { ok: true, value: { fullName, birthDate, email, password } };
 }
 
-function parseEpicAccountBody(raw: unknown):
-  | { ok: true; value: EpicAccountBody }
-  | { ok: false; error: string } {
-  if (!raw || typeof raw !== "object") {
-    return { ok: false, error: "Epic hesab açılışı üçün məlumatlar çatışmır." };
-  }
-  const o = raw as Record<string, unknown>;
-  const firstName = typeof o.firstName === "string" ? o.firstName.trim() : "";
-  const lastName = typeof o.lastName === "string" ? o.lastName.trim() : "";
-  const birthDate = typeof o.birthDate === "string" ? o.birthDate.trim() : "";
-  const email = typeof o.email === "string" ? o.email.trim().toLowerCase() : "";
-  const password = typeof o.password === "string" ? o.password : "";
-  const displayName = typeof o.displayName === "string" ? o.displayName.trim() : "";
-  if (!firstName) return { ok: false, error: "Ad tələb olunur." };
-  if (!lastName) return { ok: false, error: "Soyad tələb olunur." };
-  if (!birthDate) return { ok: false, error: "Doğum tarixi tələb olunur." };
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { ok: false, error: "Etibarlı e-poçt ünvanı tələb olunur." };
-  }
-  if (password.length < 8) return { ok: false, error: "Şifrə ən azı 8 simvol olmalıdır." };
-  if (!displayName) return { ok: false, error: "Görünən ad tələb olunur." };
-  return { ok: true, value: { firstName, lastName, birthDate, email, password, displayName } };
-}
-
 function requestOrigin(req: Request) {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (configured) return configured.replace(/\/$/, "");
@@ -278,7 +244,6 @@ export async function POST(req: Request) {
       id: typeof i?.id === "string" ? i.id : "",
       qty: Math.max(1, Math.min(20, Math.floor(Number(i?.qty) || 1))),
       accountCreation: i?.accountCreation,
-      epicAccountCreation: i?.epicAccountCreation,
       streaming: i?.streaming,
       serviceBundle:
         i?.serviceBundle && typeof i.serviceBundle === "object"
@@ -362,7 +327,6 @@ export async function POST(req: Request) {
             "TRY_BALANCE",
             "POINT_BLANK_TG",
             "ACCOUNT_CREATION",
-            "EPIC_ACCOUNT_CREATION",
             "STREAMING",
             "PLATFORM",
             HONSELL_GIFT_CARD_SERVICE_TYPE,
@@ -441,15 +405,6 @@ export async function POST(req: Request) {
         unitCostCents: number;
         lineCents: number;
         detail: AccountCreationBody;
-      }
-    | {
-        kind: "EPIC_ACCOUNT_CREATION";
-        service: ServiceModel;
-        qty: number;
-        unitListCents: number;
-        unitCostCents: number;
-        lineCents: number;
-        detail: EpicAccountBody;
       }
     | {
         kind: "STREAMING";
@@ -542,7 +497,7 @@ export async function POST(req: Request) {
           productKind: "GAME",
           gameId: game.id,
           serviceProductId: null,
-          store: game.store === "EPIC" ? "EPIC" : "PS",
+          store: "PS",
           title: game.title,
           imageUrl: game.imageUrl,
           qty: p.qty,
@@ -676,24 +631,6 @@ export async function POST(req: Request) {
       continue;
     }
 
-    if (service.type === "EPIC_ACCOUNT_CREATION") {
-      const parsed = parseEpicAccountBody(p.epicAccountCreation);
-      if (!parsed.ok) {
-        return NextResponse.json({ error: parsed.error }, { status: 400 });
-      }
-      lines.push({
-        kind: "EPIC_ACCOUNT_CREATION",
-        service,
-        qty: p.qty,
-        unitListCents,
-        unitCostCents: unitListCents,
-        lineCents: unitListCents * p.qty,
-        ...bundleStamp,
-        detail: parsed.value,
-      });
-      continue;
-    }
-
     if (service.type === "STREAMING") {
       const meta = (service.metadata as Record<string, unknown> | null) ?? {};
       const deliveryMode = String(meta.deliveryMode ?? "CODE") === "GMAIL" ? "GMAIL" : "CODE";
@@ -805,57 +742,22 @@ export async function POST(req: Request) {
     }
   }
 
-  // Epic PC games deliver to an Epic account, not PSN — both have kind "GAME",
-  // so we split on the catalog row's `store`.
   const needsPsn = lines.some(
     (l) =>
-      (l.kind === "GAME" && l.game.store !== "EPIC") ||
+      l.kind === "GAME" ||
       l.kind === "PS_PLUS" ||
       l.kind === "EA_PLAY" ||
       l.kind === "TRY_BALANCE"
   );
-  const needsEpic = lines.some((l) => l.kind === "GAME" && l.game.store === "EPIC");
 
   const requestedAccountId =
     typeof body.psnAccountId === "string" ? body.psnAccountId : null;
 
   let psnAccount = null;
 
-  // Resolve the Epic delivery account. Unlike PSN it is NOT hard-required: a
-  // customer can buy an Epic game together with the account-creation service
-  // (the account is created on fulfillment), in which case epicAccount stays
-  // null and the admin links it later.
-  const requestedEpicId =
-    typeof body.epicAccountId === "string" ? body.epicAccountId : null;
-  let epicAccount = null;
-  if (needsEpic) {
-    if (requestedEpicId) {
-      epicAccount = await prisma.epicAccount.findUnique({ where: { id: requestedEpicId } });
-      if (!epicAccount || epicAccount.userId !== user.id) {
-        return NextResponse.json({ error: "Invalid Epic account" }, { status: 400 });
-      }
-    } else {
-      epicAccount = await prisma.epicAccount.findFirst({
-        where: { userId: user.id },
-        orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-      });
-    }
-    const hasEpicCreation = lines.some((l) => l.kind === "EPIC_ACCOUNT_CREATION");
-    if (!epicAccount && !hasEpicCreation) {
-      return NextResponse.json(
-        {
-          error:
-            "Epic oyununu almaq üçün Türkiyə Epic hesabı seçin və ya hesab açılışını sifarişə əlavə edin.",
-          code: "NO_EPIC_ACCOUNT",
-        },
-        { status: 400 }
-      );
-    }
-  }
-
   // PSN hesab açılışı eyni səbətdədirsə, mövcud PSN tələbi yumşalır: yeni
   // yaradılan hesab admin tərəfindən fulfillment vaxtı oyun sifarişlərinə
-  // bağlanacaq. Bu, Epic üçün mövcud `hasEpicCreation` məntiqinin PSN qarşılığıdır.
+  // bağlanacaq.
   const hasPsnCreation = lines.some((l) => l.kind === "ACCOUNT_CREATION");
 
   if (needsPsn) {
@@ -979,7 +881,6 @@ export async function POST(req: Request) {
     const snapshotLines: EpointCartLineSnapshot[] = lines
       .map((line): EpointCartLineSnapshot => {
         if (line.kind === "GAME") {
-          const isEpicGame = line.game.store === "EPIC";
           return {
             kind: "GAME",
             title: line.game.title,
@@ -988,9 +889,8 @@ export async function POST(req: Request) {
             unitListCents: line.unitListCents,
             unitSavingsCents: line.unitSavingsCents,
             unitCostCents: line.unitCostCents,
-            psnAccountId: isEpicGame ? null : (psnAccount?.id ?? null),
-            epicAccountId: isEpicGame ? epicAccount?.id ?? null : null,
-            store: isEpicGame ? "EPIC" : "PS",
+            psnAccountId: psnAccount?.id ?? null,
+            store: "PS",
             reviewAffiliateId,
           };
         }
@@ -1053,25 +953,6 @@ export async function POST(req: Request) {
               birthDate: line.detail.birthDate,
               email: line.detail.email,
               password: line.detail.password,
-            },
-          };
-        }
-
-        if (line.kind === "EPIC_ACCOUNT_CREATION") {
-          return {
-            kind: "EPIC_ACCOUNT_CREATION",
-            title: line.service.title,
-            qty: line.qty,
-            serviceProductId: line.service.id,
-            unitListCents: line.unitListCents,
-            epicAccountId: epicAccount?.id ?? null,
-            detail: {
-              firstName: line.detail.firstName,
-              lastName: line.detail.lastName,
-              birthDate: line.detail.birthDate,
-              email: line.detail.email,
-              password: line.detail.password,
-              displayName: line.detail.displayName,
             },
           };
         }
@@ -1405,7 +1286,6 @@ export async function POST(req: Request) {
       }[] = [];
 
       const attachPsn = psnAccount?.id ?? null;
-      const attachEpic = epicAccount?.id ?? null;
 
       for (const line of lines) {
         // Xidmət DƏSTİNDƏN açılmış sətrin damğası. Admin sifarişləri dəst üzrə
@@ -1419,7 +1299,6 @@ export async function POST(req: Request) {
           : {};
         for (let n = 0; n < line.qty; n++) {
           if (line.kind === "GAME") {
-            const isEpicGame = line.game.store === "EPIC";
             const purchase = await tx.transaction.create({
               data: {
                 userId: user.id,
@@ -1429,14 +1308,13 @@ export async function POST(req: Request) {
                 savingsAznCents: line.unitSavingsCents,
                 costAznCents: line.unitCostCents,
                 gameId: line.game.id,
-                psnAccountId: isEpicGame ? null : (psnAccount?.id ?? null),
-                epicAccountId: isEpicGame ? attachEpic : null,
+                psnAccountId: psnAccount?.id ?? null,
                 metadata: JSON.stringify({
                   paymentSource: payTag,
                   fromCart: true,
                   manualDelivery: true,
                   fulfillmentStage: "NEW",
-                  store: isEpicGame ? "EPIC" : "PS",
+                  store: "PS",
                   orderCode,
                   ...bundleMeta,
                   ...(reviewAffiliateId
@@ -1658,31 +1536,6 @@ export async function POST(req: Request) {
                   birthDate: line.detail.birthDate,
                   email: line.detail.email,
                   password: line.detail.password,
-                }),
-              },
-            });
-            serviceOrderIds.push(serviceOrder.id);
-          } else if (line.kind === "EPIC_ACCOUNT_CREATION") {
-            const serviceOrder = await tx.transaction.create({
-              data: {
-                userId: user.id,
-                type: "SERVICE_PURCHASE",
-                status: "PENDING",
-                amountAznCents: -line.unitListCents,
-                serviceProductId: line.service.id,
-                epicAccountId: attachEpic,
-                metadata: JSON.stringify({
-                  fromCart: true,
-                  kind: "EPIC_ACCOUNT_CREATION",
-                  paymentSource: payTag,
-                  orderCode,
-                  ...bundleMeta,
-                  firstName: line.detail.firstName,
-                  lastName: line.detail.lastName,
-                  birthDate: line.detail.birthDate,
-                  email: line.detail.email,
-                  password: line.detail.password,
-                  displayName: line.detail.displayName,
                 }),
               },
             });

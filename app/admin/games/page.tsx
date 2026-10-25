@@ -2,19 +2,12 @@ import Link from "next/link";
 import { Search, Star } from "lucide-react";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { computeEpicDisplayPrice, getSettings } from "@/lib/pricing";
 import StarToggle from "./StarToggle";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 30;
 const PLATFORMS = ["ALL", "PS5", "PS4", "PC"] as const;
-const STORES = ["ALL", "PS", "EPIC"] as const;
-const STORE_LABEL: Record<(typeof STORES)[number], string> = {
-  ALL: "Hamısı",
-  PS: "PlayStation",
-  EPIC: "Epic",
-};
 const TYPES = ["ALL", "GAME", "ADDON", "CURRENCY", "OTHER"] as const;
 const DISCOUNTS = ["ALL", "WITH", "WITHOUT"] as const;
 const DISCOUNT_LABEL: Record<(typeof DISCOUNTS)[number], string> = {
@@ -45,8 +38,6 @@ export default async function AdminGamesPage({
 }) {
   const q = (searchParams.q ?? "").trim();
   const platform = String(searchParams.platform ?? "ALL").toUpperCase();
-  const storeRaw = String(searchParams.store ?? "ALL").toUpperCase();
-  const store = (STORES as readonly string[]).includes(storeRaw) ? storeRaw : "ALL";
   const productType = String(searchParams.productType ?? "ALL").toUpperCase();
   const featuredOnly = searchParams.featured === "1";
   const discount = String(searchParams.discount ?? "ALL").toUpperCase() as (typeof DISCOUNTS)[number];
@@ -59,8 +50,9 @@ export default async function AdminGamesPage({
 
   const where = {
     ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
+    // Epic silinib (2026-10) — köhnə Epic sətirləri bazada qalsa da burada görünmür.
+    store: "PS",
     ...(platform !== "ALL" ? { platform } : {}),
-    ...(store !== "ALL" ? { store } : {}),
     ...(productType !== "ALL" ? { productType } : {}),
     ...(featuredOnly ? { isFeatured: true } : {}),
     ...(discountFilter === "WITH" ? { discountTryCents: { not: null } } : {}),
@@ -74,7 +66,7 @@ export default async function AdminGamesPage({
         ? [{ priceTryCents: "desc" }, { updatedAt: "desc" }]
         : [{ isFeatured: "desc" }, { updatedAt: "desc" }];
 
-  const [total, featuredCount, games, settings] = await Promise.all([
+  const [total, featuredCount, games] = await Promise.all([
     prisma.game.count({ where }),
     prisma.game.count({ where: { isFeatured: true } }),
     prisma.game.findMany({
@@ -90,7 +82,6 @@ export default async function AdminGamesPage({
         },
       },
     }),
-    getSettings(),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -99,7 +90,6 @@ export default async function AdminGamesPage({
     const merged: Record<string, string> = {
       ...(q ? { q } : {}),
       ...(platform !== "ALL" ? { platform } : {}),
-      ...(store !== "ALL" ? { store } : {}),
       ...(productType !== "ALL" ? { productType } : {}),
       ...(featuredOnly ? { featured: "1" } : {}),
       ...(discountFilter !== "ALL" ? { discount: discountFilter } : {}),
@@ -136,9 +126,6 @@ export default async function AdminGamesPage({
           {platform !== "ALL" && (
             <input type="hidden" name="platform" value={platform} />
           )}
-          {store !== "ALL" && (
-            <input type="hidden" name="store" value={store} />
-          )}
           {productType !== "ALL" && (
             <input type="hidden" name="productType" value={productType} />
           )}
@@ -153,13 +140,6 @@ export default async function AdminGamesPage({
       </div>
 
       <div className="flex flex-wrap items-center gap-4 text-sm">
-        <FilterRow
-          label="Store"
-          current={store}
-          options={STORES}
-          getLabel={(v) => STORE_LABEL[v as (typeof STORES)[number]] ?? v}
-          build={(v) => buildHref({ store: v, page: "1" })}
-        />
         <FilterRow
           label="Platform"
           current={platform}
@@ -252,9 +232,7 @@ export default async function AdminGamesPage({
                 <Td className="text-zinc-700">{g.platform ?? "—"}</Td>
                 <Td className="text-zinc-700">{g.productType}</Td>
                 <Td className="text-zinc-700">
-                  {g.store === "EPIC" ? (
-                    <EpicPriceCell game={g} settings={settings} />
-                  ) : g.discountTryCents != null ? (
+                  {g.discountTryCents != null ? (
                     <>
                       <span className="text-emerald-700">
                         {fmtTry(g.discountTryCents)}
@@ -323,47 +301,6 @@ export default async function AdminGamesPage({
 
 function fmtTry(cents: number) {
   return `${(cents / 100).toFixed(2)} TRY`;
-}
-
-function EpicPriceCell({
-  game,
-  settings,
-}: {
-  game: {
-    priceTryCents: number;
-    discountTryCents: number | null;
-    priceUsdCents: number | null;
-    discountUsdCents: number | null;
-  };
-  settings: Awaited<ReturnType<typeof getSettings>>;
-}) {
-  const p = computeEpicDisplayPrice(game, settings);
-  const profitOk = p.netProfitAzn >= 0;
-  return (
-    <div className="space-y-0.5">
-      <div className="flex items-baseline gap-2">
-        <span className="font-medium text-zinc-900">{p.finalAzn.toFixed(2)} ₼</span>
-        {p.referenceAzn != null && p.finalAzn < p.referenceAzn && (
-          <span className="text-xs text-zinc-500 line-through">
-            {p.referenceAzn.toFixed(2)} ₼
-          </span>
-        )}
-      </div>
-      <div className="text-[11px] text-zinc-500">
-        Maya: {p.costAzn.toFixed(2)} ₼
-        {p.floored && <span className="ml-1 text-amber-600">· döşəmə</span>}
-      </div>
-      <div className={`text-[11px] ${profitOk ? "text-emerald-600" : "text-rose-600"}`}>
-        Xalis mənfəət: {p.netProfitAzn.toFixed(2)} ₼
-        {p.costAzn > 0 && (
-          <span className="ml-1 font-medium">
-            ({p.netProfitAzn >= 0 ? "+" : ""}
-            {((p.netProfitAzn / p.costAzn) * 100).toFixed(0)}%)
-          </span>
-        )}
-      </div>
-    </div>
-  );
 }
 
 function FilterRow({
