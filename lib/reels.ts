@@ -4,7 +4,7 @@ import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { gameDetailHref } from "@/lib/gameSlug";
 import { dedupeEditions, editionSuffixLabel } from "@/lib/gameEditions";
 import { rankReels } from "@/lib/reelRanking";
-import { isSellableServiceType } from "@/lib/storeScope";
+import { isSellableServiceProduct } from "@/lib/storeScope";
 
 /**
  * Reels feed data qatı — TƏK mənbə.
@@ -150,7 +150,7 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
     serviceIds.length
       ? prisma.serviceProduct.findMany({
           where: { id: { in: serviceIds } },
-          select: { id: true, title: true, imageUrl: true, priceAznCents: true, type: true },
+          select: { id: true, title: true, imageUrl: true, priceAznCents: true, type: true, metadata: true },
         })
       : Promise.resolve([]),
     getSettings(),
@@ -229,7 +229,7 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
       const s = serviceById.get(r.ctaTargetId);
       // PS-only rejimdə qeyri-PS xidmət (Netflix və s.) üçün alış paneli yoxdur —
       // video qalır, səbət düyməsi göstərilmir (lib/storeScope.ts).
-      if (s && isSellableServiceType(s.type)) {
+      if (s && isSellableServiceProduct(s)) {
         product = {
           id: s.id,
           title: s.title,

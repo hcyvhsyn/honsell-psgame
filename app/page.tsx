@@ -23,8 +23,6 @@ import { loadActiveBundles } from "@/lib/gameBundles";
 import HomeServiceBundles from "@/components/HomeServiceBundles";
 import { loadActiveServiceBundles } from "@/lib/serviceBundles";
 import HomeTestimonials from "@/components/HomeTestimonials";
-import HomeGiveaways from "@/components/HomeGiveaways";
-import HomeLootBoxes from "@/components/HomeLootBoxes";
 import {
   HeroMotionOverlay,
   SectionFlowDivider,
@@ -38,7 +36,6 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import FaqAccordion from "@/components/FaqAccordion";
-import HomeReferralCta from "@/components/HomeReferralCta";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 import {
   STREAMING_SERVICE_META,
@@ -57,8 +54,9 @@ import {
   PLAYSTATION_ONLY,
   isOpenStorePath,
   isSellableGameStore,
-  isSellableServiceType,
+  isSellableServiceProduct,
   sellableGameWhere,
+  sellableServiceWhere,
 } from "@/lib/storeScope";
 
 export const revalidate = 1800;
@@ -319,7 +317,7 @@ async function fetchBestSellers(settings: Awaited<ReturnType<typeof getSettings>
 
   for (const row of serviceSalesRows) {
     const service = serviceById.get(row.id);
-    if (!service || !isSellableServiceType(service.type)) continue;
+    if (!service || !isSellableServiceProduct(service)) continue;
     items.push({
       id: `service-${service.id}`,
       href: serviceHref(service.type, service.metadata, service.title),
@@ -363,11 +361,8 @@ async function fetchBestSellers(settings: Awaited<ReturnType<typeof getSettings>
     prisma.serviceProduct.findMany({
       where: {
         isActive: true,
-        type: {
-          in: ["PS_PLUS", "TRY_BALANCE", "STREAMING", "PLATFORM", "EA_PLAY", "PUBG_UC"].filter(
-            isSellableServiceType,
-          ),
-        },
+        type: { in: ["PS_PLUS", "TRY_BALANCE", "STREAMING", "PLATFORM", "EA_PLAY", "PUBG_UC"] },
+        ...sellableServiceWhere(),
       },
       orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
       take: 8,
@@ -430,7 +425,8 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
   const services = await prisma.serviceProduct.findMany({
     where: {
       isActive: true,
-      type: { in: LANDING_SERVICE_TYPES.filter(isSellableServiceType) },
+      type: { in: [...LANDING_SERVICE_TYPES] },
+      ...sellableServiceWhere(),
     },
     orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }, { title: "asc" }],
     select: {
@@ -580,7 +576,7 @@ const getHomePageData = unstable_cache(
     .filter(
       (b) =>
         (!b.game || isSellableGameStore(b.game.store)) &&
-        (!b.serviceProduct || isSellableServiceType(b.serviceProduct.type)) &&
+        (!b.serviceProduct || isSellableServiceProduct(b.serviceProduct)) &&
         isOpenStorePath(b.linkUrl),
     )
     .map((b) => {
@@ -781,14 +777,6 @@ export default async function HomePage() {
       <SectionFlowDivider text="Bu həftə ən çox alınanlar" tone="amber" />
       <BestSellersSection items={bestSellers} />
 
-      {/* Qutu açılışı (loot box) — client fetch, ana səhifə statik qalır */}
-      <SectionFlowDivider text="Qutu açılışı" tone="violet" flip />
-      <HomeLootBoxes />
-
-      {/* Çəkilişlər (giveaway) — client fetch, ana səhifə statik qalır */}
-      <SectionFlowDivider text="Çəkilişlər" tone="violet" />
-      <HomeGiveaways />
-
       {/* Niyə biz */}
       <SectionFlowDivider text="Niyə biz" tone="violet" />
       <section id="niye-biz" className="py-12 sm:py-16">
@@ -833,10 +821,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Referral CTA */}
-      <HomeReferralCta />
-
-      <SiteFooter />
+      <SiteFooter showSupportCta={false} />
     </main>
   );
 }

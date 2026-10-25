@@ -60,7 +60,11 @@ const mobileLinks = [
   ["FAQ", "/faq"],
 ] as const;
 
-export default function SiteFooter() {
+/**
+ * `showSupportCta={false}` — yuxarıdakı "Honsell Dəstək" blokunu gizlədir
+ * (ana səhifədə istifadə olunmur; digər səhifələrdə default görünür).
+ */
+export default function SiteFooter({ showSupportCta = true }: { showSupportCta?: boolean } = {}) {
   const year = new Date().getFullYear();
 
   return (
@@ -69,33 +73,35 @@ export default function SiteFooter() {
       <span className={styles.ambientTwo} aria-hidden />
 
       <div className={styles.desktopFooter}>
-        <section className={styles.cta} aria-label="Honsell dəstək">
-          <div className={styles.ctaCopy}>
-            <span className={styles.eyebrow}>
-              <Sparkles aria-hidden />
-              HONSELL DƏSTƏK
-            </span>
-            <h2>Növbəti seçimin bir mesaj uzaqdadır.</h2>
-            <p>Oyun, paket və qiymət seçərkən komandamız sənə kömək edəcək.</p>
-          </div>
+        {showSupportCta && (
+          <section className={styles.cta} aria-label="Honsell dəstək">
+            <div className={styles.ctaCopy}>
+              <span className={styles.eyebrow}>
+                <Sparkles aria-hidden />
+                HONSELL DƏSTƏK
+              </span>
+              <h2>Növbəti seçimin bir mesaj uzaqdadır.</h2>
+              <p>Oyun, paket və qiymət seçərkən komandamız sənə kömək edəcək.</p>
+            </div>
 
-          <div className={styles.ctaActions}>
-            <a
-              href={WHATSAPP_HREF}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.primaryAction}
-            >
-              <MessageCircle aria-hidden />
-              WhatsApp-da yaz
-              <ArrowUpRight aria-hidden />
-            </a>
-            <a href="mailto:info@honsell.site" className={styles.secondaryAction}>
-              <Mail aria-hidden />
-              E-poçt göndər
-            </a>
-          </div>
-        </section>
+            <div className={styles.ctaActions}>
+              <a
+                href={WHATSAPP_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.primaryAction}
+              >
+                <MessageCircle aria-hidden />
+                WhatsApp-da yaz
+                <ArrowUpRight aria-hidden />
+              </a>
+              <a href="mailto:info@honsell.site" className={styles.secondaryAction}>
+                <Mail aria-hidden />
+                E-poçt göndər
+              </a>
+            </div>
+          </section>
+        )}
 
         <div className={styles.mainGrid}>
           <div className={styles.brandColumn}>

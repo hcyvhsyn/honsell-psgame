@@ -6,7 +6,7 @@ import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { STREAMING_SERVICE_META } from "@/lib/streamingCart";
 import {
   PLAYSTATION_ONLY,
-  PLAYSTATION_SERVICE_TYPES,
+  sellableServiceWhere,
   sellableGameWhere,
 } from "@/lib/storeScope";
 import { gameDetailHref } from "@/lib/gameSlug";
@@ -75,7 +75,7 @@ export async function GET(req: Request) {
     gamesOnly ? Promise.resolve([]) : prisma.serviceProduct.findMany({
       where: {
         isActive: true,
-        ...(PLAYSTATION_ONLY ? { type: { in: [...PLAYSTATION_SERVICE_TYPES] } } : {}),
+        ...sellableServiceWhere(),
         OR: [
           { title: { contains: q, mode: "insensitive" } },
           { description: { contains: q, mode: "insensitive" } },

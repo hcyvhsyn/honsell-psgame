@@ -20,6 +20,7 @@ import {
 import { sendProductGiftCodeEmail } from "@/lib/resend";
 import { SITE_URL } from "@/lib/site";
 import { stampOrderCode } from "@/lib/attribution";
+import { pushSpotifyOrdersToCrm } from "@/lib/crmSpotify";
 
 export const EPOINT_CART_PAYMENT_TYPE = "CHECKOUT_PAYMENT";
 
@@ -866,6 +867,10 @@ export async function finalizeEpointCartCheckout(
     [...summary.purchaseIds, ...summary.serviceOrderIds],
     summary.orderCode,
   );
+
+  // Spotify Premium sifarişləri → CRM (vendor + müştəri WhatsApp-ı orada). Cavabı
+  // GÖZLƏMİR; funksiya throw etmir. ⚠️ Cüzdan yolunda da (checkout/route.ts) eyni çağırış var.
+  void pushSpotifyOrdersToCrm(summary.serviceOrderIds);
 
   // Hədiyyə kodlarını alıcıya email ilə göndər (dostuna ötürməsi üçün).
   if (summary.productGifts.length > 0) {

@@ -51,15 +51,17 @@ export function isValidAiBrand(s: string): s is AiBrand {
 }
 
 // Music kateqoriyasında alt-brend tipi. Brand "YOUTUBE_PREMIUM" olduqda paket
-// /music/youtube səhifəsində göstərilir; "GENERIC" olduqda yalnız /music
-// listing-də qalır.
-export type MusicBrand = "GENERIC" | "YOUTUBE_PREMIUM";
+// /music/youtube səhifəsində göstərilir; "SPOTIFY" → /music/spotify-premium
+// (sifariş ödənişdən sonra CRM-ə gedir, lib/crmSpotify.ts); "GENERIC" olduqda
+// yalnız /music listing-də qalır.
+export type MusicBrand = "GENERIC" | "YOUTUBE_PREMIUM" | "SPOTIFY";
 
-export const MUSIC_BRANDS: MusicBrand[] = ["GENERIC", "YOUTUBE_PREMIUM"];
+export const MUSIC_BRANDS: MusicBrand[] = ["GENERIC", "YOUTUBE_PREMIUM", "SPOTIFY"];
 
 export const MUSIC_BRAND_LABELS: Record<MusicBrand, string> = {
   GENERIC: "Ümumi (musiqi siyahısı)",
   YOUTUBE_PREMIUM: "YouTube Premium",
+  SPOTIFY: "Spotify Premium",
 };
 
 export function isValidMusicBrand(s: string): s is MusicBrand {

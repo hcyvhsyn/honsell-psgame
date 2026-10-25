@@ -11,6 +11,12 @@
  *
  * Geri qaytarmaq: `NEXT_PUBLIC_STORE_SCOPE=ALL` (build-time env, `next build`
  * yenidən lazımdır) — bütün süzgəclər no-op olur.
+ *
+ * İstisna — **Spotify** (2026-10): `PLATFORM` tipindən YALNIZ `metadata.musicBrand = "SPOTIFY"`
+ * olan məhsullar satılır (sifariş ödənişdən sonra CRM-ə gedir, `lib/crmSpotify.ts`).
+ * Qalan PLATFORM məhsulları (YouTube, AI, LinkedIn) bağlı qalır. Ona görə məhsul
+ * səviyyəli yoxlama lazımdır: `isSellableServiceProduct` / `sellableServiceWhere()` —
+ * yalnız `type`-a baxan `isSellableServiceType` Spotify-ı tanımır.
  */
 
 export const STORE_SCOPE: "PLAYSTATION" | "ALL" =
@@ -33,7 +39,17 @@ export const PLAYSTATION_CATEGORY_KEYS: readonly string[] = [
   "PS_TRY_GIFT_CARD",
   "PSN_TURKEY_ACCOUNT",
   "EA_PLAY",
+  "SPOTIFY",
 ];
+
+/** Spotify Premium məhsulu: `PLATFORM` + `metadata.musicBrand = "SPOTIFY"`. */
+export const SPOTIFY_MUSIC_BRAND = "SPOTIFY";
+export const SPOTIFY_STORE_PATH = "/music/spotify-premium";
+
+export function isSpotifyProduct(type: string | null | undefined, metadata: unknown): boolean {
+  if (type !== "PLATFORM" || !metadata || typeof metadata !== "object") return false;
+  return (metadata as Record<string, unknown>).musicBrand === SPOTIFY_MUSIC_BRAND;
+}
 
 const SERVICE_TYPE_SET = new Set(PLAYSTATION_SERVICE_TYPES);
 const CATEGORY_KEY_SET = new Set(PLAYSTATION_CATEGORY_KEYS);
@@ -41,6 +57,31 @@ const CATEGORY_KEY_SET = new Set(PLAYSTATION_CATEGORY_KEYS);
 export function isSellableServiceType(type: string | null | undefined): boolean {
   if (!PLAYSTATION_ONLY) return true;
   return SERVICE_TYPE_SET.has(String(type ?? ""));
+}
+
+/** Məhsul səviyyəli yoxlama: PS tipləri + Spotify (PLATFORM içində yalnız Spotify). */
+export function isSellableServiceProduct(product: { type: string; metadata?: unknown }): boolean {
+  if (!PLAYSTATION_ONLY) return true;
+  return SERVICE_TYPE_SET.has(product.type) || isSpotifyProduct(product.type, product.metadata);
+}
+
+/**
+ * `ServiceProduct` sorğuları üçün Prisma `where` fraqmenti — `isSellableServiceProduct`-un SQL
+ * qarşılığı. `AND` içində qaytarılır ki, sorğunun öz `OR`-u ilə toqquşmasın:
+ * `where: { isActive: true, ...sellableServiceWhere() }`. (Client-safe — Prisma tipi import olunmur.)
+ */
+export function sellableServiceWhere(): { AND?: Record<string, unknown>[] } {
+  if (!PLAYSTATION_ONLY) return {};
+  return {
+    AND: [
+      {
+        OR: [
+          { type: { in: [...PLAYSTATION_SERVICE_TYPES] } },
+          { type: "PLATFORM", metadata: { path: ["musicBrand"], equals: SPOTIFY_MUSIC_BRAND } },
+        ],
+      },
+    ],
+  };
 }
 
 /** `Game.store` NOT NULL, default "PS". Epic oyunları satılmır. */
@@ -91,5 +132,9 @@ export function isOpenStorePath(href: string | null | undefined): boolean {
     }
   }
   if (!path.startsWith("/")) return true;
+  // Bağlı `/music` altında yalnız Spotify açıqdır.
+  if (path === SPOTIFY_STORE_PATH || path.startsWith(`${SPOTIFY_STORE_PATH}/`) || path.startsWith(`${SPOTIFY_STORE_PATH}?`)) {
+    return true;
+  }
   return !CLOSED_PATH_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`) || path.startsWith(`${p}?`));
 }

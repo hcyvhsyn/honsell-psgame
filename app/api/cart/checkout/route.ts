@@ -51,7 +51,8 @@ import {
 } from "@/lib/productGift";
 import { sendProductGiftCodeEmail } from "@/lib/resend";
 import { EPOINT_MIN_CHARGE_AZN_CENTS, meetsMinOrder, minOrderMessage } from "@/lib/cartLimits";
-import { isSellableServiceType, sellableGameWhere } from "@/lib/storeScope";
+import { sellableGameWhere, sellableServiceWhere } from "@/lib/storeScope";
+import { pushSpotifyOrdersToCrm } from "@/lib/crmSpotify";
 import { validateAccountPassword } from "@/lib/accountPasswordRules";
 import {
   validatePromoForOrder,
@@ -369,8 +370,9 @@ export async function POST(req: Request) {
             "STREAMING",
             "PLATFORM",
             HONSELL_GIFT_CARD_SERVICE_TYPE,
-          ].filter(isSellableServiceType),
+          ],
         },
+        ...sellableServiceWhere(),
       },
     }),
   ]);
@@ -1986,6 +1988,11 @@ export async function POST(req: Request) {
     [...result.purchaseIds, ...result.serviceOrderIds],
     result.orderCode,
   );
+
+  // Spotify Premium sifarişləri → CRM (vendor + müştəri WhatsApp-ı orada). Cavabı
+  // GÖZLƏMİR (next start uzunömürlü prosesdir); funksiya throw etmir.
+  // ⚠️ İKİQAT FULFILLMENT YOLU: kart yolunda da (lib/epointCartCheckout.ts) eyni çağırış var.
+  void pushSpotifyOrdersToCrm(result.serviceOrderIds);
 
   // GAME alındıqdan sonra rəy affiliate cookie-sini təmizlə —
   // attribution alışın metadata-sına yazıldı, daha lazım deyil.

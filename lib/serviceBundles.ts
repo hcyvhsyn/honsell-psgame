@@ -20,7 +20,7 @@ import {
   type ServiceBundleItemPrice,
   type ServiceBundlePricing,
 } from "@/lib/serviceBundleShared";
-import { isSellableServiceType } from "./storeScope";
+import { isSellableServiceProduct } from "./storeScope";
 
 const SERVICE_SELECT = {
   id: true,
@@ -84,7 +84,7 @@ export function isServiceBundleSellable(bundle: ServiceBundleRow, now = new Date
   if (bundle.items.some((i) => !i.serviceProduct.isActive)) return false;
   if (bundle.items.some((i) => !canBundleServiceType(i.serviceProduct.type))) return false;
   // Qeyri-PS üzvü olan dəst PS-only rejimdə satılmır (lib/storeScope.ts).
-  if (bundle.items.some((i) => !isSellableServiceType(i.serviceProduct.type))) return false;
+  if (bundle.items.some((i) => !isSellableServiceProduct(i.serviceProduct))) return false;
   if (bundle.startsAt && bundle.startsAt.getTime() > now.getTime()) return false;
   if (bundle.endsAt && bundle.endsAt.getTime() <= now.getTime()) return false;
   return true;

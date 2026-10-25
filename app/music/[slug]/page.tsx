@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { PLAYSTATION_ONLY } from "@/lib/storeScope";
 import { Check, ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
@@ -166,12 +167,17 @@ export default async function MusicServicePage({
               </Link>
             </li>
             <ChevronRight className="h-3.5 w-3.5 text-[#4d6254]" />
-            <li>
-              <Link href="/music" className="transition hover:text-[#f7fff9]">
-                Musiqi platformaları
-              </Link>
-            </li>
-            <ChevronRight className="h-3.5 w-3.5 text-[#4d6254]" />
+            {/* PS-only rejimdə /music siyahısı bağlıdır (lib/storeScope.ts) — keçid verilmir */}
+            {!PLAYSTATION_ONLY && (
+              <>
+                <li>
+                  <Link href="/music" className="transition hover:text-[#f7fff9]">
+                    Musiqi platformaları
+                  </Link>
+                </li>
+                <ChevronRight className="h-3.5 w-3.5 text-[#4d6254]" />
+              </>
+            )}
             <li className="font-semibold text-[#dfffe8]">{svc.label}</li>
           </ol>
         </nav>

@@ -2311,6 +2311,59 @@ function CompletedOrdersView({
   );
 }
 
+/**
+ * Spotify sifarişi → CRM vəziyyəti (lib/crmSpotify.ts). Ödənişdən sonra avtomatik göndərilir;
+ * uğursuz olubsa admin buradan təkrar göndərir. CRM-də "Hazırdır" basılanda sifariş özü SUCCESS olur.
+ */
+function SpotifyCrmSync({ orderId, metadata }: { orderId: string; metadata?: string | null }) {
+  const meta = (() => {
+    try {
+      return metadata ? (JSON.parse(metadata) as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  })();
+  const [state, setState] = useState<{ synced: boolean; error: string | null; busy: boolean }>({
+    synced: Boolean(meta.crmSyncedAt),
+    error: typeof meta.crmSyncError === "string" && !meta.crmSyncedAt ? meta.crmSyncError : null,
+    busy: false,
+  });
+  if (String(meta.musicBrand ?? "").toUpperCase() !== "SPOTIFY") return null;
+
+  async function push() {
+    setState((s) => ({ ...s, busy: true }));
+    try {
+      const res = await fetch(`/api/admin/service-orders/${orderId}/crm-push`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) setState({ synced: false, error: data?.error || "Göndərilmədi", busy: false });
+      else setState({ synced: true, error: null, busy: false });
+    } catch (e) {
+      setState({ synced: false, error: e instanceof Error ? e.message : "Şəbəkə xətası", busy: false });
+    }
+  }
+
+  if (state.synced) {
+    return (
+      <div className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-700">
+        CRM-ə göndərildi · vendor premium edəndə avtomatik tamamlanır
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      {state.error && <div className="text-[11px] font-medium text-rose-600">CRM: {state.error}</div>}
+      <button
+        type="button"
+        onClick={push}
+        disabled={state.busy}
+        className="rounded-md border border-violet-300 px-2 py-1 text-[11px] font-bold text-violet-700 hover:bg-violet-50 disabled:opacity-50"
+      >
+        {state.busy ? "Göndərilir..." : "CRM-ə göndər"}
+      </button>
+    </div>
+  );
+}
+
 function PlatformOrdersTable({
   orders,
   empty,
@@ -2368,6 +2421,7 @@ function PlatformOrdersTable({
                 )}
               </div>
             )}
+            <SpotifyCrmSync orderId={o.id} metadata={o.metadata} />
           </div>
         ) : (
           platformDurationLabel(o)

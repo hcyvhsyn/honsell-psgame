@@ -5,7 +5,6 @@ import { sendGiftCardCodeEmail, sendStreamingDeliveryEmail } from "@/lib/resend"
 import { issueReviewInvite, type ReviewProductType } from "@/lib/reviewInvite";
 import {
   createEaPlaySubscriptionFromTransaction,
-  createPlatformSubscriptionFromTransaction,
   createSubscriptionFromTransaction,
 } from "@/lib/subscriptions";
 import {
@@ -18,6 +17,7 @@ import {
   recordSuccessfulInvite,
 } from "@/lib/referralCycle";
 import { sendOrderApprovedWhatsApp } from "@/lib/orderNotifications";
+import { approvePlatformOrder } from "@/lib/platformOrderApproval";
 
 function reviewProductTypeFromService(type: string | undefined): ReviewProductType | null {
   switch (type) {
@@ -348,40 +348,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (productType === "PLATFORM") {
     // PLATFORM (AI, Musiqi, İş) — admin əl ilə kreditiya daxil etmir.
     // Məhsul hazır olanda sadəcə "Təsdiq" düyməsinə basır, abunə yaradılır.
-    await prisma.$transaction(async (ptx) => {
-      await ptx.transaction.update({
-        where: { id: tx.id },
-        data: { status: "SUCCESS" },
-      });
-
-      if (tx.serviceProductId) {
-        await createPlatformSubscriptionFromTransaction(ptx, {
-          transactionId: tx.id,
-          userId: tx.userId,
-          serviceProductId: tx.serviceProductId,
-          priceAznCents: tx.amountAznCents,
-          serviceProductMetadata: tx.serviceProduct?.metadata,
-        });
-      }
-
-      const cm = await awardStreamingReferralCommission(ptx, {
-        sourceTransactionId: tx.id,
-        buyerUserId: tx.userId,
-        serviceProductId: tx.serviceProductId,
-        lineCents: Math.abs(tx.amountAznCents),
-        target: { type: "SERVICE_PRODUCT", serviceProductId: tx.serviceProductId ?? "" },
-        kind: "PLATFORM",
-      });
-
-      try {
-        await recordPurchaseSpend(ptx, tx.userId, Math.abs(tx.amountAznCents));
-        if (cm?.referredById) {
-          await recordSuccessfulInvite(ptx, cm.referredById, tx.userId);
-        }
-      } catch (err) {
-        console.error("referral cycle bookkeeping failed", err);
-      }
-    });
+    // Məntiq lib/platformOrderApproval.ts-dədir (CRM "Hazırdır" da onu çağırır).
+    const approved = await approvePlatformOrder(tx);
+    if (!approved) {
+      return NextResponse.json({ error: "Not pending" }, { status: 400 });
+    }
 
     await maybeSendReviewInvite(tx);
     await maybeNotifyApprovalWhatsApp(tx);

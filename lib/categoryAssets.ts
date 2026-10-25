@@ -84,6 +84,13 @@ export const PRODUCT_CATEGORY_DEFINITIONS: ProductCategoryDefinition[] = [
     sortOrder: 9,
   },
   {
+    key: "SPOTIFY",
+    href: "/music/spotify-premium",
+    label: "Spotify Premium",
+    description: "Şəxsi hesabınıza Premium — reklamsız musiqi",
+    sortOrder: 18,
+  },
+  {
     key: "PUBG_UC",
     href: "/pubg-uc",
     label: "PUBG UC",

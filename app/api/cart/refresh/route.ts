@@ -4,12 +4,7 @@ import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { applyFlashDeal, getFlashDealOverrides } from "@/lib/flashDeals";
 import { resolveBundlesForCart } from "@/lib/gameBundles";
 import { resolveServiceBundlesForCart } from "@/lib/serviceBundles";
-import { PLAYSTATION_ONLY, PLAYSTATION_SERVICE_TYPES, sellableGameWhere } from "@/lib/storeScope";
-
-/** PS-only rejimdə yalnız PS xidmət tipləri; əks halda süzgəcsiz (`undefined`). */
-function sellableServiceTypesFilter(): string[] | undefined {
-  return PLAYSTATION_ONLY ? [...PLAYSTATION_SERVICE_TYPES] : undefined;
-}
+import { sellableGameWhere, sellableServiceWhere } from "@/lib/storeScope";
 
 export const runtime = "nodejs";
 
@@ -52,7 +47,7 @@ export async function POST(req: Request) {
       },
     }),
     prisma.serviceProduct.findMany({
-      where: { id: { in: ids }, isActive: true, type: { in: sellableServiceTypesFilter() } },
+      where: { id: { in: ids }, isActive: true, ...sellableServiceWhere() },
       select: { id: true, priceAznCents: true },
     }),
     getSettings(),
