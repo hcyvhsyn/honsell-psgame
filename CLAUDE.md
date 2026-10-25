@@ -47,12 +47,19 @@ sərhədini yerindən tərpətmir. Hizalanma meyarı qabığın **kənarı**dır
 
 Tək mənbə: [lib/storeScope.ts](lib/storeScope.ts) (client-safe, saf). Satılan:
 PS oyunları (`Game.store = "PS"`), `PS_PLUS`, `EA_PLAY`, `TRY_BALANCE`,
-`ACCOUNT_CREATION` (TR PSN hesabı). Qalan kateqoriyaların **səhifələri silinməyib** —
-sadəcə landing/naviqasiya/axtarışdan keçid yoxdur və satılmır.
+`ACCOUNT_CREATION` (TR PSN hesabı), Spotify Premium (`PLATFORM` + `metadata.musicBrand
+= "SPOTIFY"`, sifariş CRM-ə gedir — `lib/crmSpotify.ts`). Qalan kateqoriyaların
+**səhifələri silinməyib** — sadəcə landing/naviqasiya/axtarışdan keçid yoxdur və satılmır.
+
+**Tamamilə silinib (2026-10, kod yoxdur, cədvəllər `/// ARXİV` kimi qalır):** Epic
+(kataloq, scraper, Epic hesabları, səbətdə Epic axını), Süni İntellekt kataloqu (`/ai`),
+Website Xidməti (`/xidmetler`), Oyun paketləri (`GameBundle`, `/paket`), Streaming Banner
+(`StreamingFeatured`). Köhnə URL-lər `next.config.mjs` `redirects()` ilə `/`-ə gedir.
+Köhnə AI / Epic hesab açma sifarişləri üçün admin tab-ı yalnız data olduqda görünür.
 
 Süzgəc tətbiq olunan yerlər: header kateqoriyaları (`SiteHeaderServer` + `SiteHeader`),
 footer, ana səhifə (çox satılanlar, abunəlik matrisi, flash deal, bannerlər — banner
-`linkUrl`-i `isOpenStorePath` ilə), `isBundleSellable` / `isServiceBundleSellable`,
+`linkUrl`-i `isOpenStorePath` ilə), `isServiceBundleSellable`,
 navbar axtarışı, reels SERVICE CTA-sı, `/api/cart/refresh` (`missing` → səbətdən
 silinir), `/api/cart/checkout` (kataloq sorğusunda süzülür → 409), birbaşa alış
 endpoint-ləri (`/api/services/checkout`, `/api/games/[id]/purchase`).
@@ -95,105 +102,14 @@ custom domain etmək (Node prosesi media ötürməkdən azad olur) → env + `fi
 
 ---
 
-# Oyun paketləri (GameBundle — satılan səbətlər)
-
-Bir neçə oyunu sərfəli qiymətə bir dəst kimi satır: "Assassin's Creed səbəti",
-"10 AZN səbəti", "4-lü paket (RDR2 + GTA5 + FC26)". Müştəri paketi **tək toxunuşla**
-səbətə atır, səbətdə **atomik tək sətir** görür.
-
-`Collection`-dan fərqi: kolleksiya **redaksiya siyahısıdır, qiyməti yoxdur**.
-`LootBox`-dan fərqi: paket **deterministikdir** və adi səbət/checkout yolundan keçir.
-
-## Fayl xəritəsi
-
-| Qat | Fayl |
-| --- | --- |
-| Client-safe tip + riyaziyyat | [lib/gameBundleShared.ts](lib/gameBundleShared.ts) + [scripts/gameBundles.test.ts](scripts/gameBundles.test.ts) |
-| Server (DB + qiymət) | [lib/gameBundles.ts](lib/gameBundles.ts) |
-| Ana səhifə rail | [components/HomeBundles.tsx](components/HomeBundles.tsx) |
-| Detal səhifə | [app/paket/[slug]/page.tsx](app/paket/[slug]/page.tsx) + `AddBundleToCartButton.tsx` |
-| Admin UI | [app/admin/bundles/BundlesAdminClient.tsx](app/admin/bundles/BundlesAdminClient.tsx) |
-| Admin API | [app/api/admin/bundles/route.ts](app/api/admin/bundles/route.ts) |
-
-## Data modeli ([prisma/schema.prisma](prisma/schema.prisma) ~700)
-
-- **`GameBundle`** — `slug`, `title/subtitle/description`, `imageUrl` (boşdursa vitrin
-  oyun kaverlərindən kollaj qurur), `badgeText`, `pricingMode` (`PERCENT|CUSTOM`),
-  `discountPct`, `isActive/isFeatured/sortOrder`, `startsAt/endsAt`.
-- **`GameBundleItem`** — `@@id([bundleId, gameId])`, `position`, `priceAznCents Int?`
-  (yalnız CUSTOM rejimində; `null` → oyunun adi vitrin qiyməti).
-- **`Order`/`OrderItem` modeli YOXDUR** — alış N `Transaction` sətri yaradır, paket
-  damğası `metadata.bundleId` + `metadata.bundleTitle`-dədir.
-
-## Qiymət (TƏK mənbə: `computeBundlePricing`)
-
-List qiymət checkout-dakı ifadənin **eynisi** ilə alınır —
-`applyFlashDeal(computeDisplayPrice(game, settings), flashDeals.get(id))`. Flash deal və
-bitmiş endirim məntiqi təkrarlanmır.
-
-- **PERCENT** — hədəf cəm `allocateBundlePrices()` ilə oyunlara **largest-remainder**
-  üsulu ilə bölünür. Sadə `round()` deyil, çünki hər oyun ayrıca `Transaction` sətridir
-  və sətirlərin cəmi tutulan məbləğə **qəpiyinə qədər** bərabər olmalıdır.
-- **CUSTOM** — hər sətrin `priceAznCents`-i, amma **list qiymətdən böyük ola bilməz**
-  (`lib/flashDeals.ts` "override yalnız aşağı sala bilər" intizamı).
-
-⚠️ Riyaziyyatı dəyişəndə **`npm run test:bundles`** işlət.
-
-Qiymət **üç yerdə** lazımdır və üçü də eyni funksiyanı çağırır: vitrin (rail + detal),
-`/api/cart/refresh`, `/api/cart/checkout`. Heç birində əl ilə təkrarlama.
-
-## "Paket açılışı" (bundle expansion) — ƏN VACİB QAYDA
-
-Checkout-da `kind: "BUNDLE"` adlı **fulfillment budağı YOXDUR**. Səbətdəki bir paket
-sətri serverdə **N ədəd adi `kind: "GAME"` sətrinə açılır**, sadəcə `unitListCents` paket
-qiyməti ilə əvəzlənir və sətirlərə `bundleId` damğası vurulur:
-
-```
-Səbətdə:   [BUNDLE bundle_abc — 45.00₼]        ← müştəri 1 sətir görür
-Checkout:  [GAME rdr2 18₼ bundleId=abc] [GAME gta5 12₼ …] [GAME fc26 15₼ …]
-```
-
-Beləcə PSN/Epic hesab tələbi, `Transaction` yaradılması, referral komissiyası, rəy
-affiliate damğası, sifariş məktubu və admin fulfillment axını **dəyişmir**.
-
-⚠️ Paket yoxlaması `app/api/cart/checkout/route.ts` içindəki dövrdə `services.find(...)`
-sətrindən **ƏVVƏL** olmalıdır — paket id-si nə `games`, nə `services` içindədir.
-
-⚠️ **İkiqat fulfillment yolu** — cüzdan ([checkout/route.ts](app/api/cart/checkout/route.ts))
-və kart ([lib/epointCartCheckout.ts](lib/epointCartCheckout.ts)) ayrı-ayrıdır. Epoint
-snapshot-u artıq açılmış GAME sətirlərindən qurulur, ona görə orada yalnız `bundleId`
-metadata-ya ötürülür.
-
-## Tələlər / bilinməli məqamlar
-
-- **Deaktiv oyun → paket tamamilə gizlənir.** "4-lü paket" 3 oyunla satıla bilməz
-  (`isBundleSellable`). Admin panelində səbəb xəbərdarlıq kimi görünür; səbətdəki paket
-  `/api/cart/refresh`-in `missing` cavabı ilə silinir.
-- **Kupon paketə düşmür.** Paket onsuz da endirimlidir. İstisna **İKİ yerdə** eynidir:
-  `checkout/route.ts`-dəki `scopeItems` (`bundleId` olan sətirlər atılır) və
-  `/api/cart/coupon` preview-i (`productType === "BUNDLE"`). Biri unudulsa müştəri
-  preview-də bir rəqəm görür, kassada `COUPON_INVALID` alır.
-- **Client → prisma import tələsi** — `"use client"` komponent
-  [lib/gameBundles.ts](lib/gameBundles.ts)-i import etsə `next build` sınır (tsc keçsə də).
-  Client tərəf **yalnız** [lib/gameBundleShared.ts](lib/gameBundleShared.ts)-dən oxuyur.
-- **Paket hədiyyə olunmur** — hər oyun ayrıca kod tələb edərdi; checkout `isGift` gələn
-  paket sətrini buraxır, detal səhifəsində hədiyyə düyməsi yoxdur.
-- `revalidateGames()` **`"bundles"` tag-ını da sıfırlayır** — PERCENT paketin qiyməti
-  oyun qiymətindən asılıdır, yoxsa scrape sonrası vitrin köhnə qalır.
-- Ana səhifə keşi `tags: ["home", "bundles", "service-bundles"]` ilə bağlıdır; detal
-  səhifəsi isə `["bundles", "games"]`.
-
----
-
 # Xidmət dəstləri (ServiceBundle — abunəlik dəstləri)
 
 Bir neçə **xidməti** sərfəli qiymətə bir dəst kimi satır: "Netflix + HBO Max",
 "Prime Video + Spotify", "Disney+ reklamlı + VPN". Müştəri dəsti **tək toxunuşla**
 səbətə atır, səbətdə **atomik tək sətir** görür.
 
-`GameBundle`-dan fərqi: oyun yox, `ServiceProduct` bağlayır və **yeni problem** var —
-bəzi xidmətlər müştəri məlumatı tələb edir (Spotify Family → 5 email+şifrə, YouTube →
-gmail+şifrə, Netflix VVIP → e-poçt). Oyun paketində bu problem yox idi.
+Bəzi üzvlər müştəri məlumatı tələb edir (Spotify Family → 5 email+şifrə, YouTube →
+gmail+şifrə, Netflix VVIP → e-poçt) — bu, dəst sisteminin əsas çətinliyidir.
 
 ## Fayl xəritəsi
 
@@ -213,8 +129,7 @@ gmail+şifrə, Netflix VVIP → e-poçt). Oyun paketində bu problem yox idi.
 - **`ServiceBundleItem`** — `@@id([bundleId, serviceProductId])`, `position`,
   `priceAznCents Int?` (`null` → xidmətin adi qiyməti).
 - **Qiymət rejimi YALNIZ CUSTOM-dur** — `pricingMode`/`discountPct` sütunları YOXDUR.
-  Üzvlərin sayı azdır və qiymətlər əl ilə tənzimlənir; faiz lazım olsa
-  `allocateBundlePrices` ([lib/gameBundleShared.ts](lib/gameBundleShared.ts)) hazırdır.
+  Üzvlərin sayı azdır və qiymətlər əl ilə tənzimlənir.
 
 ## Qiymət
 
@@ -265,8 +180,7 @@ Məlumat `CartItem.serviceBundleItems[].details`-də saxlanılır və checkout-a
 
 - **Detal səhifəsi YOXDUR** — rail kartı birbaşa səbətə atır. `slug` sütunu var, gələcəkdə
   `/xidmet-paket/<slug>` əlavə edilə bilər.
-- **Deaktiv xidmət → dəst tamamilə gizlənir** (`isServiceBundleSellable`), oyun paketindəki
-  qayda ilə eyni.
+- **Deaktiv xidmət → dəst tamamilə gizlənir** (`isServiceBundleSellable`).
 - **`ACCOUNT_CREATION` / `EPIC_ACCOUNT_CREATION` / `HONSELL_GIFT_CARD` dəstə salına
   bilməz** (`SERVICE_BUNDLE_EXCLUDED_TYPES`) — hesab açılışı onsuz da başqa məhsulun ön
   şərtidir, endirimli hədiyyə kartı isə pul çap etməkdir. **Qalan bütün tiplər icazəlidir**,
@@ -281,8 +195,7 @@ Məlumat `CartItem.serviceBundleItems[].details`-də saxlanılır və checkout-a
 - **Səbətdə `add()` replace budağındadır** (`STREAMING`/`PLATFORM` kimi) — sətir müştəri
   məlumatı daşıyır, təkrar əlavə onu təzələməlidir. Qty həmişə 1.
 - **PSN tələbi** — dəstdə `PS_PLUS`/`EA_PLAY`/`TRY_BALANCE` üzvü varsa `deliveryNeedsPsn`
-  UI-də də tetiklənir ([CartView.tsx](components/CartView.tsx)). ⚠️ Oyun paketində bu
-  hələ də boşluqdur (`BUNDLE` sətri tetikləmir, server `NO_PSN_ACCOUNT` verir).
+  UI-də də tetiklənir ([CartView.tsx](components/CartView.tsx)).
 - **İkiqat fulfillment yolu** — cüzdan ([checkout/route.ts](app/api/cart/checkout/route.ts))
   və kart ([lib/epointCartCheckout.ts](lib/epointCartCheckout.ts)) ayrıdır; damğa
   (`serviceBundleId`/`serviceBundleTitle`) **hər ikisinə** yazılır.
