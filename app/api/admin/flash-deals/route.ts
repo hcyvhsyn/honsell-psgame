@@ -64,6 +64,11 @@ export async function GET() {
           priceAznCents: d.priceAznCents,
           originalAznCents: d.originalAznCents,
           endsAt: d.endsAt ? d.endsAt.toISOString() : null,
+          // PS Store endiriminin bitməsi — `endsAt` boş qalanda bu işləyir.
+          autoEndsAt:
+            d.game.discountTryCents != null && d.game.discountEndAt
+              ? d.game.discountEndAt.toISOString()
+              : null,
           isActive: d.isActive,
           sortOrder: d.sortOrder,
         };

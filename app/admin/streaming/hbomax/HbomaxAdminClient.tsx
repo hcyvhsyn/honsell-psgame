@@ -35,6 +35,15 @@ interface StatusResponse {
   log?: string;
   external?: { kind: string; startedAt: string } | null;
   publish?: { configured: boolean; last: { url: string; at: string } | null };
+  prod?: {
+    series: number;
+    movies: number;
+    verified: number;
+    total: number;
+    storefront: number;
+    lastImportAt: string | null;
+    projection: { running: boolean; startedAt?: string; finishedAt?: string; error?: string };
+  };
   stats?: {
     titles: { series: number; movies: number };
     detailed: { series: number; movies: number };
@@ -209,18 +218,39 @@ export default function HbomaxAdminClient() {
   }
 
   if (!data.enabled) {
+    const p = data.prod;
     return (
-      <div className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">
-        <p className="flex items-center gap-2 font-semibold">
-          <AlertTriangle className="h-4 w-4" /> Bu, prod serverdir — kollektor burada işləmir
-        </p>
-        <p className="mt-2">
-          HBO Max kollektoru Azərbaycan IP-si, HBO-ya giriş edilmiş Chrome profili və lokal kollektor DB-si tələb edir,
-          ona görə Mac-də işləyir. Prod sayt datanı Mac-dən alır: Mac-də
-          <code className="mx-1 rounded bg-amber-100 px-1">npm run dev:hbomax</code>
-          ilə <code className="mx-1 rounded bg-amber-100 px-1">localhost:3000/admin/streaming/hbomax</code> aç → sync /
-          validasiya → <b>Prod-a göndər</b>.
-        </p>
+      <div className="space-y-6">
+        {p ? (
+          <>
+            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Stat label="Seriallar (prod)" value={p.series} />
+              <Stat label="Filmlər (prod)" value={p.movies} />
+              <Stat label="Dili yoxlanmış" value={`${p.verified} / ${p.total}`} sub="epizod / film" />
+              <Stat label="Vitrində" value={p.storefront} sub={p.lastImportAt ? `son göndəriş: ${fmt(p.lastImportAt)}` : "hələ göndərilməyib"} />
+            </section>
+            {p.projection.running ? (
+              <p className="flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-4 py-2 text-sm text-violet-900">
+                <Loader2 className="h-4 w-4 animate-spin" /> Vitrin yenilənir (proyeksiya) · {fmt(p.projection.startedAt)}
+              </p>
+            ) : p.projection.error ? (
+              <p className="flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-800">
+                <XCircle className="h-4 w-4" /> Son proyeksiya xətası: {p.projection.error}
+              </p>
+            ) : null}
+          </>
+        ) : null}
+        <div className="rounded-xl border border-admin-line bg-admin-card p-5 text-sm text-zinc-600">
+          <p className="flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-100">
+            <UploadCloud className="h-4 w-4" /> Data Mac-dən gəlir
+          </p>
+          <p className="mt-2">
+            Sync və dil validasiyası Azərbaycan IP-si və HBO-ya giriş edilmiş brauzer tələb edir, ona görə Mac-də
+            işləyir. Yeniləmək üçün Mac-də <code className="mx-1 rounded bg-admin-chip2 px-1">npm run dev:hbomax</code> →
+            <code className="mx-1 rounded bg-admin-chip2 px-1">localhost:3000/admin/streaming/hbomax</code> → sync / validasiya →
+            <b> Prod-a göndər</b>.
+          </p>
+        </div>
       </div>
     );
   }

@@ -16,6 +16,8 @@ type FlashDeal = {
   priceAznCents: number | null;
   originalAznCents: number | null;
   endsAt: string | null;
+  /** Oyunun PS Store endiriminin bitməsi — `endsAt` boş qalanda bu işləyir. */
+  autoEndsAt: string | null;
   isActive: boolean;
   sortOrder: number;
 };
@@ -28,6 +30,7 @@ type GameOption = {
   finalAzn?: number;
   originalAzn?: number | null;
   discountPct?: number | null;
+  discountEndAt?: string | null;
 };
 
 type EditForm = {
@@ -36,6 +39,7 @@ type EditForm = {
   gameImageUrl: string | null;
   gameAutoFinalAzn: number | null;
   gameAutoOriginalAzn: number | null;
+  gameAutoEndsAt: string | null;
   priceAzn: string;
   originalAzn: string;
   endsAt: string;
@@ -49,6 +53,7 @@ const EMPTY_FORM: EditForm = {
   gameImageUrl: null,
   gameAutoFinalAzn: null,
   gameAutoOriginalAzn: null,
+  gameAutoEndsAt: null,
   priceAzn: "",
   originalAzn: "",
   endsAt: "",
@@ -81,6 +86,8 @@ export default function FlashDealsAdminClient() {
   const [gameQuery, setGameQuery] = useState("");
   const [gameOptions, setGameOptions] = useState<GameOption[]>([]);
   const [searching, setSearching] = useState(false);
+  // Hansı sorğunun nəticəsi göstərilir — "Heç nə tapılmadı" yalnız cavab gələndən sonra.
+  const [searchedQuery, setSearchedQuery] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
@@ -103,19 +110,27 @@ export default function FlashDealsAdminClient() {
       setGameOptions([]);
       return;
     }
+    // Gec gələn köhnə cavab yeni sorğunun nəticəsini əzməsin.
+    let cancelled = false;
     const t = setTimeout(async () => {
       setSearching(true);
       try {
         const res = await fetch(`/api/admin/banners/product-search?kind=GAME&q=${encodeURIComponent(q)}`);
-        if (res.ok) {
+        if (res.ok && !cancelled) {
           const data = await res.json();
-          setGameOptions((data.results ?? []) as GameOption[]);
+          if (!cancelled) {
+            setGameOptions((data.results ?? []) as GameOption[]);
+            setSearchedQuery(q);
+          }
         }
       } finally {
-        setSearching(false);
+        if (!cancelled) setSearching(false);
       }
     }, 250);
-    return () => clearTimeout(t);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [gameQuery]);
 
   function openNew() {
@@ -135,6 +150,7 @@ export default function FlashDealsAdminClient() {
       gameImageUrl: d.gameImageUrl,
       gameAutoFinalAzn: d.autoFinalAzn,
       gameAutoOriginalAzn: d.autoOriginalAzn,
+      gameAutoEndsAt: d.autoEndsAt,
       priceAzn: d.priceAznCents != null ? (d.priceAznCents / 100).toFixed(2) : "",
       originalAzn: d.originalAznCents != null ? (d.originalAznCents / 100).toFixed(2) : "",
       endsAt: isoToLocalInput(d.endsAt),
@@ -283,7 +299,7 @@ export default function FlashDealsAdminClient() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setEditForm((p) => ({ ...p, gameId: "", gameLabel: "", gameImageUrl: null, gameAutoFinalAzn: null, gameAutoOriginalAzn: null }))}
+                    onClick={() => setEditForm((p) => ({ ...p, gameId: "", gameLabel: "", gameImageUrl: null, gameAutoFinalAzn: null, gameAutoOriginalAzn: null, gameAutoEndsAt: null }))}
                     className="text-zinc-500 hover:text-rose-600"
                   >
                     <X className="h-4 w-4" />
@@ -297,8 +313,11 @@ export default function FlashDealsAdminClient() {
                     placeholder="Oyun adı yaz (min 2 hərf): NBA 2K26, Mafia..."
                     className="w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                   />
+                  {!searching && searchedQuery === gameQuery.trim() && searchedQuery.length >= 2 && gameOptions.length === 0 && (
+                    <p className="mt-2 text-xs text-zinc-500">Heç nə tapılmadı.</p>
+                  )}
                   {(searching || gameOptions.length > 0) && (
-                    <div className="mt-2 max-h-56 overflow-y-auto rounded border border-admin-line bg-admin-card">
+                    <div className="mt-2 max-h-96 overflow-y-auto rounded border border-admin-line bg-admin-card">
                       {searching && <div className="px-3 py-2 text-xs text-zinc-500">Axtarılır...</div>}
                       {gameOptions.map((g) => (
                         <button
@@ -312,6 +331,7 @@ export default function FlashDealsAdminClient() {
                               gameImageUrl: g.imageUrl,
                               gameAutoFinalAzn: g.finalAzn ?? null,
                               gameAutoOriginalAzn: g.originalAzn ?? null,
+                              gameAutoEndsAt: g.discountEndAt ?? null,
                             }));
                             setGameQuery("");
                             setGameOptions([]);
@@ -375,7 +395,7 @@ export default function FlashDealsAdminClient() {
               <div>
                 <label className="mb-1 block text-sm text-zinc-700">
                   Bitmə tarixi
-                  <span className="ml-1 text-xs text-zinc-500">boş = geri sayım yoxdur</span>
+                  <span className="ml-1 text-xs text-zinc-500">boş = PS Store endiriminin bitməsi</span>
                 </label>
                 <input
                   type="datetime-local"
@@ -384,6 +404,13 @@ export default function FlashDealsAdminClient() {
                   className="w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900 focus:border-violet-500 focus:outline-none"
                 />
                 <p className="mt-1 text-[11px] text-zinc-500">
+                  {editForm.endsAt
+                    ? "Əl ilə yazılıb — PS Store tarixinin yerinə bu işlənir."
+                    : editForm.gameAutoEndsAt
+                      ? `Avtomatik: ${formatEndsAt(editForm.gameAutoEndsAt)} (PS Store). Dəyişmək istəmirsənsə boş saxla.`
+                      : "Oyunun PS Store endirimi yoxdur — boş qalsa vaxt limiti olmayacaq."}
+                </p>
+                <p className="mt-0.5 text-[11px] text-zinc-500">
                   Vaxt bitəndə kart bölmədən avtomatik çıxır və qiymət override-ı ləğv olunur.
                 </p>
               </div>
@@ -443,7 +470,8 @@ export default function FlashDealsAdminClient() {
       ) : (
         <ul className="space-y-2">
           {deals.map((d) => {
-            const expired = d.endsAt != null && new Date(d.endsAt).getTime() <= Date.now();
+            const effectiveEnd = d.endsAt ?? d.autoEndsAt;
+            const expired = effectiveEnd != null && new Date(effectiveEnd).getTime() <= Date.now();
             return (
               <li
                 key={d.id}
@@ -480,7 +508,8 @@ export default function FlashDealsAdminClient() {
                     )}
                   </p>
                   <p className={`mt-0.5 text-[11px] ${expired ? "text-rose-600" : "text-zinc-500"}`}>
-                    {expired ? "Vaxtı bitib" : formatEndsAt(d.endsAt)}
+                    {expired ? "Vaxtı bitib" : formatEndsAt(effectiveEnd)}
+                    {!d.endsAt && d.autoEndsAt ? " · PS Store" : ""}
                   </p>
                 </div>
 

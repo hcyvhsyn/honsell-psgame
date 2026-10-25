@@ -58,7 +58,7 @@ Website Xidməti (`/xidmetler`), Oyun paketləri (`GameBundle`, `/paket`), Strea
 Köhnə AI / Epic hesab açma sifarişləri üçün admin tab-ı yalnız data olduqda görünür.
 
 Süzgəc tətbiq olunan yerlər: header kateqoriyaları (`SiteHeaderServer` + `SiteHeader`),
-footer, ana səhifə (çox satılanlar, abunəlik matrisi, flash deal, bannerlər — banner
+footer, ana səhifə (abunəlik matrisi, flash deal, bannerlər — banner
 `linkUrl`-i `isOpenStorePath` ilə), `isServiceBundleSellable`,
 navbar axtarışı, reels SERVICE CTA-sı, `/api/cart/refresh` (`missing` → səbətdən
 silinir), `/api/cart/checkout` (kataloq sorğusunda süzülür → 409), birbaşa alış
@@ -74,10 +74,68 @@ endpoint-ləri (`/api/services/checkout`, `/api/games/[id]/purchase`).
 bloklanır (`code: "MIN_ORDER"`). Birbaşa alış endpoint-ləri də eyni qaydanı yoxlayır.
 `EPOINT_MIN_CHARGE_AZN_CENTS` (5 AZN) ayrıdır — gateway limiti, round-up üçün.
 
-UI (hamısı `minOrderProgress()` oxuyur): səbətdə `MinOrderMeter` ("2.30 / 20 ₼" +
-zolaq, ödəniş düymələri kilidlənir), header səbət ikonunun ətrafında halqa
-(`CartIndicator`), səbətə əlavə olunanda `CartAddedToast` (layout-da, səbət
+UI (hamısı `minOrderProgress()` oxuyur): səbətdə minimumdan aşağı olanda ödəniş
+düymələri yerinə "Daha X ₼-lik məhsul seç" + "Minimum sifariş 20 ₼" sətri; səbətə
+əlavə olunanda `CartAddedToast` (`MinOrderMeter` compact, layout-da, səbət
 vəziyyətini izləyir — yeni sətir/artan say = əlavə; ayrıca çağırış lazım deyil).
+Header səbət düyməsi (`CartIndicator`) yalnız say göstərir — halqa/animasiya yoxdur.
+
+# Səbət — minimal (2026-10)
+
+Səbətdə YALNIZ: məhsul sətirləri, yekun (endirim varsa Məhsullar/Endirim sətirləri),
+"Endirim kodun var?" linki (kupon qutusu bağlı gəlir), çatdırılma üçün lazım olan
+seçimlər (PSN hesabı, kredensial "Redaktə"-ləri) və ödəniş düymələri. Bonuslar,
+"Niyə Honsell?", cashback bloku və "Bunları da bəyənə bilərsən" qəsdən çıxarılıb —
+yeni blok əlavə etmə; bonuslar serverdə (`lib/checkoutBonuses.ts`) yenə verilir.
+
+**Məhsul şərtləri səbətdə göstərilmir.** İlk ödəniş cəhdində bir dəfəlik modal
+([components/cart/ProductTermsConsent.tsx](components/cart/ProductTermsConsent.tsx))
+bütün şərtləri (`listProductTerms`, mağaza əhatəsinə görə süzülmüş) göstərir, qəbul
+`localStorage["honsell.productTermsAccepted.v1"]`-də saxlanır. Şərt mətni ciddi
+dəyişəndə açar versiyasını artır. ⚠️ Qəbul cihaz səviyyəsindədir və server onu
+yoxlamır (əvvəl də yoxlamırdı).
+
+# Taksit (Epoint installment)
+
+Səbətdə "Kartla ödə"-nin altında bağlı "Taksitlə ödə" düyməsi (kart + ay seçimi, hər
+müddətin yanında "+N%" və aylıq), oyun və PS Plus səhifələrində "Taksitlə ayda X ₼-dan".
+
+**Epoint komissiyası MÜŞTƏRİYƏ yansıdılır** ("dəqiq örtük"): `installmentChargeCents`
+= `base / (1 − faiz)` — Epoint faizi tam məbləğdən tutur, ona görə 20% → müştəriyə
++25%, mağazaya düz `base` qalır. Sadə `base × (1 + faiz)` YAZMA (26%-də ~7% itki).
+Faiz cədvəli [lib/installmentRates.ts](lib/installmentRates.ts) — kabinetdəki "Taksit
+parametrləri"-nin surətidir, API faiz qaytarmır. **Kabinetdə faiz dəyişəndə bu faylı
+yenilə.** Cədvəldə olmayan kart/ay müştəriyə göstərilmir (zərərinə satış olmasın).
+Admin UI yoxdur — `.env`-dəki `DATABASE_URL` Supabase-ə baxırdı, miqrasiya edilmədi.
+
+| Qat | Fayl |
+| --- | --- |
+| Komissiya cədvəli | [lib/installmentRates.ts](lib/installmentRates.ts) |
+| Client-safe tip + riyaziyyat + parse | [lib/installmentsShared.ts](lib/installmentsShared.ts) + [scripts/installments.test.ts](scripts/installments.test.ts) — `npm run test:installments` |
+| Epoint sorğuları | `fetchEpointInstallmentOptions`, `createEpointInstallment` ([lib/epoint.ts](lib/epoint.ts)) |
+| Təklif + 10 dəq keş | [lib/installments.ts](lib/installments.ts) → `GET /api/cart/installments?amount=` |
+| Ödəniş | `paymentMethod: "epoint-installment"` + `installmentCardId` + `installmentMonths` ([checkout/route.ts](app/api/cart/checkout/route.ts)) |
+| UI | [InstallmentPicker](components/cart/InstallmentPicker.tsx), [InstallmentHint](components/InstallmentHint.tsx) |
+
+**Açma (runtime env, rebuild lazım deyil):** `EPOINT_INSTALLMENT_ENABLED=1`,
+`EPOINT_INSTALLMENT_MIN_AZN` (default 50). Söndürülübsə UI heç nə göstərmir.
+
+⚠️ **Real cavab sənəddəki kimi massiv DEYİL** — `{"1": {name, installment_card_id: 1,
+installment_months: [...]}, "trace_id": "…"}`. 2026-10-25: BirKart(1), TamKart(2),
+BolKart(3) açıq; YapiKredi(4) ay siyahısı boşdur → göstərilmir.
+
+⚠️ Checkout-da `payCents` (komissiya daxil) `Transaction.amountAznCents`-ə və Epoint-ə
+gedir; `topUpCents` (min 5 AZN round-up → cüzdan) ondan **asılı deyil** — komissiya
+cüzdana kredit kimi qayıtmamalıdır. Fulfillment/cashback `checkout.totalCents` ilədir;
+komissiya `metadata.epoint.installment.feeCents`-dədir.
+
+⚠️ Kart/ay seçimi serverdə Epoint təklifinə qarşı **yenidən yoxlanılır** (min məbləğ də).
+Taksit endpoint-i `result_url` qəbul etmir — callback widget kimi kabinetdəki `/result`-a
+gəlir, `order_id` = `Transaction.id`, fulfillment adi kart yolu ilədir.
+
+⚠️ `/result` və `/reconcile` **məbləği dəqiq yoxlayır** (`AMOUNT_MISMATCH` → FAILED).
+Gözlənilən = `payCents`. Epoint callback-də başqa məbləğ (məs. komissiyası çıxılmış)
+göndərsə ödənilmiş sifariş FAILED görünər — ilk real taksit ödənişində yoxla.
 
 # Media (R2) — öz proxy-miz `/cdn/<key>`
 
@@ -810,6 +868,30 @@ müştəri **yeni mesaj alır**; eyni dalğada təkrar scrape unique constraint-
   panelində bu, banner kimi göstərilir.
 
 ---
+
+# Rəy linki ödəniş təsdiqi mesajında (CRM + sayt)
+
+Müştəri ödəniş təsdiqi mesajını alanda rəy linki **eyni mesajın sonunda** gəlir, ayrıca
+mesaj göndərilmir. İki ayrı mexanizm var. Onlar qəsdən birləşdirilməyib:
+
+| Mənbə | Link | Harada |
+| --- | --- | --- |
+| CRM təsdiqləri (abunə uzatma, kabinet təyini, music satışı) | `/rey/<token>` (`WhatsappReviewInvite`) | `offerReviewLink` ([lib/whatsappReviewInvites.ts](lib/whatsappReviewInvites.ts)) → `POST /api/partner/review-links` |
+| Sayt sifarişi təsdiqi (oyun, xidmət, Honsell gift card) | `/review/<token>` (`ReviewInvite`, sifarişə bağlı) | `issueReviewInvite` URL qaytarır → `sendOrderApprovedWhatsApp({ reviewUrl })` |
+
+- **Sayt sifarişində yeni dəvət YARADILMIR.** Hər sifarişin onsuz da e-poçtla gedən
+  `/review/` dəvəti var. WhatsApp eyni linki daşıyır, yoxsa müştəri eyni sifarişə iki
+  dəfə rəy yaza bilərdi.
+- **CRM limiti mağazadadır:** telefon üzrə `SUBMITTED` dəvət varsa link heç vaxt
+  verilmir, yoxdursa son dəvətdən 30 gün keçməlidir (`REVIEW_LINK_COOLDOWN_DAYS`).
+  Admin panelindən əl ilə göndərilən dəvət də sayılır, çünki eyni cədvəldir.
+- **Məhsulsuz dəvət:** CRM məhsulu (Netflix slotu) mağaza kataloqunda yoxdur, ona görə
+  dəvət `productTitle` + `platform` ilə yaranır, `products` boşdur, **satış qeydi
+  yaranmır**. `/rey` verify-ı boş siyahıda heç nə yaratmır.
+- `sendWhatsapp: false`: mağaza mesaj göndərmir, CRM öz mesajına əlavə edir.
+- `externalRef` olan retry limitə düşmür və mövcud linki qaytarır. Bank sətri olan
+  təsdiqdə açar `crm:cardTransaction:<id>`-dir, ona görə CRM-in `/bank/payments` ⭐
+  statusu (köhnə əl modalı ilə eyni açar) avtomatik dolur.
 
 # PS Store skreypi — concept ↔ SKU (ƏN VACİB TƏLƏ)
 

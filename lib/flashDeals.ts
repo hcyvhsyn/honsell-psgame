@@ -17,6 +17,22 @@ export type FlashDealOverride = {
   endsAt: Date | null;
 };
 
+/**
+ * Təklifin real bitmə vaxtı: admin tarix yazıbsa o, yoxdursa oyunun PS Store
+ * endiriminin bitməsi (skreypdən gəlir — admin onu təkrar yazmamalıdır).
+ * Endirimsiz oyunda və tarixsiz endirimdə `null` = vaxt limiti yoxdur.
+ *
+ * ⚠️ Vitrin (ana səhifə) və kassa (`getFlashDealOverrides`) EYNİ qaydanı
+ * işlətməlidir — yoxsa kart karuseldən çıxar, səbətdəki qiymət isə qalardı.
+ */
+export function effectiveFlashDealEnd(
+  dealEndsAt: Date | null,
+  game: { discountTryCents: number | null; discountEndAt: Date | null },
+): Date | null {
+  if (dealEndsAt) return dealEndsAt;
+  return game.discountTryCents != null && game.discountEndAt ? game.discountEndAt : null;
+}
+
 /** Təklif hazırda qüvvədədirmi (aktivdir və vaxtı bitməyib). */
 export function isFlashDealLive(deal: { isActive: boolean; endsAt: Date | null }, now = new Date()): boolean {
   if (!deal.isActive) return false;
@@ -39,16 +55,23 @@ export async function getFlashDealOverrides(gameIds: string[]): Promise<Map<stri
         isActive: true,
         OR: [{ endsAt: null }, { endsAt: { gt: now } }],
       },
-      select: { gameId: true, priceAznCents: true, originalAznCents: true, endsAt: true },
+      select: {
+        gameId: true,
+        priceAznCents: true,
+        originalAznCents: true,
+        endsAt: true,
+        game: { select: { discountTryCents: true, discountEndAt: true } },
+      },
     })
     .catch(() => []);
 
-  return new Map(
-    deals.map((d) => [
-      d.gameId,
-      { priceAznCents: d.priceAznCents, originalAznCents: d.originalAznCents, endsAt: d.endsAt },
-    ]),
-  );
+  const out = new Map<string, FlashDealOverride>();
+  for (const d of deals) {
+    const endsAt = effectiveFlashDealEnd(d.endsAt, d.game);
+    if (endsAt && endsAt.getTime() <= now.getTime()) continue; // PS Store endirimi bitib
+    out.set(d.gameId, { priceAznCents: d.priceAznCents, originalAznCents: d.originalAznCents, endsAt });
+  }
+  return out;
 }
 
 /**

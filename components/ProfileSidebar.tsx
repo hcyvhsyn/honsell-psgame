@@ -16,6 +16,7 @@ import {
   KeyRound,
   Package,
 } from "lucide-react";
+import { clearCachedSession } from "@/components/SessionProvider";
 
 const ITEMS = [
   { href: "/profile", label: "Ümumi baxış", icon: LayoutDashboard },
@@ -43,6 +44,7 @@ export default function ProfileSidebar({
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
+    clearCachedSession();
     window.location.href = "/";
   }
 

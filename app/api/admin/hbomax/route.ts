@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { HBOMAX_CONFIG, HBOMAX_REGION } from "@/lib/scrapers/hbomaxCollector/config";
+import { prodImportStats } from "@/lib/hbomaxImport";
 import {
   HBOMAX_ADMIN_RUNNER_ENABLED,
   HBOMAX_PUBLISH_CONFIGURED,
@@ -36,7 +37,12 @@ async function admin() {
 
 export async function GET() {
   if (!(await admin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!HBOMAX_ADMIN_RUNNER_ENABLED) return NextResponse.json({ enabled: false });
+  if (!HBOMAX_ADMIN_RUNNER_ENABLED) {
+    // Prod: kollektor yoxdur, amma Mac-dən gələn datanın vəziyyəti göstərilir
+    // (Provider* cədvəlləri yalnız miqrasiyadan sonra var — bayraq onu bildirir).
+    if (process.env.HBOMAX_STOREFRONT_COVERAGE !== "1") return NextResponse.json({ enabled: false });
+    return NextResponse.json({ enabled: false, prod: await prodImportStats(HBOMAX_REGION) });
+  }
   const job = currentJob();
   const [stats, external] = await Promise.all([collectorStats(HBOMAX_REGION), job?.running ? null : externalRunningRun()]);
   return NextResponse.json({

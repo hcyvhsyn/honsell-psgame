@@ -3,6 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { serviceProductLabel } from "@/lib/serviceProductLabel";
+import { Prisma as PrismaSql } from "@/lib/generated/prisma/client";
+import { buildGameSearchTerms } from "@/lib/gameSearchTerms";
+import {
+  gameSearchFromSql,
+  gameSearchMatchSql,
+  gameSearchRelevanceSql,
+} from "@/lib/gameSearchSql";
+import { PLAYSTATION_ONLY, sellableGameWhere } from "@/lib/storeScope";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +24,54 @@ export const dynamic = "force-dynamic";
  * `{ id, kind, productType, title, imageUrl, finalAzn, originalAzn, discountPct }`
  * formatında qaytarır.
  */
+const GAME_SELECT = {
+  id: true,
+  title: true,
+  imageUrl: true,
+  heroImageUrl: true,
+  screenshots: true,
+  store: true,
+  priceTryCents: true,
+  discountTryCents: true,
+  discountEndAt: true,
+  priceUsdCents: true,
+  discountUsdCents: true,
+} as const;
+
+/**
+ * Oyunlar vitrin axtarışı ilə EYNİ fuzzy mühərrikdən keçir (lib/gameSearchSql.ts) —
+ * əvvəl `title contains` + əlifba sırası + 8 limit idi: "gta 5", "spiderman"
+ * heç nə tapmırdı, çox sürümlü oyunların qalanı isə siyahıya düşmürdü.
+ */
+async function searchGames(q: string, limit: number) {
+  try {
+    const terms = buildGameSearchTerms(q);
+    const storeSql = PLAYSTATION_ONLY ? PrismaSql.sql` AND g."store" = 'PS'` : PrismaSql.empty;
+    const ranked = (await prisma.$queryRaw(
+      PrismaSql.sql`SELECT g."id"
+         FROM ${gameSearchFromSql()}
+         WHERE g."isActive" = true${storeSql} AND ${gameSearchMatchSql(terms)}
+         ORDER BY ${gameSearchRelevanceSql(terms)},
+           (CASE WHEN g."productType" = 'GAME' THEN 0 ELSE 1 END) ASC,
+           g."title" ASC
+         LIMIT ${limit}`,
+    )) as { id: string }[];
+    const rows = await prisma.game.findMany({
+      where: { id: { in: ranked.map((r) => r.id) } },
+      select: GAME_SELECT,
+    });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    return ranked.map((r) => byId.get(r.id)).filter((r): r is (typeof rows)[number] => !!r);
+  } catch {
+    return prisma.game.findMany({
+      where: { isActive: true, ...sellableGameWhere(), title: { contains: q, mode: "insensitive" } },
+      orderBy: { title: "asc" },
+      take: limit,
+      select: GAME_SELECT,
+    });
+  }
+}
+
 export async function GET(req: Request) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -29,24 +85,7 @@ export async function GET(req: Request) {
   const gamesOnly = url.searchParams.get("kind") === "GAME";
 
   const [games, services, settings] = await Promise.all([
-    prisma.game.findMany({
-      where: { isActive: true, title: { contains: q, mode: "insensitive" } },
-      orderBy: { title: "asc" },
-      take: 8,
-      select: {
-        id: true,
-        title: true,
-        imageUrl: true,
-        heroImageUrl: true,
-        screenshots: true,
-        store: true,
-        priceTryCents: true,
-        discountTryCents: true,
-        discountEndAt: true,
-        priceUsdCents: true,
-        discountUsdCents: true,
-      },
-    }),
+    searchGames(q, gamesOnly ? 40 : 12),
     gamesOnly
       ? Promise.resolve([])
       : prisma.serviceProduct.findMany({
@@ -75,6 +114,9 @@ export async function GET(req: Request) {
       finalAzn: price.finalAzn,
       originalAzn: price.originalAzn,
       discountPct: price.discountPct,
+      // Flash deal formu üçün: admin bitmə tarixi yazmasa bu işlənir.
+      discountEndAt:
+        price.discountPct != null && g.discountEndAt ? g.discountEndAt.toISOString() : null,
     };
   });
 

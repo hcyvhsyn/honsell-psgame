@@ -34,6 +34,7 @@ import {
 import {
   createEpointCheckout,
   createEpointWidget,
+  createEpointInstallment,
   getEpointConfig,
   type EpointCheckoutResponse,
   type EpointWidgetResponse,
@@ -50,6 +51,13 @@ import {
 } from "@/lib/productGift";
 import { sendProductGiftCodeEmail } from "@/lib/resend";
 import { EPOINT_MIN_CHARGE_AZN_CENTS, meetsMinOrder, minOrderMessage } from "@/lib/cartLimits";
+import { getInstallmentOffer } from "@/lib/installments";
+import {
+  installmentAvailable,
+  installmentChargeCents,
+  type InstallmentCard,
+  type InstallmentOption,
+} from "@/lib/installmentsShared";
 import { sellableGameWhere, sellableServiceWhere } from "@/lib/storeScope";
 import { pushSpotifyOrdersToCrm } from "@/lib/crmSpotify";
 import { validateAccountPassword } from "@/lib/accountPasswordRules";
@@ -853,7 +861,9 @@ export async function POST(req: Request) {
   // növbəti alış üçün balansda qalır. Cüzdan/referal ödənişlərində gateway
   // yoxdur, ona görə round-up mənasızdır: dəqiq sebet məbləği tutulur.
   const isCardPayment =
-    body.paymentMethod === "epoint" || body.paymentMethod === "epoint-widget";
+    body.paymentMethod === "epoint" ||
+    body.paymentMethod === "epoint-widget" ||
+    body.paymentMethod === "epoint-installment";
   const chargeCents = isCardPayment
     ? Math.max(discountedTotalCents, EPOINT_MIN_CHARGE_AZN_CENTS)
     : discountedTotalCents;
@@ -866,8 +876,9 @@ export async function POST(req: Request) {
     cashbackPct: effTier?.cashbackPct ?? 0,
   };
 
-  if (body.paymentMethod === "epoint" || body.paymentMethod === "epoint-widget") {
+  if (isCardPayment) {
     const useWidget = body.paymentMethod === "epoint-widget";
+    const useInstallment = body.paymentMethod === "epoint-installment";
     const config = getEpointConfig();
     if (!config) {
       return NextResponse.json(
@@ -875,6 +886,36 @@ export async function POST(req: Request) {
         { status: 503 },
       );
     }
+
+    // Taksit seçimi client-dən gəlir — kart və ay sayı Epoint-in bu məbləğ
+    // üçün qaytardığı təkliflə yenidən yoxlanılır (min məbləğ də daxil).
+    let installment: { card: InstallmentCard; option: InstallmentOption } | null = null;
+    if (useInstallment) {
+      const offer = await getInstallmentOffer(chargeCents / 100);
+      if (!installmentAvailable(offer, chargeCents / 100)) {
+        return NextResponse.json(
+          { error: "Bu məbləğ üçün taksit mövcud deyil.", code: "INSTALLMENT_UNAVAILABLE" },
+          { status: 400 },
+        );
+      }
+      const card = offer.cards.find((c) => c.id === String(body.installmentCardId ?? ""));
+      const months = Math.floor(Number(body.installmentMonths));
+      const option = card?.options.find((o) => o.months === months);
+      if (!card || !option) {
+        return NextResponse.json(
+          { error: "Taksit seçimi etibarsızdır. Kartı və ay sayını yenidən seçin.", code: "INSTALLMENT_INVALID" },
+          { status: 400 },
+        );
+      }
+      installment = { card, option };
+    }
+
+    // Taksitdə Epoint komissiyası müştəriyə yansıdılır (dəqiq örtük, faiz
+    // lib/installmentRates.ts-dən). `topUpCents` (min 5 AZN round-up → cüzdan)
+    // bundan ASILI DEYİL — komissiya cüzdana kredit kimi qayıtmamalıdır.
+    const payCents = installment
+      ? installmentChargeCents(chargeCents, installment.option.feePct)
+      : chargeCents;
 
     const orderCode = `HON-${randomBytes(3).toString("hex").toUpperCase()}`;
     const createdAt = new Date().toISOString();
@@ -1048,8 +1089,8 @@ export async function POST(req: Request) {
       },
     };
 
-    // Karta minimum 5 AZN (chargeCents) tutulur. amountAznCents = chargeCents
-    // saxlanır ki, /result və /reconcile-dakı amount-mismatch yoxlaması
+    // Karta minimum 5 AZN (chargeCents) tutulur, taksitdə üstəgəl komissiya
+    // (payCents). amountAznCents = payCents saxlanır ki, /result və /reconcile-dakı amount-mismatch yoxlaması
     // epoint-in bildirdiyi məbləğlə üst-üstə düşsün. Məhsul fulfillment-i və
     // cashback isə metadata.checkout.totalCents (real sebet) üzərindən gedir.
     const payment = await prisma.transaction.create({
@@ -1057,7 +1098,7 @@ export async function POST(req: Request) {
         userId: user.id,
         type: EPOINT_CART_PAYMENT_TYPE,
         status: "PENDING",
-        amountAznCents: chargeCents,
+        amountAznCents: payCents,
         metadata: JSON.stringify(metadata),
       },
       select: { id: true },
@@ -1069,13 +1110,13 @@ export async function POST(req: Request) {
     await recordOrderAttribution({
       orderCode,
       userId: user.id,
-      paymentMethod: useWidget ? "EPOINT_WIDGET" : "EPOINT",
+      paymentMethod: useWidget ? "EPOINT_WIDGET" : installment ? "EPOINT_INSTALLMENT" : "EPOINT",
       orderTotalAznCents: discountedTotalCents,
       attribution: await resolveAttribution(body),
     });
 
     const origin = requestOrigin(req);
-    const amountAzn = Number((chargeCents / 100).toFixed(2));
+    const amountAzn = Number((payCents / 100).toFixed(2));
     const description = `Honsell sifariş ${orderCode}: ${amountAzn.toFixed(2)} AZN`;
     const successUrl = `${origin}/success?order_id=${encodeURIComponent(payment.id)}&order_code=${encodeURIComponent(orderCode)}`;
     const errorUrl = `${origin}/error?order_id=${encodeURIComponent(payment.id)}&order_code=${encodeURIComponent(orderCode)}`;
@@ -1147,20 +1188,38 @@ export async function POST(req: Request) {
     let checkout: EpointCheckoutResponse;
 
     try {
-      checkout = await createEpointCheckout(
-        {
-          public_key: config.publicKey,
-          amount: amountAzn,
-          currency: "AZN",
-          language: "az",
-          order_id: payment.id,
-          description,
-          success_redirect_url: successUrl,
-          error_redirect_url: errorUrl,
-          result_url: `${origin}/result`,
-        },
-        config.privateKey,
-      );
+      // Taksit endpoint-i `result_url` qəbul etmir — callback widget kimi
+      // Epoint kabinetindəki merchant URL-inə (/result) gəlir, order_id eynidir.
+      checkout = installment
+        ? await createEpointInstallment(
+            {
+              public_key: config.publicKey,
+              amount: amountAzn,
+              currency: "AZN",
+              language: "az",
+              order_id: payment.id,
+              installment_card_id: installment.card.id,
+              installment_month: installment.option.months,
+              description: `${description} · ${installment.card.name} ${installment.option.months} ay`,
+              success_redirect_url: successUrl,
+              error_redirect_url: errorUrl,
+            },
+            config.privateKey,
+          )
+        : await createEpointCheckout(
+            {
+              public_key: config.publicKey,
+              amount: amountAzn,
+              currency: "AZN",
+              language: "az",
+              order_id: payment.id,
+              description,
+              success_redirect_url: successUrl,
+              error_redirect_url: errorUrl,
+              result_url: `${origin}/result`,
+            },
+            config.privateKey,
+          );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Epoint sorğusu alınmadı.";
       await prisma.transaction.update({
@@ -1195,6 +1254,19 @@ export async function POST(req: Request) {
           epoint: {
             transaction: checkout.transaction ?? null,
             status: checkout.status ?? null,
+            ...(installment
+              ? {
+                  channel: "installment",
+                  installment: {
+                    cardId: installment.card.id,
+                    cardName: installment.card.name,
+                    months: installment.option.months,
+                    feePct: installment.option.feePct,
+                    baseCents: chargeCents,
+                    feeCents: payCents - chargeCents,
+                  },
+                }
+              : {}),
           },
         }),
       },
@@ -1202,7 +1274,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      paymentMethod: "epoint",
+      paymentMethod: installment ? "epoint-installment" : "epoint",
       orderId: payment.id,
       orderCode,
       redirectUrl: checkout.redirect_url,

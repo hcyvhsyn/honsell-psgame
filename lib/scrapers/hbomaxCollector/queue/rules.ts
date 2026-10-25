@@ -17,6 +17,9 @@
 export type ValidationStatus = "PENDING" | "VALIDATING" | "VERIFIED" | "FAILED" | "STALE";
 
 export const PRIORITY = {
+  /** Film / standalone — bir yoxlama başlığı TAM hazır edir (seriala 10–100 lazımdır), ona görə
+   *  hamısından öndə (2026-10-22 qərarı: "ilk filmləri edək"). */
+  FEATURE: -1,
   LINKED: 0,
   NEW_EPISODE: 1,
   CHANGED: 2,
@@ -27,7 +30,8 @@ export const PRIORITY = {
 
 export type QueueReason = "NEW_EPISODE" | "INITIAL_BACKLOG" | "CHANGED" | "RETRY" | "TTL";
 
-export function priorityFor(reason: QueueReason, titleLinked: boolean): number {
+export function priorityFor(reason: QueueReason, titleLinked: boolean, isFeature = false): number {
+  if (isFeature) return PRIORITY.FEATURE;
   return titleLinked ? PRIORITY.LINKED : PRIORITY[reason];
 }
 
@@ -48,6 +52,8 @@ export interface QueueContext {
   now: Date;
   revalidateAfterDays: number;
   titleLinked: boolean;
+  /** Film / standalone (ProviderTitle.kind = MOVIE). */
+  isFeature?: boolean;
   /** Başlıq bu sync-də İLK dəfə kəşf olunub (ilkin backlog, P4). */
   titleIsNew: boolean;
 }
@@ -74,16 +80,16 @@ export function isTtlExpired(verifiedAt: Date | null, now: Date, days: number): 
 export function decideQueueAction(state: RegionStateSnapshot | null, fp: EpisodeFingerprint, ctx: QueueContext): QueueDecision {
   if (!state) {
     const reason: QueueReason = ctx.titleIsNew ? "INITIAL_BACKLOG" : "NEW_EPISODE";
-    return { action: "create", status: "PENDING", priority: priorityFor(reason, ctx.titleLinked), reason };
+    return { action: "create", status: "PENDING", priority: priorityFor(reason, ctx.titleLinked, ctx.isFeature), reason };
   }
   if (state.status === "VALIDATING" || state.status === "PENDING" || state.status === "STALE") return { action: "keep" };
 
   const verifiedBefore = state.validatedEditId !== null || state.validatedGlobalHash !== null;
   if (verifiedBefore && !fingerprintMatches(state, fp)) {
-    return { action: "update", status: "STALE", priority: priorityFor("CHANGED", ctx.titleLinked), reason: "CHANGED" };
+    return { action: "update", status: "STALE", priority: priorityFor("CHANGED", ctx.titleLinked, ctx.isFeature), reason: "CHANGED" };
   }
   if (state.status === "VERIFIED" && isTtlExpired(state.verifiedAt, ctx.now, ctx.revalidateAfterDays)) {
-    return { action: "update", status: "STALE", priority: priorityFor("TTL", ctx.titleLinked), reason: "TTL" };
+    return { action: "update", status: "STALE", priority: priorityFor("TTL", ctx.titleLinked, ctx.isFeature), reason: "TTL" };
   }
   return { action: "keep" };
 }

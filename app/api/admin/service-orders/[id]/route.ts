@@ -43,8 +43,8 @@ async function maybeSendReviewInvite(tx: {
   serviceProduct?: { title: string; type: string } | null;
 }) {
   const productType = reviewProductTypeFromService(tx.serviceProduct?.type);
-  if (!productType || !tx.user?.email || !tx.serviceProduct?.title) return;
-  await issueReviewInvite({
+  if (!productType || !tx.user?.email || !tx.serviceProduct?.title) return null;
+  return issueReviewInvite({
     transactionId: tx.id,
     userId: tx.userId,
     userEmail: tx.user.email,
@@ -54,17 +54,25 @@ async function maybeSendReviewInvite(tx: {
   });
 }
 
-/** Sifariş təsdiqlənəndə müştəriyə WhatsApp təsdiq mesajı göndərir (telefon və WaSender konfiqurasiya olmayanda səssiz keçir). */
-async function maybeNotifyApprovalWhatsApp(tx: {
-  user?: { name: string | null; phone: string | null } | null;
-  serviceProduct?: { title: string | null; type: string | null } | null;
-}) {
+/**
+ * Sifariş təsdiqlənəndə müştəriyə WhatsApp təsdiq mesajı göndərir (telefon və WaSender
+ * konfiqurasiya olmayanda səssiz keçir). `reviewUrl` — e-poçtdakı rəy linkinin eynisi,
+ * mesajın sonuna əlavə olunur.
+ */
+async function maybeNotifyApprovalWhatsApp(
+  tx: {
+    user?: { name: string | null; phone: string | null } | null;
+    serviceProduct?: { title: string | null; type: string | null } | null;
+  },
+  reviewUrl: string | null
+) {
   if (!tx.user?.phone) return;
   await sendOrderApprovedWhatsApp({
     phone: tx.user.phone,
     userName: tx.user.name,
     productTitle: tx.serviceProduct?.title ?? null,
     kind: tx.serviceProduct?.type ?? undefined,
+    reviewUrl,
   });
 }
 
@@ -281,8 +289,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       });
     }
 
-    await maybeSendReviewInvite(tx);
-    await maybeNotifyApprovalWhatsApp(tx);
+    await maybeNotifyApprovalWhatsApp(tx, await maybeSendReviewInvite(tx));
     return NextResponse.json({ ok: true });
   }
 
@@ -340,8 +347,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       }
     }
 
-    await maybeSendReviewInvite(tx);
-    await maybeNotifyApprovalWhatsApp(tx);
+    await maybeNotifyApprovalWhatsApp(tx, await maybeSendReviewInvite(tx));
     return NextResponse.json({ ok: true });
   }
 
@@ -354,8 +360,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: "Not pending" }, { status: 400 });
     }
 
-    await maybeSendReviewInvite(tx);
-    await maybeNotifyApprovalWhatsApp(tx);
+    await maybeNotifyApprovalWhatsApp(tx, await maybeSendReviewInvite(tx));
     return NextResponse.json({ ok: true });
   }
 
@@ -437,8 +442,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       }
     });
 
-    await maybeSendReviewInvite(tx);
-    await maybeNotifyApprovalWhatsApp(tx);
+    await maybeNotifyApprovalWhatsApp(tx, await maybeSendReviewInvite(tx));
     return NextResponse.json({ ok: true });
   }
 
@@ -540,8 +544,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       }
     });
 
-    await maybeSendReviewInvite(tx);
-    await maybeNotifyApprovalWhatsApp(tx);
+    await maybeNotifyApprovalWhatsApp(tx, await maybeSendReviewInvite(tx));
     return NextResponse.json({ ok: true });
   }
 
@@ -610,7 +613,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
   });
 
-  await maybeSendReviewInvite(tx);
-  await maybeNotifyApprovalWhatsApp(tx);
+  await maybeNotifyApprovalWhatsApp(tx, await maybeSendReviewInvite(tx));
   return NextResponse.json({ ok: true });
 }

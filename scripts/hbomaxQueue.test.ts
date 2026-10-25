@@ -175,6 +175,10 @@ eq("detal: sezon fərqi — yalnız dəyişən dil, yoxlanmamış sezon fərq sa
   ["ru-sub:full/none/unverified"]);
 eq("detal: tək sezonda fərq yoxdur", seasonDifferences(diffMatrix.slice(0, 1)), []);
 
+eq("film: növbədə hamısından öndə (FEATURE), bağlı serialdan da",
+  [decideQueueAction(null, { editId: "e", globalHash: "h" }, { now: new Date(), revalidateAfterDays: 30, titleLinked: true, titleIsNew: true, isFeature: true }), PRIORITY.FEATURE < PRIORITY.LINKED].map((x) => (typeof x === "object" && "priority" in x ? x.priority : x)),
+  [PRIORITY.FEATURE, true]);
+
 // Film: əsas video (MOVIE) seçilir, treyler/preview atılır, il videonun airDate-indən.
 const movieDoc = {
   data: { id: "m1", type: "show", attributes: { name: "Goodfellas", showType: "MOVIE", firstAvailableDate: "2026-05-19T19:00:00Z" }, relationships: {} },

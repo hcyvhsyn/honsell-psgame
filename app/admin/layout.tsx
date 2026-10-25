@@ -1,139 +1,189 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import AdminSidebar, { type NavGroupSpec } from "./sidebar/AdminSidebar";
+import AdminSidebar, { type NavSectionSpec } from "./sidebar/AdminSidebar";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Sidebar — məqsədyönlü qruplar (hər qrup tək iş üçündür). Qrup başlığının
- * altındakı `description` qrupun nə üçün olduğunu izah edir.
+ * Sidebar — 5 bölmə, hər bölmədə tək işə xidmət edən qruplar. Bölmələr bir-birindən
+ * vizual ayırıcı ilə ayrılır, qruplar açılıb-bağlanır (aktiv səhifənin qrupu həmişə
+ * açıqdır). Sıra iş tezliyinə görədir: gündəlik əməliyyat → kataloq → müştəri/marketinq
+ * → məzmun → sistem.
  *
- *   1. Gündəlik İş          — sifariş/ödəniş/balans əməliyyatları
- *   2. Müştərilər & Referal — istifadəçilər + affiliate faizləri
- *   3. Moderasiya           — rəy və icma paylaşımlarının yoxlanışı
- *   4. Məzmun & Marketinq   — vitrin, banner, xəbər, marketinq
- *   5. AI Köməkçi           — sayt AI köməkçisinin bilik bazası/loqları
- *   6. PlayStation kataloqu — PS oyunları, abunəlik, gift card, hesab
- *   7. Yayım                — streaming abunəlik/poster/kataloq
- *   8. Digər platformalar   — oyun-içi vahid, musiqi, iş paketləri
- *   9. Sistem                — qlobal tənzimləmələr
+ *   Əməliyyatlar          — Gündəlik iş, Analitika
+ *   Kataloq               — PlayStation, Streaming, Digər məhsullar
+ *   Müştəri və marketinq  — Müştərilər, Referal və bonuslar, Endirim və kampaniyalar
+ *   Məzmun                — Vitrin, Məlumat səhifələri, Rəylər və moderasiya, AI köməkçi
+ *   Sistem                — Tənzimləmələr
  *
  * Yeni admin səhifəsi əlavə olunduqda uyğun qrupa yazırsan — sidebar avtomatik
  * göstərir və active route məntiqi işləyir.
  */
-const NAV_GROUPS: NavGroupSpec[] = [
+const NAV_SECTIONS: NavSectionSpec[] = [
   {
-    label: "Gündəlik İş",
-    iconName: "LayoutDashboard",
-    description: "Sifariş, ödəniş və balans əməliyyatları",
-    items: [
-      { href: "/admin", label: "Dashboard", iconName: "LayoutDashboard" },
-      { href: "/admin/funnel", label: "Satış hunisi", iconName: "Filter" },
-      { href: "/admin/orders", label: "Sifarişlər", iconName: "ClipboardList", badgeKey: "pendingAllOrders" },
-      { href: "/admin/transactions", label: "Tranzaksiyalar", iconName: "Receipt" },
-      { href: "/admin/subscriptions", label: "Aktiv Abunəliklər", iconName: "Crown", badgeKey: "expiringSubs" },
+    label: "Əməliyyatlar",
+    groups: [
+      {
+        label: "Gündəlik iş",
+        iconName: "LayoutDashboard",
+        description: "Sifariş, ödəniş və balans əməliyyatları",
+        items: [
+          { href: "/admin", label: "Dashboard", iconName: "LayoutDashboard" },
+          { href: "/admin/orders", label: "Sifarişlər", iconName: "ClipboardList", badgeKey: "pendingAllOrders" },
+          { href: "/admin/deposits", label: "Balans artırma", iconName: "Wallet", badgeKey: "pendingDeposits" },
+          { href: "/admin/transactions", label: "Tranzaksiyalar", iconName: "Receipt" },
+          { href: "/admin/subscriptions", label: "Aktiv abunəliklər", iconName: "Crown", badgeKey: "expiringSubs" },
+        ],
+      },
+      {
+        label: "Analitika",
+        iconName: "TrendingUp",
+        description: "Satış göstəriciləri və huni",
+        items: [
+          { href: "/admin/sales", label: "Satışlar", iconName: "TrendingUp" },
+          { href: "/admin/funnel", label: "Satış hunisi", iconName: "Filter" },
+        ],
+      },
     ],
   },
   {
-    label: "Müştərilər & Referal",
-    iconName: "Users",
-    description: "İstifadəçilər və affiliate komissiya faizləri",
-    items: [
-      { href: "/admin/users", label: "İstifadəçilər", iconName: "Users" },
-      { href: "/admin/price-watch", label: "Qiymət güdmə", iconName: "BellRing" },
-      { href: "/admin/referral-tree", label: "Referral ağacı", iconName: "Network" },
-      { href: "/admin/campaigns", label: "Reklam / Kampaniya", iconName: "Megaphone" },
-      { href: "/admin/giveaways", label: "Çəkilişlər", iconName: "Gift" },
-      { href: "/admin/referrals", label: "Referal faizləri", iconName: "Percent" },
-      { href: "/admin/promo-codes", label: "Endirim kodları", iconName: "TicketPercent" },
-      { href: "/admin/invite-bonuses", label: "Dəvət bonusları", iconName: "Gift", badgeKey: "heldInviteBonuses" },
+    label: "Kataloq",
+    groups: [
+      {
+        label: "PlayStation",
+        iconName: "Gamepad2",
+        description: "PS oyunları, abunəlik, gift card və hesab",
+        items: [
+          { href: "/admin/games", label: "Oyunlar", iconName: "Gamepad2" },
+          { href: "/admin/collections", label: "Kolleksiyalar", iconName: "LayoutGrid" },
+          { href: "/admin/ps-plus", label: "PS Plus", iconName: "Crown" },
+          { href: "/admin/ea-play", label: "EA Play", iconName: "Gamepad2" },
+          { href: "/admin/services", label: "PS TRY Gift Card", iconName: "Gift" },
+          { href: "/admin/account-creation", label: "Hesab açılışı", iconName: "UserPlus" },
+        ],
+      },
+      {
+        label: "Streaming",
+        iconName: "Tv",
+        description: "Abunəliklər, dəstlər, posterlər və kataloq yığımı",
+        items: [
+          { href: "/admin/streaming", label: "Streaming abunəlikləri", iconName: "Tv" },
+          { href: "/admin/service-bundles", label: "Xidmət dəstləri", iconName: "Package" },
+          { href: "/admin/streaming/titles", label: "Posterlər", iconName: "Clapperboard" },
+          { href: "/admin/streaming/scrape", label: "Kataloq yığımı", iconName: "RefreshCw" },
+          { href: "/admin/streaming/hbomax", label: "HBO Max kollektor", iconName: "RefreshCw" },
+        ],
+      },
+      {
+        label: "Digər məhsullar",
+        iconName: "LayoutGrid",
+        description: "Musiqi, oyun-içi vahid, iş paketləri, hədiyyə kartı",
+        items: [
+          { href: "/admin/music", label: "Musiqi (Spotify)", iconName: "Music" },
+          { href: "/admin/pubg-uc", label: "PUBG UC", iconName: "Coins" },
+          { href: "/admin/point-blank", label: "Point Blank TG", iconName: "Coins" },
+          { href: "/admin/work", label: "İş platformaları", iconName: "Briefcase" },
+          { href: "/admin/honsell-gift-cards", label: "Honsell hədiyyə kartı", iconName: "Gift" },
+        ],
+      },
     ],
   },
   {
-    label: "Moderasiya",
-    iconName: "MessageSquare",
-    description: "İstifadəçi rəyləri və icma paylaşımlarının yoxlanışı",
-    items: [
-      { href: "/admin/reviews", label: "Oyun Rəyləri", iconName: "MessageSquare", badgeKey: "pendingReviews" },
-      { href: "/admin/whatsapp-reviews", label: "WhatsApp Rəy Dəvəti", iconName: "MessageSquarePlus" },
-      { href: "/admin/testimonials", label: "Müştəri Rəyləri (Anasayfa)", iconName: "Star", badgeKey: "pendingTestimonials" },
-      { href: "/admin/community", label: "İcma Paylaşımları", iconName: "MessageSquare", badgeKey: "pendingCommunity" },
-      { href: "/admin/streaming-reviews", label: "Streaming İcmalları", iconName: "MessageSquare" },
+    label: "Müştəri və marketinq",
+    groups: [
+      {
+        label: "Müştərilər",
+        iconName: "Users",
+        description: "İstifadəçilər və qiymət güdmə",
+        items: [
+          { href: "/admin/users", label: "İstifadəçilər", iconName: "Users" },
+          { href: "/admin/price-watch", label: "Qiymət güdmə", iconName: "BellRing" },
+        ],
+      },
+      {
+        label: "Referal və bonuslar",
+        iconName: "Network",
+        description: "Affiliate komissiyaları və dəvət bonusları",
+        items: [
+          { href: "/admin/referrals", label: "Referal faizləri", iconName: "Percent" },
+          { href: "/admin/referral-tree", label: "Referal ağacı", iconName: "Network" },
+          { href: "/admin/invite-bonuses", label: "Dəvət bonusları", iconName: "Gift", badgeKey: "heldInviteBonuses" },
+        ],
+      },
+      {
+        label: "Endirim və kampaniyalar",
+        iconName: "Megaphone",
+        description: "Endirim kodları, fürsətlər, kampaniya və çəkilişlər",
+        items: [
+          { href: "/admin/promo-codes", label: "Endirim kodları", iconName: "TicketPercent" },
+          { href: "/admin/flash-deals", label: "Fürsətləri qaçırma", iconName: "Zap" },
+          { href: "/admin/campaigns", label: "Reklam / Kampaniya", iconName: "Megaphone" },
+          { href: "/admin/discount-digest", label: "Endirim bülleteni", iconName: "Newspaper" },
+          { href: "/admin/giveaways", label: "Çəkilişlər", iconName: "Gift" },
+          { href: "/admin/loot-boxes", label: "Qutu açılışı", iconName: "Package" },
+        ],
+      },
     ],
   },
   {
-    label: "Məzmun & Marketinq",
-    iconName: "ImageIcon",
-    description: "Vitrin, banner, xəbər və marketinq materialları",
-    items: [
-      { href: "/admin/banners", label: "Bannerlər", iconName: "ImageIcon" },
-      { href: "/admin/flash-deals", label: "Fürsətləri qaçırma", iconName: "Zap" },
-      { href: "/admin/loot-boxes", label: "Qutu açılışı", iconName: "Package" },
-      { href: "/admin/reels", label: "Reels (Videolar)", iconName: "Clapperboard" },
-      { href: "/admin/subscription-packages", label: "Abunəlik Paketləri (Vitrin)", iconName: "Crown" },
-      { href: "/admin/categories", label: "Kateqoriya şəkilləri", iconName: "LayoutGrid" },
-      { href: "/admin/news", label: "Xəbərlər", iconName: "Newspaper" },
-      { href: "/admin/faq", label: "FAQ", iconName: "HelpCircle" },
-      { href: "/admin/platform-guides", label: "Faydalı Başlıqlar", iconName: "ClipboardList" },
-      { href: "/admin/activation-steps", label: "Aktivləşdirmə Addımları", iconName: "ListChecks" },
-      { href: "/admin/search-suggestions", label: "Populyar axtarışlar", iconName: "Search" },
-      { href: "/admin/discount-digest", label: "Endirim Bülleteni", iconName: "Megaphone" },
-    ],
-  },
-  {
-    label: "AI Köməkçi",
-    iconName: "Brain",
-    description: "Sayt AI köməkçisinin bilik bazası və loqları",
-    items: [
-      { href: "/admin/ai-knowledge", label: "AI Bilik Bazası", iconName: "Brain" },
-      { href: "/admin/ai-chat-logs", label: "AI Söhbətləri", iconName: "MessageSquare" },
-    ],
-  },
-  {
-    label: "PlayStation kataloqu",
-    iconName: "Gamepad2",
-    description: "PS oyunları, abunəlik, gift card və hesab xidmətləri",
-    items: [
-      { href: "/admin/games", label: "Oyunlar", iconName: "Gamepad2" },
-      { href: "/admin/sales", label: "Satışlar", iconName: "TrendingUp" },
-      { href: "/admin/collections", label: "Kolleksiyalar", iconName: "LayoutGrid" },
-      { href: "/admin/ps-plus", label: "PS Plus", iconName: "Crown" },
-      { href: "/admin/ea-play", label: "EA Play", iconName: "Gamepad2" },
-      { href: "/admin/services", label: "PS TRY Gift Card", iconName: "Gift" },
-      { href: "/admin/honsell-gift-cards", label: "Honsell Hədiyyə Kartı", iconName: "Gift" },
-      { href: "/admin/account-creation", label: "Hesab Açılışı", iconName: "UserPlus" },
-    ],
-  },
-  {
-    label: "Yayım (Streaming)",
-    iconName: "Tv",
-    description: "Streaming abunəlikləri, dəstlər, posterlər və kataloq",
-    items: [
-      { href: "/admin/streaming", label: "Streaming Abunəlikləri", iconName: "Tv" },
-      { href: "/admin/service-bundles", label: "Xidmət dəstləri", iconName: "Package" },
-      { href: "/admin/streaming/titles", label: "Posterlər", iconName: "Tv" },
-      { href: "/admin/streaming/scrape", label: "Kataloq Yığımı", iconName: "RefreshCw" },
-      { href: "/admin/streaming/hbomax", label: "HBO Max Kollektor", iconName: "RefreshCw" },
-    ],
-  },
-  {
-    label: "Digər platformalar",
-    iconName: "LayoutGrid",
-    description: "Oyun-içi vahid, musiqi və iş paketləri",
-    items: [
-      { href: "/admin/pubg-uc", label: "PUBG UC", iconName: "Coins" },
-      { href: "/admin/point-blank", label: "Point Blank TG", iconName: "Coins" },
-      { href: "/admin/music", label: "Musiqi", iconName: "Music" },
-      { href: "/admin/work", label: "İş Platformaları", iconName: "Briefcase" },
+    label: "Məzmun",
+    groups: [
+      {
+        label: "Vitrin",
+        iconName: "ImageIcon",
+        description: "Ana səhifə, kateqoriyalar və videolar",
+        items: [
+          { href: "/admin/banners", label: "Bannerlər", iconName: "ImageIcon" },
+          { href: "/admin/categories", label: "Kateqoriya şəkilləri", iconName: "LayoutGrid" },
+          { href: "/admin/subscription-packages", label: "Abunəlik paketləri (vitrin)", iconName: "Crown" },
+          { href: "/admin/search-suggestions", label: "Populyar axtarışlar", iconName: "Search" },
+          { href: "/admin/reels", label: "Reels (videolar)", iconName: "Clapperboard" },
+        ],
+      },
+      {
+        label: "Məlumat səhifələri",
+        iconName: "HelpCircle",
+        description: "Xəbərlər, FAQ və bələdçilər",
+        items: [
+          { href: "/admin/news", label: "Xəbərlər", iconName: "Newspaper" },
+          { href: "/admin/faq", label: "FAQ", iconName: "HelpCircle" },
+          { href: "/admin/platform-guides", label: "Faydalı başlıqlar", iconName: "ClipboardList" },
+          { href: "/admin/activation-steps", label: "Aktivləşdirmə addımları", iconName: "ListChecks" },
+        ],
+      },
+      {
+        label: "Rəylər və moderasiya",
+        iconName: "MessageSquare",
+        description: "Rəylərin və icma paylaşımlarının yoxlanışı",
+        items: [
+          { href: "/admin/reviews", label: "Oyun rəyləri", iconName: "MessageSquare", badgeKey: "pendingReviews" },
+          { href: "/admin/testimonials", label: "Müştəri rəyləri (anasayfa)", iconName: "Star", badgeKey: "pendingTestimonials" },
+          { href: "/admin/whatsapp-reviews", label: "WhatsApp rəy dəvəti", iconName: "MessageSquarePlus" },
+          { href: "/admin/streaming-reviews", label: "Streaming icmalları", iconName: "MessageSquare" },
+          { href: "/admin/community", label: "İcma paylaşımları", iconName: "MessageSquare", badgeKey: "pendingCommunity" },
+        ],
+      },
+      {
+        label: "AI köməkçi",
+        iconName: "Brain",
+        description: "Sayt AI köməkçisinin bilik bazası və söhbətləri",
+        items: [
+          { href: "/admin/ai-knowledge", label: "Bilik bazası", iconName: "Brain" },
+          { href: "/admin/ai-chat-logs", label: "Söhbətlər", iconName: "MessageSquare" },
+        ],
+      },
     ],
   },
   {
     label: "Sistem",
-    iconName: "SettingsIcon",
-    description: "Qlobal tənzimləmələr (FX, kart, marjalar)",
-    items: [
-      { href: "/admin/settings", label: "Tənzimləmələr", iconName: "SettingsIcon" },
+    groups: [
+      {
+        label: "Tənzimləmələr",
+        iconName: "SettingsIcon",
+        description: "Qlobal tənzimləmələr (FX, kart, marjalar)",
+        items: [{ href: "/admin/settings", label: "Tənzimləmələr", iconName: "SettingsIcon" }],
+      },
     ],
   },
 ];
@@ -196,7 +246,7 @@ export default async function AdminLayout({
 
   return (
     <div className="admin-theme flex min-h-screen flex-col bg-admin-bg text-zinc-900 md:flex-row">
-      <AdminSidebar groups={NAV_GROUPS} badges={badges} userEmail={user.email} />
+      <AdminSidebar sections={NAV_SECTIONS} badges={badges} userEmail={user.email} />
 
       <main className="flex-1 overflow-x-hidden">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">{children}</div>

@@ -1,12 +1,16 @@
 /**
  * WhatsApp rəy dəvətinin yaradılması — TƏK mənbə.
  *
- * İKİ çağırış yeri var:
+ * ÜÇ çağırış yeri var:
  *   • admin paneli  → app/api/admin/whatsapp-reviews/route.ts (POST)
- *   • CRM (partner) → app/api/partner/review-invites/route.ts (POST)
+ *   • CRM (partner) → app/api/partner/review-invites/route.ts (POST) — bank modalı
+ *   • CRM (partner) → app/api/partner/review-links/route.ts (POST) — `offerReviewLink`:
+ *     ödəniş təsdiqi mesajının SONUNA əlavə olunan link (mağaza mesaj göndərmir)
  *
  * Qiymət və başlıq HƏMİŞƏ serverdə yenidən hesablanır — client (və CRM) yalnız
  * məhsul id-sini göndərir. Beləcə xarici sistem qiymət uydura bilmir.
+ * İstisna: məhsulsuz dəvət (`productTitle`, `items` boş) — satış qeydi YARANMIR,
+ * ona görə qiymət də yoxdur.
  */
 
 import crypto from "node:crypto";
@@ -39,6 +43,14 @@ export type CreateReviewInviteInput = {
    * idempotent olur — eyni ref ilə ikinci sorğu YENİ satış qeydi yaratmır.
    */
   externalRef?: unknown;
+  /**
+   * Məhsulsuz dəvət: `items` boşdursa bu başlıq göstərilir (məs. CRM-dən
+   * "Netflix — 1 ay"). Mağaza kataloqunda məhsul olmadığı üçün satış qeydi
+   * yaranmır; kateqoriya `platform`-dan, o da yoxdursa GENERAL.
+   */
+  productTitle?: unknown;
+  /** false → WhatsApp göndərilmir, yalnız link qaytarılır (çağıran öz mesajına əlavə edir). */
+  sendWhatsapp?: boolean;
 };
 
 export type CreateReviewInviteResult =
@@ -169,7 +181,9 @@ export async function createWhatsappReviewInvite(
   }
 
   const items = parseItems(input);
-  if (items.length === 0) {
+  const freeTitle =
+    typeof input.productTitle === "string" ? input.productTitle.trim().slice(0, 200) : "";
+  if (items.length === 0 && !freeTitle) {
     return { ok: false, status: 400, error: "Ən azı bir məhsul seçin." };
   }
 
@@ -237,13 +251,19 @@ export async function createWhatsappReviewInvite(
     }
   }
 
-  const combinedTitle = products.map((p) => p.title).join(" + ");
-  const totalPriceCents = products.reduce((sum, p) => sum + p.priceAznCents, 0);
+  const combinedTitle = products.length
+    ? products.map((p) => p.title).join(" + ")
+    : freeTitle;
+  const totalPriceCents = products.length
+    ? products.reduce((sum, p) => sum + p.priceAznCents, 0)
+    : null;
   // Rəy kateqoriyası: admin əl ilə seçibsə onu götür, əks halda ilk məhsuldan çıxar.
   const first = products[0];
   const platform = isReviewCategoryOverride(input.platform)
     ? input.platform
-    : derivePlatform(first.kind, first.type, first.store);
+    : first
+      ? derivePlatform(first.kind, first.type, first.store)
+      : "GENERAL";
 
   // İlk xidmət SKU-su (backward-compat sütunu); yoxdursa null (yalnız oyunlar seçilib).
   const firstServiceId = products.find((p) => p.kind === "SERVICE")?.id ?? null;
@@ -258,7 +278,7 @@ export async function createWhatsappReviewInvite(
   // walletBalance toxunulmur.
   let firstTxnId: string | null = null;
   let salesRecorded = false;
-  if (customer) {
+  if (customer && products.length > 0) {
     for (const p of products) {
       const txn = await prisma.transaction.create({
         data: reviewSaleTxnData(customer.id, p),
@@ -293,12 +313,14 @@ export async function createWhatsappReviewInvite(
 
   let whatsappSent = false;
   let whatsappError: string | null = null;
-  try {
-    const result = await sendWasenderText({ to: phone, text: reviewInviteText(combinedTitle, url) });
-    whatsappSent = result.ok;
-    if (!result.ok) whatsappError = result.error;
-  } catch (err) {
-    whatsappError = err instanceof Error ? err.message : "network error";
+  if (input.sendWhatsapp !== false) {
+    try {
+      const result = await sendWasenderText({ to: phone, text: reviewInviteText(combinedTitle, url) });
+      whatsappSent = result.ok;
+      if (!result.ok) whatsappError = result.error;
+    } catch (err) {
+      whatsappError = err instanceof Error ? err.message : "network error";
+    }
   }
 
   return {
@@ -314,5 +336,82 @@ export async function createWhatsappReviewInvite(
     customer,
     whatsappSent,
     whatsappError,
+  };
+}
+
+/** Eyni nömrəyə avtomatik link arası — müştəri rəy yazmayıbsa 30 gündə bir. */
+const REVIEW_LINK_COOLDOWN_DAYS = 30;
+
+export type ReviewLinkSkipReason = "PHONE_INVALID" | "ALREADY_REVIEWED" | "RECENTLY_INVITED";
+
+export type OfferReviewLinkResult =
+  | { ok: false; status: number; error: string }
+  | { ok: true; url: null; skipped: ReviewLinkSkipReason }
+  | { ok: true; url: string; skipped: null; inviteId: string; alreadyExists: boolean };
+
+/**
+ * Ödəniş təsdiqi mesajının sonuna əlavə olunacaq rəy linki. Mağaza mesaj
+ * GÖNDƏRMİR — linki çağırana (CRM) qaytarır.
+ *
+ * Qayda: müştəri (telefon üzrə) artıq rəy yazıbsa link heç vaxt verilmir; yazmayıbsa
+ * son dəvətdən 30 gün keçməyincə yenisi verilmir. Admin panelindən əl ilə göndərilən
+ * dəvətlər də sayılır — eyni cədvəldir.
+ *
+ * `externalRef` ilə təkrar sorğu (retry) mövcud linki qaytarır, limitə düşmür —
+ * yoxsa ilk cəhddə yaranmış dəvət ikinci cəhdi "RECENTLY_INVITED" ilə bloklayardı.
+ */
+export async function offerReviewLink(
+  input: Omit<CreateReviewInviteInput, "sendWhatsapp">
+): Promise<OfferReviewLinkResult> {
+  const phone = normalizeToE164(input.phone != null ? String(input.phone) : "");
+  if (!phone) return { ok: true, url: null, skipped: "PHONE_INVALID" };
+
+  const externalRef =
+    typeof input.externalRef === "string" && input.externalRef.trim()
+      ? input.externalRef.trim().slice(0, 200)
+      : null;
+
+  if (externalRef) {
+    const existing = await prisma.whatsappReviewInvite.findUnique({
+      where: { externalRef },
+      select: { id: true, token: true, status: true, expiresAt: true },
+    });
+    if (existing) {
+      if (existing.status === "SUBMITTED") return { ok: true, url: null, skipped: "ALREADY_REVIEWED" };
+      if (existing.expiresAt.getTime() <= Date.now()) {
+        return { ok: true, url: null, skipped: "RECENTLY_INVITED" };
+      }
+      return {
+        ok: true,
+        url: `${reviewInviteBaseUrl()}/rey/${existing.token}`,
+        skipped: null,
+        inviteId: existing.id,
+        alreadyExists: true,
+      };
+    }
+  }
+
+  const since = new Date(Date.now() - REVIEW_LINK_COOLDOWN_DAYS * 24 * 60 * 60 * 1000);
+  const blocker = await prisma.whatsappReviewInvite.findFirst({
+    where: { phone, OR: [{ status: "SUBMITTED" }, { createdAt: { gte: since } }] },
+    orderBy: { createdAt: "desc" },
+    select: { status: true },
+  });
+  if (blocker) {
+    return {
+      ok: true,
+      url: null,
+      skipped: blocker.status === "SUBMITTED" ? "ALREADY_REVIEWED" : "RECENTLY_INVITED",
+    };
+  }
+
+  const result = await createWhatsappReviewInvite({ ...input, phone, sendWhatsapp: false });
+  if (!result.ok) return result;
+  return {
+    ok: true,
+    url: result.invite.url,
+    skipped: null,
+    inviteId: result.invite.id,
+    alreadyExists: result.alreadyExists,
   };
 }

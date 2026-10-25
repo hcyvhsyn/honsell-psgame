@@ -96,3 +96,32 @@ export function getProductTerms(
 
   return null;
 }
+
+/** Hər şərt növü üçün nümunə (productType, store, platformKind) — `listProductTerms` üçün. */
+const TERMS_SAMPLES: [string, string | null, string | null][] = [
+  ["GAME", "PS", null],
+  ["PS_PLUS", null, null],
+  ["GAME", "EPIC", null],
+  ["PLATFORM", null, "SPOTIFY"],
+  ["PLATFORM", null, "YOUTUBE"],
+  ["PLATFORM", null, null],
+  ["STREAMING", null, "NETFLIX"],
+  ["STREAMING", null, null],
+];
+
+/**
+ * Bütün məhsul şərtlərinin unikal siyahısı (başlığa görə). Bir dəfəlik qəbul
+ * modalı bunu göstərir — qəbul hamısını əhatə etdiyi üçün müştəri səbətdə
+ * olmayan məhsulun şərtini də görməlidir. `filter` mağaza əhatəsini tətbiq edir.
+ */
+export function listProductTerms(
+  filter: (productType: string, store: string | null) => boolean = () => true,
+): ProductTerms[] {
+  const byTitle = new Map<string, ProductTerms>();
+  for (const [type, store, kind] of TERMS_SAMPLES) {
+    if (!filter(type, store)) continue;
+    const t = getProductTerms(type, store, kind);
+    if (t && !byTitle.has(t.termsTitle)) byTitle.set(t.termsTitle, t);
+  }
+  return Array.from(byTitle.values());
+}

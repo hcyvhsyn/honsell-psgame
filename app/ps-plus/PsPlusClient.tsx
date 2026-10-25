@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Check, CheckCircle2, Crown, Plus, Sparkles } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import ReferralBadge from "@/components/ReferralBadge";
+import InstallmentHint from "@/components/InstallmentHint";
 
 type Plan = {
   id: string;
@@ -308,6 +309,8 @@ export default function PsPlusClient({
                     ) : (
                       <div className="mt-2 h-[24px]" />
                     )}
+
+                    <InstallmentHint priceAzn={selected.priceAznCents / 100} className="mt-2" />
 
                     <div className="mt-2">
                       <ReferralBadge category="psPlus" productName={selected.title} />

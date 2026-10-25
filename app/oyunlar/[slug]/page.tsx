@@ -25,6 +25,7 @@ import TrackView from "@/components/TrackView";
 import GameCard, { type GameCardData } from "@/components/GameCard";
 import AddToCartButton from "./AddToCartButton";
 import FavoriteButton from "@/components/FavoriteButton";
+import InstallmentHint from "@/components/InstallmentHint";
 import ScreenshotGallery from "./ScreenshotGallery";
 import GameReviewsSection from "./GameReviewsSection";
 import { SITE_URL, SITE_NAME } from "@/lib/site";
@@ -563,6 +564,8 @@ export default async function GameDetailPage({
                       {display.finalAzn.toFixed(2)}₼
                     </span>
                   </div>
+
+                  <InstallmentHint priceAzn={display.finalAzn} className="mt-3" />
 
                   {discountEndLabel && display.discountPct != null && (
                     <p className="mt-4 inline-flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">

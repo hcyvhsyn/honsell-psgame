@@ -9,7 +9,6 @@ import {
   isHiddenFromLanding,
   landingServiceRequiresAccount,
 } from "@/lib/landingServices";
-import ProductImage from "@/components/ProductImage";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import SiteFooter from "@/components/SiteFooter";
 import HomeBannerSlider from "@/components/HomeBannerSlider";
@@ -31,7 +30,6 @@ import {
   Clock,
   Sparkles,
   ArrowRight,
-  BadgeCheck,
 } from "lucide-react";
 import FaqAccordion from "@/components/FaqAccordion";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
@@ -45,7 +43,7 @@ import {
   readPlatformMeta,
 } from "@/lib/platformSubscriptions";
 import { gameDetailHref } from "@/lib/gameSlug";
-import { applyFlashDeal } from "@/lib/flashDeals";
+import { applyFlashDeal, effectiveFlashDealEnd } from "@/lib/flashDeals";
 import {
   PLAYSTATION_ONLY,
   isOpenStorePath,
@@ -56,24 +54,6 @@ import {
 } from "@/lib/storeScope";
 
 export const revalidate = 1800;
-
-type BestSellerItem = {
-  id: string;
-  href: string;
-  title: string;
-  subtitle: string;
-  imageUrl: string | null;
-  badge: string;
-  sales: number;
-  finalAzn: number;
-  originalAzn: number | null;
-  discountPct: number | null;
-};
-
-type SalesRow = {
-  id: string;
-  sales: number | bigint;
-};
 
 const HOME_FAQS = [
   {
@@ -115,12 +95,6 @@ const SERVICE_TYPE_BADGES: Record<string, string> = {
   POINT_BLANK_TG: "Point Blank",
   HONSELL_GIFT_CARD: "Gift Card",
 };
-
-// Vahid premium kart səthi — əvvəlki rəngarəng (amber/sky/fuchsia/emerald)
-// border-lər "gaming dashboard" hissi yaradırdı. Brend-bənövşəyi neytral səth
-// daha təmiz, satış yönümlü görünür və bütün kartlar eyni dildə danışır.
-const BEST_SELLER_CARD_SURFACE =
-  "border-zinc-200 bg-white hover:border-violet-300/60 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-violet-400/40";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -217,195 +191,6 @@ function serviceBadge(type: string, metadata: unknown): string {
   return SERVICE_TYPE_BADGES[type] ?? "Məhsul";
 }
 
-async function fetchBestSellers(settings: Awaited<ReturnType<typeof getSettings>>): Promise<BestSellerItem[]> {
-  const [gameSalesRows, serviceSalesRows] = await Promise.all([
-    prisma.$queryRaw<SalesRow[]>`
-      SELECT "gameId" AS "id", COUNT(*)::int AS "sales"
-      FROM "Transaction"
-      WHERE "type" = 'PURCHASE'
-        AND "status" = 'SUCCESS'
-        AND "gameId" IS NOT NULL
-      GROUP BY "gameId"
-      ORDER BY "sales" DESC
-      LIMIT 8
-    `.catch(() => []),
-    prisma.$queryRaw<SalesRow[]>`
-      SELECT "serviceProductId" AS "id", COUNT(*)::int AS "sales"
-      FROM "Transaction"
-      WHERE "type" = 'SERVICE_PURCHASE'
-        AND "status" = 'SUCCESS'
-        AND "serviceProductId" IS NOT NULL
-      GROUP BY "serviceProductId"
-      ORDER BY "sales" DESC
-      LIMIT 8
-    `.catch(() => []),
-  ]);
-
-  const [games, services] = await Promise.all([
-    gameSalesRows.length
-      ? prisma.game.findMany({
-          where: { id: { in: gameSalesRows.map((row) => row.id) }, isActive: true },
-          select: {
-            id: true,
-            productId: true,
-        slug: true,
-            title: true,
-            imageUrl: true,
-            platform: true,
-            productType: true,
-            store: true,
-            priceTryCents: true,
-            discountTryCents: true,
-            discountEndAt: true,
-            priceUsdCents: true,
-            discountUsdCents: true,
-          },
-        })
-      : Promise.resolve([]),
-    serviceSalesRows.length
-      ? prisma.serviceProduct.findMany({
-          where: { id: { in: serviceSalesRows.map((row) => row.id) }, isActive: true },
-          select: {
-            id: true,
-            type: true,
-            title: true,
-            description: true,
-            imageUrl: true,
-            priceAznCents: true,
-            metadata: true,
-          },
-        })
-      : Promise.resolve([]),
-  ]);
-
-  const gameById = new Map(games.map((game) => [game.id, game]));
-  const serviceById = new Map(services.map((service) => [service.id, service]));
-  const items: BestSellerItem[] = [];
-
-  for (const row of gameSalesRows) {
-    const game = gameById.get(row.id);
-    if (!game || !isSellableGameStore(game.store)) continue;
-    const price = computeDisplayPrice(game, settings);
-    items.push({
-      id: `game-${game.id}`,
-      href: gameDetailHref(game) ?? "/oyunlar",
-      title: game.title,
-      subtitle: `${game.platform ?? "PlayStation"} oyunu`,
-      imageUrl: game.imageUrl,
-      badge: "Oyun",
-      sales: Number(row.sales),
-      finalAzn: price.finalAzn,
-      originalAzn: price.originalAzn,
-      discountPct: price.discountPct,
-    });
-  }
-
-  for (const row of serviceSalesRows) {
-    const service = serviceById.get(row.id);
-    if (!service || !isSellableServiceProduct(service)) continue;
-    items.push({
-      id: `service-${service.id}`,
-      href: serviceHref(service.type, service.metadata, service.title),
-      title: service.title,
-      subtitle: serviceSubtitle(service.type, service.metadata, service.description),
-      imageUrl: service.imageUrl,
-      badge: serviceBadge(service.type, service.metadata),
-      sales: Number(row.sales),
-      finalAzn: service.priceAznCents / 100,
-      originalAzn: null,
-      discountPct: null,
-    });
-  }
-
-  const ranked = items
-    .sort((a, b) => b.sales - a.sales)
-    .slice(0, 8);
-
-  if (ranked.length >= 6) return ranked;
-
-  const [fallbackGames, fallbackServices] = await Promise.all([
-    prisma.game.findMany({
-      where: { isActive: true, isFeatured: true, ...sellableGameWhere() },
-      orderBy: [{ lastScrapedAt: "desc" }, { createdAt: "desc" }],
-      take: 8,
-      select: {
-        id: true,
-        productId: true,
-        slug: true,
-        title: true,
-        imageUrl: true,
-        platform: true,
-        store: true,
-        priceTryCents: true,
-        discountTryCents: true,
-        discountEndAt: true,
-        priceUsdCents: true,
-        discountUsdCents: true,
-      },
-    }),
-    prisma.serviceProduct.findMany({
-      where: {
-        isActive: true,
-        type: { in: ["PS_PLUS", "TRY_BALANCE", "STREAMING", "PLATFORM", "EA_PLAY", "PUBG_UC"] },
-        ...sellableServiceWhere(),
-      },
-      orderBy: [{ sortOrder: "asc" }, { priceAznCents: "asc" }],
-      take: 8,
-      select: {
-        id: true,
-        type: true,
-        title: true,
-        description: true,
-        imageUrl: true,
-        priceAznCents: true,
-        metadata: true,
-      },
-    }),
-  ]);
-
-  const seen = new Set(ranked.map((item) => item.id));
-  for (const game of fallbackGames) {
-    const id = `game-${game.id}`;
-    if (seen.has(id)) continue;
-    const price = computeDisplayPrice(game, settings);
-    ranked.push({
-      id,
-      href: gameDetailHref(game) ?? "/oyunlar",
-      title: game.title,
-      subtitle: `${game.platform ?? "PlayStation"} oyunu`,
-      imageUrl: game.imageUrl,
-      badge: "Oyun",
-      sales: 0,
-      finalAzn: price.finalAzn,
-      originalAzn: price.originalAzn,
-      discountPct: price.discountPct,
-    });
-    seen.add(id);
-    if (ranked.length >= 8) break;
-  }
-
-  for (const service of fallbackServices) {
-    const id = `service-${service.id}`;
-    if (seen.has(id)) continue;
-    ranked.push({
-      id,
-      href: serviceHref(service.type, service.metadata, service.title),
-      title: service.title,
-      subtitle: serviceSubtitle(service.type, service.metadata, service.description),
-      imageUrl: service.imageUrl,
-      badge: serviceBadge(service.type, service.metadata),
-      sales: 0,
-      finalAzn: service.priceAznCents / 100,
-      originalAzn: null,
-      discountPct: null,
-    });
-    seen.add(id);
-    if (ranked.length >= 8) break;
-  }
-
-  return ranked;
-}
-
 async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
   const services = await prisma.serviceProduct.findMany({
     where: {
@@ -490,11 +275,18 @@ async function fetchFlashDeals(
     })
     .catch(() => []);
 
-  return deals.map((deal) => {
+  // Admin tarix yazmayıbsa oyunun PS Store endiriminin bitməsi işlənir —
+  // endirim bitmiş kart karuseldə qalmasın, geri sayım da avtomatik olsun.
+  const live = deals.flatMap((deal) => {
+    const endsAt = effectiveFlashDealEnd(deal.endsAt, deal.game);
+    return endsAt && endsAt.getTime() <= now.getTime() ? [] : [{ deal, endsAt }];
+  });
+
+  return live.map(({ deal, endsAt }) => {
     const price = applyFlashDeal(computeDisplayPrice(deal.game, settings), {
       priceAznCents: deal.priceAznCents,
       originalAznCents: deal.originalAznCents,
-      endsAt: deal.endsAt,
+      endsAt,
     });
     return {
       id: deal.game.id,
@@ -507,7 +299,7 @@ async function fetchFlashDeals(
       finalAzn: price.finalAzn,
       originalAzn: price.originalAzn,
       discountPct: price.discountPct,
-      endsAt: deal.endsAt ? deal.endsAt.toISOString() : null,
+      endsAt: endsAt ? endsAt.toISOString() : null,
     };
   });
 }
@@ -522,7 +314,7 @@ async function fetchFlashDeals(
 const getHomePageData = unstable_cache(
   async () => {
   const settings = await getSettings();
-  const [banners, landingProducts, bestSellers, totalsArr, orderCount, testimonialAgg, flashDeals, serviceBundles] = await Promise.all([
+  const [banners, landingProducts, totalsArr, orderCount, testimonialAgg, flashDeals, serviceBundles] = await Promise.all([
     prisma.banner
       .findMany({
         where: { isActive: true, scope: "HOME" },
@@ -531,7 +323,6 @@ const getHomePageData = unstable_cache(
       })
       .catch(() => []),
     fetchLandingProducts(),
-    fetchBestSellers(settings),
     prisma.game.groupBy({ by: ["productType"], where: { isActive: true }, _count: { _all: true } }),
     prisma.transaction
       .count({ where: { status: "SUCCESS", type: { in: ["PURCHASE", "SERVICE_PURCHASE"] } } })
@@ -627,7 +418,6 @@ const getHomePageData = unstable_cache(
     bannerSlides,
     trustStats,
     landingProducts,
-    bestSellers,
     flashDeals,
     serviceBundles,
   };
@@ -641,7 +431,6 @@ export default async function HomePage() {
     bannerSlides,
     trustStats,
     landingProducts,
-    bestSellers,
     flashDeals,
     serviceBundles,
   } = await getHomePageData();
@@ -750,9 +539,6 @@ export default async function HomePage() {
           başlıqlı paneldir, dəst yoxdursa özü null qaytarır. */}
       <HomeServiceBundles bundles={serviceBundles} />
 
-      <SectionFlowDivider text="Bu həftə ən çox alınanlar" tone="amber" />
-      <BestSellersSection items={bestSellers} />
-
       {/* Niyə biz */}
       <SectionFlowDivider text="Niyə biz" tone="violet" />
       <section id="niye-biz" className="py-12 sm:py-16">
@@ -799,81 +585,5 @@ export default async function HomePage() {
 
       <SiteFooter showSupportCta={false} />
     </main>
-  );
-}
-
-function BestSellersSection({ items }: { items: BestSellerItem[] }) {
-  if (items.length === 0) return null;
-
-  return (
-    <section id="cox-satanlar" className="bg-white py-14 dark:bg-[#07070C] sm:py-16">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-6 flex justify-end">
-          <Link
-            href="/oyunlar"
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-300 bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-zinc-800 dark:border-white/10 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
-          >
-            Bütün məhsullar
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-3 sm:gap-4 lg:grid-cols-4">
-          {items.map((item) => (
-            <Link
-              key={item.id}
-              href={item.href}
-              className={`group flex min-h-[270px] min-w-0 flex-col overflow-hidden rounded-[22px] border p-2.5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-violet-900/10 dark:hover:shadow-black/40 sm:min-h-[320px] sm:p-3 ${BEST_SELLER_CARD_SURFACE}`}
-            >
-              <div className="relative aspect-square w-full overflow-hidden rounded-[18px] bg-gradient-to-br from-zinc-100 to-zinc-200/60 dark:from-zinc-900 dark:to-zinc-950">
-                <ProductImage
-                  src={item.imageUrl}
-                  alt={item.title}
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  className="object-contain p-3 transition duration-500 group-hover:scale-[1.04]"
-                  badge={item.badge}
-                />
-                <div className="absolute left-2 top-2 rounded-full border border-white/60 bg-white/90 px-2 py-1 text-[10px] font-black text-zinc-900 shadow-sm backdrop-blur dark:border-white/10 dark:bg-zinc-950/85 dark:text-zinc-100 sm:left-3 sm:top-3 sm:px-2.5">
-                  {item.badge}
-                </div>
-                {item.discountPct != null && (
-                  <div className="absolute right-2 top-2 rounded-full bg-rose-500 px-2 py-1 text-[10px] font-black text-white shadow-sm sm:right-3 sm:top-3">
-                    -{item.discountPct}%
-                  </div>
-                )}
-              </div>
-
-              <div className="flex min-w-0 flex-1 flex-col px-1 pb-1 pt-3">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-violet-700 dark:text-violet-300">
-                  <BadgeCheck className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{item.sales > 0 ? `${item.sales} satış` : "Seçilən"}</span>
-                </div>
-                <h3 className="mt-2 line-clamp-2 text-sm font-black leading-tight text-zinc-950 dark:text-white sm:text-base">
-                  {item.title}
-                </h3>
-                <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-600 dark:text-zinc-400 sm:text-sm">
-                  {item.subtitle}
-                </p>
-                <div className="mt-auto flex items-end justify-between gap-2 pt-4">
-                  <div>
-                    {item.originalAzn != null && (
-                      <div className="text-xs font-semibold text-zinc-500 line-through dark:text-zinc-500">
-                        {item.originalAzn.toFixed(2)}₼
-                      </div>
-                    )}
-                    <div className="text-lg font-black tracking-tight text-zinc-950 dark:text-white sm:text-2xl">
-                      {item.finalAzn.toFixed(2)}₼
-                    </div>
-                  </div>
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-zinc-950 text-white transition group-hover:translate-x-0.5 dark:bg-white dark:text-zinc-950">
-                    <ArrowRight className="h-4 w-4" />
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </section>
   );
 }

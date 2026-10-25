@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "crypto";
+import { createHash, randomBytes, timingSafeEqual } from "crypto";
 
 export type EpointResultData = Record<string, unknown>;
 
@@ -28,6 +28,22 @@ export type EpointCheckoutResponse = {
 const EPOINT_REQUEST_URL = "https://epoint.az/api/1/request";
 const EPOINT_GET_STATUS_URL = "https://epoint.az/api/1/get-status";
 const EPOINT_WIDGET_URL = "https://epoint.az/api/1/token/widget";
+const EPOINT_GET_INSTALLMENTS_URL = "https://epoint.az/api/1/get-installment-request";
+const EPOINT_INSTALLMENT_URL = "https://epoint.az/api/1/installment-request";
+
+export type EpointInstallmentRequest = {
+  public_key: string;
+  amount: number;
+  currency: "AZN";
+  language: EpointLanguage;
+  order_id: string;
+  /** `get-installment-request` cavabındakı `installment_card_id`. */
+  installment_card_id: string;
+  installment_month: number;
+  description?: string;
+  success_redirect_url?: string;
+  error_redirect_url?: string;
+};
 
 // Epoint widget endpoint (POST /api/1/token/widget) cəmi 4 sahə qəbul edir.
 // Success/error/result URL-ləri merchant səviyyəsində Epoint personal cabinet-də
@@ -189,6 +205,82 @@ export async function fetchEpointStatus(
     parsed = { status: "error", message: text };
   }
   return { ...parsed, _raw: text, _signedData: signed.data, _signature: signed.signature };
+}
+
+/**
+ * Taksit kartları və ay seçimləri. Real cavab (2026-10) indekslə açarlanmış
+ * obyektdir: `{"1": { name, installment_card_id, installment_months }, "trace_id"}` —
+ * parse `parseInstallmentCards`-dədir.
+ * Sənəd `order_id`-ni məcburi sayır, ona görə hər sorğuya birdəfəlik id verilir.
+ */
+export async function fetchEpointInstallmentOptions(
+  params: { publicKey: string; privateKey: string; amountAzn?: number },
+): Promise<{ ok: true; rows: unknown } | { ok: false; message: string }> {
+  const payload: Record<string, unknown> = {
+    public_key: params.publicKey,
+    currency: "AZN",
+    language: "az",
+    order_id: `inst-opts-${randomBytes(6).toString("hex")}`,
+  };
+  if (params.amountAzn != null) payload.amount = Number(params.amountAzn.toFixed(2));
+
+  const signed = createSignedEpointPayload(payload, params.privateKey);
+  const response = await fetch(EPOINT_GET_INSTALLMENTS_URL, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(signed),
+    cache: "no-store",
+  });
+  const text = await response.text();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { ok: false, message: text || `Epoint HTTP ${response.status}` };
+  }
+  const failed =
+    !parsed ||
+    typeof parsed !== "object" ||
+    String((parsed as Record<string, unknown>).status ?? "").toLowerCase() === "error";
+  if (!response.ok || failed) {
+    const message =
+      parsed && typeof parsed === "object" && "message" in parsed
+        ? String((parsed as { message: unknown }).message)
+        : `Epoint HTTP ${response.status}`;
+    return { ok: false, message };
+  }
+  return { ok: true, rows: parsed };
+}
+
+/** Taksit ödənişi — cavab `createEpointCheckout` ilə eyni formadadır (`redirect_url`, `transaction`). */
+export async function createEpointInstallment(
+  payload: EpointInstallmentRequest,
+  privateKey: string,
+): Promise<EpointCheckoutResponse> {
+  const signed = createSignedEpointPayload(payload, privateKey);
+  const response = await fetch(EPOINT_INSTALLMENT_URL, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(signed),
+    cache: "no-store",
+  });
+
+  const text = await response.text();
+  let parsed: EpointCheckoutResponse;
+  try {
+    parsed = JSON.parse(text) as EpointCheckoutResponse;
+  } catch {
+    parsed = { status: "error", message: text || `Epoint HTTP ${response.status}` };
+  }
+
+  if (!response.ok) {
+    return {
+      ...parsed,
+      status: parsed.status ?? "error",
+      message: parsed.message ?? `Epoint HTTP ${response.status}`,
+    };
+  }
+  return parsed;
 }
 
 export function epointResultIsSuccess(payload: EpointResultData) {

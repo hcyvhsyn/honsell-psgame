@@ -46,7 +46,13 @@ export default function WhatsappAdminTabs({ products }: { products: ProductOptio
             Müştərinin aldığı məhsulu axtarıb seçin (oyun, EA Play, PS Plus, hesab açma,
             streaming, musiqi…), telefon nömrəsini yazın — sistem WhatsApp-a rəy linki göndərir.
             Nömrə bazada varsa, müştəri avtomatik tanınır (təkrar qeydiyyat olmur, sadəcə rəy
-            yazır). Qeyd edilən hər satış anasayfadakı sifariş sayı və “ən çox alınanlar”a əlavə olunur.
+            yazır). Qeyd edilən hər satış anasayfadakı sifariş sayına əlavə olunur.
+          </p>
+          <p className="mb-4 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+            CRM-də ödəniş təsdiqlənəndə (abunə uzatma, kabinet təyini) rəy linki təsdiq
+            mesajının sonuna <strong>avtomatik</strong> əlavə olunur və aşağıdakı siyahıda
+            görünür. Müştəri rəy yazıbsa link bir daha getmir, yazmayıbsa 30 gündə bir gedir —
+            burada əl ilə göndərilən dəvət də bu 30 günə sayılır.
           </p>
           <WhatsappReviewsAdminClient />
         </div>

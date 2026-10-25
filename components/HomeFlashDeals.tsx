@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronLeft, ChevronRight, Clock, ShoppingCart, Zap } from "lucide-react";
 import ProductImage from "./ProductImage";
+import InstallmentHint from "./InstallmentHint";
 import { useCart } from "@/lib/cart";
 
 /**
@@ -261,6 +262,7 @@ function FlashDealTile({ deal, now }: { deal: FlashDealCard; now: number | null 
               </span>
             )}
           </div>
+          <InstallmentHint priceAzn={deal.finalAzn} variant="card" className="mt-1" />
 
           <button
             type="button"

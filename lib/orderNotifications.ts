@@ -13,6 +13,8 @@ export async function sendOrderApprovedWhatsApp(params: {
   kind?: string;
   /** Mesaja əlavə olunan extra sətir (məs. "Kodunuz email-ə göndərildi."). */
   extraLine?: string;
+  /** Sifarişin rəy linki (`issueReviewInvite`) — mesajın SONUNA əlavə olunur. */
+  reviewUrl?: string | null;
 }): Promise<{ ok: boolean; reason?: string }> {
   if (!isWasenderConfigured()) {
     return { ok: false, reason: "WASENDER_NOT_CONFIGURED" };
@@ -27,13 +29,17 @@ export async function sendOrderApprovedWhatsApp(params: {
     ? `«${params.productTitle.trim()}»`
     : "sifarişiniz";
   const extra = params.extraLine?.trim() ? `\n\n${params.extraLine.trim()}` : "";
+  const review = params.reviewUrl
+    ? `\n\n⭐ Təcrübənizi bəyəndinizsə, rəyinizi bizimlə bölüşün:\n${params.reviewUrl}`
+    : "";
 
   const text =
     `${greeting}\n\n` +
     `${product} üzrə sifarişiniz tamamlandı və tərəfimizdən təsdiqləndi. ✅` +
     `${extra}\n\n` +
     `Daha ətraflı: honsell.site/profile/orders\n` +
-    `Honsell.store`;
+    `Honsell.store` +
+    review;
 
   try {
     const res = await sendWasenderText({ to, text });

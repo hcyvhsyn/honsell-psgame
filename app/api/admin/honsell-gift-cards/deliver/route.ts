@@ -7,6 +7,7 @@ import {
 } from "@/lib/honsellGiftCard";
 import { sendHonsellGiftCardEmail } from "@/lib/resend";
 import { sendOrderApprovedWhatsApp } from "@/lib/orderNotifications";
+import { issueReviewInvite } from "@/lib/reviewInvite";
 import { SITE_URL } from "@/lib/site";
 
 export const runtime = "nodejs";
@@ -109,13 +110,30 @@ export async function POST(req: Request) {
     }
   }
 
+  const productTitle = `${(card.amountAznCents / 100).toFixed(2)} AZN Honsell Hədiyyə Kartı`;
+
+  // Digər sifarişlərdəki kimi: rəy dəvəti alış tranzaksiyasına bağlanır, eyni link
+  // həm email-ə, həm WhatsApp mesajının sonuna düşür.
+  const reviewUrl =
+    card.purchaseTransactionId && card.purchasedBy?.email
+      ? await issueReviewInvite({
+          transactionId: card.purchaseTransactionId,
+          userId: card.purchasedBy.id,
+          userEmail: card.purchasedBy.email,
+          userName: card.purchasedBy.name,
+          productTitle,
+          productType: "GIFT_CARD",
+        })
+      : null;
+
   if (card.purchasedBy?.phone) {
     await sendOrderApprovedWhatsApp({
       phone: card.purchasedBy.phone,
       userName: card.purchasedBy.name,
-      productTitle: `${(card.amountAznCents / 100).toFixed(2)} AZN Honsell Hədiyyə Kartı`,
+      productTitle,
       kind: "honsell-gift-card",
       extraLine: "Kodunuz email ünvanınıza göndərildi və Sifarişlər bölməsində görünür.",
+      reviewUrl,
     });
   }
 

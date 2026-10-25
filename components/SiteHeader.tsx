@@ -9,7 +9,6 @@ import {
   ChevronDown,
   ChevronRight,
   Clapperboard,
-  Coins,
   Crosshair,
   Flame,
   Gamepad2,
@@ -20,8 +19,6 @@ import {
   CircleHelp,
   LogIn,
   Mail,
-  MessageCircle,
-  MessagesSquare,
   Monitor,
   Moon,
   Sun,
@@ -113,28 +110,8 @@ function buildProductCategoryItems(
     }));
 }
 
+// İcma / Qazan / Bələdçilər navbar-dan çıxarılıb — səhifələr qalır (footer-dən keçid var).
 const utilityLinks: NavLinkItem[] = [
-  {
-    href: "/icma",
-    label: "İcma",
-    description: "Fikirlər, serial icmalları və referal",
-    Icon: MessagesSquare,
-    iconClassName: "text-sky-500 dark:text-sky-300",
-  },
-  {
-    href: "/qazan",
-    label: "Qazan",
-    description: "Referal qazancı və hesablayıcı",
-    Icon: Coins,
-    iconClassName: "text-amber-500 dark:text-amber-300",
-  },
-  {
-    href: "/bilmeli-olduglarin",
-    label: "Bələdçilər",
-    description: "Faydalı məqalələr və izahlar",
-    Icon: MessageCircle,
-    iconClassName: "text-indigo-500 dark:text-indigo-300",
-  },
   {
     href: "/faq",
     label: "Yardım",
@@ -345,8 +322,8 @@ export default function SiteHeader({
             style={{ zIndex: 20, gridTemplateRows: navCollapsed ? "0fr" : "1fr" }}
           >
             <div className="min-h-0 overflow-hidden">
-              <div className="flex min-h-[64px] items-center justify-between gap-4 border-t border-zinc-200 px-6 dark:border-violet-300/15">
-                <nav className="flex min-w-0 flex-1 items-center gap-3" aria-label="Əsas naviqasiya">
+              <div className="flex min-h-[48px] items-center justify-between gap-4 border-t border-zinc-200/70 px-6 dark:border-white/[0.06]">
+                <nav className="flex min-w-0 flex-1 items-center gap-1" aria-label="Əsas naviqasiya">
                   <CategoriesDropdown
                     active={isAnyCategoryActive(productCategoryItems, pathname)}
                     open={desktopCategoriesOpen}
@@ -413,48 +390,62 @@ function DesktopNavLink({
 }) {
   const active = hrefMatches(pathname, item.href);
   const Icon = item.Icon;
-  const featured = item.featured;
-  const iconColorClass = item.iconClassName ?? "text-violet-500 dark:text-violet-300";
+
+  // Featured (hədiyyə kartı) öz vurğulu görünüşünü saxlayır; adi linklər minimal —
+  // rəngli ikon + fonsuz mətn, animasiya yoxdur, aktiv halda nazik alt xətt.
+  if (item.featured) {
+    return (
+      <Link
+        href={item.href}
+        className="group honsell-nav-action honsell-nav-featured-link relative inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[18px] border border-violet-300/45 pl-3 pr-3.5 text-sm font-semibold text-white transition"
+      >
+        {Icon && (
+          <Icon
+            className={`honsell-nav-icon-motion honsell-nav-gift-icon h-4 w-4 shrink-0 ${item.iconClassName ?? ""}`}
+            aria-hidden="true"
+          />
+        )}
+        <span>{item.label}</span>
+      </Link>
+    );
+  }
 
   return (
     <Link
       href={item.href}
-      className={`group honsell-nav-action relative inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-[18px] border px-2.5 text-sm font-semibold transition ${
-        featured
-          ? "honsell-nav-featured-link border-violet-300/45 pl-3 pr-3.5 text-white"
-          : active
-            ? "honsell-nav-soft-link border-violet-300/25 bg-white/55 text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:bg-white/[0.055] dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-            : "honsell-nav-soft-link border-transparent text-zinc-700 hover:border-violet-300/25 hover:bg-white/45 hover:text-zinc-950 dark:text-zinc-200/90 dark:hover:border-violet-300/20 dark:hover:bg-white/[0.045] dark:hover:text-white"
+      aria-current={active ? "page" : undefined}
+      className={`${minimalNavItemClass} ${
+        active ? "text-zinc-950 dark:text-white" : minimalNavItemIdleClass
       }`}
     >
       {Icon && (
         <Icon
-          className={`honsell-nav-icon-motion h-4 w-4 shrink-0 ${
-            featured ? "honsell-nav-gift-icon" : active ? "honsell-nav-icon-idle" : ""
-          } ${iconColorClass}`}
+          className={`h-4 w-4 shrink-0 ${item.iconClassName ?? "text-violet-500 dark:text-violet-300"}`}
           aria-hidden="true"
         />
       )}
-      <span>{item.label}</span>
-      {active && (
-        <span className="honsell-nav-active-glow pointer-events-none absolute inset-x-2 -bottom-2 h-px bg-gradient-to-r from-transparent via-violet-300 to-transparent" />
-      )}
+      {item.label}
+      {active && <span className={minimalNavActiveBarClass} />}
     </Link>
   );
 }
+
+const minimalNavItemClass =
+  "relative inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60";
+const minimalNavItemIdleClass =
+  "text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white";
+const minimalNavActiveBarClass =
+  "pointer-events-none absolute inset-x-3 -bottom-[7px] h-px bg-violet-400/80";
 
 function DesktopContactButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group honsell-nav-action honsell-nav-soft-link relative inline-flex h-10 items-center gap-2 rounded-[18px] border border-transparent px-2.5 text-sm font-semibold text-zinc-700 transition hover:border-emerald-300/25 hover:bg-white/45 hover:text-zinc-950 dark:text-zinc-200/90 dark:hover:border-emerald-300/20 dark:hover:bg-white/[0.045] dark:hover:text-white"
+      className={`${minimalNavItemClass} ${minimalNavItemIdleClass}`}
     >
-      <Mail
-        className="honsell-nav-icon-motion h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-300"
-        aria-hidden="true"
-      />
-      <span>Əlaqə</span>
+      <Mail className="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-300" aria-hidden="true" />
+      Əlaqə
     </button>
   );
 }
@@ -471,38 +462,33 @@ function CategoriesDropdown({
   onClose: () => void;
 }) {
   return (
-    <div className="relative">
+    <div className="relative flex items-center">
       <button
         type="button"
         onClick={onToggle}
         onKeyDown={(event) => {
           if (event.key === "Escape") onClose();
         }}
-        className={`group honsell-nav-action honsell-nav-soft-link relative inline-flex h-12 items-center gap-3 rounded-[18px] border px-4 text-sm font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60 ${
+        className={`-ml-3 inline-flex h-9 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60 ${
           open
-            ? "border-violet-400 bg-violet-500/10 text-violet-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+            ? "bg-violet-500/10 text-violet-700 dark:text-violet-200"
             : active
-              ? "border-transparent text-zinc-950 dark:text-white"
-              : "border-transparent text-zinc-700 hover:text-zinc-950 dark:text-zinc-200/90 dark:hover:text-white"
+              ? "text-zinc-950 dark:text-white"
+              : "text-zinc-700 hover:bg-zinc-900/[0.04] hover:text-zinc-950 dark:text-zinc-200 dark:hover:bg-white/[0.04] dark:hover:text-white"
         }`}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="desktop-categories-panel"
         data-desktop-categories-trigger
       >
-        {open ? (
-          <X className="honsell-nav-icon-motion h-5 w-5 shrink-0 text-fuchsia-300" />
-        ) : (
-          <Grid2X2 className="honsell-nav-icon-motion honsell-nav-icon-idle h-5 w-5 shrink-0 text-violet-500 dark:text-violet-300" />
-        )}
-        <span className="relative z-10">Kateqoriyalar</span>
-        {!open && (
-          <ChevronDown className="honsell-nav-chevron relative z-10 h-4 w-4 text-violet-400" />
-        )}
-        {(active || open) && (
-          <span className="honsell-nav-active-glow pointer-events-none absolute inset-x-2 -bottom-2 h-px bg-gradient-to-r from-transparent via-violet-300 to-transparent" />
-        )}
+        <Grid2X2 className="h-4 w-4 shrink-0 text-violet-500 dark:text-violet-300" aria-hidden="true" />
+        <span>Kateqoriyalar</span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 text-zinc-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
       </button>
+      <span aria-hidden className="mx-2 h-4 w-px bg-zinc-200 dark:bg-white/10" />
     </div>
   );
 }

@@ -63,11 +63,11 @@ export const PRICE_WATCH_STATUS_LABEL: Record<PriceWatchStatus, string> = {
 };
 
 export const PRICE_WATCH_STATUS_CLASS: Record<PriceWatchStatus, string> = {
-  PAUSED: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+  PAUSED: "bg-admin-chip2 text-zinc-600 ring-admin-line2",
   GAME_INACTIVE: "bg-amber-50 text-amber-700 ring-amber-200",
   NOTIFIED: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   ON_SALE: "bg-sky-50 text-sky-700 ring-sky-200",
-  WAITING: "bg-zinc-50 text-zinc-600 ring-zinc-200",
+  WAITING: "bg-admin-chip text-zinc-600 ring-admin-line",
 };
 
 /**

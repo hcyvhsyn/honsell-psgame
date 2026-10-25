@@ -304,3 +304,24 @@ export function startProjection(region: string): ProjectionJobState {
   })();
   return state;
 }
+
+/** Prod admin səhifəsi üçün: Mac-dən gələn datanın xülasəsi. */
+export async function prodImportStats(region: string) {
+  const [byKind, verified, total, storefront, last] = await Promise.all([
+    prisma.providerTitle.groupBy({ by: ["kind"], where: { platform: "HBOMAX", regions: { some: { region, isCurrentlyAvailable: true } } }, _count: true }),
+    prisma.episodeRegionState.count({ where: { region, status: "VERIFIED" } }),
+    prisma.episodeRegionState.count({ where: { region } }),
+    prisma.contentAvailability.count({ where: { platform: "HBOMAX", country: region, isAvailable: true } }),
+    prisma.providerTitle.findFirst({ where: { platform: "HBOMAX" }, orderBy: { updatedAt: "desc" }, select: { updatedAt: true } }),
+  ]);
+  const count = (k: string) => byKind.find((r) => r.kind === k)?._count ?? 0;
+  return {
+    series: count("SERIES"),
+    movies: count("MOVIE"),
+    verified,
+    total,
+    storefront,
+    lastImportAt: last?.updatedAt.toISOString() ?? null,
+    projection: projectionJob(),
+  };
+}

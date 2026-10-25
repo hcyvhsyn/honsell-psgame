@@ -236,7 +236,7 @@ export async function persistShow(input: {
           const decision = decideQueueAction(
             state && { ...state, status: state.status as never },
             { editId: ep.metadataEditId ?? null, globalHash: hash },
-            { now, revalidateAfterDays: input.revalidateAfterDays, titleLinked, titleIsNew: input.titleIsNew }
+            { now, revalidateAfterDays: input.revalidateAfterDays, titleLinked, titleIsNew: input.titleIsNew, isFeature: show.kind === "MOVIE" }
           );
           if (decision.action === "create") {
             await tx.episodeRegionState.create({ data: { episodeId: row.id, region, status: decision.status, priority: decision.priority } });

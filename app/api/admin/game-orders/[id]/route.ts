@@ -198,16 +198,16 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       }
     });
 
-    if (row.user?.email) {
-      await issueReviewInvite({
-        transactionId: row.id,
-        userId: row.userId,
-        userEmail: row.user.email,
-        userName: row.user.name,
-        productTitle: gameRow.title,
-        productType: gameRow.store === "EPIC" ? "EPIC_GAMES" : "GAME",
-      });
-    }
+    const reviewUrl = row.user?.email
+      ? await issueReviewInvite({
+          transactionId: row.id,
+          userId: row.userId,
+          userEmail: row.user.email,
+          userName: row.user.name,
+          productTitle: gameRow.title,
+          productType: gameRow.store === "EPIC" ? "EPIC_GAMES" : "GAME",
+        })
+      : null;
 
     if (row.user?.phone) {
       await sendOrderApprovedWhatsApp({
@@ -215,6 +215,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         userName: row.user.name,
         productTitle: gameRow.title,
         kind: "GAME",
+        reviewUrl,
       });
     }
 

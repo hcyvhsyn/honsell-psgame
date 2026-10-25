@@ -226,7 +226,7 @@ export default function PriceWatchAdminClient() {
       )}
 
       {/* ── Yeni qeyd ─────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-zinc-200 bg-white p-5">
+      <div className="rounded-xl border border-admin-line bg-admin-card p-5">
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-900">
           <Plus className="h-4 w-4" /> Yeni güdmə qeydi
         </h2>
@@ -240,7 +240,7 @@ export default function PriceWatchAdminClient() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+994 50 123 45 67"
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+              className="w-full rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-500"
             />
           </div>
           <div>
@@ -251,7 +251,7 @@ export default function PriceWatchAdminClient() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Mesajda adla müraciət üçün (istəyə bağlı)"
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+              className="w-full rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-500"
             />
           </div>
         </div>
@@ -260,7 +260,7 @@ export default function PriceWatchAdminClient() {
         <div className="mt-4">
           <label className="mb-1 block text-xs font-medium text-zinc-600">Oyun *</label>
           {selectedGame ? (
-            <div className="flex items-center gap-3 rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2">
+            <div className="flex items-center gap-3 rounded-lg border border-admin-line bg-admin-chip px-3 py-2">
               {selectedGame.imageUrl && (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
@@ -286,7 +286,7 @@ export default function PriceWatchAdminClient() {
                   setSelectedGame(null);
                   setGameQuery("");
                 }}
-                className="rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
+                className="rounded p-1 text-zinc-400 hover:bg-admin-chip2 hover:text-zinc-700"
                 title="Dəyiş"
               >
                 <X className="h-4 w-4" />
@@ -299,13 +299,13 @@ export default function PriceWatchAdminClient() {
                 value={gameQuery}
                 onChange={(e) => setGameQuery(e.target.value)}
                 placeholder="Oyun adını yaz (ən azı 2 hərf)…"
-                className="w-full rounded-lg border border-zinc-300 py-2 pl-9 pr-9 text-sm outline-none focus:border-zinc-900"
+                className="w-full rounded-lg border border-admin-line bg-admin-card py-2 pl-9 pr-9 text-sm text-zinc-900 outline-none focus:border-violet-500"
               />
               {searching && (
                 <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-zinc-400" />
               )}
               {gameOptions.length > 0 && (
-                <ul className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
+                <ul className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-admin-line bg-admin-card py-1 shadow-lg">
                   {gameOptions.map((g) => (
                     <li key={g.id}>
                       <button
@@ -313,7 +313,7 @@ export default function PriceWatchAdminClient() {
                           setSelectedGame(g);
                           setGameOptions([]);
                         }}
-                        className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-zinc-50"
+                        className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-admin-chip"
                       >
                         {g.imageUrl && (
                           /* eslint-disable-next-line @next/next/no-img-element */
@@ -350,7 +350,7 @@ export default function PriceWatchAdminClient() {
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder='Məs: "Instagram-dan yazdı, 40 ₼-ə razıdır" — müştəriyə göndərilmir'
-            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+            className="w-full rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-sm text-zinc-900 outline-none focus:border-violet-500"
           />
         </div>
 
@@ -366,7 +366,7 @@ export default function PriceWatchAdminClient() {
         <button
           onClick={submit}
           disabled={saving || !phone.trim() || !selectedGame}
-          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-40"
+          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-40"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
           Qeyd et
@@ -374,8 +374,8 @@ export default function PriceWatchAdminClient() {
       </div>
 
       {/* ── Siyahı ────────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-zinc-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-5 py-3">
+      <div className="rounded-xl border border-admin-line bg-admin-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line px-5 py-3">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-zinc-900">
               Güdmə qeydləri{" "}
@@ -395,8 +395,8 @@ export default function PriceWatchAdminClient() {
                 onClick={() => setFilter(f.key)}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition ${
                   filter === f.key
-                    ? "bg-zinc-900 text-white"
-                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                    ? "bg-violet-600 text-white"
+                    : "bg-admin-chip text-zinc-600 hover:bg-admin-chip2"
                 }`}
               >
                 {f.label}
@@ -416,7 +416,7 @@ export default function PriceWatchAdminClient() {
               : "Bu süzgəcə uyğun qeyd yoxdur."}
           </p>
         ) : (
-          <ul className="divide-y divide-zinc-100">
+          <ul className="divide-y divide-admin-line">
             {visible.map((r) => {
               const status = priceWatchStatus(r);
               const base = r.basePriceAznCents != null ? r.basePriceAznCents / 100 : null;
@@ -501,7 +501,7 @@ export default function PriceWatchAdminClient() {
                       onClick={() => patch(r.id, { isActive: !r.isActive })}
                       disabled={busy}
                       title={r.isActive ? "Dayandır" : "Aktivləşdir"}
-                      className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-40"
+                      className="rounded-lg p-1.5 text-zinc-400 hover:bg-admin-chip hover:text-zinc-700 disabled:opacity-40"
                     >
                       {r.isActive ? (
                         <Pause className="h-4 w-4" />

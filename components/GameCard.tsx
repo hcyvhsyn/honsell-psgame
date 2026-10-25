@@ -31,6 +31,7 @@ import {
 import FavoriteButton from "./FavoriteButton";
 import PlatformInfoButton from "./PlatformInfoButton";
 import ReferralBadge from "./ReferralBadge";
+import InstallmentHint from "./InstallmentHint";
 
 // Tip lib/gameCardShared.ts-ə köçürülüb (server modulları oradan götürür ki,
 // client komponentə asılılıq yaranmasın). Mövcud `import { GameCardData } from
@@ -381,6 +382,8 @@ export default function GameCard({
             </span>
           )}
         </div>
+
+        <InstallmentHint priceAzn={game.finalAzn} variant="card" className="mt-1.5" />
 
         <div className="mt-1 flex">
           <ReferralBadge category="games" productName={game.title} compact />

@@ -1,10 +1,12 @@
 "use client";
 
 import { LogOut } from "lucide-react";
+import { clearCachedSession } from "@/components/SessionProvider";
 
 export default function LogoutButton() {
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
+    clearCachedSession();
     window.location.href = "/";
   }
 

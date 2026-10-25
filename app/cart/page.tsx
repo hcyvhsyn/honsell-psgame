@@ -2,8 +2,6 @@ import SiteHeader from "@/components/SiteHeaderServer";
 import CartView, { type PsnOption } from "@/components/CartView";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { getEffectiveTier } from "@/lib/customerTier";
-import { getLifetimeSpendAznForLoyalty } from "@/lib/loyaltyCashback";
 
 export const dynamic = "force-dynamic";
 
@@ -11,26 +9,20 @@ export default async function CartPage() {
   const user = await getCurrentUser();
 
   let psnAccounts: PsnOption[] = [];
-  let loyaltyCashbackPct = 0;
 
   if (user) {
-    const [accounts, spentAzn] = await Promise.all([
-      prisma.psnAccount.findMany({
-        where: { userId: user.id },
-        orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-        select: {
-          id: true,
-          label: true,
-          psnEmail: true,
-          psModel: true,
-          isDefault: true,
-        },
-      }),
-      getLifetimeSpendAznForLoyalty(prisma, user.id),
-    ]);
+    const accounts = await prisma.psnAccount.findMany({
+      where: { userId: user.id },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        label: true,
+        psnEmail: true,
+        psModel: true,
+        isDefault: true,
+      },
+    });
     psnAccounts = accounts.map((a) => ({ ...a }));
-    const tier = await getEffectiveTier(user.id, spentAzn);
-    loyaltyCashbackPct = tier?.cashbackPct ?? 0;
   }
 
   return (
@@ -41,9 +33,7 @@ export default async function CartPage() {
         <CartView
           isAuthed={!!user}
           walletBalanceAzn={user ? user.walletBalance / 100 : 0}
-          cashbackBalanceAzn={user ? (user.cashbackBalanceCents ?? 0) / 100 : 0}
           psnAccounts={psnAccounts}
-          loyaltyCashbackPct={loyaltyCashbackPct}
           referralCode={user?.referralCode ?? null}
         />
       </section>
