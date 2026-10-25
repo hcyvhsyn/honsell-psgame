@@ -62,6 +62,19 @@ const nextConfig = {
       { protocol: "https", hostname: "**.unrealengine.com" },
     ],
   },
+  // Silinmiş bölmələr (2026-10: Epic, Süni İntellekt, Website Xidməti, Oyun
+  // paketləri) — indeksdə qalmış linklər 404 əvəzinə ana səhifəyə getsin.
+  async redirects() {
+    return [
+      { source: "/epic-games", destination: "/", permanent: true },
+      { source: "/ai", destination: "/", permanent: true },
+      { source: "/ai/:path*", destination: "/", permanent: true },
+      { source: "/suni-intellekt", destination: "/", permanent: true },
+      { source: "/xidmetler", destination: "/", permanent: true },
+      { source: "/xidmetler/:path*", destination: "/", permanent: true },
+      { source: "/paket/:slug*", destination: "/", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;
