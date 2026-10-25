@@ -105,20 +105,6 @@ export const PRODUCT_CATEGORY_DEFINITIONS: ProductCategoryDefinition[] = [
     sortOrder: 11,
   },
   {
-    key: "CHATGPT",
-    href: "/ai/chatgpt",
-    label: "ChatGPT",
-    description: "ChatGPT paketləri",
-    sortOrder: 12,
-  },
-  {
-    key: "CLAUDE",
-    href: "/ai/claude",
-    label: "Claude",
-    description: "Claude AI paketləri",
-    sortOrder: 13,
-  },
-  {
     key: "LINKEDIN_PREMIUM",
     href: "/work/linkedin-premium",
     label: "LinkedIn Premium",

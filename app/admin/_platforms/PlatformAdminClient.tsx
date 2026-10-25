@@ -5,8 +5,6 @@ import { uploadAdminImage } from "@/lib/uploadImageClient";
 import { Loader2, Plus, Edit2, Upload, X, Trash2 } from "lucide-react";
 import {
   PLATFORM_CATEGORY_LABELS,
-  AI_BRANDS,
-  AI_BRAND_LABELS,
   MUSIC_BRANDS,
   MUSIC_BRAND_LABELS,
   WORK_PLAN_TYPES,
@@ -64,7 +62,6 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
       originalPriceAzn: m.originalPriceAznCents != null ? (m.originalPriceAznCents / 100).toFixed(2) : "",
       durationMonths: m.durationMonths ?? "",
       terms: m.terms ?? "",
-      aiBrand: m.aiBrand ?? (category === "AI" ? "CLAUDE" : ""),
       musicBrand: m.musicBrand ?? (category === "MUSIC" ? "GENERIC" : ""),
       planType: m.planType ?? "",
       isPopular: Boolean(m.isPopular),
@@ -84,7 +81,6 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
       originalPriceAzn: "",
       durationMonths: "",
       terms: "",
-      aiBrand: category === "AI" ? "CLAUDE" : "",
       musicBrand: category === "MUSIC" ? "GENERIC" : "",
       planType: "",
       isPopular: false,
@@ -143,7 +139,6 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
           originalPriceAzn,
           durationMonths,
           terms: String(editForm.terms ?? ""),
-          aiBrand: category === "AI" ? String(editForm.aiBrand ?? "") : undefined,
           musicBrand: category === "MUSIC" ? String(editForm.musicBrand ?? "") : undefined,
           planType: category === "WORK" ? String(editForm.planType ?? "") : undefined,
           isPopular: category === "WORK" ? Boolean(editForm.isPopular) : undefined,
@@ -208,7 +203,7 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
             <tr>
               <th className="px-5 py-4 font-medium">Şəkil</th>
               <th className="px-5 py-4 font-medium">Başlıq</th>
-              {(category === "AI" || category === "MUSIC") && (
+              {category === "MUSIC" && (
                 <th className="px-5 py-4 font-medium">Brend</th>
               )}
               {category === "WORK" && (
@@ -234,11 +229,6 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
                   )}
                 </td>
                 <td className="px-5 py-4 font-medium text-zinc-800">{p.title}</td>
-                {category === "AI" && (
-                  <td className="px-5 py-4 text-zinc-700">
-                    {meta.aiBrand ? AI_BRAND_LABELS[meta.aiBrand] : "—"}
-                  </td>
-                )}
                 {category === "MUSIC" && (
                   <td className="px-5 py-4 text-zinc-700">
                     {meta.musicBrand ? MUSIC_BRAND_LABELS[meta.musicBrand] : "Ümumi"}
@@ -305,25 +295,6 @@ export default function PlatformAdminClient({ category }: { category: PlatformCa
                   placeholder="Spotify Premium"
                 />
               </label>
-
-              {category === "AI" && (
-                <label className="block text-sm">
-                  Brend
-                  <select
-                    className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                    value={String(editForm.aiBrand || "CLAUDE")}
-                    onChange={(e) => setEditForm({ ...editForm, aiBrand: e.target.value })}
-                  >
-                    {AI_BRANDS.map((b) => (
-                      <option key={b} value={b}>{AI_BRAND_LABELS[b]}</option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-[11px] text-zinc-500">
-                    Brend seçimi paketin hansı alt-səhifədə görünəcəyini təyin edir
-                    (/ai/claude, /ai/chatgpt). &laquo;Digər&raquo; seçimi yalnız /ai əsas səhifəsində qalır.
-                  </p>
-                </label>
-              )}
 
               {category === "MUSIC" && (
                 <label className="block text-sm">

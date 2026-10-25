@@ -4,7 +4,6 @@ import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import {
   isValidPlatformCategory,
-  isValidAiBrand,
   isValidMusicBrand,
   isValidWorkPlanType,
   type PlatformCategory,
@@ -17,11 +16,6 @@ function revalidatePlatform(category: PlatformCategory) {
   if (category === "MUSIC") {
     revalidatePath("/music");
     revalidatePath("/music/youtube");
-  }
-  if (category === "AI") {
-    revalidatePath("/ai");
-    revalidatePath("/ai/claude");
-    revalidatePath("/ai/chatgpt");
   }
   if (category === "WORK") {
     revalidatePath("/work");
@@ -93,8 +87,6 @@ export async function POST(req: Request) {
         durationMonthsRaw === "" || durationMonthsRaw == null
           ? null
           : Number(durationMonthsRaw);
-      const aiBrandRaw = typeof body.aiBrand === "string" ? body.aiBrand.trim() : "";
-      const aiBrand = isValidAiBrand(aiBrandRaw) ? aiBrandRaw : null;
       const musicBrandRaw = typeof body.musicBrand === "string" ? body.musicBrand.trim() : "";
       const musicBrand = isValidMusicBrand(musicBrandRaw) ? musicBrandRaw : null;
       const planTypeRaw =
@@ -110,7 +102,8 @@ export async function POST(req: Request) {
           : null;
       const referral = readReferralSettings(existing?.metadata);
 
-      if (!isValidPlatformCategory(category)) {
+      // "AI" kataloqu silinib — yeni AI məhsulu yaradılmır.
+      if (!isValidPlatformCategory(category) || category === "AI") {
         return NextResponse.json({ error: "Kateqoriya düzgün deyil." }, { status: 400 });
       }
       if (!title || typeof title !== "string" || !title.trim()) {
@@ -151,7 +144,6 @@ export async function POST(req: Request) {
             ? { originalPriceAznCents: Math.round(originalPriceAzn * 100) }
             : {}),
           ...(durationMonths != null ? { durationMonths } : {}),
-          ...(category === "AI" && aiBrand ? { aiBrand } : {}),
           ...(category === "MUSIC" && musicBrand ? { musicBrand } : {}),
           ...(category === "WORK" && planType ? { planType } : {}),
           ...(category === "WORK" && isPopular ? { isPopular: true } : {}),

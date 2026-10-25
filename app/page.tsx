@@ -43,8 +43,6 @@ import {
   type StreamingService,
 } from "@/lib/streamingCart";
 import {
-  AI_BRAND_LABELS,
-  AI_BRAND_SLUGS,
   PLATFORM_CATEGORY_LABELS,
   readPlatformMeta,
 } from "@/lib/platformSubscriptions";
@@ -167,9 +165,6 @@ function serviceHref(type: string, metadata: unknown, title: string): string {
     }
     case "PLATFORM": {
       const platform = readPlatformMeta(meta);
-      if (platform.category === "AI" && platform.aiBrand && platform.aiBrand !== "OTHER") {
-        return `/ai/${AI_BRAND_SLUGS[platform.aiBrand]}`;
-      }
       if (platform.category === "MUSIC" && platform.musicBrand === "YOUTUBE_PREMIUM") {
         return "/music/youtube";
       }
@@ -183,7 +178,6 @@ function serviceHref(type: string, metadata: unknown, title: string): string {
       if (platform.category === "WORK" && title.toLowerCase().includes("linkedin")) {
         return "/work/linkedin-premium";
       }
-      if (platform.category === "AI") return "/ai";
       if (platform.category === "WORK") return "/work";
       return "/music";
     }
@@ -204,9 +198,6 @@ function serviceSubtitle(type: string, metadata: unknown, description: string | 
 
   if (type === "PLATFORM") {
     const platform = readPlatformMeta(meta);
-    if (platform.category === "AI" && platform.aiBrand) {
-      return `${AI_BRAND_LABELS[platform.aiBrand]} abunəlikləri və premium paketlər`;
-    }
     return PLATFORM_CATEGORY_LABELS[platform.category];
   }
 
@@ -226,7 +217,6 @@ function serviceBadge(type: string, metadata: unknown): string {
   }
   if (type === "PLATFORM") {
     const platform = readPlatformMeta(meta);
-    if (platform.category === "AI" && platform.aiBrand) return AI_BRAND_LABELS[platform.aiBrand];
     return PLATFORM_CATEGORY_LABELS[platform.category].replace(" Platformaları", "");
   }
   return SERVICE_TYPE_BADGES[type] ?? "Məhsul";

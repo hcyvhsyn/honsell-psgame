@@ -1,5 +1,7 @@
 /**
- * Yeni platforma kateqoriyaları (Musiqi, Süni İntellekt, İş Platformaları).
+ * Platforma kateqoriyaları (Musiqi, İş Platformaları).
+ * "AI" (Süni İntellekt kataloqu) 2026-10-da silinib — yalnız köhnə məhsul/sifariş
+ * datasını oxumaq üçün tipdə qalır, admin və public səhifəsi yoxdur.
  *
  * Streaming-dən fərqli olaraq, bu məhsulların alt-kateqoriyaları yoxdur — admin
  * hər məhsulu (Spotify Premium, Claude Plus, və s.) əl ilə əlavə edir.
@@ -39,11 +41,6 @@ export const AI_BRAND_LABELS: Record<AiBrand, string> = {
   CLAUDE: "Claude",
   CHATGPT: "ChatGPT",
   OTHER: "Digər",
-};
-
-export const AI_BRAND_SLUGS: Record<Exclude<AiBrand, "OTHER">, string> = {
-  CLAUDE: "claude",
-  CHATGPT: "chatgpt",
 };
 
 export function isValidAiBrand(s: string): s is AiBrand {

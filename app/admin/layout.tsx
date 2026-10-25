@@ -16,11 +16,8 @@ export const dynamic = "force-dynamic";
  *   5. AI Köməkçi           — sayt AI köməkçisinin bilik bazası/loqları
  *   6. PlayStation kataloqu — PS oyunları, abunəlik, gift card, hesab
  *   7. Yayım                — streaming abunəlik/poster/kataloq
- *   8. Digər platformalar   — Epic, oyun-içi vahid, musiqi, AI/iş paketləri
+ *   8. Digər platformalar   — Epic, oyun-içi vahid, musiqi, iş paketləri
  *   9. Sistem                — qlobal tənzimləmələr
- *
- * Diqqət: `/admin/ai` (Süni İntellekt) məhsul KATALOQUDUR (ChatGPT/Claude
- * satışı) — sayt AI köməkçisi (`ai-knowledge`/`ai-chat-logs`) ilə qarışdırma.
  *
  * Yeni admin səhifəsi əlavə olunduqda uyğun qrupa yazırsan — sidebar avtomatik
  * göstərir və active route məntiqi işləyir.
@@ -125,13 +122,12 @@ const NAV_GROUPS: NavGroupSpec[] = [
   {
     label: "Digər platformalar",
     iconName: "LayoutGrid",
-    description: "Epic, oyun-içi vahid, musiqi, AI və iş paketləri",
+    description: "Epic, oyun-içi vahid, musiqi və iş paketləri",
     items: [
       { href: "/admin/epic-games", label: "Epic kataloqu", iconName: "Monitor" },
       { href: "/admin/pubg-uc", label: "PUBG UC", iconName: "Coins" },
       { href: "/admin/point-blank", label: "Point Blank TG", iconName: "Coins" },
       { href: "/admin/music", label: "Musiqi", iconName: "Music" },
-      { href: "/admin/ai", label: "Süni İntellekt", iconName: "Brain" },
       { href: "/admin/work", label: "İş Platformaları", iconName: "Briefcase" },
     ],
   },

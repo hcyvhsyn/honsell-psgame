@@ -800,14 +800,17 @@ export default function OrdersAdminClient() {
               />
             </SidebarGroup>
             <SidebarGroup label="Platforma">
-              <NavItem
-                id="ai"
-                active={tab === "ai"}
-                icon={<Sparkles className="h-4 w-4" />}
-                label="Süni İntellekt"
-                count={counts.ai}
-                onClick={setTab}
-              />
+              {/* AI kataloqu silinib — tab yalnız köhnə AI sifarişləri qalıbsa görünür. */}
+              {counts.ai > 0 && (
+                <NavItem
+                  id="ai"
+                  active={tab === "ai"}
+                  icon={<Sparkles className="h-4 w-4" />}
+                  label="Süni İntellekt"
+                  count={counts.ai}
+                  onClick={setTab}
+                />
+              )}
               <NavItem
                 id="music"
                 active={tab === "music"}

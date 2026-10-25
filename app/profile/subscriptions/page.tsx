@@ -332,105 +332,96 @@ export default async function ProfileSubscriptionsPage() {
         )}
       </section>
 
-      <section className="space-y-3">
-        <SubHeader
-          icon={<Brain className="h-4 w-4 text-fuchsia-300" />}
-          title="Süni intellekt"
-          ctaHref="/ai"
-          ctaLabel="Yeni AI"
-          ctaClass="bg-fuchsia-600 hover:bg-fuchsia-500"
-        />
-
-        {activeAi.length === 0 && legacyAi.length === 0 ? (
-          <EmptyRow
+      {/* AI kataloqu silinib (2026-10) — bölmə yalnız köhnə AI abunəliyi olan müştəriyə görünür. */}
+      {(activeAi.length > 0 || legacyAi.length > 0) && (
+        <section className="space-y-3">
+          <SubHeader
             icon={<Brain className="h-4 w-4 text-fuchsia-300" />}
-            iconClass="bg-fuchsia-500/10 ring-fuchsia-500/30"
-            text="Hələ aktiv AI abunəliyin yoxdur."
-            ctaHref="/ai"
-            ctaLabel="Paketlər"
-            ctaClass="bg-fuchsia-600 hover:bg-fuchsia-500"
+            title="Süni intellekt"
           />
-        ) : (
-          <ul className="space-y-3">
-            {activeAi.map((s) => {
-              const days = daysUntil(s.expiresAt);
-              const expiringSoon = days <= 3;
-              const lowBalance = user.walletBalance < s.priceAznCents;
-              const showLowBalanceWarning = s.autoRenew && expiringSoon && lowBalance;
 
-              return (
-                <li
-                  key={s.id}
-                  className="overflow-hidden rounded-2xl border border-white/5 bg-[#111116]"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3 p-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-fuchsia-500/15 px-2.5 py-0.5 text-xs font-semibold text-fuchsia-200 ring-1 ring-fuchsia-500/40">
-                          <Brain className="h-3.5 w-3.5" />
-                          AI abunəlik
-                        </span>
-                        <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-zinc-300 ring-1 ring-white/10">
-                          {s.durationMonths} ay
-                        </span>
-                        {expiringSoon && (
-                          <span className="rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-rose-300 ring-1 ring-rose-500/40">
-                            {days <= 0
-                              ? "Bu gün bitir"
-                              : days === 1
-                                ? "Sabah bitir"
-                                : `${days} gün qaldı`}
+          {activeAi.length > 0 && (
+            <ul className="space-y-3">
+              {activeAi.map((s) => {
+                const days = daysUntil(s.expiresAt);
+                const expiringSoon = days <= 3;
+                const lowBalance = user.walletBalance < s.priceAznCents;
+                const showLowBalanceWarning = s.autoRenew && expiringSoon && lowBalance;
+
+                return (
+                  <li
+                    key={s.id}
+                    className="overflow-hidden rounded-2xl border border-white/5 bg-[#111116]"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3 p-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-fuchsia-500/15 px-2.5 py-0.5 text-xs font-semibold text-fuchsia-200 ring-1 ring-fuchsia-500/40">
+                            <Brain className="h-3.5 w-3.5" />
+                            AI abunəlik
                           </span>
-                        )}
+                          <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-zinc-300 ring-1 ring-white/10">
+                            {s.durationMonths} ay
+                          </span>
+                          {expiringSoon && (
+                            <span className="rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-rose-300 ring-1 ring-rose-500/40">
+                              {days <= 0
+                                ? "Bu gün bitir"
+                                : days === 1
+                                  ? "Sabah bitir"
+                                  : `${days} gün qaldı`}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="mt-1.5 truncate text-base font-bold text-white">
+                          {s.serviceProduct.title}
+                        </h3>
+                        <dl className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-zinc-400">
+                          <Meta icon={<Calendar className="h-3.5 w-3.5" />} label="Bitir" value={fmtDateAz(s.expiresAt)} />
+                          <Meta icon={<Wallet className="h-3.5 w-3.5" />} label="Yenilənmə" value={fmtAzn(s.priceAznCents)} />
+                        </dl>
                       </div>
-                      <h3 className="mt-1.5 truncate text-base font-bold text-white">
-                        {s.serviceProduct.title}
-                      </h3>
-                      <dl className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-zinc-400">
-                        <Meta icon={<Calendar className="h-3.5 w-3.5" />} label="Bitir" value={fmtDateAz(s.expiresAt)} />
-                        <Meta icon={<Wallet className="h-3.5 w-3.5" />} label="Yenilənmə" value={fmtAzn(s.priceAznCents)} />
-                      </dl>
+
+                      <AutoRenewToggle subscriptionId={s.id} initial={s.autoRenew} />
                     </div>
 
-                    <AutoRenewToggle subscriptionId={s.id} initial={s.autoRenew} />
-                  </div>
+                    {showLowBalanceWarning && (
+                      <LowBalanceNote
+                        walletCents={user.walletBalance}
+                        priceCents={s.priceAznCents}
+                      />
+                    )}
+                    {s.autoRenew && !showLowBalanceWarning && (
+                      <RenewNote priceCents={s.priceAznCents} months={s.durationMonths} />
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
-                  {showLowBalanceWarning && (
-                    <LowBalanceNote
-                      walletCents={user.walletBalance}
-                      priceCents={s.priceAznCents}
-                    />
-                  )}
-                  {s.autoRenew && !showLowBalanceWarning && (
-                    <RenewNote priceCents={s.priceAznCents} months={s.durationMonths} />
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        {(pastAi.length > 0 || legacyAi.length > 0) && (
-          <PastList title="Bitmiş AI abunəlikləri">
-            {pastAi.map((s) => (
-              <PastRow
-                key={s.id}
-                title={s.serviceProduct.title}
-                range={`${fmtDateAz(s.startsAt)} → ${fmtDateAz(s.expiresAt)}`}
-                status={s.status}
-              />
-            ))}
-            {legacyAi.map((l) => (
-              <PastRow
-                key={l.id}
-                title={l.title}
-                range={`${fmtDateAz(l.startsAt)} → ${fmtDateAz(l.expiresAt)}`}
-                status="EXPIRED"
-              />
-            ))}
-          </PastList>
-        )}
-      </section>
+          {(pastAi.length > 0 || legacyAi.length > 0) && (
+            <PastList title="Bitmiş AI abunəlikləri">
+              {pastAi.map((s) => (
+                <PastRow
+                  key={s.id}
+                  title={s.serviceProduct.title}
+                  range={`${fmtDateAz(s.startsAt)} → ${fmtDateAz(s.expiresAt)}`}
+                  status={s.status}
+                />
+              ))}
+              {legacyAi.map((l) => (
+                <PastRow
+                  key={l.id}
+                  title={l.title}
+                  range={`${fmtDateAz(l.startsAt)} → ${fmtDateAz(l.expiresAt)}`}
+                  status="EXPIRED"
+                />
+              ))}
+            </PastList>
+          )}
+        </section>
+      )}
     </div>
   );
 }
@@ -444,9 +435,9 @@ function SubHeader({
 }: {
   icon: React.ReactNode;
   title: string;
-  ctaHref: string;
-  ctaLabel: string;
-  ctaClass: string;
+  ctaHref?: string;
+  ctaLabel?: string;
+  ctaClass?: string;
 }) {
   return (
     <header className="flex items-center justify-between gap-3">
@@ -454,12 +445,14 @@ function SubHeader({
         {icon}
         {title}
       </h2>
-      <Link
-        href={ctaHref}
-        className={`rounded-full px-3 py-1.5 text-xs font-semibold text-white transition ${ctaClass}`}
-      >
-        {ctaLabel}
-      </Link>
+      {ctaHref && (
+        <Link
+          href={ctaHref}
+          className={`rounded-full px-3 py-1.5 text-xs font-semibold text-white transition ${ctaClass ?? ""}`}
+        >
+          {ctaLabel}
+        </Link>
+      )}
     </header>
   );
 }
