@@ -82,24 +82,9 @@ export type EpicAccountCreationCartDetails = {
 };
 
 /**
- * Oyun paketi sətrinin tərkib snapshot-u (yalnız GÖSTƏRİM üçün).
- *
- * Səbətdə paket ATOMİK tək sətirdir — içindəki oyunlar ayrıca silinmir və qiymət
- * buradan hesablanmır. Checkout serverdə paketi id-yə görə yenidən açır və
- * qiyməti özü hesablayır ([lib/gameBundles.ts](./gameBundles.ts)), yəni bu massiv
- * köhnəlsə də müştəri yanlış məbləğ ödəmir.
- */
-export type BundleCartItems = {
-  gameId: string;
-  title: string;
-  imageUrl: string | null;
-  bundleAznCents: number;
-}[];
-
-/**
  * Xidmət dəsti sətrinin bir üzvü.
  *
- * Oyun paketindən FƏRQLİ olaraq bu massiv yalnız göstərim üçün deyil: bəzi
+ * Bu massiv yalnız göstərim üçün deyil: bəzi
  * xidmətlər müştəri məlumatı tələb edir (Spotify Family → 5 email+şifrə, YouTube →
  * gmail+şifrə) və həmin məlumat burada, üzv-üzv saxlanılır. Checkout serverdə dəsti
  * id-yə görə yenidən açır və qiyməti özü hesablayır, yəni `bundleAznCents` köhnəlsə
@@ -131,8 +116,6 @@ export type CartItem = {
    */
   originalAzn?: number | null;
   productType: string;
-  /** `productType === "BUNDLE"` olduqda paketin tərkibi (səbətdə açılan siyahı). */
-  bundleItems?: BundleCartItems;
   /** `productType === "SERVICE_BUNDLE"` olduqda dəstin tərkibi + müştəri məlumatları. */
   serviceBundleItems?: ServiceBundleCartItem[];
   /** Storefront for catalog items: "PS" (default) or "EPIC". Distinguishes an
@@ -412,10 +395,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const existing = prev.find((i) => i.id === item.id && !i.gift);
       if (existing) {
         // Cash cards / addons can be bought in multiples; full games stay at 1.
-        // Oyun paketi də tək lisenziyadır — eyni paket iki dəfə səbətə düşmür.
         if (
           item.productType === "GAME" ||
-          item.productType === "BUNDLE" ||
           item.productType === "PS_PLUS" ||
           item.productType === "EA_PLAY"
         )

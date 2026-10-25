@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { applyFlashDeal, getFlashDealOverrides } from "@/lib/flashDeals";
-import { resolveBundlesForCart } from "@/lib/gameBundles";
 import { resolveServiceBundlesForCart } from "@/lib/serviceBundles";
 import { sellableGameWhere, sellableServiceWhere } from "@/lib/storeScope";
 
@@ -82,22 +81,6 @@ export async function POST(req: Request) {
   }
   for (const s of services) {
     prices.push({ id: s.id, finalAzn: s.priceAznCents / 100, originalAzn: null });
-  }
-
-  // Oyun paketləri. Satıla bilməyən paket (deaktiv, vaxtı bitmiş, tərkibində
-  // deaktiv oyun) map-ə düşmür → `missing` olur və client onu səbətdən silir.
-  // Bu addım olmasa localStorage-dəki köhnə paket qiyməti checkout-un serverdə
-  // hesabladığı qiymətlə uyğunsuz qalır.
-  const bundles = await resolveBundlesForCart(ids);
-  for (const b of bundles.values()) {
-    prices.push({
-      id: b.id,
-      finalAzn: b.pricing.totalAznCents / 100,
-      originalAzn:
-        b.pricing.listTotalAznCents > b.pricing.totalAznCents
-          ? b.pricing.listTotalAznCents / 100
-          : null,
-    });
   }
 
   // Xidmət dəstləri. Qiymətdən ƏLAVƏ olaraq tam tərkib də qaytarılır: dəst sətri

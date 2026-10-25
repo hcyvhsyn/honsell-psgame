@@ -53,11 +53,6 @@ type EpointCartLineSnapshotBase =
       epicAccountId?: string | null;
       store?: string;
       reviewAffiliateId?: string | null;
-      // Sətir oyun PAKETİNDƏN açılıbsa paketin damğası. Paket açılışı checkout
-      // route-unda baş verir, snapshot artıq açılmış GAME sətirlərindən qurulur —
-      // burada yalnız `Transaction.metadata`-ya ötürülür.
-      bundleId?: string;
-      bundleTitle?: string;
     }
   | {
       kind: "TRY_BALANCE";
@@ -377,9 +372,6 @@ export async function finalizeEpointCartCheckout(
                 orderCode: meta.orderCode,
                 epointPaymentId: payment.id,
                 ...bundleMeta,
-                ...(line.bundleId
-                  ? { bundleId: line.bundleId, bundleTitle: line.bundleTitle }
-                  : {}),
                 ...(line.reviewAffiliateId
                   ? {
                       reviewAffiliateId: line.reviewAffiliateId,

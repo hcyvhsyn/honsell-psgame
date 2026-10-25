@@ -8,7 +8,6 @@
  */
 
 import { streamingUsesCustomerEmail } from "@/lib/streamingCart";
-import { formatAznCents } from "@/lib/gameBundleShared";
 
 /** Səbətdəki xidmət dəsti sətrinin `productType` dəyəri. */
 export const SERVICE_BUNDLE_PRODUCT_TYPE = "SERVICE_BUNDLE";
@@ -223,4 +222,6 @@ export function buildServiceBundleCartPayload(bundle: ServiceBundleCardData) {
   };
 }
 
-export { formatAznCents };
+export function formatAznCents(cents: number): string {
+  return `${(Math.max(0, Math.round(cents)) / 100).toFixed(2)}₼`;
+}

@@ -713,6 +713,7 @@ model CollectionGame {
 ///
 /// Paket vitrində YALNIZ bütün oyunları aktiv olduqda görünür — "4-lü paket"
 /// 3 oyunla satıla bilməz.
+/// ARXİV — Oyun paketləri kodu silinib (2026-10); cədvəl data üçün saxlanılır.
 model GameBundle {
   id          String  @id @default(cuid())
   slug        String  @unique
@@ -745,6 +746,7 @@ model GameBundle {
   @@index([isFeatured])
 }
 
+/// ARXİV — Oyun paketləri kodu silinib (2026-10); cədvəl data üçün saxlanılır.
 model GameBundleItem {
   bundleId String
   gameId   String

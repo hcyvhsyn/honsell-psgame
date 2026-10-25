@@ -18,7 +18,6 @@
     "test:reelranking": "tsx scripts/reelRanking.test.ts",
     "clean:reeltitles": "tsx scripts/cleanReelTitles.ts",
     "test:giftcards": "tsx scripts/giftCardPriceRule.test.ts",
-    "test:bundles": "tsx scripts/gameBundles.test.ts",
     "test:analytics": "tsx scripts/analytics.test.ts",
     "test:oyunfor": "tsx scripts/oyunforParser.test.ts",
     "test:gamesearch": "tsx scripts/gameSearch.test.ts",

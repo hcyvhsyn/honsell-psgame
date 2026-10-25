@@ -9,7 +9,6 @@ import {
   tryCentsToCostAzn,
 } from "@/lib/pricing";
 import { applyFlashDeal, getFlashDealOverrides } from "@/lib/flashDeals";
-import { resolveBundlesForCart } from "@/lib/gameBundles";
 import { resolveServiceBundlesForCart } from "@/lib/serviceBundles";
 import { getEffectiveTier } from "@/lib/customerTier";
 import {
@@ -308,17 +307,14 @@ export async function POST(req: Request) {
   // Validasiya award vaxtı edilir; burada sadəcə dəyər saxlanır.
   const reviewAffiliateId = await readReviewAffiliateCookie();
 
-  // ─── Paketlər/dəstlər kataloq sorğusundan ƏVVƏL həll olunur ────────────────
-  // Paket və dəst id-si nə `Game`, nə `ServiceProduct` cədvəlindədir. Aşağıdakı
-  // mövcudluq yoxlaması onları tanımalıdır, xidmət dəstinin üzvləri isə `services`
-  // sorğusuna daxil olmalıdır — ona görə hər ikisi burada həll edilir.
+  // ─── Xidmət dəstləri kataloq sorğusundan ƏVVƏL həll olunur ────────────────
+  // Dəst id-si `ServiceProduct` cədvəlində deyil, üzvləri isə `services`
+  // sorğusuna daxil olmalıdır — ona görə burada həll edilir.
   //
-  // Satıla bilməyən paket/dəst (deaktiv, vaxtı bitmiş, tərkibində deaktiv məhsul)
-  // map-ə düşmür → aşağıda "artıq mövcud deyil" cavabı gedir.
-  const [cartBundles, cartServiceBundles] = await Promise.all([
-    resolveBundlesForCart(ids),
-    resolveServiceBundlesForCart(ids),
-  ]);
+  // Satıla bilməyən dəst (deaktiv, vaxtı bitmiş, tərkibində deaktiv məhsul)
+  // map-ə düşmür → aşağıda "artıq mövcud deyil" cavabı gedir. Köhnə səbətdəki
+  // oyun PAKETİ sətri (silinib, 2026-10) də heç yerdə tapılmır → eyni cavab.
+  const cartServiceBundles = await resolveServiceBundlesForCart(ids);
 
   // Xidmət dəsti N sintetik xidmət sətrinə açılır — beləcə Spotify-ın hesab
   // validasiyası, Netflix-in `deliveryMode` məntiqi, abunəlik yaradılması və admin
@@ -351,7 +347,7 @@ export async function POST(req: Request) {
   const [games, services] = await Promise.all([
     // PS-only rejimdə Epic oyunları və qeyri-PS xidmətlər burada süzülür →
     // aşağıdakı `resolvedIds` yoxlaması "artıq mövcud deyil" cavabı verir
-    // (lib/storeScope.ts). Paketlər `isBundleSellable`-də onsuz da süzülür.
+    // (lib/storeScope.ts).
     prisma.game.findMany({
       where: { id: { in: ids }, isActive: true, ...sellableGameWhere() },
     }),
@@ -383,8 +379,7 @@ export async function POST(req: Request) {
   /**
    * Bu sətir xidmət DƏSTİNDƏN açılıbsa dəstin id/başlığı.
    *
-   * Oyun paketindəki `bundleId`/`bundleTitle` ilə eyni rolu oynayır, sadəcə bütün
-   * sətir növlərinə birdən şamil olunur (intersection) — çünki dəstə istənilən
+   * Bütün sətir növlərinə birdən şamil olunur (intersection) — çünki dəstə istənilən
    * xidmət tipi girə bilər və hər variantı ayrıca genişləndirmək lazım deyil.
    * Damğa `Transaction.metadata`-ya yazılır (admin sifarişləri dəst üzrə görsün)
    * və sətri kupon bazasından kənarlaşdırır.
@@ -403,16 +398,6 @@ export async function POST(req: Request) {
         unitCostCents: number;
         lineCents: number;
         unitSavingsCents: number;
-        /**
-         * Bu sətir oyun PAKETİNDƏN açılıbsa paketin id/başlığı. Paket səbətdə
-         * tək sətirdir, serverdə isə N adi GAME sətrinə çevrilir — beləcə PSN
-         * hesab tələbi, çatdırılma, komissiya və sifariş məktubu üçün ayrıca
-         * fulfillment budağı lazım gəlmir. Damğa yalnız `Transaction.metadata`-ya
-         * yazılır (admin sifarişləri paket üzrə qruplaşdıra bilsin) və sətri
-         * kupon bazasından kənarlaşdırır.
-         */
-        bundleId?: string;
-        bundleTitle?: string;
       }
     | {
         kind: "TRY_BALANCE";
@@ -506,14 +491,13 @@ export async function POST(req: Request) {
   // ⚠️ Bu, ÇOXLUQ yoxlamasıdır, say müqayisəsi DEYİL.
   //
   // Əvvəl `games.length + services.length !== payloads.length` yazılırdı və bu,
-  // iki halda yalançı 409 verirdi: (a) səbətdə paket/dəst olanda — onların id-si
+  // iki halda yalançı 409 verirdi: (a) səbətdə dəst olanda — onun id-si
   // heç bir kataloq cədvəlində yoxdur, (b) eyni məhsul həm adi, həm hədiyyə sətri
   // kimi olanda — Prisma `id: { in: ids }` nəticəsini dedupe edir, ona görə say
   // həmişə az çıxırdı.
   const resolvedIds = new Set<string>([
     ...games.map((g) => g.id),
     ...services.map((s) => s.id),
-    ...cartBundles.keys(),
   ]);
   if (expandedPayloads.some((p) => !resolvedIds.has(p.id))) {
     return NextResponse.json(
@@ -545,60 +529,9 @@ export async function POST(req: Request) {
   // burada da tutulmalıdır — yoxsa vitrində bir qiymət, kassada başqa qiymət olar.
   const flashDeals = await getFlashDealOverrides(games.map((g) => g.id));
 
-  // Paketdən açılan oyunlar da tam `Game` sətri kimi lazımdır (PSN/Epic seçimi,
-  // çatdırılma, komissiya) — kataloqdan ayrıca yüklənir.
-  const bundleGameIds = Array.from(
-    new Set(
-      Array.from(cartBundles.values()).flatMap((b) => b.pricing.items.map((i) => i.gameId)),
-    ),
-  ).filter((id) => !games.some((g) => g.id === id));
-  const bundleGames =
-    bundleGameIds.length > 0
-      ? await prisma.game.findMany({ where: { id: { in: bundleGameIds }, isActive: true } })
-      : [];
-  const gamesById = new Map<string, GameModel>(
-    [...games, ...bundleGames].map((g) => [g.id, g]),
-  );
-
   // ⚠️ Dövr `payloads` üzərində DEYİL, `expandedPayloads` üzərindədir — xidmət
   // dəstləri artıq üzvlərinə açılıb və hər üzv adi xidmət sətri kimi keçir.
   for (const p of expandedPayloads) {
-    // ─── Oyun PAKETİ: serverdə N adi GAME sətrinə açılır ──────────────────
-    // ⚠️ Bu yoxlama aşağıdakı `services.find(...)!` sətrindən ƏVVƏL olmalıdır —
-    // paket id-si nə `games`, nə `services` içində olduğu üçün orada crash verər.
-    const bundle = cartBundles.get(p.id);
-    if (bundle) {
-      // Paket hədiyyə kimi göndərilmir (hər oyun ayrıca kod tələb edərdi).
-      if (p.isGift) continue;
-      for (const item of bundle.pricing.items) {
-        const game = gamesById.get(item.gameId);
-        if (!game) continue;
-        const displayPrice = applyFlashDeal(
-          computeDisplayPrice(game, settings),
-          flashDeals.get(game.id),
-        );
-        const originalCents = Math.round(
-          (displayPrice.originalAzn ?? displayPrice.finalAzn) * 100,
-        );
-        const tryForCost =
-          game.discountTryCents != null && game.discountTryCents < game.priceTryCents
-            ? game.discountTryCents
-            : game.priceTryCents;
-        lines.push({
-          kind: "GAME",
-          game,
-          qty: 1,
-          unitListCents: item.bundleAznCents,
-          unitCostCents: Math.round(tryCentsToCostAzn(tryForCost, settings) * 100),
-          lineCents: item.bundleAznCents,
-          unitSavingsCents: Math.max(0, originalCents - item.bundleAznCents),
-          bundleId: bundle.id,
-          bundleTitle: bundle.title,
-        });
-      }
-      continue;
-    }
-
     const game = games.find((g) => g.id === p.id);
 
     // ─── HƏDİYYƏ sətri ────────────────────────────────────────────────────
@@ -976,12 +909,12 @@ export async function POST(req: Request) {
   let promoForOrder: PromoCode | null = null;
   if (couponCode) {
     const scopeItems: PromoScopeItem[] = [
-      // Paketdən/dəstdən açılan sətirlər kupon bazasına DAXİL EDİLMİR — onlar
+      // Dəstdən açılan sətirlər kupon bazasına DAXİL EDİLMİR — onlar
       // onsuz da endirimlidir, ikiqat endirim mənfəəti yeyir. `/api/cart/coupon`
       // preview-i də eyni istisnanı tətbiq edir (fərqli olsalar müştəri preview-də
       // bir rəqəm görür, kassada `COUPON_INVALID` alır).
       ...lines
-        .filter((l) => !(l.kind === "GAME" && l.bundleId) && !l.serviceBundleId)
+        .filter((l) => !l.serviceBundleId)
         .map((l) => ({
           productId: l.kind === "GAME" ? l.game.id : l.service.id,
           productType:
@@ -1059,8 +992,6 @@ export async function POST(req: Request) {
             epicAccountId: isEpicGame ? epicAccount?.id ?? null : null,
             store: isEpicGame ? "EPIC" : "PS",
             reviewAffiliateId,
-            bundleId: line.bundleId,
-            bundleTitle: line.bundleTitle,
           };
         }
 
@@ -1508,11 +1439,6 @@ export async function POST(req: Request) {
                   store: isEpicGame ? "EPIC" : "PS",
                   orderCode,
                   ...bundleMeta,
-                  // Paketdən açılmış sətir — admin sifarişləri paket üzrə
-                  // qruplaşdıra bilsin (Order/OrderItem modeli yoxdur).
-                  ...(line.bundleId
-                    ? { bundleId: line.bundleId, bundleTitle: line.bundleTitle }
-                    : {}),
                   ...(reviewAffiliateId
                     ? { reviewAffiliateId, reviewAffiliateLineCents: line.unitListCents }
                     : {}),

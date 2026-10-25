@@ -1553,8 +1553,7 @@ function CartLine({
   const isSingleLicense =
     Boolean(item.gift) ||
     item.productType === "GAME" ||
-    // Oyun paketi / xidmət dəsti atomikdir: bir sətir = bir dəst.
-    item.productType === "BUNDLE" ||
+    // Xidmət dəsti atomikdir: bir sətir = bir dəst.
     item.productType === SERVICE_BUNDLE_PRODUCT_TYPE ||
     item.productType === "PS_PLUS" ||
     item.productType === "EA_PLAY" ||
@@ -1614,20 +1613,6 @@ function CartLine({
               <p className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-sky-500/20 bg-sky-500/[0.06] px-2 py-1 text-[10px] leading-none text-sky-300/90">
                 <span className="font-semibold">{productTerms.termsTitle}</span>
               </p>
-            ) : null}
-            {item.bundleItems?.length ? (
-              // Paket atomikdir — oyunların yanında ayrıca silmə düyməsi YOXDUR.
-              <ul className="mt-2 space-y-1 rounded-lg border border-violet-500/20 bg-violet-500/[0.06] p-2">
-                {item.bundleItems.map((g) => (
-                  <li key={g.gameId} className="flex items-center gap-2 text-[11px] text-zinc-300">
-                    <span className="h-1 w-1 shrink-0 rounded-full bg-violet-400" />
-                    <span className="min-w-0 flex-1 truncate">{g.title}</span>
-                    <span className="shrink-0 tabular-nums text-zinc-500">
-                      {(g.bundleAznCents / 100).toFixed(2)}₼
-                    </span>
-                  </li>
-                ))}
-              </ul>
             ) : null}
             {item.serviceBundleItems?.length ? (
               // Dəst atomikdir — üzvün yanında ayrıca silmə düyməsi YOXDUR.
@@ -1877,8 +1862,6 @@ function labelForType(t: string) {
       return "Streaming abunəliyi";
     case "PLATFORM":
       return "Platform abunəliyi";
-    case "BUNDLE":
-      return "Oyun paketi";
     case SERVICE_BUNDLE_PRODUCT_TYPE:
       return "Xidmət dəsti";
     default:
