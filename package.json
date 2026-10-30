@@ -19,6 +19,7 @@
     "clean:reeltitles": "tsx scripts/cleanReelTitles.ts",
     "test:giftcards": "tsx scripts/giftCardPriceRule.test.ts",
     "test:installments": "tsx scripts/installments.test.ts",
+    "test:gamemargin": "DATABASE_URL=${DATABASE_URL:-postgresql://test@localhost:5432/test} tsx scripts/gameMargin.test.ts",
     "test:analytics": "tsx scripts/analytics.test.ts",
     "test:oyunfor": "tsx scripts/oyunforParser.test.ts",
     "test:gamesearch": "tsx scripts/gameSearch.test.ts",

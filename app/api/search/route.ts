@@ -226,6 +226,8 @@ type GameRow = Pick<
   | "priceTryCents"
   | "discountTryCents"
   | "discountEndAt"
+  | "customMarginPct"
+  | "customPriceAznCents"
   | "store"
   | "platform"
 >;
@@ -270,7 +272,8 @@ async function searchGames(q: string, offset: number): Promise<GameRow[]> {
     return (await prisma.$queryRaw(
       PrismaSql.sql`SELECT g."id", g."productId", g."slug", g."title", g."imageUrl",
                           g."productType", g."priceTryCents", g."discountTryCents",
-                          g."discountEndAt", g."store", g."platform"
+                          g."discountEndAt", g."store", g."platform",
+                          g."customMarginPct", g."customPriceAznCents"
          FROM ${gameSearchFromSql()}
          WHERE ${where}
          ORDER BY ${order}
@@ -288,6 +291,8 @@ async function searchGames(q: string, offset: number): Promise<GameRow[]> {
         productType: true,
         priceTryCents: true,
         discountTryCents: true,
+        customMarginPct: true,
+        customPriceAznCents: true,
         discountEndAt: true,
         store: true,
         platform: true,

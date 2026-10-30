@@ -59,6 +59,8 @@ type FacetRow = {
   priceTryCents: number;
   discountTryCents: number | null;
   discountEndAt: Date | null;
+  customMarginPct: number | null;
+  customPriceAznCents: number | null;
   // PS Store detal metadata-sı — kart janr/PEGI/reytinq sətrini bunlardan qurur.
   genres: string[] | null;
   contentRating: string | null;
@@ -115,6 +117,7 @@ function getFacetRows(
           SELECT g."id", g."productId", g."slug", g."title", g."imageUrl",
                  g."platform", g."productType", g."store", g."priceTryCents",
                  g."discountTryCents", g."discountEndAt", g."genres",
+                 g."customMarginPct", g."customPriceAznCents",
                  g."contentRating", g."psRatingAvg", g."psRatingCount",
                  g."publisherName", g."releaseDate", g."editionLabel"
           FROM "Game" g

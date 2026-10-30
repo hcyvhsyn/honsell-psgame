@@ -21,6 +21,8 @@ export default async function OgImage({ params }: { params: { slug: string } }) 
         platform: true,
         priceTryCents: true,
         discountTryCents: true,
+        customMarginPct: true,
+        customPriceAznCents: true,
         discountEndAt: true,
       },
     }),

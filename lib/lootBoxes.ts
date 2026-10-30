@@ -83,6 +83,8 @@ export type PricedGame = {
   priceTryCents: number;
   discountTryCents: number | null;
   discountEndAt: Date | null;
+  customMarginPct: number | null;
+  customPriceAznCents: number | null;
   priceUsdCents: number | null;
   discountUsdCents: number | null;
 };
@@ -94,6 +96,8 @@ export const PRICED_GAME_SELECT = {
   store: true,
   priceTryCents: true,
   discountTryCents: true,
+  customMarginPct: true,
+  customPriceAznCents: true,
   discountEndAt: true,
   priceUsdCents: true,
   discountUsdCents: true,

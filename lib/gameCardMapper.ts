@@ -52,6 +52,8 @@ export const GAME_CARD_SELECT = {
   store: true,
   priceTryCents: true,
   discountTryCents: true,
+  customMarginPct: true,
+  customPriceAznCents: true,
   discountEndAt: true,
   genres: true,
   contentRating: true,
@@ -65,7 +67,8 @@ export const GAME_CARD_SELECT = {
 /** Raw SQL yolları üçün eyni sütun siyahısı (`g.` aliası ilə). */
 export const GAME_CARD_COLUMNS_SQL = `g."id", g."productId", g."slug", g."title",
   g."imageUrl", g."platform", g."productType", g."store", g."priceTryCents",
-  g."discountTryCents", g."discountEndAt", g."genres", g."contentRating",
+  g."discountTryCents", g."customMarginPct", g."customPriceAznCents",
+  g."discountEndAt", g."genres", g."contentRating",
   g."psRatingAvg", g."psRatingCount", g."publisherName", g."releaseDate",
   g."editionLabel"`;
 

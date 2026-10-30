@@ -123,6 +123,8 @@ export async function searchReviewProducts(rawQuery: string): Promise<ReviewProd
         imageUrl: true,
         priceTryCents: true,
         discountTryCents: true,
+        customMarginPct: true,
+        customPriceAznCents: true,
         discountEndAt: true,
         priceUsdCents: true,
         discountUsdCents: true,

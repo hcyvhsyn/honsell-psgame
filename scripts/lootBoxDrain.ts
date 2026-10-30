@@ -99,6 +99,8 @@ async function createPricedGame(targetAzn: number, index: number, discountEndAt?
       id: true,
       priceTryCents: true,
       discountTryCents: true,
+      customMarginPct: true,
+      customPriceAznCents: true,
       discountEndAt: true,
       store: true,
       priceUsdCents: true,

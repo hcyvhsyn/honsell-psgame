@@ -346,6 +346,12 @@ model Game {
   priceUsdCents    Int?
   discountUsdCents Int?
 
+  // Oyuna xüsusi qiymət (admin /admin/games). Prioritet: customPriceAznCents >
+  // customMarginPct > Settings.gameMarginTiers pillələri. Hər ikisi null → avto.
+  // Sabit qiymətdə PS endirimi nəzərə alınmır. Bax lib/gameMargin.ts.
+  customMarginPct     Float?
+  customPriceAznCents Int?
+
   // Rich media + metadata scraped from PS Store listing pages
   heroImageUrl String? // BACKGROUND-role media (wide hero/cover)
   trailerUrl   String? // PREVIEW-role media (mp4 trailer URL)
@@ -1605,6 +1611,10 @@ model Settings {
   // Müştəri aldığı məhsula rəy yazanda aldığı məhsulun qiymətinin % qədər
   // cashback (cashbackBalance-a). Rəy təsdiqlənəndə verilir. Default 1%.
   reviewCashbackRatePct           Float  @default(1)
+  // Oyunlar üçün mayaya (TRY×məzənnə) görə pilləli mənfəət:
+  // [{ "upToAzn": 20, "pct": 50 }, { "upToAzn": 100, "pct": 20 }, { "upToAzn": null, "pct": 10 }].
+  // null/boş → tək faiz (profitMarginGamesPct). Döşəmə qaydası: lib/gameMargin.ts.
+  gameMarginTiers                 Json?
 
   // Dəvət bonusu: dəvət olunan istifadəçi nömrəsini/OTP-ni təsdiqlədikdə dəvət
   // edənə yazılan SABİT məbləğ (qəpik, AZN * 100). Faiz komissiyasından ayrıdır.

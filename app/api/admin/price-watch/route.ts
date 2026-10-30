@@ -28,6 +28,8 @@ const GAME_SELECT = {
   isActive: true,
   priceTryCents: true,
   discountTryCents: true,
+  customMarginPct: true,
+  customPriceAznCents: true,
   discountEndAt: true,
   // Epic sətirləri mövqe modeli ilə qiymətlənir. Forma yalnız PS oyunu seçdirir,
   // amma köhnə/əl ilə yazılmış qeyd Epic ola bilər — bu sahələr olmasa

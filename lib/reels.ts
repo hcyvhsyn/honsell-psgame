@@ -141,6 +141,8 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
             productType: true,
             priceTryCents: true,
             discountTryCents: true,
+            customMarginPct: true,
+            customPriceAznCents: true,
             discountEndAt: true,
             priceUsdCents: true,
             discountUsdCents: true,

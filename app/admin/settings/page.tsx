@@ -10,11 +10,14 @@ import {
   Clock,
   XCircle,
 } from "lucide-react";
+import type { GameMarginTier } from "@/lib/gameMargin";
+import GameMarginTiersEditor from "./GameMarginTiersEditor";
 
 type Settings = {
   tryToAznRate: number;
   profitMarginPct: number;
   profitMarginGamesPct: number;
+  gameMarginTiers: GameMarginTier[];
   profitMarginGiftCardsPct: number;
   profitMarginPsPlusPct: number;
   usdToAznRate: number;
@@ -91,6 +94,7 @@ export default function AdminSettingsPage() {
     tryToAznRate: 0.053,
     profitMarginPct: 20,
     profitMarginGamesPct: 20,
+    gameMarginTiers: [],
     profitMarginGiftCardsPct: 20,
     profitMarginPsPlusPct: 20,
     usdToAznRate: 1.7,
@@ -118,6 +122,7 @@ export default function AdminSettingsPage() {
           tryToAznRate: data.tryToAznRate,
           profitMarginPct: data.profitMarginPct,
           profitMarginGamesPct: data.profitMarginGamesPct ?? data.profitMarginPct,
+          gameMarginTiers: Array.isArray(data.gameMarginTiers) ? data.gameMarginTiers : [],
           profitMarginGiftCardsPct: data.profitMarginGiftCardsPct ?? data.profitMarginPct,
           profitMarginPsPlusPct: data.profitMarginPsPlusPct ?? data.profitMarginPct,
           usdToAznRate: data.usdToAznRate ?? 1.7,
@@ -352,7 +357,11 @@ export default function AdminSettingsPage() {
         <div className="grid gap-4 sm:grid-cols-3">
           <Field
             label="Oyunlar üçün mənfəət (%)"
-            hint="TRY→AZN çevrilməsində oyunlara tətbiq olunur."
+            hint={
+              form.gameMarginTiers.length
+                ? "Pillələr aktivdir — bu faiz işlənmir (pillələr söndürüləndə qayıdır)."
+                : "TRY→AZN çevrilməsində oyunlara tətbiq olunur."
+            }
             value={form.profitMarginGamesPct}
             step={0.5}
             onChange={(v) => setForm({ ...form, profitMarginGamesPct: v })}
@@ -372,6 +381,12 @@ export default function AdminSettingsPage() {
             onChange={(v) => setForm({ ...form, profitMarginPsPlusPct: v })}
           />
         </div>
+
+        <GameMarginTiersEditor
+          tiers={form.gameMarginTiers}
+          fallbackPct={form.profitMarginGamesPct}
+          onChange={(gameMarginTiers) => setForm({ ...form, gameMarginTiers })}
+        />
 
         <div className="rounded-lg border border-admin-line bg-admin-card p-4">
           <h3 className="text-sm font-semibold text-zinc-800">Dəvət bonusu</h3>

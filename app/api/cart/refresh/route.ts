@@ -37,6 +37,8 @@ export async function POST(req: Request) {
         id: true,
         priceTryCents: true,
         discountTryCents: true,
+        customMarginPct: true,
+        customPriceAznCents: true,
         discountEndAt: true,
         // Needed so Epic rows get positional pricing (computeDisplayPrice
         // delegates to the Epic model on these fields).

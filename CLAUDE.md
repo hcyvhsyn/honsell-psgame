@@ -107,6 +107,27 @@ düymələri yerinə "Daha X ₼-lik məhsul seç" + "Minimum sifariş 20 ₼" s
 vəziyyətini izləyir — yeni sətir/artan say = əlavə; ayrıca çağırış lazım deyil).
 Header səbət düyməsi (`CartIndicator`) yalnız say göstərir — halqa/animasiya yoxdur.
 
+# Oyun qiyməti — pillələr + custom (2026-10)
+
+Tək mənbə: [lib/gameMargin.ts](lib/gameMargin.ts) (saf, client-safe) → `gameTryCentsToAzn` /
+`computeDisplayPrice` ([lib/pricing.ts](lib/pricing.ts)). Testlər: `npm run test:gamemargin`.
+
+- **Pillələr mayaya görə** (`TRY × məzənnə`): `Settings.gameMarginTiers` Json, məs. ≤20 ₼ → 50%,
+  ≤100 ₼ → 20%, daha baha → 10%. `null`/boş → köhnə tək faiz `profitMarginGamesPct`.
+  Admin: `/admin/settings` → "Oyunlar — qiymətə görə pillələr" (canlı önizləmə ilə).
+- **Döşəmə qaydası:** qiymət əvvəlki pillənin tavanından aşağı düşmür (maya 20.01 → 30 ₼, 24.01 yox).
+  Funksiya MONOTONDUR — `aznToTryCents` (kataloq qiymət süzgəci) binar axtarışla buna güvənir.
+  Sadə "pillə × maya" yazma: sərhəddə bahalı oyun ucuzdan ucuz satılır.
+- **Oyuna xüsusi:** `Game.customPriceAznCents` (sabit, PS endirimi işləmir) > `Game.customMarginPct` >
+  pillələr. Admin: `/admin/games` → "Qiymət" sütunu (+ "Custom" filtri), API `/api/admin/games/[id]/pricing`.
+- ⚠️ `computeDisplayPrice` game tipində `customMarginPct`/`customPriceAznCents` **məcburidir** — yeni
+  `select`/raw SQL yazanda hər ikisini çək, yoxsa kataloq və checkout fərqli qiymət göstərər (tsc tutur,
+  amma raw SQL `as`-cast-ı tutmur).
+- `discountPct` artıq **AZN-dən** hesablanır (`1 − final/original`), TRY-dan yox — pillələrdə tam və
+  endirimli qiymət fərqli faizə düşə bilər.
+- Custom qiymətli oyunlar SQL qiymət süzgəcində/sıralamasında avto qiymətlə yaxınlaşdırılır (kiçik
+  qeyri-dəqiqlik, qəbul edilib).
+
 # Səbət — minimal (2026-10)
 
 Səbətdə YALNIZ: məhsul sətirləri, yekun (endirim varsa Məhsullar/Endirim sətirləri),

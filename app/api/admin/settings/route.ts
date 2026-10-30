@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { computeLegacyGameReferralRatePct } from "@/lib/pricing";
+import { normalizeGameMarginTiers } from "@/lib/gameMargin";
+import { revalidateGames, revalidateReels } from "@/lib/revalidate";
+import { Prisma } from "@/lib/generated/prisma/client";
 
 export const runtime = "nodejs";
 
@@ -90,6 +93,21 @@ export async function POST(req: Request) {
     body.epicPositionPct != null ? Number(body.epicPositionPct) : 50;
   const epicMinProfitPct =
     body.epicMinProfitPct != null ? Number(body.epicMinProfitPct) : 10;
+  // Göndərilməyibsə (köhnə klient) sütuna toxunulmur; [] → pillələr söndürülür.
+  const gameMarginTiers =
+    body.gameMarginTiers === undefined
+      ? undefined
+      : normalizeGameMarginTiers(body.gameMarginTiers);
+  if (
+    Array.isArray(body.gameMarginTiers) &&
+    gameMarginTiers &&
+    gameMarginTiers.length !== body.gameMarginTiers.length
+  ) {
+    return NextResponse.json(
+      { error: "Pillələrdə səhv var: məbləğlər müsbət və fərqli, faiz 0–500 olmalıdır." },
+      { status: 400 },
+    );
+  }
 
   if (!Number.isFinite(tryToAznRate) || tryToAznRate <= 0) {
     return NextResponse.json({ error: "Invalid tryToAznRate" }, { status: 400 });
@@ -137,6 +155,13 @@ export async function POST(req: Request) {
       epicMinProfitPct,
       depositCardNumber,
       depositCardHolder,
+      ...(gameMarginTiers !== undefined
+        ? {
+            gameMarginTiers: gameMarginTiers.length
+              ? (gameMarginTiers as Prisma.InputJsonValue)
+              : Prisma.DbNull,
+          }
+        : {}),
     };
     const updated = await prisma.settings.upsert({
       where: { id: "global" },
@@ -148,6 +173,9 @@ export async function POST(req: Request) {
     revalidateTag("home");
     revalidateTag("site-header");
     revalidatePath("/qazan");
+    // Oyun marjası dəyişəndə kataloq/detal/reels keşləri köhnə qiyməti saxlamasın.
+    revalidateGames();
+    revalidateReels();
     return NextResponse.json(updated);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

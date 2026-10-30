@@ -3,6 +3,9 @@ import { Search, Star } from "lucide-react";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import StarToggle from "./StarToggle";
+import PriceEditor from "./PriceEditor";
+import { computeDisplayPrice, getSettings, tryCentsToCostAzn } from "@/lib/pricing";
+import { gameTierPct } from "@/lib/gameMargin";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +17,11 @@ const DISCOUNT_LABEL: Record<(typeof DISCOUNTS)[number], string> = {
   ALL: "Hamısı",
   WITH: "Endirimli",
   WITHOUT: "Endirimsiz",
+};
+const PRICINGS = ["ALL", "CUSTOM"] as const;
+const PRICING_LABEL: Record<(typeof PRICINGS)[number], string> = {
+  ALL: "Hamısı",
+  CUSTOM: "Custom",
 };
 const SORTS = ["DEFAULT", "PRICE_ASC", "PRICE_DESC"] as const;
 const SORT_LABEL: Record<(typeof SORTS)[number], string> = {
@@ -32,6 +40,7 @@ export default async function AdminGamesPage({
     productType?: string;
     featured?: string;
     discount?: string;
+    pricing?: string;
     sort?: string;
     page?: string;
   };
@@ -42,6 +51,8 @@ export default async function AdminGamesPage({
   const featuredOnly = searchParams.featured === "1";
   const discount = String(searchParams.discount ?? "ALL").toUpperCase() as (typeof DISCOUNTS)[number];
   const discountFilter = (DISCOUNTS as readonly string[]).includes(discount) ? discount : "ALL";
+  const pricing = String(searchParams.pricing ?? "ALL").toUpperCase();
+  const customOnly = pricing === "CUSTOM";
   const sortRaw = String(searchParams.sort ?? "DEFAULT").toUpperCase();
   const sort = (SORTS as readonly string[]).includes(sortRaw)
     ? (sortRaw as (typeof SORTS)[number])
@@ -57,6 +68,9 @@ export default async function AdminGamesPage({
     ...(featuredOnly ? { isFeatured: true } : {}),
     ...(discountFilter === "WITH" ? { discountTryCents: { not: null } } : {}),
     ...(discountFilter === "WITHOUT" ? { discountTryCents: null } : {}),
+    ...(customOnly
+      ? { OR: [{ customMarginPct: { not: null } }, { customPriceAznCents: { not: null } }] }
+      : {}),
   };
 
   const orderBy: Prisma.GameOrderByWithRelationInput[] =
@@ -66,7 +80,8 @@ export default async function AdminGamesPage({
         ? [{ priceTryCents: "desc" }, { updatedAt: "desc" }]
         : [{ isFeatured: "desc" }, { updatedAt: "desc" }];
 
-  const [total, featuredCount, games] = await Promise.all([
+  const [settings, total, featuredCount, games] = await Promise.all([
+    getSettings(),
     prisma.game.count({ where }),
     prisma.game.count({ where: { isFeatured: true } }),
     prisma.game.findMany({
@@ -93,6 +108,7 @@ export default async function AdminGamesPage({
       ...(productType !== "ALL" ? { productType } : {}),
       ...(featuredOnly ? { featured: "1" } : {}),
       ...(discountFilter !== "ALL" ? { discount: discountFilter } : {}),
+      ...(customOnly ? { pricing: "CUSTOM" } : {}),
       ...(sort !== "DEFAULT" ? { sort } : {}),
       page: String(page),
       ...Object.fromEntries(
@@ -160,6 +176,13 @@ export default async function AdminGamesPage({
           build={(v) => buildHref({ discount: v, page: "1" })}
         />
         <FilterRow
+          label="Qiymət"
+          current={customOnly ? "CUSTOM" : "ALL"}
+          options={PRICINGS}
+          getLabel={(v) => PRICING_LABEL[v as (typeof PRICINGS)[number]] ?? v}
+          build={(v) => buildHref({ pricing: v, page: "1" })}
+        />
+        <FilterRow
           label="Sırala"
           current={sort}
           options={SORTS}
@@ -183,7 +206,7 @@ export default async function AdminGamesPage({
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-admin-line">
-        <table className="w-full min-w-[1100px] text-sm">
+        <table className="w-full min-w-[1400px] text-sm">
           <thead className="bg-admin-card text-xs uppercase tracking-wider text-zinc-500">
             <tr>
               <Th>Popular</Th>
@@ -191,6 +214,10 @@ export default async function AdminGamesPage({
               <Th>Platform</Th>
               <Th>Type</Th>
               <Th>Price (TRY)</Th>
+              <Th>Maya</Th>
+              <Th>Satış</Th>
+              <Th>Mənfəət</Th>
+              <Th>Qiymət</Th>
               <Th>Endirim bitir</Th>
               <Th>Sold</Th>
               <Th>Active</Th>
@@ -199,73 +226,113 @@ export default async function AdminGamesPage({
           <tbody className="divide-y divide-admin-line">
             {games.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-zinc-500">
+                <td colSpan={12} className="px-5 py-8 text-center text-zinc-500">
                   No games match these filters.
                 </td>
               </tr>
             )}
-            {games.map((g) => (
-              <tr key={g.id} className="hover:bg-admin-chip">
-                <Td>
-                  <StarToggle gameId={g.id} isFeatured={g.isFeatured} />
-                </Td>
-                <Td>
-                  <div className="flex items-center gap-3">
-                    {g.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={g.imageUrl}
-                        alt=""
-                        className="h-12 w-12 rounded-md object-cover ring-1 ring-admin-line"
-                      />
-                    ) : (
-                      <div className="h-12 w-12 rounded-md bg-admin-card ring-1 ring-admin-line" />
-                    )}
-                    <div className="min-w-0">
-                      <div className="truncate font-medium">{g.title}</div>
-                      <div className="truncate text-xs text-zinc-500">
-                        {g.productId}
+            {games.map((g) => {
+              const price = computeDisplayPrice(g, settings);
+              const discountActive =
+                g.discountTryCents != null &&
+                g.discountTryCents < g.priceTryCents &&
+                (g.discountEndAt == null || g.discountEndAt.getTime() > Date.now());
+              const costAzn = tryCentsToCostAzn(
+                discountActive ? g.discountTryCents! : g.priceTryCents,
+                settings
+              );
+              const profit = price.finalAzn - costAzn;
+              return (
+                <tr key={g.id} className="hover:bg-admin-chip">
+                  <Td>
+                    <StarToggle gameId={g.id} isFeatured={g.isFeatured} />
+                  </Td>
+                  <Td>
+                    <div className="flex items-center gap-3">
+                      {g.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={g.imageUrl}
+                          alt=""
+                          className="h-12 w-12 rounded-md object-cover ring-1 ring-admin-line"
+                        />
+                      ) : (
+                        <div className="h-12 w-12 rounded-md bg-admin-card ring-1 ring-admin-line" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{g.title}</div>
+                        <div className="truncate text-xs text-zinc-500">
+                          {g.productId}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Td>
-                <Td className="text-zinc-700">{g.platform ?? "—"}</Td>
-                <Td className="text-zinc-700">{g.productType}</Td>
-                <Td className="text-zinc-700">
-                  {g.discountTryCents != null ? (
-                    <>
-                      <span className="text-emerald-700">
-                        {fmtTry(g.discountTryCents)}
-                      </span>
+                  </Td>
+                  <Td className="text-zinc-700">{g.platform ?? "—"}</Td>
+                  <Td className="text-zinc-700">{g.productType}</Td>
+                  <Td className="text-zinc-700">
+                    {g.discountTryCents != null ? (
+                      <>
+                        <span className="text-emerald-700">
+                          {fmtTry(g.discountTryCents)}
+                        </span>
+                        <span className="ml-2 text-xs text-zinc-500 line-through">
+                          {fmtTry(g.priceTryCents)}
+                        </span>
+                      </>
+                    ) : (
+                      fmtTry(g.priceTryCents)
+                    )}
+                  </Td>
+                  <Td className="text-zinc-700">{costAzn.toFixed(2)} ₼</Td>
+                  <Td className="text-zinc-900">
+                    <span className="font-medium">{price.finalAzn.toFixed(2)} ₼</span>
+                    {price.originalAzn != null && (
                       <span className="ml-2 text-xs text-zinc-500 line-through">
-                        {fmtTry(g.priceTryCents)}
+                        {price.originalAzn.toFixed(2)}
                       </span>
-                    </>
-                  ) : (
-                    fmtTry(g.priceTryCents)
-                  )}
-                </Td>
-                <Td className="text-zinc-700">
-                  {g.discountTryCents != null && g.discountEndAt ? (
-                    <DiscountEnd date={g.discountEndAt} />
-                  ) : (
-                    <span className="text-zinc-600">—</span>
-                  )}
-                </Td>
-                <Td className="text-zinc-800">{g._count.transactions}</Td>
-                <Td>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${
-                      g.isActive
-                        ? "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30"
-                        : "bg-admin-chip text-zinc-700 ring-admin-line2"
-                    }`}
-                  >
-                    {g.isActive ? "Active" : "Hidden"}
-                  </span>
-                </Td>
-              </tr>
-            ))}
+                    )}
+                  </Td>
+                  <Td className={profit < 0 ? "text-rose-700" : "text-zinc-700"}>
+                    {profit.toFixed(2)} ₼
+                    <div className="text-xs text-zinc-500">
+                      {costAzn > 0 ? `${((profit / costAzn) * 100).toFixed(1)}%` : "—"}
+                    </div>
+                  </Td>
+                  <Td>
+                    <PriceEditor
+                      gameId={g.id}
+                      customMarginPct={g.customMarginPct}
+                      customPriceAznCents={g.customPriceAznCents}
+                      costAzn={costAzn}
+                      autoPct={gameTierPct(
+                        costAzn,
+                        settings.gameMarginTiers,
+                        settings.profitMarginGamesPct
+                      )}
+                    />
+                  </Td>
+                  <Td className="text-zinc-700">
+                    {g.discountTryCents != null && g.discountEndAt ? (
+                      <DiscountEnd date={g.discountEndAt} />
+                    ) : (
+                      <span className="text-zinc-600">—</span>
+                    )}
+                  </Td>
+                  <Td className="text-zinc-800">{g._count.transactions}</Td>
+                  <Td>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${
+                        g.isActive
+                          ? "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30"
+                          : "bg-admin-chip text-zinc-700 ring-admin-line2"
+                      }`}
+                    >
+                      {g.isActive ? "Active" : "Hidden"}
+                    </span>
+                  </Td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

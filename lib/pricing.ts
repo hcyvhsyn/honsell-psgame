@@ -1,5 +1,15 @@
-import { cache } from "react";
+import * as React from "react";
 import { prisma } from "./prisma";
+import {
+  normalizeGameMarginTiers,
+  resolveGamePriceAzn,
+  type GameCustomPricing,
+  type GameMarginTier,
+} from "./gameMargin";
+
+// Next öz React-ini (cache ilə) işlədir; `tsx` skriptləri/testləri isə node_modules-dəki
+// React-i yükləyir, orada `cache` yoxdur — per-request dedup orada lazım da deyil.
+const cache: typeof React.cache = React.cache ?? ((fn) => fn);
 
 export type PricingSettings = {
   tryToAznRate: number;
@@ -12,6 +22,8 @@ export type PricingSettings = {
   /** Legacy global margin (kept for back-compat) */
   profitMarginPct: number;
   profitMarginGamesPct: number;
+  /** Mayaya görə oyun pillələri ([] → profitMarginGamesPct). Bax lib/gameMargin.ts. */
+  gameMarginTiers: GameMarginTier[];
   profitMarginGiftCardsPct: number;
   profitMarginPsPlusPct: number;
   affiliateRatePct: number;
@@ -93,6 +105,7 @@ export const getSettings = cache(async function getSettings(): Promise<PricingSe
       epicMinProfitPct: s.epicMinProfitPct ?? 10,
       profitMarginPct: s.profitMarginPct,
       profitMarginGamesPct: s.profitMarginGamesPct ?? s.profitMarginPct,
+      gameMarginTiers: normalizeGameMarginTiers(s.gameMarginTiers),
       profitMarginGiftCardsPct: s.profitMarginGiftCardsPct ?? s.profitMarginPct,
       profitMarginPsPlusPct: s.profitMarginPsPlusPct ?? s.profitMarginPct,
       affiliateRatePct: s.affiliateRatePct,
@@ -117,6 +130,7 @@ export const getSettings = cache(async function getSettings(): Promise<PricingSe
       msg.includes("epicPositionPct") ||
       msg.includes("epicMinProfitPct") ||
       msg.includes("profitMarginGamesPct") ||
+      msg.includes("gameMarginTiers") ||
       msg.includes("profitMarginGiftCardsPct") ||
       msg.includes("profitMarginPsPlusPct") ||
       msg.includes("referralGamesPct") ||
@@ -158,6 +172,7 @@ export const getSettings = cache(async function getSettings(): Promise<PricingSe
       epicMinProfitPct: 10,
       profitMarginPct: s.profitMarginPct,
       profitMarginGamesPct: s.profitMarginPct,
+      gameMarginTiers: [],
       profitMarginGiftCardsPct: s.profitMarginPct,
       profitMarginPsPlusPct: s.profitMarginPct,
       affiliateRatePct: s.affiliateRatePct,
@@ -215,15 +230,36 @@ export function tryCentsToAznWithMargin(
 }
 
 /**
- * Reverse of `tryCentsToAznWithMargin`: given a target AZN price, return the
- * integer TRY-cents threshold that would map to it under the games margin.
+ * PS oyununun satış qiyməti (AZN) — mayadan, oyunun custom sahələri və
+ * `gameMarginTiers` pillələri ilə. Kataloq, səbət və checkout eyni nəticəni
+ * görsün deyə oyun qiyməti YALNIZ bu funksiyadan (və `computeDisplayPrice`-dan) gəlir.
+ */
+export function gameTryCentsToAzn(
+  tryCents: number,
+  game: GameCustomPricing,
+  settings: PricingSettings
+): number {
+  // Maya burada yuvarlaqlaşdırılmır — köhnə `tryCentsToAznWithMargin` ilə qəpiyinə eyni qalsın.
+  return resolveGamePriceAzn(
+    (tryCents / 100) * settings.tryToAznRate,
+    game,
+    settings.gameMarginTiers ?? [],
+    settings.profitMarginGamesPct ?? settings.profitMarginPct
+  );
+}
+
+const AUTO_PRICING: GameCustomPricing = { customMarginPct: null, customPriceAznCents: null };
+
+/**
+ * Reverse of the games pricing: given a target AZN price, return the integer
+ * TRY-cents threshold that maps to it under the (tiered) games margin.
  * Used by the catalog price-range filter to translate AZN UI bounds into
  * the integer column comparisons the DB can do efficiently.
  *
- * For `mode: "floor"` we round DOWN so a "max 50 AZN" filter doesn't exclude
- * rows that round to exactly 50.00 AZN at display time; for `mode: "ceil"`
- * we round UP for the same reason on the min side. The half-step margin is
- * negligible at TRY-cent precision but keeps the boundary inclusive.
+ * Pilləli funksiya monoton olduğu üçün (döşəmə qaydası, lib/gameMargin.ts) binar
+ * axtarışla tərs çevrilir. `floor` → qiyməti ≤ azn olan ən böyük TRY-cents,
+ * `ceil` → qiyməti ≥ azn olan ən kiçik TRY-cents; sərhəd daxil qalır. Oyuna
+ * xüsusi (custom) qiymət SQL süzgəcində nəzərə alınmır — avto qiymətlə yaxınlaşdırılır.
  */
 export function aznToTryCents(
   azn: number,
@@ -231,12 +267,28 @@ export function aznToTryCents(
   mode: "floor" | "ceil" = "floor"
 ): number {
   if (!Number.isFinite(azn) || azn <= 0) return 0;
-  const margin = settings.profitMarginGamesPct ?? settings.profitMarginPct;
   const rate = settings.tryToAznRate;
   if (rate <= 0) return 0;
-  const tryAmount = azn / rate / (1 + margin / 100);
-  const cents = tryAmount * 100;
-  return mode === "floor" ? Math.floor(cents) : Math.ceil(cents);
+  const price = (cents: number) => gameTryCentsToAzn(cents, AUTO_PRICING, settings);
+  // Hər pillədə faiz ≥ 0 → qiymət ≥ maya, yəni cavab azn/rate TRY-dan böyük deyil.
+  let lo = 0;
+  let hi = Math.ceil((azn / rate) * 100) + 1;
+  if (mode === "floor") {
+    // ən böyük x: price(x) ≤ azn
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (price(mid) <= azn) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo;
+  }
+  // ən kiçik x: price(x) ≥ azn
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (price(mid) >= azn) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
 }
 
 /**
@@ -248,9 +300,14 @@ export function aznToTryCents(
  * sıfırdan azdır AND ya `discountEndAt` boşdur, ya da gələcəkdədir. Köhnə
  * skreyp run-larından qalan stale endirimlər sayəsində runtime-da bu yoxlama
  * vacibdir — yoxsa istifadəçi artıq bitmiş endirimlə oyun ala bilər.
+ *
+ * `customMarginPct`/`customPriceAznCents` qəsdən MƏCBURİDİR: select-də unudulsa
+ * tsc tutur, yoxsa kataloq bir qiymət, checkout başqa qiymət göstərərdi.
+ * Sabit qiymətli oyunda PS endirimi nəzərə alınmır. `discountPct` AZN-dən
+ * hesablanır — pillələrdə tam və endirimli qiymət fərqli faizə düşə bilər.
  */
 export function computeDisplayPrice(
-  game: {
+  game: GameCustomPricing & {
     priceTryCents: number;
     discountTryCents: number | null;
     discountEndAt?: Date | string | null;
@@ -273,11 +330,10 @@ export function computeDisplayPrice(
     };
   }
 
-  const originalAzn = tryCentsToAznWithMargin(
-    game.priceTryCents,
-    settings.tryToAznRate,
-    settings.profitMarginGamesPct ?? settings.profitMarginPct
-  );
+  const originalAzn = gameTryCentsToAzn(game.priceTryCents, game, settings);
+  if (game.customPriceAznCents != null && game.customPriceAznCents > 0) {
+    return { finalAzn: originalAzn, originalAzn: null, discountPct: null };
+  }
 
   const endAt =
     game.discountEndAt instanceof Date
@@ -292,15 +348,13 @@ export function computeDisplayPrice(
     game.discountTryCents != null &&
     game.discountTryCents < game.priceTryCents
   ) {
-    const finalAzn = tryCentsToAznWithMargin(
-      game.discountTryCents,
-      settings.tryToAznRate,
-      settings.profitMarginGamesPct ?? settings.profitMarginPct
-    );
-    const discountPct = Math.round(
-      ((game.priceTryCents - game.discountTryCents) / game.priceTryCents) * 100
-    );
-    return { finalAzn, originalAzn, discountPct };
+    const finalAzn = gameTryCentsToAzn(game.discountTryCents, game, settings);
+    if (finalAzn < originalAzn) {
+      const discountPct = Math.round((1 - finalAzn / originalAzn) * 100);
+      return { finalAzn, originalAzn, discountPct };
+    }
+    // Döşəmə endirimi udubsa (məs. maya 20.50 → 20.00) köhnə qiymət göstərilmir.
+    return { finalAzn, originalAzn: null, discountPct: null };
   }
 
   return { finalAzn: originalAzn, originalAzn: null, discountPct: null };

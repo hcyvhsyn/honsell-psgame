@@ -61,6 +61,8 @@ export async function findEditionCandidates(
         store: true,
         priceTryCents: true,
         discountTryCents: true,
+        customMarginPct: true,
+        customPriceAznCents: true,
         discountEndAt: true,
         priceUsdCents: true,
         discountUsdCents: true,

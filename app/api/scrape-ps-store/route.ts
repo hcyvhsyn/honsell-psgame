@@ -1163,6 +1163,8 @@ export async function GET(req: Request) {
                 imageUrl: true,
                 priceTryCents: true,
                 discountTryCents: true,
+                customMarginPct: true,
+                customPriceAznCents: true,
                 discountEndAt: true,
               },
             });
