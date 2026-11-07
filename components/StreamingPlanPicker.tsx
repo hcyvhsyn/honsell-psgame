@@ -24,8 +24,10 @@ import {
   Zap,
 } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import { newPasswordValid } from "@/lib/accountPassword";
 import {
   STREAMING_SERVICE_LABELS,
+  streamingDeliveryMode,
   STREAMING_SERVICE_META,
   validateStreamingDetails,
 } from "@/lib/streamingCart";
@@ -53,7 +55,7 @@ type ServiceTheme = {
 const DEFAULT_THEME: ServiceTheme = {
   panelGlow: "from-violet-500/20 via-blue-500/10 to-cyan-400/10",
   logoGradient: "from-violet-700 via-indigo-800 to-blue-900",
-  accentText: "text-violet-300",
+  accentText: "text-violet-700 dark:text-violet-300",
   accentBorder: "border-violet-400/35",
   activeCard: "border-violet-300/80 bg-violet-500/10 shadow-[0_0_34px_rgba(139,92,246,0.42)]",
   activeBadge: "bg-gradient-to-r from-violet-600 to-blue-600 text-white",
@@ -61,69 +63,11 @@ const DEFAULT_THEME: ServiceTheme = {
   cta: "from-violet-700 via-fuchsia-600 to-blue-600 hover:from-violet-600 hover:via-fuchsia-500 hover:to-blue-500",
 };
 
-const SERVICE_THEMES: Record<string, ServiceTheme> = {
-  HBO_MAX: DEFAULT_THEME,
-  NETFLIX: {
-    panelGlow: "from-red-600/18 via-violet-500/10 to-blue-500/10",
-    logoGradient: "from-red-700 via-red-950 to-zinc-950",
-    accentText: "text-red-200",
-    accentBorder: "border-red-400/35",
-    activeCard: "border-red-300/80 bg-red-500/10 shadow-[0_0_34px_rgba(239,68,68,0.38)]",
-    activeBadge: "bg-gradient-to-r from-red-600 to-violet-600 text-white",
-    checkGlow: "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.7)]",
-    cta: "from-red-700 via-violet-700 to-blue-600 hover:from-red-600 hover:via-violet-600 hover:to-blue-500",
-  },
-  NETFLIX_VVIP: {
-    panelGlow: "from-red-600/18 via-violet-500/10 to-blue-500/10",
-    logoGradient: "from-red-700 via-red-950 to-zinc-950",
-    accentText: "text-red-200",
-    accentBorder: "border-red-400/35",
-    activeCard: "border-red-300/80 bg-red-500/10 shadow-[0_0_34px_rgba(239,68,68,0.38)]",
-    activeBadge: "bg-gradient-to-r from-red-600 to-violet-600 text-white",
-    checkGlow: "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.7)]",
-    cta: "from-red-700 via-violet-700 to-blue-600 hover:from-red-600 hover:via-violet-600 hover:to-blue-500",
-  },
-  NETFLIX_EVIMD_VIP: {
-    panelGlow: "from-red-600/18 via-violet-500/10 to-blue-500/10",
-    logoGradient: "from-red-700 via-red-950 to-zinc-950",
-    accentText: "text-red-200",
-    accentBorder: "border-red-400/35",
-    activeCard: "border-red-300/80 bg-red-500/10 shadow-[0_0_34px_rgba(239,68,68,0.38)]",
-    activeBadge: "bg-gradient-to-r from-red-600 to-violet-600 text-white",
-    checkGlow: "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.7)]",
-    cta: "from-red-700 via-violet-700 to-blue-600 hover:from-red-600 hover:via-violet-600 hover:to-blue-500",
-  },
-  GAIN: {
-    panelGlow: "from-rose-500/18 via-orange-500/10 to-violet-500/10",
-    logoGradient: "from-rose-700 via-orange-800 to-zinc-950",
-    accentText: "text-rose-200",
-    accentBorder: "border-rose-400/35",
-    activeCard: "border-rose-300/80 bg-rose-500/10 shadow-[0_0_34px_rgba(244,63,94,0.34)]",
-    activeBadge: "bg-gradient-to-r from-rose-600 to-orange-500 text-white",
-    checkGlow: "bg-rose-500 text-white shadow-[0_0_20px_rgba(244,63,94,0.65)]",
-    cta: "from-rose-700 via-orange-600 to-violet-600 hover:from-rose-600 hover:via-orange-500 hover:to-violet-500",
-  },
-  YOUTUBE_PREMIUM: {
-    panelGlow: "from-red-500/18 via-zinc-500/10 to-blue-500/10",
-    logoGradient: "from-red-700 via-zinc-900 to-zinc-950",
-    accentText: "text-red-200",
-    accentBorder: "border-red-400/35",
-    activeCard: "border-red-300/80 bg-red-500/10 shadow-[0_0_34px_rgba(239,68,68,0.35)]",
-    activeBadge: "bg-gradient-to-r from-red-600 to-zinc-700 text-white",
-    checkGlow: "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.65)]",
-    cta: "from-red-700 via-zinc-700 to-blue-600 hover:from-red-600 hover:via-zinc-600 hover:to-blue-500",
-  },
-  PRIME_VIDEO: {
-    panelGlow: "from-sky-500/18 via-blue-500/10 to-cyan-400/10",
-    logoGradient: "from-sky-600 via-blue-800 to-zinc-950",
-    accentText: "text-sky-200",
-    accentBorder: "border-sky-400/35",
-    activeCard: "border-sky-300/80 bg-sky-500/10 shadow-[0_0_34px_rgba(14,165,233,0.38)]",
-    activeBadge: "bg-gradient-to-r from-sky-600 to-blue-600 text-white",
-    checkGlow: "bg-sky-500 text-white shadow-[0_0_20px_rgba(14,165,233,0.7)]",
-    cta: "from-sky-600 via-blue-600 to-cyan-500 hover:from-sky-500 hover:via-blue-500 hover:to-cyan-400",
-  },
-};
+/** Otaq seçimi eyni görünüşü işlədir (`NetflixCabinetPicker`). */
+export const netflixTheme: ServiceTheme = DEFAULT_THEME;
+
+// Bütün xidmətlər saytın öz palitrasını işlədir (məhsulun brend rəngi YOX).
+const SERVICE_THEMES: Record<string, ServiceTheme> = {};
 
 export type PlanProduct = {
   id: string;
@@ -205,7 +149,7 @@ function readMeta(p: PlanProduct): Meta {
     service: String(m.service ?? "").toUpperCase(),
     durationMonths: Number(m.durationMonths ?? 0),
     seats: Number(m.seats ?? 1),
-    deliveryMode: String(m.deliveryMode ?? "CODE") === "GMAIL" ? "GMAIL" : "CODE",
+    deliveryMode: streamingDeliveryMode(m),
     originalPriceAznCents: Number.isFinite(opc) && opc > 0 ? opc : null,
     inStock: m.inStock === undefined ? true : Boolean(m.inStock),
     devices: rawDevices.filter((x): x is string => typeof x === "string"),
@@ -334,7 +278,7 @@ const VARIANT_TERMS: Record<string, ServiceTerms> = {
   "Evimdə VIP": NETFLIX_EVIMD_TERMS,
 };
 
-function resolveTerms(
+export function resolveTerms(
   serviceCode: string,
   variant: string | null | undefined,
 ): ServiceTerms | null {
@@ -500,16 +444,16 @@ export default function StreamingPlanPicker({
     null;
   const vpnRequired = durationOptions.some((x) => x.m.vpnRequired);
   const deliveryLabel = durationOptions.some((x) => x.m.deliveryMode === "GMAIL")
-    ? "Gmail aktivləşmə"
+    ? "Öz hesabına aktivləşmə"
     : "Tez çatdırılma";
 
   return (
     <div className="space-y-5">
       {seatOptions.length > 1 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-950/80 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-950/80 p-3">
           <p className="text-sm font-semibold text-zinc-300">Nəfər sayı</p>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-full border border-white/10 bg-black/35 p-1">
+            <div className="inline-flex rounded-full border border-zinc-200 dark:border-white/10 bg-black/35 p-1">
               {seatOptions.map((n) => (
                 <button
                   key={n}
@@ -517,8 +461,8 @@ export default function StreamingPlanPicker({
                   onClick={() => setSelectedSeats(n)}
                   className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${
                     effectiveSeats === n
-                      ? "bg-white text-zinc-950"
-                      : "text-zinc-300 hover:bg-white/10 hover:text-white"
+                      ? "bg-violet-600 text-white"
+                      : "text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   <Users className="h-4 w-4" />
@@ -530,7 +474,7 @@ export default function StreamingPlanPicker({
               <button
                 type="button"
                 onClick={() => setSeatInfoOpen(effectiveSeats)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-zinc-400 transition hover:border-white/20 hover:text-white"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/[0.04] text-zinc-400 transition hover:border-zinc-200 dark:hover:border-white/20 hover:text-white"
                 aria-label="Nəfər sayı haqqında məlumat"
               >
                 <Info className="h-4 w-4" />
@@ -584,12 +528,12 @@ export default function StreamingPlanPicker({
                       className={`group relative flex flex-col rounded-[22px] border p-4 text-left transition duration-200 ${
                         active
                           ? theme.activeCard
-                          : "border-white/10 bg-zinc-950/80 hover:border-white/25 hover:bg-zinc-900/70"
+                          : "border-zinc-200 dark:border-white/10 bg-zinc-950/80 hover:border-zinc-200 dark:hover:border-white/25 hover:bg-zinc-900/70"
                       }`}
                     >
                       <span
                         className={`absolute right-3 top-3 grid h-6 w-6 place-items-center rounded-full transition ${
-                          active ? theme.checkGlow : "bg-white/5 text-transparent"
+                          active ? theme.checkGlow : "bg-zinc-100 dark:bg-white/5 text-transparent"
                         }`}
                       >
                         <Check className="h-3.5 w-3.5" />
@@ -606,7 +550,7 @@ export default function StreamingPlanPicker({
                         ₼ / aydan
                       </p>
 
-                      <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
+                      <div className="mt-3 space-y-2 border-t border-zinc-200 dark:border-white/10 pt-3">
                         {v.features.map((f, i) => (
                           <FeatureRow key={i} feature={f} />
                         ))}
@@ -632,7 +576,7 @@ export default function StreamingPlanPicker({
                 return (
                   <div
                     key={x.p.id}
-                    className={`group relative flex flex-col overflow-hidden rounded-[22px] border border-white/10 bg-zinc-950/80 p-3 transition duration-200 hover:border-white/25 hover:bg-zinc-900/80 ${
+                    className={`group relative flex flex-col overflow-hidden rounded-[22px] border border-zinc-200 dark:border-white/10 bg-zinc-950/80 p-3 transition duration-200 hover:border-zinc-200 dark:hover:border-white/25 hover:bg-zinc-900/80 ${
                       !stock ? "opacity-50" : ""
                     }`}
                   >
@@ -642,12 +586,12 @@ export default function StreamingPlanPicker({
                         Ən sərfəli
                       </span>
                     ) : discountPct != null ? (
-                      <span className="absolute right-3 top-3 z-10 rounded-full bg-violet-600/45 px-3 py-1 text-xs font-bold text-violet-50">
+                      <span className="absolute right-3 top-3 z-10 rounded-full bg-violet-600/45 px-3 py-1 text-xs font-bold text-violet-700 dark:text-violet-50">
                         -%{discountPct}
                       </span>
                     ) : null}
 
-                    <div className="relative aspect-square w-full overflow-hidden rounded-[16px] border border-white/10 bg-black">
+                    <div className="relative aspect-square w-full overflow-hidden rounded-[16px] border border-zinc-200 dark:border-white/10 bg-black">
                       {x.p.imageUrl ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img
@@ -661,10 +605,10 @@ export default function StreamingPlanPicker({
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                       <div className="absolute bottom-3 left-3 flex items-end gap-1.5">
-                        <span className="text-4xl font-black leading-none text-white drop-shadow">
+                        <span className="text-4xl font-black leading-none text-zinc-50 drop-shadow">
                           {x.m.durationMonths}
                         </span>
-                        <span className="pb-1 text-sm font-medium text-zinc-200">ay</span>
+                        <span className="pb-1 text-sm font-medium text-zinc-50/80">ay</span>
                       </div>
                     </div>
 
@@ -758,6 +702,23 @@ function NetflixAccountPlans({
 }) {
   return (
     <section aria-label="Netflix hesab planını seç" className="space-y-4">
+      {/* Mənbə: help.netflix.com/en/node/123277 və Netflix istifadə şərtləri, bənd 1.4. */}
+      <div className="flex items-start gap-3 rounded-2xl border border-amber-300/25 bg-amber-500/10 p-4">
+        <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-200" />
+        <p className="text-sm leading-6 text-zinc-200">
+          <span className="font-bold text-white">Netflix qaydası:</span> hesab yalnız bir ev üçündür və evdən kənar
+          insanlarla paylaşıla bilməz. Başqa ünvanda yaşayanların öz hesabı olmalıdır. Planı bir neçə nəfər arasında
+          bölmək üçün almayın.{" "}
+          <a
+            href={NETFLIX_SHARING_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-amber-700 dark:text-amber-200 underline underline-offset-2 hover:text-white"
+          >
+            Rəsmi qayda
+          </a>
+        </p>
+      </div>
       <div className="grid gap-5 lg:grid-cols-3">
         {variants.map((variant) => (
           <NetflixAccountPlanCard
@@ -772,6 +733,75 @@ function NetflixAccountPlans({
           />
         ))}
       </div>
+      <NetflixSharingRules />
+    </section>
+  );
+}
+
+const NETFLIX_SHARING_URL = "https://help.netflix.com/tr/node/123277";
+
+/**
+ * Netflix-in "Hesabınızı paylaşma" yardım məqaləsinin Azərbaycan dilində qısa izahı
+ * (help.netflix.com/tr/node/123277). Netflix qaydanı dəyişsə bu mətn də yenilənməlidir.
+ */
+const NETFLIX_SHARING_SECTIONS: { title: string; points: string[] }[] = [
+  {
+    title: "Hesab kimlər üçündür?",
+    points: [
+      "Netflix hesabı yalnız bir ev (Netflix Household) daxilində paylaşıla bilər.",
+      "Ev dedikdə Netflix-ə əsasən baxdığınız ünvanda internetə qoşulan bütün cihazlar nəzərdə tutulur.",
+      "Sizinlə birlikdə yaşamayan şəxslər öz hesabını açmalı və ya əlavə üzv kimi qoşulmalıdır.",
+    ],
+  },
+  {
+    title: "Əlavə üzv",
+    points: [
+      "Bəzi ölkələrdə Standart və Premium plan sahibləri evdən kənarda yaşayan bir nəfəri əlavə üzv kimi qoşa bilər.",
+      "Bunun üçün hesab sahibi əlavə üzv yeri alır və həmin şəxsə dəvət göndərir.",
+      "Əlavə üzv yalnız hesabın yaradıldığı ölkədə aktivləşdirilə bilər.",
+      "Reklamlı planlara, bəzi paketlərə və üçüncü tərəfin ödədiyi hesablara əlavə üzv qoşmaq olmur.",
+      "Əlavə üzv Netflix-in öz xidmətidir və Honsell vasitəsilə satılmır.",
+    ],
+  },
+  {
+    title: "Profilin köçürülməsi",
+    points: [
+      "Yeni hesab açanda və ya əlavə üzv olanda mövcud profilinizi köçürə bilərsiniz.",
+      "Tövsiyələr, baxış tarixçəsi, \"Siyahım\", oyun qeydləri və ayarlar profillə birlikdə köçür.",
+    ],
+  },
+];
+
+function NetflixSharingRules() {
+  return (
+    <section aria-label="Netflix hesab paylaşımı qaydaları" className="rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-950/80 p-5 sm:p-6">
+      <h3 className="text-xl font-black text-white">Netflix hesabının paylaşılması</h3>
+      <div className="mt-4 grid gap-5 md:grid-cols-3">
+        {NETFLIX_SHARING_SECTIONS.map((section) => (
+          <div key={section.title}>
+            <p className="text-sm font-bold text-white">{section.title}</p>
+            <ul className="mt-2 space-y-2">
+              {section.points.map((point) => (
+                <li key={point} className="flex items-start gap-2 text-sm leading-6 text-zinc-300">
+                  <Check className="mt-1 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                  {point}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <p className="mt-5 border-t border-zinc-200 dark:border-white/10 pt-4 text-xs text-zinc-500">
+        Mənbə:{" "}
+        <a
+          href={NETFLIX_SHARING_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-zinc-300 underline underline-offset-2 hover:text-white"
+        >
+          Netflix Yardım Mərkəzi — Netflix hesabınızı paylaşma
+        </a>
+      </p>
     </section>
   );
 }
@@ -802,19 +832,19 @@ function NetflixAccountPlanCard({
   return (
     <div
       className={`group relative flex h-full flex-col overflow-hidden rounded-[24px] border bg-zinc-950/80 transition duration-200 ${
-        available ? "border-white/10 hover:border-white/25" : "border-white/10 opacity-70"
+        available ? "border-zinc-200 dark:border-white/10 hover:border-zinc-200 dark:hover:border-white/25" : "border-zinc-200 dark:border-white/10 opacity-70"
       }`}
     >
       {/* Başlıq — sayt teması (qaranlıq), Netflix-in rəsmi rəngləri deyil. */}
-      <div className={`relative overflow-hidden border-b border-white/10 bg-gradient-to-br ${theme.logoGradient} px-5 py-4`}>
+      <div className={`relative overflow-hidden border-b border-zinc-200 dark:border-white/10 bg-gradient-to-br ${theme.logoGradient} px-5 py-4`}>
         <div className="pointer-events-none absolute inset-0 bg-black/35" />
         <div className="relative flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h4 className="text-2xl font-black leading-none text-white">{variant.name}</h4>
-            <p className="mt-1.5 text-sm font-bold text-white/80">{spec.resolutionShort}</p>
+            <h4 className="text-2xl font-black leading-none text-zinc-50">{variant.name}</h4>
+            <p className="mt-1.5 text-sm font-bold text-zinc-50/80">{spec.resolutionShort}</p>
           </div>
           {isPremium && (
-            <span className="shrink-0 rounded-md bg-white/15 px-2 py-1 text-[11px] font-black uppercase tracking-wider text-white">
+            <span className="shrink-0 rounded-md bg-zinc-100 dark:bg-white/15 px-2 py-1 text-[11px] font-black uppercase tracking-wider text-white">
               Premium
             </span>
           )}
@@ -827,12 +857,13 @@ function NetflixAccountPlanCard({
           <NetflixSpecRow label="Çözünürlük" value={spec.resolution} />
           {spec.spatial && <NetflixSpecRow label="Məkan səsi" value={spec.spatial} />}
           <NetflixSpecRow label="Eyni anda izləmə" value={spec.screens} />
+          {spec.audience && <NetflixSpecRow label="Kimlər üçün" value={spec.audience} />}
           <NetflixSpecRow label="Endirmə" value={spec.downloads} />
         </div>
 
         <div className="mt-5 flex flex-1 flex-col justify-end">
           {!available || !selected ? (
-            <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.03] px-3 py-3 text-center text-sm font-semibold text-zinc-400">
+            <div className="rounded-xl border border-dashed border-zinc-200 dark:border-white/15 bg-zinc-100 dark:bg-white/[0.03] px-3 py-3 text-center text-sm font-semibold text-zinc-400">
               Tezliklə
             </div>
           ) : (
@@ -848,8 +879,8 @@ function NetflixAccountPlanCard({
                         onClick={() => setSelectedId(d.p.id)}
                         className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
                           active
-                            ? "border-white/30 bg-white text-zinc-950"
-                            : "border-white/10 bg-white/[0.04] text-zinc-300 hover:border-white/25"
+                            ? "border-violet-600 bg-violet-600 text-white"
+                            : "border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/[0.04] text-zinc-300 hover:border-zinc-200 dark:hover:border-white/25"
                         }`}
                       >
                         {d.m.durationMonths} ay
@@ -917,6 +948,7 @@ function netflixPlanSpec(variant: Pick<NetflixAccountVariantOption, "devices" | 
       ? variant.devices.map((device) => DEVICE_META[device]?.label ?? device).join(", ")
       : "TV, kompüter, telefon, planşet",
     screens: compactFeatureValue(screensFeature?.text) ?? "1 cihaz",
+    audience: readFeatureValue(variant.features, "Kimlər üçün"),
     downloads: compactFeatureValue(downloadsFeature?.text) ?? "1 cihaz",
   };
 }
@@ -934,7 +966,7 @@ function compactFeatureValue(text: string | null | undefined): string | null {
   return `${match[1]} cihaz`;
 }
 
-function TermsModal({
+export function TermsModal({
   terms,
   serviceLabel,
   theme,
@@ -984,15 +1016,15 @@ function TermsModal({
         </ul>
 
         <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-3.5">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
-          <p className="text-sm leading-6 text-amber-100">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" />
+          <p className="text-sm leading-6 text-amber-700 dark:text-amber-100">
             <span className="font-black">Diqqət!</span> {terms.warning}
           </p>
         </div>
 
         {mode === "confirm" ? (
           <>
-            <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3.5">
+            <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/[0.035] p-3.5">
               <input
                 type="checkbox"
                 checked={accepted}
@@ -1070,16 +1102,16 @@ function ServiceOverview({
 
   return (
     <section
-      className={`relative isolate overflow-hidden rounded-[28px] border ${theme.accentBorder} bg-zinc-950 shadow-[0_28px_90px_-52px_rgba(0,0,0,0.95)]`}
+      className={`relative isolate overflow-hidden rounded-[28px] border ${theme.accentBorder} bg-zinc-950 shadow-sm dark:shadow-[0_28px_90px_-52px_rgba(0,0,0,0.95)]`}
       aria-label={`${service.label} plan məlumatı`}
     >
-      <div className={`pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br ${theme.panelGlow}`} />
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(120deg,rgba(9,9,11,0.98)_0%,rgba(24,24,27,0.92)_44%,rgba(8,19,23,0.96)_100%)]" />
+      <div className={`pointer-events-none absolute inset-0 -z-10 hidden bg-gradient-to-br dark:block ${theme.panelGlow}`} />
+      <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(120deg,rgba(9,9,11,0.98)_0%,rgba(24,24,27,0.92)_44%,rgba(8,19,23,0.96)_100%)] dark:block" />
       <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
 
       <div className="grid gap-0 lg:grid-cols-[minmax(280px,0.92fr)_minmax(0,1.08fr)]">
         <div className="p-3 sm:p-4 lg:p-5">
-          <div className="relative aspect-[4/4] w-full overflow-hidden rounded-[24px] border border-white/10 bg-black shadow-[0_24px_70px_-44px_rgba(0,0,0,0.9)]">
+          <div className="relative aspect-[4/4] w-full overflow-hidden rounded-[24px] border border-zinc-200 dark:border-white/10 bg-black shadow-[0_24px_70px_-44px_rgba(0,0,0,0.9)]">
             {imageUrl ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
@@ -1110,7 +1142,7 @@ function ServiceOverview({
                     {serviceSummary}
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-xs font-bold text-zinc-300">
+                    <span className="inline-flex items-center rounded-full border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/[0.045] px-3 py-1.5 text-xs font-bold text-zinc-300">
                       {serviceTagline}
                     </span>
                   </div>
@@ -1120,8 +1152,8 @@ function ServiceOverview({
               <div
                 className={`inline-flex w-fit shrink-0 items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-black ${
                   vpnRequired
-                    ? "border-amber-300/35 bg-amber-300/10 text-amber-100"
-                    : "border-emerald-300/35 bg-emerald-300/10 text-emerald-100"
+                    ? "border-amber-300/35 bg-amber-300/10 text-amber-700 dark:text-amber-100"
+                    : "border-emerald-300/35 bg-emerald-300/10 text-emerald-700 dark:text-emerald-100"
                 }`}
               >
                 {vpnRequired ? <ShieldAlert className="h-4 w-4" /> : <Globe2 className="h-4 w-4" />}
@@ -1135,7 +1167,7 @@ function ServiceOverview({
               ))}
             </div>
 
-            <p className="mt-4 flex items-start gap-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3 text-sm leading-6 text-zinc-200">
+            <p className="mt-4 flex items-start gap-2.5 rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-zinc-100 dark:bg-white/[0.03] px-3.5 py-3 text-sm leading-6 text-zinc-200">
               <Users className={`mt-0.5 h-4 w-4 shrink-0 ${theme.accentText}`} />
               <span>
                 Sizə aid kabinet verilir və bu kabineti yalnız özünüz istifadə edə
@@ -1144,7 +1176,7 @@ function ServiceOverview({
             </p>
 
             {devices.length > 0 && (
-              <div className="mt-6 rounded-[22px] border border-white/[0.08] bg-black/20 p-4">
+              <div className="mt-6 rounded-[22px] border border-zinc-200 dark:border-white/[0.08] bg-zinc-100 dark:bg-black/20 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className={`text-sm font-black ${theme.accentText}`}>Dəstəklənən cihazlar</p>
                   <p className="text-xs font-semibold text-zinc-500">
@@ -1163,7 +1195,7 @@ function ServiceOverview({
               <button
                 type="button"
                 onClick={() => setTermsOpen(true)}
-                className="honsell-terms-btn group mt-6 inline-flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/[0.12] bg-black/20 px-4 py-3.5 text-left transition hover:border-white/30 hover:bg-white/[0.05]"
+                className="honsell-terms-btn group mt-6 inline-flex w-full items-center justify-between gap-3 rounded-[22px] border border-zinc-200 dark:border-white/[0.12] bg-zinc-100 dark:bg-black/20 px-4 py-3.5 text-left transition hover:border-zinc-200 dark:hover:border-white/30 hover:bg-zinc-100 dark:hover:bg-white/[0.05]"
               >
                 <span className="flex items-center gap-3">
                   <Info className={`h-5 w-5 shrink-0 transition-transform duration-300 group-hover:scale-110 ${theme.accentText}`} />
@@ -1225,8 +1257,8 @@ function FeatureTile({
   detail: string;
 }) {
   return (
-    <div className="group flex min-h-[78px] items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3.5 transition hover:border-white/18 hover:bg-white/[0.06]">
-      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-black/30 text-violet-200 transition group-hover:text-white">
+    <div className="group flex min-h-[78px] items-start gap-3 rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-zinc-100 dark:bg-white/[0.035] p-3.5 transition hover:border-zinc-200 dark:hover:border-white/18 hover:bg-zinc-100 dark:hover:bg-white/[0.06]">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-zinc-200 dark:border-white/10 bg-black/30 text-violet-700 dark:text-violet-200 transition group-hover:text-white">
         <Icon className="h-[18px] w-[18px]" />
       </div>
       <div className="min-w-0">
@@ -1242,7 +1274,7 @@ function DeviceChip({ device, theme }: { device: string; theme: ServiceTheme }) 
   const Icon = meta.Icon;
 
   return (
-    <div className="inline-flex h-11 items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.035] px-3.5 text-sm font-bold text-zinc-100">
+    <div className="inline-flex h-11 items-center gap-2.5 rounded-full border border-zinc-200 dark:border-white/[0.08] bg-zinc-100 dark:bg-white/[0.035] px-3.5 text-sm font-bold text-zinc-100">
       <Icon className={`h-[18px] w-[18px] shrink-0 ${theme.accentText}`} />
       <span className="min-w-0 truncate">{meta.label}</span>
     </div>
@@ -1278,6 +1310,9 @@ function PlanAddButton({
 
   const needsAuth = authMode === "GMAIL" || authMode === "GMAIL_PASSWORD" || meta.deliveryMode === "GMAIL";
   const needsPassword = authMode === "GMAIL_PASSWORD";
+  // Netflix hesab: aktiv hesab var, ya da yeni hesab üçün mail + şifrə təyin olunur.
+  const isNetflixAccount = platformKind === "NETFLIX_ACCOUNT";
+  const [hasAccount, setHasAccount] = useState(true);
 
   const [showTerms, setShowTerms] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -1292,6 +1327,7 @@ function PlanAddButton({
           gmail: details.gmail,
           ...(details.password ? { password: details.password } : {}),
           ...(platformKind ? { platformKind } : {}),
+          ...(isNetflixAccount ? { hasAccount } : {}),
         }
       : undefined;
     cart.add({
@@ -1358,6 +1394,10 @@ function PlanAddButton({
       setErr("Hesab şifrəsini daxil edin (ən az 4 simvol).");
       return;
     }
+    if (isNetflixAccount && !hasAccount && !newPasswordValid(password)) {
+      setErr("Yeni şifrə ən azı 10 simvol olmalı, hərf və xüsusi simvol (@ #) daxil etməlidir.");
+      return;
+    }
     addToCart({ gmail: trimmed, password: needsPassword ? password : undefined });
   }
 
@@ -1387,11 +1427,11 @@ function PlanAddButton({
               decrement();
             }}
             aria-label={qty <= 1 ? `${product.title} səbətdən çıxar` : "Sayı azalt"}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-100 transition hover:bg-emerald-500/40"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-100 transition hover:bg-emerald-500/40"
           >
             {qty <= 1 ? <Trash2 className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
           </button>
-          <span className="min-w-0 flex-1 text-center text-sm font-black tabular-nums text-emerald-50">
+          <span className="min-w-0 flex-1 text-center text-sm font-black tabular-nums text-emerald-700 dark:text-emerald-50">
             {qty}
           </span>
           <button
@@ -1401,7 +1441,7 @@ function PlanAddButton({
               increment();
             }}
             aria-label="Sayı artır"
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-100 transition hover:bg-emerald-500/40"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-100 transition hover:bg-emerald-500/40"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -1433,7 +1473,13 @@ function PlanAddButton({
           >
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-base font-bold text-white">
-                {needsPassword ? "Hesab məlumatları" : allowAnyEmail ? "Netflix hesab e-poçtu" : "Gmail ünvanı"}
+                {isNetflixAccount
+                  ? "Netflix hesabın"
+                  : needsPassword
+                    ? "Hesab məlumatları"
+                    : allowAnyEmail
+                      ? "Netflix hesab e-poçtu"
+                      : "Gmail ünvanı"}
               </h3>
               <button
                 type="button"
@@ -1444,9 +1490,40 @@ function PlanAddButton({
                 <X className="h-5 w-5" />
               </button>
             </div>
+            {isNetflixAccount && (
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                {[
+                  { value: true, label: "Hesabım var" },
+                  { value: false, label: "Hesabım yoxdur" },
+                ].map((option) => (
+                  <button
+                    key={option.label}
+                    type="button"
+                    aria-pressed={hasAccount === option.value}
+                    onClick={() => {
+                      setHasAccount(option.value);
+                      setErr(null);
+                    }}
+                    className={`rounded-xl border px-3 py-2.5 text-sm font-bold transition ${
+                      hasAccount === option.value
+                        ? "border-violet-600 bg-violet-600 text-white"
+                        : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <p className="mb-3 text-xs leading-relaxed text-zinc-400">
-              {needsPassword
-                ? "Abunəlik bu Gmail hesabına qoşulacaq — admin hesaba giriş edib abunəliyi aktivləşdirir. Sifariş zamanı dəqiqləşdir."
+              {isNetflixAccount
+                ? hasAccount
+                  ? "Aktiv Netflix hesabının mailini və şifrəsini yaz, plan ona qoşulacaq. Hesab yalnız bir ev daxilində istifadə üçündür."
+                  : "Yeni hesab üçün istədiyin mail və şifrəni təyin et, hesabı biz açacağıq. Hesab yalnız bir ev daxilində istifadə üçündür."
+                : needsPassword
+                ? allowAnyEmail
+                  ? "Plan birbaşa SƏNİN Netflix hesabına aktivləşdiriləcək. Netflix hesabının e-poçtunu və şifrəsini yaz — aktivləşmə üçün lazımdır."
+                  : "Abunəlik bu Gmail hesabına qoşulacaq — admin hesaba giriş edib abunəliyi aktivləşdirir. Sifariş zamanı dəqiqləşdir."
                 : allowAnyEmail
                   ? "Plan birbaşa SƏNİN Netflix hesabına aktivləşdiriləcək. Netflix hesabının e-poçt ünvanını yaz (hər provayder olar)."
                   : "Abunəlik bu Gmail hesabına qoşulacaq. Sifariş zamanı dəqiqləşdir."}
@@ -1464,11 +1541,11 @@ function PlanAddButton({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 type="text"
-                placeholder="Hesab şifrəsi"
+                placeholder={isNetflixAccount && !hasAccount ? "Yeni şifrə (10+ simvol, @ #)" : "Hesab şifrəsi"}
                 className="mt-2 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
               />
             )}
-            {err && <p className="mt-2 text-xs text-rose-300">{err}</p>}
+            {err && <p className="mt-2 text-xs text-rose-700 dark:text-rose-300">{err}</p>}
             <div className="mt-4 flex justify-end gap-3">
               <button
                 type="button"

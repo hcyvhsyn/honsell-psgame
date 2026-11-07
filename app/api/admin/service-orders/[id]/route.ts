@@ -18,6 +18,7 @@ import {
 } from "@/lib/referralCycle";
 import { sendOrderApprovedWhatsApp } from "@/lib/orderNotifications";
 import { approvePlatformOrder } from "@/lib/platformOrderApproval";
+import { approveStreamingOrder } from "@/lib/streamingOrderApproval";
 
 function reviewProductTypeFromService(type: string | undefined): ReviewProductType | null {
   switch (type) {
@@ -299,30 +300,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     // "abunəlik aktivdir" emaili gedir, məlumat ayrıca çatdırılır.
     const productMeta = (tx.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
 
-    await prisma.$transaction(async (ptx) => {
-      await ptx.transaction.update({
-        where: { id: tx.id },
-        data: { status: "SUCCESS" },
-      });
-
-      const cm = await awardStreamingReferralCommission(ptx, {
-        sourceTransactionId: tx.id,
-        buyerUserId: tx.userId,
-        serviceProductId: tx.serviceProductId,
-        lineCents: Math.abs(tx.amountAznCents),
-        target: { type: "SERVICE_PRODUCT", serviceProductId: tx.serviceProductId ?? "" },
-        kind: "STREAMING",
-      });
-
-      try {
-        await recordPurchaseSpend(ptx, tx.userId, Math.abs(tx.amountAznCents));
-        if (cm?.referredById) {
-          await recordSuccessfulInvite(ptx, cm.referredById, tx.userId);
-        }
-      } catch (err) {
-        console.error("referral cycle bookkeeping failed", err);
-      }
-    });
+    // Məntiq lib/streamingOrderApproval.ts-dədir (CRM "hazırdır" da onu çağırır).
+    const approved = await approveStreamingOrder(tx);
+    if (!approved) {
+      return NextResponse.json({ error: "Not pending" }, { status: 400 });
+    }
 
     if (tx.user?.email) {
       const months = Number(productMeta.durationMonths ?? 0);

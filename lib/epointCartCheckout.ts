@@ -21,6 +21,7 @@ import { sendProductGiftCodeEmail } from "@/lib/resend";
 import { SITE_URL } from "@/lib/site";
 import { stampOrderCode } from "@/lib/attribution";
 import { pushSpotifyOrdersToCrm } from "@/lib/crmSpotify";
+import { pushNetflixOrdersToCrm } from "@/lib/crmNetflix";
 
 export const EPOINT_CART_PAYMENT_TYPE = "CHECKOUT_PAYMENT";
 
@@ -109,6 +110,8 @@ type EpointCartLineSnapshotBase =
       unitListCents: number;
       deliveryMode: "CODE" | "GMAIL";
       gmail?: string;
+      customerPassword?: string;
+      hasAccount?: boolean;
     }
   | {
       kind: "PLATFORM";
@@ -618,6 +621,8 @@ export async function finalizeEpointCartCheckout(
                 epointPaymentId: payment.id,
                 ...bundleMeta,
                 ...(line.deliveryMode === "GMAIL" && line.gmail ? { gmail: line.gmail } : {}),
+                ...(line.customerPassword ? { customerPassword: line.customerPassword } : {}),
+                ...(typeof line.hasAccount === "boolean" ? { hasAccount: line.hasAccount } : {}),
               }),
             },
           });
@@ -814,6 +819,7 @@ export async function finalizeEpointCartCheckout(
   // Spotify Premium sifarişləri → CRM (vendor + müştəri WhatsApp-ı orada). Cavabı
   // GÖZLƏMİR; funksiya throw etmir. ⚠️ Cüzdan yolunda da (checkout/route.ts) eyni çağırış var.
   void pushSpotifyOrdersToCrm(summary.serviceOrderIds);
+  void pushNetflixOrdersToCrm(summary.serviceOrderIds);
 
   // Hədiyyə kodlarını alıcıya email ilə göndər (dostuna ötürməsi üçün).
   if (summary.productGifts.length > 0) {

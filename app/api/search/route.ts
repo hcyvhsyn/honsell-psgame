@@ -56,7 +56,10 @@ export async function GET(req: Request) {
 
   // Streaming xidmətləri statikdir — DB sorğusu lazım deyil. PS-only rejimdə
   // streaming (xidmət + film/serial) ümumiyyətlə göstərilmir (lib/storeScope.ts).
-  const streamingServices = Object.values(PLAYSTATION_ONLY ? {} : STREAMING_SERVICE_META)
+  // İstisna: Netflix tək nəticədir və 2 seçimli ekrana aparır.
+  const streamingServices = Object.values(
+    PLAYSTATION_ONLY ? { NETFLIX: STREAMING_SERVICE_META.NETFLIX } : STREAMING_SERVICE_META,
+  )
     .filter((s) => s.label.toLowerCase().includes(lower) || s.slug.includes(lower))
     .slice(0, 4)
     .map((s) => ({
@@ -76,6 +79,8 @@ export async function GET(req: Request) {
       where: {
         isActive: true,
         ...sellableServiceWhere(),
+        // Ayrı Netflix paketləri çıxmır: e-poçt/şifrəsiz səbətə düşə bilərdi.
+        ...(PLAYSTATION_ONLY ? { type: { not: "STREAMING" } } : {}),
         OR: [
           { title: { contains: q, mode: "insensitive" } },
           { description: { contains: q, mode: "insensitive" } },

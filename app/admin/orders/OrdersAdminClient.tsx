@@ -32,6 +32,7 @@ import {
 } from "@/lib/gameOrderFulfillment";
 import CopyableField from "@/components/CopyableField";
 import { useDialog } from "@/lib/dialogs";
+import { isNetflixProduct } from "@/lib/storeScope";
 
 type AnyOrder = {
   id: string;
@@ -1115,12 +1116,22 @@ export default function OrdersAdminClient() {
                   userLabel: o.user.name ?? o.user.email,
                   userSub: o.user.email,
                   item: itemLabelWithBundle(o.serviceProduct?.title ?? "Streaming", o.metadata),
-                  itemSub:
-                    meta.deliveryMode === "GMAIL"
-                      ? meta.gmail
-                        ? `Gmail: ${meta.gmail}`
-                        : "Gmail (məlumat yoxdur)"
-                      : "Manual təsdiq",
+                  itemSub: (
+                    <div className="space-y-1">
+                      <div>
+                        {meta.deliveryMode === "GMAIL"
+                          ? meta.gmail
+                            ? `E-poçt: ${meta.gmail}`
+                            : "E-poçt (məlumat yoxdur)"
+                          : isNetflixProduct(o.serviceProduct?.type, o.serviceProduct?.metadata)
+                            ? "Bizim hesabda otaq"
+                            : "Manual təsdiq"}
+                      </div>
+                      {isNetflixProduct(o.serviceProduct?.type, o.serviceProduct?.metadata) && (
+                        <CrmOrderSync orderId={o.id} metadata={o.metadata} netflix />
+                      )}
+                    </div>
+                  ),
                   paymentSource: getPaymentSource(o.metadata),
                   amount: fmtAzn(o.amountAznCents),
                   date: fmtDate(o.createdAt),
@@ -2318,10 +2329,18 @@ function CompletedOrdersView({
 }
 
 /**
- * Spotify sifarişi → CRM vəziyyəti (lib/crmSpotify.ts). Ödənişdən sonra avtomatik göndərilir;
- * uğursuz olubsa admin buradan təkrar göndərir. CRM-də "Hazırdır" basılanda sifariş özü SUCCESS olur.
+ * Spotify / Netflix sifarişi → CRM vəziyyəti (lib/crmSpotify.ts, lib/crmNetflix.ts). Ödənişdən sonra
+ * avtomatik göndərilir; uğursuz olubsa admin buradan təkrar göndərir. CRM-də hazır olanda sifariş özü SUCCESS olur.
  */
-function SpotifyCrmSync({ orderId, metadata }: { orderId: string; metadata?: string | null }) {
+function CrmOrderSync({
+  orderId,
+  metadata,
+  netflix = false,
+}: {
+  orderId: string;
+  metadata?: string | null;
+  netflix?: boolean;
+}) {
   const meta = (() => {
     try {
       return metadata ? (JSON.parse(metadata) as Record<string, unknown>) : {};
@@ -2334,7 +2353,7 @@ function SpotifyCrmSync({ orderId, metadata }: { orderId: string; metadata?: str
     error: typeof meta.crmSyncError === "string" && !meta.crmSyncedAt ? meta.crmSyncError : null,
     busy: false,
   });
-  if (String(meta.musicBrand ?? "").toUpperCase() !== "SPOTIFY") return null;
+  if (!netflix && String(meta.musicBrand ?? "").toUpperCase() !== "SPOTIFY") return null;
 
   async function push() {
     setState((s) => ({ ...s, busy: true }));
@@ -2351,7 +2370,7 @@ function SpotifyCrmSync({ orderId, metadata }: { orderId: string; metadata?: str
   if (state.synced) {
     return (
       <div className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-700">
-        CRM-ə göndərildi · vendor premium edəndə avtomatik tamamlanır
+        {netflix ? "CRM-ə göndərildi · hazır olanda avtomatik tamamlanır" : "CRM-ə göndərildi · vendor premium edəndə avtomatik tamamlanır"}
       </div>
     );
   }
@@ -2427,7 +2446,7 @@ function PlatformOrdersTable({
                 )}
               </div>
             )}
-            <SpotifyCrmSync orderId={o.id} metadata={o.metadata} />
+            <CrmOrderSync orderId={o.id} metadata={o.metadata} />
           </div>
         ) : (
           platformDurationLabel(o)

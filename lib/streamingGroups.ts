@@ -2,7 +2,7 @@
 //
 // Netflix kimi xidmətlər tək paket siyahısı yox, addımlı seçim ekranı kimi
 // təqdim olunur:
-//   /streaming/netflix                → 2 seçim (Kabinet almaq / Hesab almaq)
+//   /streaming/netflix                → 2 seçim (Bizə aid email + otaq / Sizə aid email ilə hesab)
 //   /streaming/netflix?secim=kabinet  → kabinet tier-ləri (Yanımda/Evimdə/VIP)
 //   /streaming/netflix-hesab          → hesab tier-ləri (Basic/Standart/Premium)
 //
@@ -16,6 +16,8 @@ export type StreamingGroupChild = {
   platformSlug: string;
   /** Kartda göstərilən qısa ad. */
   name: string;
+  /** `?secim=kabinet&paket=<variantSlug>` — köhnə uşaq URL-ləri bura yönlənir. */
+  variantSlug: string;
   /** Bu alt-paketə xas fərqləndirici xüsusiyyətlər. */
   features: VariantFeature[];
 };
@@ -45,9 +47,9 @@ export type StreamingGroup = {
 };
 
 const NETFLIX = STREAMING_VARIANTS.NETFLIX;
-function netflixVariant(slug: string): { name: string; features: VariantFeature[] } {
+function netflixVariant(slug: string): { name: string; variantSlug: string; features: VariantFeature[] } {
   const v = NETFLIX?.variants.find((x) => x.slug === slug);
-  return { name: v?.name ?? slug, features: v?.features ?? [] };
+  return { name: v?.name ?? slug, variantSlug: slug, features: v?.features ?? [] };
 }
 
 export const STREAMING_GROUPS: Record<string, StreamingGroup> = {
@@ -60,16 +62,16 @@ export const STREAMING_GROUPS: Record<string, StreamingGroup> = {
     ],
     chooser: [
       {
-        title: "Kabinet almaq istəyirəm",
-        subtitle: "Bizim hazır Netflix kabinetimizdən istifadə et — giriş məlumatları tərəfimizdən verilir.",
-        points: ["Yanımda", "Evimdə", "Evimdə VIP"],
+        title: "Bizə aid email, sizə aid otaq",
+        subtitle: "Hesab bizim, otaq sizin",
+        points: ["Mail, şifrə və PIN-i biz veririk", "Neçə nəfər üçün olduğunu seçirsiniz"],
         accent: "kabinet",
         selection: "kabinet",
       },
       {
-        title: "Hesab almaq istəyirəm",
-        subtitle: "Plan birbaşa SƏNİN Netflix hesabına aktivləşir — alışda şəxsi mailini verirsən.",
-        points: ["Basic", "Standart", "Premium"],
+        title: "Sizə aid email ilə hesab",
+        subtitle: "Hesab sizin, plan sizin",
+        points: ["Öz mailiniz və şifrənizlə", "Azərbaycanda yaşayanlar üçün uyğundur"],
         accent: "hesab",
         platformSlug: "netflix-hesab",
       },
@@ -113,6 +115,15 @@ for (const [parentSlug, group] of Object.entries(STREAMING_GROUPS)) {
   for (const c of group.chooser ?? []) {
     if (c.platformSlug) CHILD_TO_PARENT.set(c.platformSlug, parentSlug);
   }
+}
+
+/** Kabinet uşağının yeni ünvanı: bütün seçim bir səhifədədir (paket + nəfər + müddət). */
+export function getStreamingGroupChildRedirect(slug: string): string | null {
+  for (const [parentSlug, group] of Object.entries(STREAMING_GROUPS)) {
+    const child = group.children.find((c) => c.platformSlug === slug);
+    if (child) return `/streaming/${parentSlug}?secim=kabinet&paket=${child.variantSlug}`;
+  }
+  return null;
 }
 
 /** Alt-paket/hədəf slug-ının parent slug-ını qaytarır (yoxdursa null). */

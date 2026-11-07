@@ -7,7 +7,7 @@
  * server faylını import etsə `next build` sınır (tsc keçsə də).
  */
 
-import { streamingUsesCustomerEmail } from "@/lib/streamingCart";
+import { streamingDeliveryMode, streamingUsesCustomerEmail } from "@/lib/streamingCart";
 
 /** Səbətdəki xidmət dəsti sətrinin `productType` dəyəri. */
 export const SERVICE_BUNDLE_PRODUCT_TYPE = "SERVICE_BUNDLE";
@@ -32,9 +32,9 @@ export function canBundleServiceType(type: string | null | undefined): boolean {
 
 /**
  * Xidmətin müştəridən NƏ tələb etdiyi.
- *   NONE           → heç nə (Netflix kod paketləri, PS Plus, TRY balans …)
+ *   NONE           → heç nə (Netflix otaq paketləri, PS Plus, TRY balans …)
  *   EMAIL          → tək e-poçt (STREAMING, `deliveryMode: "GMAIL"`)
- *   EMAIL_PASSWORD → e-poçt + şifrə (YouTube Premium, LinkedIn Premium)
+ *   EMAIL_PASSWORD → e-poçt + şifrə (Netflix hesab, YouTube Premium, LinkedIn Premium)
  *   ACCOUNTS       → N ədəd e-poçt+şifrə cütü (Spotify Individual/Duo/Family)
  */
 export type ServiceInputRequirement = {
@@ -62,16 +62,13 @@ export function serviceInputRequirement(product: {
   const meta = (product.metadata as Record<string, unknown> | null) ?? {};
 
   if (product.type === "STREAMING") {
-    const deliveryMode = String(meta.deliveryMode ?? "CODE") === "GMAIL" ? "GMAIL" : "CODE";
-    if (deliveryMode !== "GMAIL") return NO_INPUT;
-    // Müştərinin öz hesabına qoşulan plan (Netflix VVIP, Evimdə VIP) —
-    // e-poçt hər provayder ola bilər.
-    const customerEmail = streamingUsesCustomerEmail(meta.service as string);
-    return {
-      kind: "EMAIL",
-      allowAnyEmail: customerEmail,
-      emailLabel: customerEmail ? "Netflix hesab e-poçtu" : "Gmail ünvanı",
-    };
+    if (streamingDeliveryMode(meta) !== "GMAIL") return NO_INPUT;
+    // Müştərinin öz hesabına qoşulan plan (Netflix hesab) — e-poçt hər provayder
+    // ola bilər və şifrə də lazımdır (CRM provayderə ötürür).
+    if (streamingUsesCustomerEmail(meta.service as string)) {
+      return { kind: "EMAIL_PASSWORD", allowAnyEmail: true, emailLabel: "Netflix hesab e-poçtu" };
+    }
+    return { kind: "EMAIL", allowAnyEmail: false, emailLabel: "Gmail ünvanı" };
   }
 
   if (product.type === "PLATFORM") {

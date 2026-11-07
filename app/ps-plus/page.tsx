@@ -28,16 +28,14 @@ export default async function PsPlusPage() {
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <SiteHeaderServer />
 
-      <header className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-          PS Plus Üzvlüyü — Essential, Extra və Deluxe
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-          Azərbaycanda Türkiyə bölgəsi PS Plus abunəliklərini ən sərfəli qiymətə əldə edin. 1, 3 və 12 aylıq paketlər mövcuddur.
+      <header className="site-container pt-8">
+        <h1 className="text-3xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-4xl">PS Plus</h1>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          Essential, Extra və Deluxe · Türkiyə bölgəsi · 1, 3 və 12 ay
         </p>
       </header>
 
-      <section className="mx-auto max-w-7xl px-4 pb-14 pt-6 sm:px-6 lg:px-8">
+      <section className="site-container pb-14 pt-8">
         <PsPlusClient
           plans={plans.map((p) => ({
             id: p.id,

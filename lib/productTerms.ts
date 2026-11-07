@@ -115,11 +115,11 @@ const TERMS_SAMPLES: [string, string | null, string | null][] = [
  * olmayan məhsulun şərtini də görməlidir. `filter` mağaza əhatəsini tətbiq edir.
  */
 export function listProductTerms(
-  filter: (productType: string, store: string | null) => boolean = () => true,
+  filter: (productType: string, store: string | null, kind: string | null) => boolean = () => true,
 ): ProductTerms[] {
   const byTitle = new Map<string, ProductTerms>();
   for (const [type, store, kind] of TERMS_SAMPLES) {
-    if (!filter(type, store)) continue;
+    if (!filter(type, store, kind)) continue;
     const t = getProductTerms(type, store, kind);
     if (t && !byTitle.has(t.termsTitle)) byTitle.set(t.termsTitle, t);
   }

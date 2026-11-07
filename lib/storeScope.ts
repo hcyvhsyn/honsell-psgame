@@ -17,6 +17,11 @@
  * Qalan PLATFORM məhsulları (YouTube, AI, LinkedIn) bağlı qalır. Ona görə məhsul
  * səviyyəli yoxlama lazımdır: `isSellableServiceProduct` / `sellableServiceWhere()` —
  * yalnız `type`-a baxan `isSellableServiceType` Spotify-ı tanımır.
+ *
+ * İstisna — **Netflix** (2026-11): `STREAMING` tipindən YALNIZ `NETFLIX_SERVICE_CODES`
+ * (`metadata.service`) satılır: öz hesabına plan (Basic/Standart/Premium) və bizim hesabda otaq
+ * (Yanımda/Evimdə/Evimdə VIP). Sifariş ödənişdən sonra CRM-ə gedir (`lib/crmNetflix.ts`).
+ * HBO, Gain, Prime və `/streaming` kataloqu bağlı qalır.
  */
 
 export const STORE_SCOPE: "PLAYSTATION" | "ALL" =
@@ -40,6 +45,7 @@ export const PLAYSTATION_CATEGORY_KEYS: readonly string[] = [
   "PSN_TURKEY_ACCOUNT",
   "EA_PLAY",
   "SPOTIFY",
+  "NETFLIX",
 ];
 
 /** Spotify Premium məhsulu: `PLATFORM` + `metadata.musicBrand = "SPOTIFY"`. */
@@ -51,6 +57,29 @@ export function isSpotifyProduct(type: string | null | undefined, metadata: unkn
   return (metadata as Record<string, unknown>).musicBrand === SPOTIFY_MUSIC_BRAND;
 }
 
+/** Netflix giriş səhifəsi: 2 seçimli ekran (öz hesabın / bizim hesabda otaq). */
+export const NETFLIX_STORE_PATH = "/streaming/netflix";
+
+/** Müştərinin öz hesabına qoşulan plan (Basic/Standart/Premium). */
+export const NETFLIX_ACCOUNT_SERVICE_CODE = "NETFLIX_VVIP";
+/** Bizim hesabda müştəriyə ayrılan otaq. */
+export const NETFLIX_CABINET_SERVICE_CODES: readonly string[] = [
+  "NETFLIX_YANIMDA",
+  "NETFLIX_EVIMD",
+  "NETFLIX_EVIMD_VIP",
+];
+/** Satılan Netflix məhsulları (`metadata.service`). Köhnə `NETFLIX` kodu qəsdən daxil deyil. */
+export const NETFLIX_SERVICE_CODES: readonly string[] = [
+  NETFLIX_ACCOUNT_SERVICE_CODE,
+  ...NETFLIX_CABINET_SERVICE_CODES,
+];
+
+/** Admin API `service`-i böyük hərflə yazır — SQL qarşılığı (`sellableServiceWhere`) da belə müqayisə edir. */
+export function isNetflixProduct(type: string | null | undefined, metadata: unknown): boolean {
+  if (type !== "STREAMING" || !metadata || typeof metadata !== "object") return false;
+  return NETFLIX_SERVICE_CODES.includes(String((metadata as Record<string, unknown>).service ?? ""));
+}
+
 const SERVICE_TYPE_SET = new Set(PLAYSTATION_SERVICE_TYPES);
 const CATEGORY_KEY_SET = new Set(PLAYSTATION_CATEGORY_KEYS);
 
@@ -59,10 +88,14 @@ export function isSellableServiceType(type: string | null | undefined): boolean 
   return SERVICE_TYPE_SET.has(String(type ?? ""));
 }
 
-/** Məhsul səviyyəli yoxlama: PS tipləri + Spotify (PLATFORM içində yalnız Spotify). */
+/** Məhsul səviyyəli yoxlama: PS tipləri + Spotify + Netflix (hər tipin içində yalnız onlar). */
 export function isSellableServiceProduct(product: { type: string; metadata?: unknown }): boolean {
   if (!PLAYSTATION_ONLY) return true;
-  return SERVICE_TYPE_SET.has(product.type) || isSpotifyProduct(product.type, product.metadata);
+  return (
+    SERVICE_TYPE_SET.has(product.type) ||
+    isSpotifyProduct(product.type, product.metadata) ||
+    isNetflixProduct(product.type, product.metadata)
+  );
 }
 
 /**
@@ -78,6 +111,10 @@ export function sellableServiceWhere(): { AND?: Record<string, unknown>[] } {
         OR: [
           { type: { in: [...PLAYSTATION_SERVICE_TYPES] } },
           { type: "PLATFORM", metadata: { path: ["musicBrand"], equals: SPOTIFY_MUSIC_BRAND } },
+          ...NETFLIX_SERVICE_CODES.map((code) => ({
+            type: "STREAMING",
+            metadata: { path: ["service"], equals: code },
+          })),
         ],
       },
     ],
@@ -134,6 +171,10 @@ export function isOpenStorePath(href: string | null | undefined): boolean {
   if (!path.startsWith("/")) return true;
   // Bağlı `/music` altında yalnız Spotify açıqdır.
   if (path === SPOTIFY_STORE_PATH || path.startsWith(`${SPOTIFY_STORE_PATH}/`) || path.startsWith(`${SPOTIFY_STORE_PATH}?`)) {
+    return true;
+  }
+  // Bağlı `/streaming` altında yalnız Netflix səhifələri açıqdır (netflix, netflix-hesab, netflix-yanimda…).
+  if (/^\/streaming\/netflix(-[a-z-]+)?([/?]|$)/.test(path)) {
     return true;
   }
   return !CLOSED_PATH_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`) || path.startsWith(`${p}?`));

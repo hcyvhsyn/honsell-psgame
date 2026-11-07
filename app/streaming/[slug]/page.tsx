@@ -5,7 +5,8 @@ import {
   getStreamingPlatformBySlug,
   getStreamingPlatformsByCategory,
 } from "@/lib/streamingPlatforms";
-import { getStreamingGroupParentSlug, isStreamingGroupChild } from "@/lib/streamingGroups";
+import { getStreamingGroupChildRedirect, getStreamingGroupParentSlug } from "@/lib/streamingGroups";
+import { NETFLIX_STORE_PATH, PLAYSTATION_ONLY } from "@/lib/storeScope";
 
 export const revalidate = 1800;
 
@@ -46,11 +47,12 @@ export default async function StreamingServicePage({
   searchParams,
 }: {
   params: Promise<Params>;
-  searchParams: Promise<{ secim?: string | string[] }>;
+  searchParams: Promise<{ secim?: string | string[]; paket?: string | string[] }>;
 }) {
   const { slug } = await params;
-  const { secim } = await searchParams;
+  const { secim, paket } = await searchParams;
   const groupSelection = Array.isArray(secim) ? secim[0] : secim;
+  const initialPackage = Array.isArray(paket) ? paket[0] : paket;
 
   if (slug === "netflix-vvip") {
     redirect("/streaming/netflix-hesab");
@@ -68,15 +70,22 @@ export default async function StreamingServicePage({
   // Qrup alt-paketidirsə (məs. netflix-yanimda) geri keçid parent-ə yönəlsin.
   // Kabinet uşaqları kabinet landing-inə (?secim=kabinet), digərləri (netflix-hesab)
   // isə birbaşa chooser-ə qayıdır.
+  // Otaq paketləri artıq bir səhifədə seçilir (paket + nəfər + müddət); köhnə linklər ora gedir.
+  const childRedirect = getStreamingGroupChildRedirect(svc.slug);
+  if (childRedirect) redirect(childRedirect);
+
   const parentSlug = getStreamingGroupParentSlug(svc.slug);
-  let parent = { href: "/streaming", label: "Streaming xidmətləri" };
+  // PS-only rejimdə `/streaming` kataloqu bağlıdır — Netflix girişi ana səhifəyə qayıdır.
+  let parent =
+    PLAYSTATION_ONLY && svc.slug === "netflix"
+      ? groupSelection
+        ? { href: NETFLIX_STORE_PATH, label: svc.label }
+        : { href: "/", label: "Ana səhifə" }
+      : { href: "/streaming", label: "Streaming xidmətləri" };
   if (parentSlug) {
     const parentSvc = await getStreamingPlatformBySlug(parentSlug);
     if (parentSvc) {
-      const href = isStreamingGroupChild(svc.slug)
-        ? `/streaming/${parentSvc.slug}?secim=kabinet`
-        : `/streaming/${parentSvc.slug}`;
-      parent = { href, label: parentSvc.label };
+      parent = { href: `/streaming/${parentSvc.slug}`, label: parentSvc.label };
     }
   }
 
@@ -86,6 +95,7 @@ export default async function StreamingServicePage({
       parent={parent}
       detailHref={`/streaming/${svc.slug}`}
       groupSelection={groupSelection}
+      initialPackage={initialPackage}
     />
   );
 }

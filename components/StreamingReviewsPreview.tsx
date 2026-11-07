@@ -62,7 +62,7 @@ export default async function StreamingReviewsPreview({
             <li key={r.id}>
               <Link
                 href={`/icma?tab=icmallar#r-${r.id}`}
-                className="group block overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 transition hover:border-white/20"
+                className="group block overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-950 transition hover:border-zinc-200 dark:hover:border-white/20"
               >
                 <div className="grid gap-4 p-4 sm:grid-cols-[100px_minmax(0,1fr)] sm:gap-5 sm:p-5">
                   <div className="relative aspect-[2/3] w-24 overflow-hidden rounded-xl bg-zinc-900 sm:w-full">
@@ -83,20 +83,20 @@ export default async function StreamingReviewsPreview({
 
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white ring-1 ring-white/15">
+                      <span className="rounded-full bg-zinc-100 dark:bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white ring-1 ring-white/15">
                         {STREAMING_SERVICE_LABELS[r.service] ?? r.service}
                       </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2 py-0.5 text-[12px] font-bold text-amber-300 ring-1 ring-amber-400/30">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2 py-0.5 text-[12px] font-bold text-amber-700 dark:text-amber-300 ring-1 ring-amber-400/30">
                         <Star className="h-3 w-3 fill-current" /> {r.rating}/10
                       </span>
                       {isSpoiler && (
-                        <span className="rounded-full bg-rose-500/25 px-2 py-0.5 text-[10px] font-semibold text-rose-200 ring-1 ring-rose-400/30">
+                        <span className="rounded-full bg-rose-500/25 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:text-rose-200 ring-1 ring-rose-400/30">
                           SPOILER
                         </span>
                       )}
                     </div>
 
-                    <h3 className="mt-2 truncate text-lg font-bold text-white group-hover:text-indigo-200">
+                    <h3 className="mt-2 truncate text-lg font-bold text-white group-hover:text-indigo-700 dark:group-hover:text-indigo-200">
                       {r.titleSnap}
                     </h3>
 
@@ -108,17 +108,17 @@ export default async function StreamingReviewsPreview({
                       {r.body}
                     </p>
                     {isSpoiler && (
-                      <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-rose-300">
+                      <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-rose-700 dark:text-rose-300">
                         <Eye className="h-3 w-3" /> Spoiler-i açmaq üçün icmala daxil ol
                       </p>
                     )}
 
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
                       <span className="inline-flex items-center gap-1.5 text-zinc-300">
-                        <Star className="h-3 w-3 fill-amber-300 text-amber-300" />
+                        <Star className="h-3 w-3 fill-amber-300 text-amber-700 dark:text-amber-300" />
                         {author}
                         {r.user.streamingReviewTrusted && (
-                          <BadgeCheck className="h-3.5 w-3.5 text-emerald-300" />
+                          <BadgeCheck className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-300" />
                         )}
                       </span>
                       <span>·</span>
@@ -139,7 +139,7 @@ export default async function StreamingReviewsPreview({
       <div className="flex justify-center">
         <Link
           href={service ? `/icma?tab=icmallar&service=${service}` : "/icma?tab=icmallar"}
-          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+          className="inline-flex items-center gap-2 rounded-full border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 px-5 py-2 text-sm font-semibold text-white transition hover:bg-zinc-100 dark:hover:bg-white/10"
         >
           Bütün icmallara bax <ArrowRight className="h-4 w-4" />
         </Link>

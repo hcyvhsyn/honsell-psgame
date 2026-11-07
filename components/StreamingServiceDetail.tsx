@@ -11,11 +11,12 @@ import NewsSection from "@/components/NewsSection";
 import StreamingVariantLanding, {
   type LandingVariant,
 } from "@/components/StreamingVariantLanding";
+import NetflixCabinetPicker, { type NetflixCabinetTier } from "@/components/NetflixCabinetPicker";
 import StreamingGroupChooser, {
   type StreamingGroupChoicePricing,
 } from "@/components/StreamingGroupChooser";
 import { getServiceVariantConfig } from "@/lib/streamingVariants";
-import { getStreamingGroup, isStreamingGroupChild } from "@/lib/streamingGroups";
+import { getStreamingGroup, getStreamingGroupParentSlug, isStreamingGroupChild } from "@/lib/streamingGroups";
 import {
   getStreamingServiceBySlug,
   streamingUsesCustomerEmail,
@@ -40,6 +41,8 @@ type Props = {
    * "kabinet" → kabinet landing; əks halda 2-seçim chooser göstərilir.
    */
   groupSelection?: string;
+  /** `?paket=` — otaq seçimində əvvəlcədən seçilmiş paket. */
+  initialPackage?: string;
 };
 
 export default async function StreamingServiceDetail({
@@ -48,6 +51,7 @@ export default async function StreamingServiceDetail({
   detailHref,
   variantSlug,
   groupSelection,
+  initialPackage,
 }: Props) {
   const isMusic = svc.category === "MUSIC";
 
@@ -135,6 +139,7 @@ export default async function StreamingServiceDetail({
   let groupLanding: LandingVariant[] = [];
   let groupCommon = commonFeatures;
   let groupChoicePricing: StreamingGroupChoicePricing[] = [];
+  let cabinetTiers: NetflixCabinetTier[] = [];
   if (group) {
     const groupSlugs = Array.from(
       new Set([
@@ -149,6 +154,10 @@ export default async function StreamingServiceDetail({
     });
     const codeBySlug = new Map(childRows.map((r) => [getPublicStreamingSlug(r.slug), r.code.toUpperCase()]));
     groupCommon = getServiceVariantConfig(group.variantServiceCode)?.common ?? [];
+    cabinetTiers = group.children.flatMap((child) => {
+      const code = codeBySlug.get(child.platformSlug);
+      return code ? [{ key: child.variantSlug, code, name: child.name, features: child.features }] : [];
+    });
 
     const productMeta = (p: (typeof products)[number]): Record<string, unknown> =>
       (p.metadata as Record<string, unknown> | null) ?? {};
@@ -270,11 +279,15 @@ export default async function StreamingServiceDetail({
   const groupChooser = group?.chooser ?? null;
   const showGroupChooser = !!groupChooser && !activeVariant && groupSelection !== "kabinet";
   const showGroupLanding = groupLanding.length > 0 && !activeVariant && !showGroupChooser;
+  // Netflix otaq addımı: paket + nəfər + müddət bir səhifədədir (müqayisə səhifəsi yoxdur).
+  const showCabinetPicker = showGroupLanding && svc.slug === "netflix";
   // Header/icmal/featured bölmələrini gizlədən "landing" rejimi.
   const landingMode = showVariantLanding || showGroupLanding || showGroupChooser;
   // Qrup alt-paket səhifəsidirsə (məs. netflix-yanimda) icmallar gizlənir —
   // icmallar yalnız ümumi parent səhifədə (məs. /streaming/netflix) göstərilir.
-  const isGroupChild = !isMusic && isStreamingGroupChild(svc.slug);
+  // Qrup alt-paketi və ya chooser hədəfi (məs. netflix-hesab) — icmal bloku göstərilmir.
+  const isGroupChild =
+    !isMusic && (isStreamingGroupChild(svc.slug) || getStreamingGroupParentSlug(svc.slug) !== null);
 
   // Picker-ə ötürüləcək məhsullar: konkret tier seçilibsə yalnız onun paketləri.
   const pickerProducts = activeVariant
@@ -324,7 +337,7 @@ export default async function StreamingServiceDetail({
 
 
   return (
-    <main className="honsell-streaming-dark min-h-screen bg-zinc-950 text-zinc-100">
+    <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
@@ -342,7 +355,7 @@ export default async function StreamingServiceDetail({
         <h1 className="sr-only">{svc.label} — {svc.tagline}</h1>
 
         {isMusic && svc.heroImageUrl && (
-          <div className="mt-4 overflow-hidden rounded-3xl border border-white/10">
+          <div className="mt-4 overflow-hidden rounded-3xl border border-zinc-200 dark:border-white/10">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={svc.heroImageUrl} alt={svc.label} className="h-48 w-full object-cover sm:h-64" />
           </div>
@@ -362,7 +375,9 @@ export default async function StreamingServiceDetail({
             <p className="mt-1 text-sm text-zinc-500">
               {isMusic
                 ? "Müddətini seç, sifarişdən sonra hesab məlumatları emailinə göndəriləcək."
-                : "Müddətini seç, ödənişdən sonra giriş məlumatları sənə göndəriləcək."}
+                : streamingUsesCustomerEmail(svc.code)
+                  ? "Azərbaycanda yaşayan müştərilər üçün uyğundur."
+                  : "Müddətini seç, ödənişdən sonra giriş məlumatları sənə göndəriləcək."}
             </p>
           </header>
         )}
@@ -372,6 +387,20 @@ export default async function StreamingServiceDetail({
             basePath={detailHref}
             choices={groupChooser!}
             pricing={groupChoicePricing}
+          />
+        ) : showCabinetPicker ? (
+          <NetflixCabinetPicker
+            tiers={cabinetTiers}
+            initialKey={initialPackage}
+            products={products
+              .filter((p) => cabinetTiers.some((t) => t.code === String((p.metadata as Record<string, unknown> | null)?.service ?? "").toUpperCase()))
+              .map((p) => ({
+                id: p.id,
+                title: p.title,
+                imageUrl: p.imageUrl,
+                priceAznCents: p.priceAznCents,
+                metadata: (p.metadata as Record<string, unknown> | null) ?? null,
+              }))}
           />
         ) : landingMode ? (
           <StreamingVariantLanding
@@ -414,6 +443,9 @@ export default async function StreamingServiceDetail({
         ) : (
           <StreamingPlanPicker
             allowAnyEmail={streamingUsesCustomerEmail(svc.code)}
+            {...(streamingUsesCustomerEmail(svc.code)
+              ? { authMode: "GMAIL_PASSWORD" as const, platformKind: "NETFLIX_ACCOUNT" }
+              : {})}
             serviceOverride={{
               code: svc.code,
               label: svc.label,
@@ -447,13 +479,18 @@ export default async function StreamingServiceDetail({
         </section>
       )}
 
-      <NewsSection
-        scope={`STREAMING_${svc.code}`}
-        title={`${svc.label} xəbərləri`}
-        subtitle={`${svc.label} kataloqundan yeni anonslar, premyera tarixləri və xüsusi təkliflər.`}
-      />
+      {/* Netflix seçim addımları qısa qalır: xəbər və bələdçi bloku yoxdur. */}
+      {!showGroupChooser && !showCabinetPicker && (
+        <>
+          <NewsSection
+            scope={`STREAMING_${svc.code}`}
+            title={`${svc.label} xəbərləri`}
+            subtitle={`${svc.label} kataloqundan yeni anonslar, premyera tarixləri və xüsusi təkliflər.`}
+          />
 
-      <PlatformGuidesSection scope={`STREAMING_${svc.code}`} />
+          <PlatformGuidesSection scope={`STREAMING_${svc.code}`} />
+        </>
+      )}
     </main>
   );
 }

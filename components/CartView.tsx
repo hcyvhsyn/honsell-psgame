@@ -533,6 +533,20 @@ export default function CartView({
       });
       return;
     }
+    const missingNetflixCreds = items.find(
+      (i) =>
+        !i.gift &&
+        i.productType === "STREAMING" &&
+        i.streaming?.platformKind === "NETFLIX_ACCOUNT" &&
+        (!i.streaming?.gmail || !i.streaming?.password),
+    );
+    if (missingNetflixCreds) {
+      setMessage({
+        kind: "error",
+        text: `${missingNetflixCreds.title} üçün Netflix e-poçtu və şifrə tələb olunur.`,
+      });
+      return;
+    }
     const missingYoutubeCreds = items.find(
       (i) =>
         !i.gift &&
@@ -1456,11 +1470,16 @@ function CartLine({
             {item.productType === "STREAMING" && item.streaming?.gmail ? (
               <div className="mt-1.5 inline-flex max-w-full items-center gap-1.5 rounded-md border border-fuchsia-500/25 bg-fuchsia-500/[0.07] px-2 py-1">
                 <span className="text-[9px] font-semibold uppercase tracking-wider text-fuchsia-300">
-                  Gmail
+                  {item.streaming.platformKind === "NETFLIX_ACCOUNT" ? "Netflix" : "Gmail"}
                 </span>
                 <span className="truncate text-[11px] font-medium text-zinc-200">
                   {item.streaming.gmail}
                 </span>
+                {item.streaming.password ? (
+                  <span className="font-mono text-[11px] tracking-wider text-zinc-400">
+                    {"•".repeat(Math.min(item.streaming.password.length, 8))}
+                  </span>
+                ) : null}
               </div>
             ) : null}
             {item.productType === "PLATFORM" && item.streaming?.accounts?.length ? (

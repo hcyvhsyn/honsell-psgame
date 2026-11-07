@@ -43,7 +43,9 @@ export function storeProductTermsAcceptance() {
   }
 }
 
-function isTermInScope(productType: string, store: string | null) {
+function isTermInScope(productType: string, store: string | null, kind: string | null) {
+  // STREAMING tipindən yalnız Netflix satılır (lib/storeScope.ts) — ümumi streaming şərti çıxmır.
+  if (productType === "STREAMING" && (kind ?? "").startsWith("NETFLIX")) return true;
   return productType === "GAME" ? isSellableGameStore(store) : isSellableServiceType(productType);
 }
 

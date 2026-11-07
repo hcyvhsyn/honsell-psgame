@@ -1,4 +1,5 @@
 import type { StreamingCartDetails } from "@/lib/cart";
+import { NETFLIX_ACCOUNT_SERVICE_CODE, NETFLIX_CABINET_SERVICE_CODES } from "@/lib/storeScope";
 
 export function validateStreamingDetails(d: StreamingCartDetails): string | null {
   const mail = (d.gmail ?? "").trim().toLowerCase();
@@ -21,18 +22,31 @@ export type StreamingService = (typeof STREAMING_SERVICES)[number];
 
 /**
  * Bu streaming xidmətləri müştərinin ÖZ Netflix hesabına aktivləşir:
- * - alışda şəxsi e-poçt tələb olunur (hər provayder, yalnız @gmail.com deyil),
+ * - alışda Netflix e-poçtu (hər provayder, yalnız @gmail.com deyil) və şifrəsi tələb olunur —
+ *   CRM onları provayderə ötürür (`lib/crmNetflix.ts`),
  * - admin UPSERT məhsulu `deliveryMode: "GMAIL"` qoyur,
  * - stok hovuzu (kabinet mail/şifrə/pin) YOXDUR.
  * Kodlar metadata.service ilə uyğun gəlir (StreamingPlatform.code).
+ *
+ * ⚠️ Evimdə VIP (`NETFLIX_EVIMD_VIP`) bura DAXİL DEYİL: o, bizim hesabda otaqdır.
  */
-export const CUSTOMER_EMAIL_STREAMING_SERVICES = new Set<string>([
-  "NETFLIX_VVIP",
-  "NETFLIX_EVIMD_VIP", // Netflix Evimdə VIP (/streaming/netflix-evimde-vip)
-]);
+export const CUSTOMER_EMAIL_STREAMING_SERVICES = new Set<string>([NETFLIX_ACCOUNT_SERVICE_CODE]);
 
 export function streamingUsesCustomerEmail(code: string | null | undefined): boolean {
   return CUSTOMER_EMAIL_STREAMING_SERVICES.has(String(code ?? "").toUpperCase());
+}
+
+/**
+ * Sifarişin çatdırılma rejimi. Tanınan Netflix kodlarında qərarı KOD verir, `metadata.deliveryMode`
+ * yox: DB-də köhnə Evimdə VIP sətirlərində `deliveryMode: "GMAIL"` qala bilər və müştəridən
+ * lazımsız e-poçt istənərdi. Qalan xidmətlər metadata-nı oxuyur.
+ */
+export function streamingDeliveryMode(metadata: unknown): "CODE" | "GMAIL" {
+  const meta = (metadata as Record<string, unknown> | null) ?? {};
+  const code = String(meta.service ?? "").toUpperCase();
+  if (streamingUsesCustomerEmail(code)) return "GMAIL";
+  if (NETFLIX_CABINET_SERVICE_CODES.includes(code)) return "CODE";
+  return String(meta.deliveryMode ?? "CODE") === "GMAIL" ? "GMAIL" : "CODE";
 }
 
 export const STREAMING_DURATIONS = [1, 2, 3, 6, 12] as const;
@@ -103,7 +117,7 @@ export const STREAMING_SERVICE_META: Record<StreamingService, StreamingServiceMe
     category: "STREAMING",
     tagline: "Öz Netflix hesabına Basic / Standart / Premium plan",
     description:
-      "Netflix Hesab — abunəlik birbaşa SƏNİN öz Netflix hesabına aktivləşdirilir. Basic, Standart və Premium planlardan birini seç, ödənişdən sonra şəxsi mail ünvanını qeyd et — admin hesabına planı qoşur.",
+      "Netflix Hesab — abunəlik birbaşa SƏNİN öz Netflix hesabına aktivləşdirilir. Basic, Standart və Premium planlardan birini seç, alışda Netflix hesabının mailini və şifrəsini qeyd et — plan hesabına qoşulur.",
   },
   PRIME_VIDEO: {
     code: "PRIME_VIDEO",

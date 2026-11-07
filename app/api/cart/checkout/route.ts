@@ -25,7 +25,7 @@ import {
   recordSuccessfulInvite,
 } from "@/lib/referralCycle";
 import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
-import { streamingUsesCustomerEmail } from "@/lib/streamingCart";
+import { streamingDeliveryMode, streamingUsesCustomerEmail } from "@/lib/streamingCart";
 import {
   EPOINT_CART_PAYMENT_TYPE,
   type EpointCartLineSnapshot,
@@ -60,6 +60,8 @@ import {
 } from "@/lib/installmentsShared";
 import { sellableGameWhere, sellableServiceWhere } from "@/lib/storeScope";
 import { pushSpotifyOrdersToCrm } from "@/lib/crmSpotify";
+import { pushNetflixOrdersToCrm } from "@/lib/crmNetflix";
+import { newPasswordValid } from "@/lib/accountPassword";
 import { validateAccountPassword } from "@/lib/accountPasswordRules";
 import {
   validatePromoForOrder,
@@ -423,6 +425,8 @@ export async function POST(req: Request) {
         lineCents: number;
         deliveryMode: "CODE" | "GMAIL";
         gmail?: string;
+        customerPassword?: string;
+        hasAccount?: boolean;
       }
     | {
         kind: "PLATFORM";
@@ -641,11 +645,13 @@ export async function POST(req: Request) {
 
     if (service.type === "STREAMING") {
       const meta = (service.metadata as Record<string, unknown> | null) ?? {};
-      const deliveryMode = String(meta.deliveryMode ?? "CODE") === "GMAIL" ? "GMAIL" : "CODE";
+      const deliveryMode = streamingDeliveryMode(meta);
       let gmail: string | undefined;
+      let customerPassword: string | undefined;
+      let streamingHasAccount: boolean | undefined;
       if (deliveryMode === "GMAIL") {
-        // Müştərinin öz hesabına qoşulan plan (Netflix VVIP, Evimdə VIP) —
-        // e-poçt hər provayder ola bilər (yalnız @gmail.com deyil).
+        // Müştərinin öz hesabına qoşulan plan (Netflix hesab) — e-poçt hər provayder
+        // ola bilər (yalnız @gmail.com deyil) və şifrə məcburidir: CRM provayderə ötürür.
         const customerEmail = streamingUsesCustomerEmail(meta.service as string);
         const parsed = parseStreamingBody(
           p.streaming,
@@ -655,6 +661,20 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: parsed.error }, { status: 400 });
         }
         gmail = parsed.value.gmail;
+        if (customerEmail) {
+          customerPassword = parsed.value.password;
+          if (!customerPassword) {
+            return NextResponse.json({ error: "Netflix hesab şifrəsi tələb olunur." }, { status: 400 });
+          }
+          const s = p.streaming as Record<string, unknown>;
+          streamingHasAccount = typeof s.hasAccount === "boolean" ? s.hasAccount : true;
+          if (!streamingHasAccount && !newPasswordValid(customerPassword)) {
+            return NextResponse.json(
+              { error: "Yeni Netflix şifrəsi ən azı 10 simvol olmalı, hərf və xüsusi simvol daxil etməlidir." },
+              { status: 400 },
+            );
+          }
+        }
       }
       lines.push({
         kind: "STREAMING",
@@ -666,6 +686,8 @@ export async function POST(req: Request) {
         ...bundleStamp,
         deliveryMode,
         gmail,
+        customerPassword,
+        hasAccount: streamingHasAccount,
       });
       continue;
     }
@@ -1007,6 +1029,8 @@ export async function POST(req: Request) {
             unitListCents: line.unitListCents,
             deliveryMode: line.deliveryMode,
             gmail: line.gmail,
+            customerPassword: line.customerPassword,
+            hasAccount: line.hasAccount,
           };
         }
 
@@ -1630,6 +1654,8 @@ export async function POST(req: Request) {
                   orderCode,
                   ...bundleMeta,
                   ...(line.deliveryMode === "GMAIL" && line.gmail ? { gmail: line.gmail } : {}),
+                  ...(line.customerPassword ? { customerPassword: line.customerPassword } : {}),
+                  ...(typeof line.hasAccount === "boolean" ? { hasAccount: line.hasAccount } : {}),
                 }),
               },
             });
@@ -1844,6 +1870,7 @@ export async function POST(req: Request) {
   // GÖZLƏMİR (next start uzunömürlü prosesdir); funksiya throw etmir.
   // ⚠️ İKİQAT FULFILLMENT YOLU: kart yolunda da (lib/epointCartCheckout.ts) eyni çağırış var.
   void pushSpotifyOrdersToCrm(result.serviceOrderIds);
+  void pushNetflixOrdersToCrm(result.serviceOrderIds);
 
   // GAME alındıqdan sonra rəy affiliate cookie-sini təmizlə —
   // attribution alışın metadata-sına yazıldı, daha lazım deyil.

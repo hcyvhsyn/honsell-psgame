@@ -22,6 +22,7 @@ const linkGroups = [
       ["Endirimdə olan oyunlar", "/endirimler"],
       ["PS Plus paketləri", "/ps-plus"],
       ["EA Play", "/ea-play"],
+      ["Netflix", "/streaming/netflix"],
     ],
   },
   {

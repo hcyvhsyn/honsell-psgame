@@ -152,33 +152,33 @@ export default async function MusicServicePage({
   if (planProducts.length > 0) {
     const isSpotify = svc.slug === SPOTIFY_SLUG;
     return (
-      <main className="min-h-screen bg-[#020504] text-[#eafff0]">
+      <main className="min-h-screen bg-zinc-950 text-white">
         {isSpotify && <SpotifySeoJsonLd />}
         <SiteHeaderServer />
 
         <nav
           aria-label="Breadcrumb"
-          className="mx-auto max-w-7xl px-4 pt-6 text-xs text-[#92a99a] sm:px-6 lg:px-8"
+          className="mx-auto max-w-7xl px-4 pt-6 text-xs text-zinc-400 sm:px-6 lg:px-8"
         >
           <ol className="flex items-center gap-1.5">
             <li>
-              <Link href="/" className="transition hover:text-[#f7fff9]">
+              <Link href="/" className="transition hover:text-white">
                 Ana səhifə
               </Link>
             </li>
-            <ChevronRight className="h-3.5 w-3.5 text-[#4d6254]" />
+            <ChevronRight className="h-3.5 w-3.5 text-zinc-500" />
             {/* PS-only rejimdə /music siyahısı bağlıdır (lib/storeScope.ts) — keçid verilmir */}
             {!PLAYSTATION_ONLY && (
               <>
                 <li>
-                  <Link href="/music" className="transition hover:text-[#f7fff9]">
+                  <Link href="/music" className="transition hover:text-white">
                     Musiqi platformaları
                   </Link>
                 </li>
-                <ChevronRight className="h-3.5 w-3.5 text-[#4d6254]" />
+                <ChevronRight className="h-3.5 w-3.5 text-zinc-500" />
               </>
             )}
-            <li className="font-semibold text-[#dfffe8]">{svc.label}</li>
+            <li className="font-semibold text-white">{svc.label}</li>
           </ol>
         </nav>
 
@@ -282,18 +282,18 @@ function SpotifySeoContent() {
     <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Paket bölməsi */}
-        <div className="rounded-lg border border-[#1ed760]/20 bg-[#06120a] p-6 sm:p-7">
-          <h2 className="text-2xl font-black text-[#f5fff7]">
+        <div className="rounded-lg border border-violet-500/20 bg-zinc-900 p-6 sm:p-7">
+          <h2 className="text-2xl font-black text-white">
             Spotify Premium Individual — 1 ay
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-[#95aa9b]">
+          <p className="mt-2 text-sm leading-relaxed text-zinc-400">
             Spotify Premium 1 aylıq paketi şəxsi hesabınıza qoşulur. Ucuz qiymət,
             sürətli aktivasiya və reklamsız dinləmə təcrübəsi.
           </p>
           <ul className="mt-5 grid gap-2.5">
             {packageFeatures.map((f) => (
-              <li key={f} className="flex items-start gap-2.5 text-sm text-[#d9f5df]">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#1ed760]" />
+              <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-200">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-700 dark:text-violet-300" />
                 <span>{f}</span>
               </li>
             ))}
@@ -303,13 +303,13 @@ function SpotifySeoContent() {
               href={SPOTIFY_WHATSAPP_HREF}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[#1ed760] px-5 text-sm font-black text-[#031007] transition hover:bg-[#38ef7d]"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-violet-600 px-5 text-sm font-black text-white transition hover:bg-violet-500"
             >
               WhatsApp ilə sifariş et
             </a>
             <a
               href="#spotify-plans"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-[#1ed760]/30 px-5 text-sm font-black text-[#d9f5df] transition hover:bg-[#102418]"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-violet-500/30 px-5 text-sm font-black text-zinc-200 transition hover:bg-zinc-800"
             >
               Paket məlumatlarına bax
             </a>
@@ -317,9 +317,9 @@ function SpotifySeoContent() {
         </div>
 
         {/* Vacib məlumat bölməsi */}
-        <div className="rounded-lg border border-amber-300/25 bg-[#0e120c] p-6 sm:p-7">
-          <h2 className="text-2xl font-black text-[#ffe8a9]">Vacib məlumat</h2>
-          <p className="mt-3 text-sm leading-relaxed text-[#e0d5b5]">
+        <div className="rounded-lg border border-amber-300/25 bg-zinc-900 p-6 sm:p-7">
+          <h2 className="text-2xl font-black text-amber-700 dark:text-amber-200">Vacib məlumat</h2>
+          <p className="mt-3 text-sm leading-relaxed text-amber-700 dark:text-amber-100">
             Spotify Premium hesabınıza xarici region üzərindən aktiv edilir.
             Aktivləşmə tamamlandıqdan sonra aldığınız müddət hesabınıza əlavə
             olunur. Premium statusunun platforma tərəfindən dəyişdirilməsi və ya
@@ -331,39 +331,39 @@ function SpotifySeoContent() {
       </div>
 
       {/* Necə sifariş edilir */}
-      <div className="mt-6 rounded-lg border border-[#1ed760]/20 bg-[#06120a] p-6 sm:p-7">
-        <h2 className="text-2xl font-black text-[#f5fff7]">
+      <div className="mt-6 rounded-lg border border-violet-500/20 bg-zinc-900 p-6 sm:p-7">
+        <h2 className="text-2xl font-black text-white">
           Spotify Premium necə sifariş edilir?
         </h2>
         <ol className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((step, i) => (
             <li
               key={step}
-              className="rounded-lg border border-[#1ed760]/10 bg-[#0a1a10] p-4"
+              className="rounded-lg border border-violet-500/10 bg-zinc-800 p-4"
             >
-              <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#1ed760] text-sm font-black text-[#031007]">
+              <span className="grid h-9 w-9 place-items-center rounded-lg bg-violet-600 text-sm font-black text-white">
                 {i + 1}
               </span>
-              <p className="mt-3 text-sm leading-relaxed text-[#d9f5df]">{step}</p>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-200">{step}</p>
             </li>
           ))}
         </ol>
       </div>
 
       {/* FAQ */}
-      <div className="mt-6 rounded-lg border border-[#1ed760]/20 bg-[#06120a] p-6 sm:p-7">
-        <h2 className="text-2xl font-black text-[#f5fff7]">Tez-tez verilən suallar</h2>
+      <div className="mt-6 rounded-lg border border-violet-500/20 bg-zinc-900 p-6 sm:p-7">
+        <h2 className="text-2xl font-black text-white">Tez-tez verilən suallar</h2>
         <div className="mt-5 grid gap-3">
           {SPOTIFY_FAQ.map((item) => (
             <details
               key={item.q}
-              className="group rounded-lg border border-[#1ed760]/10 bg-[#0a1a10] p-4"
+              className="group rounded-lg border border-violet-500/10 bg-zinc-800 p-4"
             >
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-base font-black text-[#f5fff7]">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-base font-black text-white">
                 <h3 className="text-base font-black">{item.q}</h3>
-                <ChevronRight className="h-4 w-4 shrink-0 text-[#7dffa9] transition group-open:rotate-90" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-violet-700 dark:text-violet-300 transition group-open:rotate-90" />
               </summary>
-              <p className="mt-3 text-sm leading-relaxed text-[#95aa9b]">{item.a}</p>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-400">{item.a}</p>
             </details>
           ))}
         </div>

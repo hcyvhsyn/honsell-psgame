@@ -5,6 +5,7 @@ import { gameDetailHref } from "@/lib/gameSlug";
 import { dedupeEditions, editionSuffixLabel } from "@/lib/gameEditions";
 import { rankReels } from "@/lib/reelRanking";
 import { isSellableServiceProduct } from "@/lib/storeScope";
+import { streamingUsesCustomerEmail } from "@/lib/streamingCart";
 
 /**
  * Reels feed data qatı — TƏK mənbə.
@@ -231,7 +232,11 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
       const s = serviceById.get(r.ctaTargetId);
       // PS-only rejimdə qeyri-PS xidmət (Netflix və s.) üçün alış paneli yoxdur —
       // video qalır, səbət düyməsi göstərilmir (lib/storeScope.ts).
-      if (s && isSellableServiceProduct(s)) {
+      // Netflix hesab planı e-poçt+şifrə tələb edir — tək toxunuşla səbətə atıla bilməz.
+      const needsCustomerAccount =
+        s?.type === "STREAMING" &&
+        streamingUsesCustomerEmail(String((s.metadata as Record<string, unknown> | null)?.service ?? ""));
+      if (s && isSellableServiceProduct(s) && !needsCustomerAccount) {
         product = {
           id: s.id,
           title: s.title,

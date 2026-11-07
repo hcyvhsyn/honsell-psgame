@@ -45,7 +45,9 @@ import {
 import { gameDetailHref } from "@/lib/gameSlug";
 import { applyFlashDeal, effectiveFlashDealEnd } from "@/lib/flashDeals";
 import {
+  NETFLIX_STORE_PATH,
   PLAYSTATION_ONLY,
+  isNetflixProduct,
   isOpenStorePath,
   isSellableGameStore,
   isSellableServiceProduct,
@@ -61,7 +63,7 @@ const HOME_FAQS = [
     question: "Hansı məhsulları ala bilərəm?",
     answer:
       PLAYSTATION_ONLY
-        ? "PlayStation oyunları, PS Plus, EA Play, Türkiyə PSN gift card-ları və TR PSN hesabının açılması."
+        ? "PlayStation oyunları, PS Plus, EA Play, Türkiyə PSN gift card-ları, TR PSN hesabının açılması, Spotify Premium və Netflix abunəlikləri."
         : "PlayStation oyunları, PS Plus, gift card, streaming, musiqi və iş platformaları bir yerdədir.",
   },
   {
@@ -125,6 +127,7 @@ function serviceHref(type: string, metadata: unknown, title: string): string {
     case "HONSELL_GIFT_CARD":
       return "/hediyye-kartlari/honsell";
     case "STREAMING": {
+      if (isNetflixProduct(type, meta)) return NETFLIX_STORE_PATH;
       const service = String(meta?.service ?? "").toUpperCase();
       if (isStreamingService(service)) {
         const svc = STREAMING_SERVICE_META[service];
@@ -211,7 +214,12 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
     },
   });
 
-  return services
+  // Netflix vitrində tək kartdır: ayrı-ayrı paketlər 12 kartlıq limiti doldurub Spotify-ı
+  // çıxarardı və e-poçt/şifrə tələb edən plan birbaşa səbətə düşə bilərdi.
+  const netflixCard = buildNetflixLandingCard(services);
+
+  const cards = services
+    .filter((service) => !isNetflixProduct(service.type, service.metadata))
     .filter((service) => !isHiddenFromLanding(service.metadata))
     .sort((a, b) => {
       const orderA = LANDING_SERVICE_ORDER.get(a.type) ?? 999;
@@ -221,7 +229,7 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
     // Ana səhifə HTML-ini yüngül saxlamaq üçün maks. 12 kart server-render olunur
     // (əvvəl bütün aktiv landing məhsulları gəlirdi → onlarla kart, böyük HTML).
     // Tam siyahı kateqoriya səhifələrindədir.
-    .slice(0, 12)
+    .slice(0, netflixCard ? 11 : 12)
     .map((service) => ({
       id: service.id,
       title: service.title,
@@ -233,6 +241,33 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
       badge: serviceBadge(service.type, service.metadata),
       requiresAccount: landingServiceRequiresAccount(service.type, service.metadata),
     }));
+
+  return netflixCard ? [...cards, netflixCard] : cards;
+}
+
+/** Ən ucuz aylıq qiymətli tək "Netflix" kartı; aktiv Netflix paketi yoxdursa `null`. */
+function buildNetflixLandingCard(
+  services: Array<{ type: string; priceAznCents: number; metadata: unknown }>,
+): HomeProductMatrixItem | null {
+  let bestPerMonthCents = Infinity;
+  for (const service of services) {
+    if (!isNetflixProduct(service.type, service.metadata)) continue;
+    const months = Number(asRecord(service.metadata)?.durationMonths);
+    if (!Number.isFinite(months) || months <= 0) continue;
+    bestPerMonthCents = Math.min(bestPerMonthCents, service.priceAznCents / months);
+  }
+  if (!Number.isFinite(bestPerMonthCents)) return null;
+  return {
+    id: "netflix",
+    title: "Netflix",
+    subtitle: "Aylıq başlanğıc qiymət",
+    href: NETFLIX_STORE_PATH,
+    imageUrl: "/netflix-honsell.png",
+    finalAzn: Math.round(bestPerMonthCents) / 100,
+    productType: "STREAMING",
+    badge: "Netflix",
+    requiresAccount: true,
+  };
 }
 
 /**

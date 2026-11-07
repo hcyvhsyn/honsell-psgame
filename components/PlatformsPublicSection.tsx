@@ -70,7 +70,7 @@ export default function PlatformsPublicSection({ products }: Props) {
         return (
           <li
             key={p.id}
-            className="flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/40 transition hover:border-white/20"
+            className="flex flex-col overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-900/40 transition hover:border-zinc-200 dark:hover:border-white/20"
           >
             {p.imageUrl ? (
               /* eslint-disable-next-line @next/next/no-img-element */
@@ -86,13 +86,13 @@ export default function PlatformsPublicSection({ products }: Props) {
                 </p>
               )}
               {m.durationMonths && (
-                <div className="inline-flex w-fit items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm font-semibold text-zinc-200">
-                  <CalendarDays className="h-4 w-4 text-violet-300" />
+                <div className="inline-flex w-fit items-center gap-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/[0.03] px-3 py-2 text-sm font-semibold text-zinc-200">
+                  <CalendarDays className="h-4 w-4 text-violet-700 dark:text-violet-300" />
                   {m.durationMonths} ay
                 </div>
               )}
               {m.terms && (
-                <details className="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2 text-xs">
+                <details className="rounded-lg border border-zinc-200 dark:border-white/5 bg-zinc-100 dark:bg-white/[0.02] px-3 py-2 text-xs">
                   <summary className="cursor-pointer text-zinc-400 hover:text-zinc-200">
                     Şərtlər
                   </summary>
@@ -116,7 +116,7 @@ export default function PlatformsPublicSection({ products }: Props) {
                   onClick={() => addToCart(p)}
                   className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition ${
                     added
-                      ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40"
+                      ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/40"
                       : "bg-fuchsia-500 text-white hover:bg-fuchsia-400"
                   }`}
                 >

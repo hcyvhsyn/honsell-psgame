@@ -75,7 +75,11 @@ ağır şəkillər** idi. Ölçmə: `/oyunlar` mobil — blur elementi 142 → 2
 Tək mənbə: [lib/storeScope.ts](lib/storeScope.ts) (client-safe, saf). Satılan:
 PS oyunları (`Game.store = "PS"`), `PS_PLUS`, `EA_PLAY`, `TRY_BALANCE`,
 `ACCOUNT_CREATION` (TR PSN hesabı), Spotify Premium (`PLATFORM` + `metadata.musicBrand
-= "SPOTIFY"`, sifariş CRM-ə gedir — `lib/crmSpotify.ts`). Qalan kateqoriyaların
+= "SPOTIFY"`, sifariş CRM-ə gedir — `lib/crmSpotify.ts`), Netflix (`STREAMING` +
+`metadata.service` ∈ `NETFLIX_SERVICE_CODES`, sifariş CRM-ə gedir — `lib/crmNetflix.ts`,
+`/streaming/netflix` iki seçimlidir: öz hesabına plan (hesabı var/yoxdur, e-poçt + şifrə) və ya
+bizim hesabda otaq (`NetflixCabinetPicker`: paket + 1/2 nəfər + müddət, hər nəfərə ayrıca otaq;
+qiymət `metadata.seats` üzrə ayrıca paketdir); lokal test datası `npm run seed:netflix-mock`). Qalan kateqoriyaların
 **səhifələri silinməyib** — sadəcə landing/naviqasiya/axtarışdan keçid yoxdur və satılmır.
 
 **Tamamilə silinib (2026-10, kod yoxdur, cədvəllər `/// ARXİV` kimi qalır):** Epic

@@ -73,6 +73,9 @@ const nextConfig = {
       { source: "/xidmetler", destination: "/", permanent: true },
       { source: "/xidmetler/:path*", destination: "/", permanent: true },
       { source: "/paket/:slug*", destination: "/", permanent: true },
+      // Qısa Spotify linki → əsl slug (lib/storeScope.ts SPOTIFY_STORE_PATH).
+      { source: "/music/spotify", destination: "/music/spotify-premium", permanent: true },
+      { source: "/spotify", destination: "/music/spotify-premium", permanent: true },
     ];
   },
 };

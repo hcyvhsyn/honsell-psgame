@@ -15,6 +15,8 @@
     "test:giveaway": "tsx scripts/giveawayWinners.test.ts",
     "test:lootbox": "tsx scripts/lootBox.test.ts",
     "test:editions": "tsx scripts/gameEditions.test.ts",
+    "test:netflix": "tsx scripts/netflixScope.test.ts",
+    "seed:netflix-mock": "tsx scripts/seedNetflixMock.ts",
     "test:reelranking": "tsx scripts/reelRanking.test.ts",
     "clean:reeltitles": "tsx scripts/cleanReelTitles.ts",
     "test:giftcards": "tsx scripts/giftCardPriceRule.test.ts",
