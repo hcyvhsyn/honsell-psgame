@@ -30,7 +30,8 @@ export default function StreamingGroupChooser({
   pricing?: StreamingGroupChoicePricing[];
 }) {
   return (
-    <div className="mx-auto max-w-4xl">
+    // Eni səhifə konteyneridir (navbar/footer ilə eyni kənar).
+    <div>
       <h2 className="text-center text-3xl font-black text-white sm:text-4xl">
         {serviceLabel}-i necə istəyirsən?
       </h2>

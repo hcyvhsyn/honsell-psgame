@@ -54,7 +54,7 @@ import {
   PRODUCT_GIFT_CLAIM_PATH,
 } from "@/lib/productGift";
 import { sendProductGiftCodeEmail } from "@/lib/resend";
-import { EPOINT_MIN_CHARGE_AZN_CENTS, meetsMinOrder, minOrderMessage } from "@/lib/cartLimits";
+import { EPOINT_MIN_CHARGE_AZN_CENTS, countsTowardMinOrder, meetsMinOrder, minOrderMessage } from "@/lib/cartLimits";
 import { cartServiceFeeCents } from "@/lib/cartServiceFee";
 import { getInstallmentOffer } from "@/lib/installments";
 import {
@@ -834,10 +834,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Sifariş məbləği etibarsızdır." }, { status: 400 });
   }
 
-  // Minimum sifariş məbləği — KUPONDAN ƏVVƏLKİ cəm (səbət zolağı ilə eyni rəqəm).
-  if (!meetsMinOrder(totalCents)) {
+  // Minimum sifariş — YALNIZ PlayStation hissəsi, KUPONDAN ƏVVƏL (səbət zolağı ilə eyni
+  // rəqəm, lib/cartLimits.ts). Abunəliklər (STREAMING/PLATFORM) sayılmır və tək alına bilir;
+  // dəstlər onsuz da üzvlərinə açılıb, ona görə üzv tipi ilə sayılır.
+  const minOrderCents =
+    lines.reduce((sum, l) => sum + (countsTowardMinOrder(l.kind) ? l.lineCents : 0), 0) +
+    giftLines.reduce(
+      (sum, g) => sum + (countsTowardMinOrder(g.productKind) ? g.unitListCents * g.qty : 0),
+      0,
+    );
+  if (!meetsMinOrder(minOrderCents)) {
     return NextResponse.json(
-      { error: minOrderMessage(totalCents), code: "MIN_ORDER" },
+      { error: minOrderMessage(minOrderCents), code: "MIN_ORDER" },
       { status: 400 },
     );
   }

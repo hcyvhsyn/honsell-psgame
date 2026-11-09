@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ArrowRight, X } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 import { useModals } from "@/lib/modals";
+import { minOrderBaseCents } from "@/lib/cartLimits";
 import MinOrderMeter from "./MinOrderMeter";
 
 const VISIBLE_MS = 4500;
@@ -14,8 +15,8 @@ function lineKey(i: CartItem): string {
 }
 
 /**
- * Məhsul səbətə düşəndə qısa toast — "Səbətə əlavə olundu" + minimum sifariş
- * sayğacı ("2.30 / 20 ₼"). Add-yolları çoxdur (kart, detal, reels, banner,
+ * Məhsul səbətə düşəndə qısa toast — "Səbətə əlavə olundu" + PlayStation minimum
+ * sifariş sayğacı ("2.30 / 20 ₼", səbətdə PS məhsulu varsa). Add-yolları çoxdur (kart, detal, reels, banner,
  * axtarış, AI paneli), ona görə hər birinə ayrıca çağırış əvəzinə səbət
  * vəziyyətini izləyir: YENİ sətir və ya ARTAN say = əlavə.
  *
@@ -24,7 +25,10 @@ function lineKey(i: CartItem): string {
  * əlavə sayılmır.
  */
 export default function CartAddedToast() {
-  const { items, hydrated, totalAzn } = useCart();
+  const { items, hydrated } = useCart();
+  // Sayğac yalnız PlayStation hissəsini göstərir — abunəliklər minimuma sayılmır
+  // (lib/cartLimits.ts). Səbətdə PS məhsulu yoxdursa sayğac gizlənir.
+  const totalAzn = minOrderBaseCents(items) / 100;
   const { active, open } = useModals();
   const pathname = usePathname();
 
@@ -97,9 +101,11 @@ export default function CartAddedToast() {
         </button>
       </div>
 
-      <div className="mt-3 rounded-2xl border border-zinc-200/80 bg-zinc-50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
-        <MinOrderMeter totalAzn={totalAzn} fromAzn={fromAzn} variant="compact" />
-      </div>
+      {totalAzn > 0 && (
+        <div className="mt-3 rounded-2xl border border-zinc-200/80 bg-zinc-50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+          <MinOrderMeter totalAzn={totalAzn} fromAzn={fromAzn} variant="compact" />
+        </div>
+      )}
 
       <button
         type="button"

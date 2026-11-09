@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 import { attributionPayload, trackEvent } from "@/lib/track";
-import { MIN_ORDER_AZN, minOrderMessage, minOrderProgress } from "@/lib/cartLimits";
+import { MIN_ORDER_AZN, minOrderBaseCents, minOrderMessage, minOrderProgress } from "@/lib/cartLimits";
 import { CART_SERVICE_FEE_PCT, cartServiceFeeCents } from "@/lib/cartServiceFee";
 import CouponCodeBox, {
   validateCoupon,
@@ -483,9 +483,10 @@ export default function CartView({
 
   const insufficientWallet = isAuthed && Math.round(walletBalanceAzn * 100) < payTotalCents;
 
-  // Minimum sifariş məbləği — KUPONDAN ƏVVƏLKİ cəm üzərində (server
-  // `checkout/route.ts` eyni rəqəmi yoxlayır, lib/cartLimits.ts).
-  const minOrder = minOrderProgress(totalAzn);
+  // Minimum sifariş — yalnız PlayStation hissəsi, KUPONDAN ƏVVƏL (server
+  // `checkout/route.ts` eyni rəqəmi yoxlayır, lib/cartLimits.ts). Yalnız abunəlik
+  // (Netflix/Spotify …) olan səbətdə minimum yoxdur.
+  const minOrder = minOrderProgress(minOrderBaseCents(items) / 100);
   const belowMinimum = !minOrder.reached;
 
   function checkoutBalanceSuffix(d: Record<string, unknown>): string {
@@ -965,10 +966,12 @@ export default function CartView({
                 onClick={onNavigate}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98]"
               >
-                Daha {(minOrder.missingCents / 100).toFixed(2)} ₼-lik məhsul seç
+                Daha {(minOrder.missingCents / 100).toFixed(2)} ₼-lik PS məhsulu seç
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <p className="text-center text-xs text-zinc-500">Minimum sifariş {MIN_ORDER_AZN} ₼</p>
+              <p className="text-center text-xs text-zinc-500">
+                PlayStation məhsullarında minimum sifariş {MIN_ORDER_AZN} ₼ · abunəliklər sayılmır
+              </p>
             </div>
           ) : !isAuthed ? (
             onRequestLogin ? (

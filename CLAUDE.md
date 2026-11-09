@@ -123,15 +123,24 @@ Tək mənbə: [lib/streamingAccess.ts](lib/streamingAccess.ts) (client-safe). Ad
 
 # Minimum sifariş məbləği
 
-[lib/cartLimits.ts](lib/cartLimits.ts) → `MIN_ORDER_AZN` (hazırda **20**). Səbətin
-**kupondan əvvəlki** cəmi bundan azdırsa checkout **bütün** ödəniş üsullarında
-bloklanır (`code: "MIN_ORDER"`). Birbaşa alış endpoint-ləri də eyni qaydanı yoxlayır.
+[lib/cartLimits.ts](lib/cartLimits.ts) → `MIN_ORDER_AZN` (hazırda **20**). **Yalnız PlayStation
+məhsullarına** tətbiq olunur (2026-11): səbətin **kupondan əvvəlki PS hissəsi** 0-dan böyük, amma
+bundan azdırsa checkout **bütün** ödəniş üsullarında bloklanır (`code: "MIN_ORDER"`). Birbaşa
+alış endpoint-ləri də eyni qaydanı yoxlayır.
+
+- **Abunəliklər azaddır** — `MIN_ORDER_EXEMPT_TYPES` = `STREAMING` (Netflix, HBO Max) + `PLATFORM`
+  (Spotify, YouTube). Tək Netflix/Spotify alına bilir, amma PS hissəsinə **sayılmır**:
+  8 ₼ Netflix + 12 ₼ oyun → PS hissəsi 12 ₼ → bloklanır. Qalan hər tip (yeni tiplər də) sayılır.
+- Client: `minOrderBaseCents(items)` (dəst üzvləri `serviceType` ilə ayrı sayılır); server:
+  açılmış sətirlərin `kind`-i + hədiyyə sətirləri. İkisi eyni qaydadır — biri dəyişsə o biri də.
+- Test: `npm run test:cartlimits`.
 `EPOINT_MIN_CHARGE_AZN_CENTS` (5 AZN) ayrıdır — gateway limiti, round-up üçün.
 
-UI (hamısı `minOrderProgress()` oxuyur): səbətdə minimumdan aşağı olanda ödəniş
-düymələri yerinə "Daha X ₼-lik məhsul seç" + "Minimum sifariş 20 ₼" sətri; səbətə
+UI (hamısı `minOrderProgress(minOrderBaseCents(items) / 100)` oxuyur): səbətdə minimumdan aşağı
+olanda ödəniş düymələri yerinə "Daha X ₼-lik PS məhsulu seç" + izah sətri; səbətə
 əlavə olunanda `CartAddedToast` (`MinOrderMeter` compact, layout-da, səbət
-vəziyyətini izləyir — yeni sətir/artan say = əlavə; ayrıca çağırış lazım deyil).
+vəziyyətini izləyir — yeni sətir/artan say = əlavə; ayrıca çağırış lazım deyil). Səbətdə PS
+məhsulu yoxdursa toast-da sayğac göstərilmir.
 Header səbət düyməsi (`CartIndicator`) yalnız say göstərir — halqa/animasiya yoxdur.
 
 # Səbət xidmət haqqı — 3% (2026-11)

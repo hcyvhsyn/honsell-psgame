@@ -42,7 +42,8 @@ export function useCountUp(value: number, durationMs = 650, initial = value): nu
 const TICKS = [0.25, 0.5, 0.75];
 
 /**
- * Minimum sifariş sayğacı — "2.30 / 20 ₼" + proqres zolağı.
+ * Minimum sifariş sayğacı — "2.30 / 20 ₼" + proqres zolağı. `totalAzn` səbətin
+ * PlayStation hissəsidir (`minOrderBaseCents`), ümumi cəm YOX — abunəliklər sayılmır.
  *
  * `variant="panel"` səbətin xülasə sütunu üçündür (dark), `variant="compact"`
  * səbətə-əlavə toast-u üçün (light/dark hər ikisi).
@@ -79,8 +80,8 @@ export default function MinOrderMeter({
       aria-live="polite"
       aria-label={
         reached
-          ? `Minimum sifariş məbləği keçildi: ${totalAzn.toFixed(2)} / ${MIN_ORDER_AZN} AZN`
-          : `Minimum sifariş: ${totalAzn.toFixed(2)} / ${MIN_ORDER_AZN} AZN, daha ${missingAzn.toFixed(2)} AZN lazımdır`
+          ? `PlayStation minimumu keçildi: ${totalAzn.toFixed(2)} / ${MIN_ORDER_AZN} AZN`
+          : `PlayStation minimumu: ${totalAzn.toFixed(2)} / ${MIN_ORDER_AZN} AZN, daha ${missingAzn.toFixed(2)} AZN lazımdır`
       }
       className={
         compact
@@ -108,7 +109,7 @@ export default function MinOrderMeter({
             ) : (
               <Lock className="h-3.5 w-3.5" />
             )}
-            Minimum sifariş
+            PlayStation minimumu
           </p>
           <p className="mt-1 flex items-baseline gap-1 tabular-nums">
             <span

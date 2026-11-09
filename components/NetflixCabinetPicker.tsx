@@ -38,6 +38,45 @@ function toRow(p: NetflixCabinetProduct): Row {
 
 const uniqueSorted = (values: number[]) => Array.from(new Set(values)).sort((a, b) => a - b);
 
+const fmtAzn = (cents: number) => (cents / 100).toFixed(2);
+/** Qənaət məbləği: tam manatdırsa kəsrsiz ("24 ₼"), deyilsə iki rəqəm. */
+const fmtSaving = (cents: number) => (cents % 100 === 0 ? String(cents / 100) : fmtAzn(cents));
+
+// Tailwind statik sinif tələb edir — müddət sayına görə desktop sütunu.
+const LG_COLS = ["", "lg:grid-cols-1", "lg:grid-cols-2", "lg:grid-cols-3", "lg:grid-cols-4", "lg:grid-cols-5", "lg:grid-cols-6"];
+
+type DurationOffer = Row & {
+  perMonthCents: number;
+  /** Eyni müddəti aylıq alsaydı ödəyəcəyi məbləğ (1 aylıq qiymət × ay). */
+  fullCents: number;
+  savingCents: number;
+  savingPct: number;
+};
+
+/**
+ * Hər müddət üçün cəm, aylıq və 1 aylığa nisbətən qənaət — müştəri uzun müddətin sərfəli
+ * olduğunu seçim etmədən görsün. 1 aylıq paket yoxdursa baza ən baha aylıq qiymətdir.
+ */
+function buildDurationOffers(rows: Row[]): DurationOffer[] {
+  if (rows.length === 0) return [];
+  const one = rows.find((r) => r.months === 1);
+  const basePpm = one ? one.priceAznCents : Math.max(...rows.map((r) => r.priceAznCents / r.months));
+  return rows
+    .slice()
+    .sort((a, b) => a.months - b.months)
+    .map((r) => {
+      const fullCents = Math.round(basePpm * r.months);
+      const savingCents = Math.max(0, fullCents - r.priceAznCents);
+      return {
+        ...r,
+        perMonthCents: r.priceAznCents / r.months,
+        fullCents,
+        savingCents,
+        savingPct: fullCents > 0 ? Math.round((savingCents / fullCents) * 100) : 0,
+      };
+    });
+}
+
 /**
  * İkinci addım (otaq): paket → nəfər → müddət, hamısı bir səhifədə.
  * Admin-dən qurulan "Paylaşımlı hesab" planları (HBO Max və s.) da eyni ekranı işlədir — `serviceLabel`.
@@ -68,9 +107,20 @@ export default function NetflixCabinetPicker({
   const seatOptions = uniqueSorted(tierRows.map((r) => r.seats));
   const seats = seatOptions.includes(seatsWanted) ? seatsWanted : seatOptions[0] ?? 1;
   const seatRows = tierRows.filter((r) => r.seats === seats);
-  const monthOptions = uniqueSorted(seatRows.map((r) => r.months));
+  // Eyni müddətə iki paket düşərsə ucuzu götürülür.
+  const offers = buildDurationOffers(
+    uniqueSorted(seatRows.map((r) => r.months)).map(
+      (m) => seatRows.filter((r) => r.months === m).sort((a, b) => a.priceAznCents - b.priceAznCents)[0],
+    ),
+  );
+  const monthOptions = offers.map((o) => o.months);
   const months = monthOptions.includes(monthsWanted) ? monthsWanted : monthOptions[0] ?? 0;
-  const selected = seatRows.find((r) => r.months === months) ?? null;
+  const selected = offers.find((o) => o.months === months) ?? null;
+  const cheapest =
+    offers.length > 1
+      ? offers.reduce((min, o) => (o.perMonthCents < min.perMonthCents ? o : min), offers[0])
+      : null;
+  const bestOfferMonths = cheapest && cheapest.savingCents > 0 ? cheapest.months : null;
 
   if (!tier) {
     return (
@@ -101,7 +151,8 @@ export default function NetflixCabinetPicker({
     }`;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    // Eni səhifə konteyneridir (navbar/footer ilə eyni kənar) — burada max-w VERMƏ.
+    <div className="space-y-8">
       <h2 className="text-3xl font-black text-white sm:text-4xl">Otağını seç</h2>
 
       <section aria-label="Paket">
@@ -149,13 +200,63 @@ export default function NetflixCabinetPicker({
       </section>
 
       <section aria-label="Neçə ay">
-        <p className="mb-3 text-sm font-bold text-zinc-300">Neçə ay?</p>
-        <div className="flex flex-wrap gap-2">
-          {monthOptions.map((n) => (
-            <button key={n} type="button" aria-pressed={n === months} onClick={() => setMonthsWanted(n)} className={chip(n === months)}>
-              {n} ay
-            </button>
-          ))}
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <p className="text-sm font-bold text-zinc-300">Neçə ay?</p>
+          {bestOfferMonths != null && (
+            <p className="text-xs text-zinc-500">Uzun müddət götürəndə ayda daha az ödəyirsən</p>
+          )}
+        </div>
+        <div className={`grid grid-cols-2 gap-3 sm:grid-cols-3 ${LG_COLS[Math.min(offers.length, 6)]}`}>
+          {offers.map((o, i) => {
+            const active = o.months === months;
+            const best = o.months === bestOfferMonths;
+            // Mobil 2 sütunda tək qalan son kart tam enə yayılır (adətən ən sərfəli müddət).
+            const lastAlone = i === offers.length - 1 && offers.length % 2 === 1;
+            return (
+              <button
+                key={o.months}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setMonthsWanted(o.months)}
+                className={`relative flex flex-col rounded-2xl border p-4 text-left transition ${
+                  lastAlone ? "col-span-2 sm:col-span-1" : ""
+                } ${
+                  active
+                    ? "border-violet-500 bg-violet-500/10"
+                    : best
+                      ? "border-emerald-500/40 bg-zinc-950 hover:border-emerald-500/70"
+                      : "border-zinc-200 dark:border-white/10 bg-zinc-950 hover:border-zinc-200 dark:hover:border-white/25"
+                }`}
+              >
+                {best && (
+                  // `uppercase` YOX — "Ə" böyük hərfi şriftdə kiçik "ə" kimi görünür.
+                  <span className="absolute -top-2.5 left-3 rounded-full bg-emerald-500 px-2 py-0.5 text-[11px] font-black text-white">
+                    Ən sərfəli
+                  </span>
+                )}
+                <span className="flex items-center gap-2">
+                  <span className="text-sm font-black text-white">{o.months} ay</span>
+                  {o.savingPct > 0 && (
+                    <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-black tabular-nums text-emerald-700 dark:text-emerald-300">
+                      −{o.savingPct}%
+                    </span>
+                  )}
+                  {active && <Check className="ml-auto h-4 w-4 text-violet-700 dark:text-violet-300" />}
+                </span>
+                <span className="mt-2 text-2xl font-black tabular-nums text-white">{fmtAzn(o.priceAznCents)} ₼</span>
+                <span className="mt-0.5 text-xs font-semibold tabular-nums text-zinc-400">
+                  ayda {fmtAzn(o.perMonthCents)} ₼
+                </span>
+                <span
+                  className={`mt-3 text-xs font-bold tabular-nums ${
+                    o.savingCents > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-500"
+                  }`}
+                >
+                  {o.savingCents > 0 ? `${fmtSaving(o.savingCents)} ₼ qənaət` : "Aylıq ödəniş"}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -165,9 +266,22 @@ export default function NetflixCabinetPicker({
             {tier.name} · {seats} nəfər · {months} ay
           </p>
           {selected && (
-            <p className="mt-1 text-3xl font-black tabular-nums text-white">
-              {(selected.priceAznCents / 100).toFixed(2)} ₼
-            </p>
+            <>
+              <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="text-3xl font-black tabular-nums text-white">{fmtAzn(selected.priceAznCents)} ₼</span>
+                {selected.savingCents > 0 && (
+                  <span className="text-base font-bold tabular-nums text-zinc-500 line-through">
+                    {fmtAzn(selected.fullCents)} ₼
+                  </span>
+                )}
+              </p>
+              <p className="mt-1 text-xs font-semibold tabular-nums text-zinc-400">
+                ayda {fmtAzn(selected.perMonthCents)} ₼
+                {selected.savingCents > 0 && (
+                  <span className="text-emerald-600 dark:text-emerald-400"> · {fmtSaving(selected.savingCents)} ₼ qənaət</span>
+                )}
+              </p>
+            </>
           )}
         </div>
         {inCart ? (

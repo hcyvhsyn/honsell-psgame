@@ -1,4 +1,4 @@
-import { meetsMinOrder, minOrderMessage } from "@/lib/cartLimits";
+import { countsTowardMinOrder, meetsMinOrder, minOrderMessage } from "@/lib/cartLimits";
 import { isSellableServiceType } from "@/lib/storeScope";
 import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
@@ -34,9 +34,11 @@ export async function POST(req: Request) {
   if (!sp || !sp.isActive || !isSellableServiceType(sp.type)) return NextResponse.json({ error: "Xidmət tapılmadı və ya aktiv deyil." }, { status: 404 });
 
   const price = sp.priceAznCents;
-  // Birbaşa alış səbətin minimum məbləğ qaydasını keçməsin (lib/cartLimits.ts).
-  if (!meetsMinOrder(price)) {
-    return NextResponse.json({ error: minOrderMessage(price), code: "MIN_ORDER" }, { status: 400 });
+  // Birbaşa alış səbətin minimum məbləğ qaydasını keçməsin (lib/cartLimits.ts) —
+  // yalnız PlayStation xidmətlərində; abunəliklər (STREAMING/PLATFORM) azaddır.
+  const minOrderCents = countsTowardMinOrder(sp.type) ? price : 0;
+  if (!meetsMinOrder(minOrderCents)) {
+    return NextResponse.json({ error: minOrderMessage(minOrderCents), code: "MIN_ORDER" }, { status: 400 });
   }
   if (paymentSource === "referral") {
     if (user.referralBalanceCents < price) {
