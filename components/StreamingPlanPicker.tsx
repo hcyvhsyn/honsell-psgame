@@ -173,6 +173,11 @@ function inStock() {
   return true;
 }
 
+/** E-poçt placeholder-i üçün: "HBO Max" → "hbo-max". */
+function streamingSlugHint(label: string) {
+  return label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "hesab";
+}
+
 function formatAzn(cents: number) {
   return (cents / 100).toFixed(2);
 }
@@ -293,6 +298,7 @@ export default function StreamingPlanPicker({
   heroImageUrl,
   serviceOverride,
   allowAnyEmail = false,
+  accountLabel = "Netflix",
 }: {
   products: PlanProduct[];
   /** Cart-a yazılan məhsul tipi. PLATFORM (music) üçün "PLATFORM" ötürülür. */
@@ -309,6 +315,8 @@ export default function StreamingPlanPicker({
    * Netflix Hesab üçün — müştəri öz Netflix hesab e-poçtunu (hər provayder) verir.
    */
   allowAnyEmail?: boolean;
+  /** Müştəri hesabı formasında xidmət adı ("Plan birbaşa SƏNİN <X> hesabına…"). Admin şəxsi planları üçün. */
+  accountLabel?: string;
 }) {
   const enriched = useMemo(
     () => products.map((p) => ({ p, m: readMeta(p) })).filter((x) => x.m.durationMonths > 0),
@@ -443,9 +451,9 @@ export default function StreamingPlanPicker({
     durationOptions.find((x) => x.p.imageUrl)?.p.imageUrl ||
     null;
   const vpnRequired = durationOptions.some((x) => x.m.vpnRequired);
-  const deliveryLabel = durationOptions.some((x) => x.m.deliveryMode === "GMAIL")
-    ? "Öz hesabına aktivləşmə"
-    : "Tez çatdırılma";
+  // Müştərinin öz hesabına aktivləşən plan (şəxsi hesab) — kabinet yoxdur.
+  const ownAccount = durationOptions.some((x) => x.m.deliveryMode === "GMAIL");
+  const deliveryLabel = ownAccount ? "Öz hesabına aktivləşmə" : "Tez çatdırılma";
 
   return (
     <div className="space-y-5">
@@ -502,6 +510,7 @@ export default function StreamingPlanPicker({
             seats={effectiveSeats}
             vpnRequired={vpnRequired}
             deliveryLabel={deliveryLabel}
+            ownAccount={ownAccount}
             devices={supportedDevices}
             imageUrl={platformImage}
             terms={resolveTerms(serviceCode, effectiveVariant)}
@@ -644,6 +653,7 @@ export default function StreamingPlanPicker({
                           allowAnyEmail={allowAnyEmail}
                           terms={resolveTerms(serviceCode, x.m.variant)}
                           serviceLabel={service.label}
+                          accountLabel={accountLabel}
                         />
                       </div>
                     </div>
@@ -1076,6 +1086,7 @@ function ServiceOverview({
   seats,
   vpnRequired,
   deliveryLabel,
+  ownAccount = false,
   devices,
   imageUrl,
   terms,
@@ -1085,6 +1096,8 @@ function ServiceOverview({
   seats: number;
   vpnRequired: boolean;
   deliveryLabel: string;
+  /** Abunəlik müştərinin öz hesabına qoşulur — "kabinet" mətnləri göstərilmir. */
+  ownAccount?: boolean;
   devices: string[];
   imageUrl: string | null;
   terms: ServiceTerms | null;
@@ -1093,7 +1106,9 @@ function ServiceOverview({
   const overviewItems = [
     { Icon: Monitor, label: "HD keyfiyyət", detail: "Təmiz görüntü" },
     { Icon: Zap, label: deliveryLabel, detail: "Sürətli aktivləşmə" },
-    { Icon: Users, label: `${seats} nəfər`, detail: "Yalnız sizə aid kabinet" },
+    ownAccount
+      ? { Icon: Users, label: "Öz hesabın", detail: "Giriş məlumatı səndə qalır" }
+      : { Icon: Users, label: `${seats} nəfər`, detail: "Yalnız sizə aid kabinet" },
     { Icon: ShieldCheck, label: "Təhlükəsiz ödəniş", detail: "Qorunan checkout" },
   ];
   const serviceSummary =
@@ -1170,8 +1185,9 @@ function ServiceOverview({
             <p className="mt-4 flex items-start gap-2.5 rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-zinc-100 dark:bg-white/[0.03] px-3.5 py-3 text-sm leading-6 text-zinc-200">
               <Users className={`mt-0.5 h-4 w-4 shrink-0 ${theme.accentText}`} />
               <span>
-                Sizə aid kabinet verilir və bu kabineti yalnız özünüz istifadə edə
-                bilərsiniz. Birdən çox nəfər istifadə edəcəksinizsə, ona uyğun sayda alış edin.
+                {ownAccount
+                  ? "Abunəlik birbaşa sizin öz hesabınıza aktivləşdirilir. Alışda hesabın e-poçtunu və şifrəsini yazırsınız — aktivləşmədən sonra şifrəni dəyişə bilərsiniz."
+                  : "Sizə aid kabinet verilir və bu kabineti yalnız özünüz istifadə edə bilərsiniz. Birdən çox nəfər istifadə edəcəksinizsə, ona uyğun sayda alış edin."}
               </span>
             </p>
 
@@ -1291,6 +1307,7 @@ function PlanAddButton({
   allowAnyEmail = false,
   terms = null,
   serviceLabel = "",
+  accountLabel = "Netflix",
 }: {
   product: PlanProduct;
   meta: Meta;
@@ -1301,6 +1318,7 @@ function PlanAddButton({
   allowAnyEmail?: boolean;
   terms?: ServiceTerms | null;
   serviceLabel?: string;
+  accountLabel?: string;
 }) {
   const cart = useCart();
   const stock = inStock();
@@ -1478,7 +1496,7 @@ function PlanAddButton({
                   : needsPassword
                     ? "Hesab məlumatları"
                     : allowAnyEmail
-                      ? "Netflix hesab e-poçtu"
+                      ? `${accountLabel} hesab e-poçtu`
                       : "Gmail ünvanı"}
               </h3>
               <button
@@ -1522,17 +1540,17 @@ function PlanAddButton({
                   : "Yeni hesab üçün istədiyin mail və şifrəni təyin et, hesabı biz açacağıq. Hesab yalnız bir ev daxilində istifadə üçündür."
                 : needsPassword
                 ? allowAnyEmail
-                  ? "Plan birbaşa SƏNİN Netflix hesabına aktivləşdiriləcək. Netflix hesabının e-poçtunu və şifrəsini yaz — aktivləşmə üçün lazımdır."
+                  ? `Plan birbaşa SƏNİN ${accountLabel} hesabına aktivləşdiriləcək. ${accountLabel} hesabının e-poçtunu və şifrəsini yaz — aktivləşmə üçün lazımdır.`
                   : "Abunəlik bu Gmail hesabına qoşulacaq — admin hesaba giriş edib abunəliyi aktivləşdirir. Sifariş zamanı dəqiqləşdir."
                 : allowAnyEmail
-                  ? "Plan birbaşa SƏNİN Netflix hesabına aktivləşdiriləcək. Netflix hesabının e-poçt ünvanını yaz (hər provayder olar)."
+                  ? `Plan birbaşa SƏNİN ${accountLabel} hesabına aktivləşdiriləcək. ${accountLabel} hesabının e-poçt ünvanını yaz (hər provayder olar).`
                   : "Abunəlik bu Gmail hesabına qoşulacaq. Sifariş zamanı dəqiqləşdir."}
             </p>
             <input
               value={gmail}
               onChange={(e) => setGmail(e.target.value)}
               type="email"
-              placeholder={allowAnyEmail ? "netflix-hesabin@nümunə.com" : "ad@gmail.com"}
+              placeholder={allowAnyEmail ? `${streamingSlugHint(accountLabel)}-hesabin@nümunə.com` : "ad@gmail.com"}
               autoFocus
               className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
             />

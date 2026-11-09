@@ -98,6 +98,29 @@ endpoint-ləri (`/api/services/checkout`, `/api/games/[id]/purchase`).
 ⚠️ Yeni satış yolu / vitrin bloku əlavə edəndə `isSellableServiceType` /
 `sellableGameWhere()` tətbiq et. Geri açmaq: `NEXT_PUBLIC_STORE_SCOPE=ALL` + `next build`.
 
+# Streaming abunəlikləri — Şəxsi / Paylaşımlı hesab (2026-11)
+
+Tək mənbə: [lib/streamingAccess.ts](lib/streamingAccess.ts) (client-safe). Admin: [/admin/streaming](app/admin/streaming/StreamingAdminClient.tsx)
+— xidmət → **Şəxsi hesab** (`PERSONAL`, müştərinin öz hesabı, alışda e-poçt + şifrə) / **Paylaşımlı hesab**
+(`SHARED`, bizim hesabda otaq, `StreamingStock`) → plan → qiymət cədvəli (müddət × nəfər).
+
+- **Plan = ayrıca `StreamingPlatform` sətri**: `parentCode` (üst xidmət), `accessMode`, `tierName`, `features`,
+  `devices`/`vpnRequired`. Kod/slug serverdə qurulur: `HBO_MAX_PAYLASIMLI_STANDART` / `hbo-max-paylasimli-standart`.
+- **Admin API plan məlumatını paket metadata-sına köçürür** (`accessMode`, `groupCode`, `storeSellable`,
+  `deliveryMode`) — checkout/səbət/satış əhatəsi DB-yə getmədən SİNXRON qərar verir. Paketi admin API-dən
+  kənarda yaradırsan (seed), bu sahələri özün yaz.
+- **Satış**: üst xidmətin "Saytda satılır" açarı (`StreamingPlatform.storeSellable`) → paketlərə `storeSellable: true`
+  → `isSellableServiceProduct` / `sellableServiceWhere`. Netflix koda görə həmişə açıqdır, bayraqdan asılı deyil.
+- **Qiymət cədvəli boş xana = satışdan çıxır** (`isActive=false`), paket SİLİNMİR (sifariş tarixçəsi).
+- **Vitrin**: `/streaming/<xidmət>` — iki rejim varsa seçim ekranı, `?secim=sexsi|paylasimli` (+`&paket=`).
+  Plan slug-ı üst xidmətə yönləndirir. Ana səhifədə hər xidmətə tək "ayda X ₼-dan" kartı.
+- **Netflix kilidlidir** (`isLockedStreamingGroup`): vitrini koddadır (`lib/streamingGroups.ts`), planları CRM
+  xəritəsinə bağlıdır (`lib/crmNetflix.ts`) — admin plan əlavə/silə bilməz, yalnız qiymət/cihaz/stok.
+  DB sütunları boş olsa da `resolvePlatformGroup` Netflix kodlarını tanıyır.
+- ⚠️ **Netflix olmayan sifarişlər CRM-ə getmir** — `/admin/orders`-da əl ilə təsdiqlənir; şəxsi hesab
+  sifarişində müştərinin e-poçtu və şifrəsi orada görünür.
+- Test: `npm run test:netflix` (əhatə, rejim, kod/slug, bulletlər).
+
 # Minimum sifariş məbləği
 
 [lib/cartLimits.ts](lib/cartLimits.ts) → `MIN_ORDER_AZN` (hazırda **20**). Səbətin
@@ -110,6 +133,20 @@ düymələri yerinə "Daha X ₼-lik məhsul seç" + "Minimum sifariş 20 ₼" s
 əlavə olunanda `CartAddedToast` (`MinOrderMeter` compact, layout-da, səbət
 vəziyyətini izləyir — yeni sətir/artan say = əlavə; ayrıca çağırış lazım deyil).
 Header səbət düyməsi (`CartIndicator`) yalnız say göstərir — halqa/animasiya yoxdur.
+
+# Səbət xidmət haqqı — 3% (2026-11)
+
+[lib/cartServiceFee.ts](lib/cartServiceFee.ts) → `CART_SERVICE_FEE_PCT` / `cartServiceFeeCents()`
+(saf, client-safe). Kupondan **sonrakı** səbət cəminin üstünə **bütün** səbət ödəniş
+üsullarında gəlir: kart, Apple/Google Pay, taksit (Epoint faizi baza+haqq üstünə), cüzdan,
+referal. Cüzdan istisna olsaydı müştəri cüzdanı komissiyasız artırıb yayınardı.
+
+- Server: `payableCents = discountedTotalCents + serviceFeeCents` ([checkout/route.ts](app/api/cart/checkout/route.ts)).
+  Kartda `Transaction.amountAznCents`-ə və Epoint-ə gedir (`metadata.checkout.serviceFeeCents`);
+  cüzdan/referalda balansdan tutulur + ayrıca `SERVICE_FEE` Transaction (mənfi məbləğ) yazılır.
+- **Fulfillment, cashback, bonus, min sifariş, attribution** haqqsız `discountedTotalCents` ilədir.
+- UI: [CartView](components/CartView.tsx) "Komissiya (3%)" sətri + Yekun; [InstallmentHint](components/InstallmentHint.tsx) aylığı haqq daxil göstərir.
+- ⚠️ Birbaşa alış endpoint-ləri (`/api/services/checkout`, `/api/games/[id]/purchase`) və cüzdan artırma haqq **tutmur**.
 
 # Oyun qiyməti — pillələr + custom (2026-10)
 
@@ -944,6 +981,15 @@ mesaj göndərilmir. İki ayrı mexanizm var. Onlar qəsdən birləşdirilməyib
 - `externalRef` olan retry limitə düşmür və mövcud linki qaytarır. Bank sətri olan
   təsdiqdə açar `crm:cardTransaction:<id>`-dir, ona görə CRM-in `/bank/payments` ⭐
   statusu (köhnə əl modalı ilə eyni açar) avtomatik dolur.
+
+# CRM → sayt hesabı sorğusu (müştəri sinxronu)
+
+`GET /api/partner/customers?phone=<p>[&phone=<p2>]` ([route.ts](app/api/partner/customers/route.ts),
+`requirePartnerKey`) — CRM müştəri səhifəsi telefona uyğun sayt hesablarını (balanslar, seqment,
+sifariş sayı/xərc, son 15 alış) canlı oxuyur. Uyğunlaşma `User.phone`-un **son 9 rəqəmi** ilə,
+raw SQL-də (`regexp_replace` — telefon sərbəst formatda saxlanılır, `phoneCandidates` boşluqlu
+formatı tutmur). Yalnız oxumadır; cavab formasını dəyişəndə CRM-in `HonsellStoreAccount`
+tipini ([psCustomer/lib/honsell-store.ts](../psCustomer/lib/honsell-store.ts)) də yenilə.
 
 # PS Store skreypi — concept ↔ SKU (ƏN VACİB TƏLƏ)
 

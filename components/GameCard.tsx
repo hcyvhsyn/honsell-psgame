@@ -5,17 +5,7 @@ import { cdnImageUrl, psStoreSizedUrl } from "@/lib/cdnImage";
 import { useSecondTicker } from "@/lib/useSecondTicker";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import {
-  ArrowUpRight,
-  Check,
-  Clock,
-  Gamepad2,
-  Gift,
-  Plus,
-  ShoppingCart,
-  Star,
-  Trash2,
-} from "lucide-react";
+import { ArrowUpRight, Clock, Gamepad2, Plus, Star, Trash2 } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { gameDetailHref } from "@/lib/gameSlug";
 import {
@@ -119,9 +109,8 @@ export default function GameCard({
   priority?: boolean;
   variant?: GameCardVariant;
 }) {
-  const { add, addGift, remove, has, hasGift, hydrated } = useCart();
+  const { add, remove, has, hydrated } = useCart();
   const inCart = hydrated && has(game.id);
-  const giftInCart = hydrated && hasGift(game.id);
   const deadline = useDiscountDeadline(game.discountEndAt);
   const compact = variant === "compact";
   // Uzaq şəkil 404/şəbəkə xətası verəndə boş qutu yox, fallback ikon göstər.
@@ -149,10 +138,6 @@ export default function GameCard({
     productType: game.productType,
     store: isEpic ? "EPIC" : "PS",
   };
-  // Məhsul aktiv endirimdədirsə, hədiyyə sətrinə endirimin bitmə tarixini ötürürük
-  // ki, müştəriyə "endirim müddətində aktivləşdir" xəbərdarlığı göstərilə bilsin.
-  const giftDiscountEndAt = game.discountPct != null ? game.discountEndAt : null;
-  const isDiscounted = game.discountPct != null;
   const platforms = game.platform ? game.platform.split(",").map((p) => p.trim()).filter(Boolean) : [];
   const detailHref = gameDetailHref(game);
   const productTypeBadge = getProductTypeBadge(game.productType, game.editionLabel);
@@ -340,6 +325,16 @@ export default function GameCard({
           </div>
         )}
 
+        {/* Nəşriyyatçı + çıxış ili: tanınmış nəşriyyatçı etibar, il isə oyunun
+            nə qədər köhnə olduğunu bildirir. Əvvəl kartın ən altında idi — bu
+            sətri olmayan kartda düymə qonşularından aşağı düşürdü. İndi başlıq
+            blokundadır, səbət düymələri sətir boyu eyni xətdə qalır. */}
+        {!compact && footerBits.length > 0 && (
+          <p className="mt-1 truncate text-[10px] font-medium text-zinc-500 sm:text-[11px]">
+            {footerBits.join(" · ")}
+          </p>
+        )}
+
         {detailHref && !compact && (
           <Link
             href={detailHref}
@@ -350,144 +345,77 @@ export default function GameCard({
           </Link>
         )}
 
-        <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 sm:mt-3">
-          <span className="text-lg font-bold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
-            {game.finalAzn.toFixed(2)}₼
-          </span>
-          {game.originalAzn != null && (
-            <span className="relative text-xs font-medium text-zinc-600 dark:text-zinc-300 sm:text-base">
-              {game.originalAzn.toFixed(2)}₼
-              <span
-                aria-hidden
-                className="pointer-events-none absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-rose-400/90"
-              />
+        {/* Qiymət + ödəniş siqnalları + səbət düyməsi TƏK blok kimi kartın altına
+            sıxılır (`mt-auto`). Sətirdəki qonşu kart hündür olanda yaranan boşluq
+            başlığın altında qalır — qiymət ilə düymə arasında "deşik" açılmır,
+            qiymətlər və düymələr isə sətir boyu eyni xətdə durur. */}
+        <div className="mt-auto pt-2 sm:pt-3">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-lg font-bold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
+              {game.finalAzn.toFixed(2)}₼
             </span>
-          )}
-          {/* Faiz nişanı nisbi faydanı, bu rozet isə mütləq faydanı göstərir —
-              "-90%" ilə "17.01₼ qənaət" birlikdə daha güclü siqnaldır. */}
-          {saved != null && (
-            <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 sm:text-xs">
-              {saved.toFixed(2)}₼ qənaət
-            </span>
-          )}
-        </div>
-
-        <InstallmentHint priceAzn={game.finalAzn} variant="card" className="mt-1.5" />
-
-        <div className="mt-1 flex">
-          <ReferralBadge category="games" productName={game.title} compact />
-        </div>
-
-        {/* Endirim müddəti: son 24 saatda saniyəli geri sayım, ondan uzaqda
-            sadə tarix ("12 avqusta qədər"). */}
-        <div className="mt-1.5 min-h-[24px] sm:mt-2 sm:min-h-[28px]">
-          {deadline && deadline.kind !== "expired" ? (
-            <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-violet-500/25 bg-violet-500/[0.08] px-2 py-1 text-[10px] font-semibold text-violet-700 dark:text-violet-200 sm:text-xs">
-              <Clock className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-              <span className={`truncate ${deadline.kind === "countdown" ? "tabular-nums" : ""}`}>
-                {deadline.kind === "countdown"
-                  ? `Bitişinə ${deadline.text} qalıb`
-                  : `Endirim ${deadline.text}`}
+            {game.originalAzn != null && (
+              <span className="relative text-xs font-medium text-zinc-600 dark:text-zinc-300 sm:text-base">
+                {game.originalAzn.toFixed(2)}₼
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-rose-400/90"
+                />
               </span>
-            </span>
-          ) : null}
-        </div>
+            )}
+            {/* Faiz nişanı nisbi faydanı, bu rozet isə mütləq faydanı göstərir —
+                "-90%" ilə "17.01₼ qənaət" birlikdə daha güclü siqnaldır. */}
+            {saved != null && (
+              <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 sm:text-xs">
+                {saved.toFixed(2)}₼ qənaət
+              </span>
+            )}
+          </div>
 
-        <div className="mt-3 flex flex-1 flex-col justify-end gap-1.5 sm:mt-5 sm:gap-2">
-          {compact ? (
-            <div className="flex items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => !inCart && add(cartPayload)}
-                disabled={inCart}
-                aria-label={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
-                title={inCart ? "Səbətdədir" : "Səbətə əlavə et"}
-                className={`inline-grid h-12 w-12 place-items-center rounded-full border shadow-lg transition ${
-                  inCart
-                    ? "border-emerald-400/35 bg-emerald-500/20 text-emerald-200"
-                    : "border-violet-400/35 bg-violet-600 text-white shadow-violet-500/25 hover:bg-violet-500"
-                }`}
-              >
-                {inCart ? <Check className="h-5 w-5" /> : <ShoppingCart className="h-5 w-5" />}
-              </button>
-              <button
-                type="button"
-                onClick={() => !giftInCart && addGift(cartPayload, undefined, giftDiscountEndAt)}
-                disabled={giftInCart}
-                aria-label={giftInCart ? "Hədiyyə kimi səbətdədir" : "Dostuna hədiyyə et"}
-                title={giftInCart ? "Hədiyyə kimi səbətdədir" : "Dostuna hədiyyə et"}
-                className={`inline-grid h-12 w-12 place-items-center rounded-full border shadow-lg transition ${
-                  giftInCart
-                    ? "border-fuchsia-400/40 bg-fuchsia-500/20 text-fuchsia-200"
-                    : "border-fuchsia-400/35 bg-zinc-900 text-fuchsia-300 hover:bg-fuchsia-500/20"
-                }`}
-              >
-                <Gift className="h-5 w-5" />
-              </button>
+          <InstallmentHint priceAzn={game.finalAzn} variant="card" className="mt-1.5" />
+
+          {/* Referal: əvvəl yalnız "🎁 3%" idi — müştəri bunu endirim, cashback və ya
+              3% xidmət haqqı ilə qarışdırırdı. İndi nə olduğunu özü deyir; toxunanda
+              modal ətraflı izah edir. */}
+          <div className="mt-1 flex">
+            <ReferralBadge category="games" productName={game.title} variant="line" />
+          </div>
+
+          {/* Endirim müddəti: son 24 saatda saniyəli geri sayım, ondan uzaqda
+              sadə tarix ("12 avqusta qədər"). Yalnız endirim olanda yer tutur —
+              əvvəl hər kartda boş yer saxlanırdı və alt hissədə deşik açırdı. */}
+          {deadline && deadline.kind !== "expired" && (
+            <div className="mt-2 flex">
+              <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-violet-500/25 bg-violet-500/[0.08] px-2 py-1 text-[10px] font-semibold text-violet-700 dark:text-violet-200 sm:text-xs">
+                <Clock className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+                <span className={`truncate ${deadline.kind === "countdown" ? "tabular-nums" : ""}`}>
+                  {deadline.kind === "countdown"
+                    ? `Bitişinə ${deadline.text} qalıb`
+                    : `Endirim ${deadline.text}`}
+                </span>
+              </span>
             </div>
-          ) : (
-            <>
-              {/* Səbət + Hədiyyə düymələri yan-yana. Müştəri eyni oyunu HƏM özünə
-                  ala, HƏM dostuna hədiyyə edə bilər — iki düymə müstəqil işləyir. */}
-              <div className="flex items-stretch gap-2">
-                {inCart ? (
-                  <button
-                    type="button"
-                    onClick={() => remove(game.id)}
-                    title="Səbətdən sil"
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-2 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 sm:gap-2 sm:px-3 sm:py-3 sm:text-sm"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="truncate">Səbətdə</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => add(cartPayload)}
-                    title="Səbətə əlavə et"
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#6D28D9] px-2 py-2 text-xs font-semibold text-white shadow-lg shadow-purple-500/20 transition-all duration-200 hover:bg-[#5B21B6] sm:gap-2 sm:px-3 sm:py-3 sm:text-sm"
-                  >
-                    <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> <span className="truncate">Səbətə</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() =>
-                    giftInCart ? remove(game.id, true) : addGift(cartPayload, undefined, giftDiscountEndAt)
-                  }
-                  title={giftInCart ? "Hədiyyədən sil" : "Dostuna hədiyyə et"}
-                  className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-semibold transition sm:gap-2 sm:px-3 sm:py-3 sm:text-sm ${
-                    giftInCart
-                      ? "border-fuchsia-500/40 bg-fuchsia-500/15 text-fuchsia-200 hover:bg-fuchsia-500/25"
-                      : "border-fuchsia-500/30 bg-transparent text-fuchsia-300 hover:bg-fuchsia-500/10"
-                  }`}
-                >
-                  <Gift className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span className="truncate">Hədiyyə</span>
-                </button>
-              </div>
-
-              {/* Endirimli məhsul hədiyyə edilibsə müştərini xəbərdar edirik:
-                  dost endirim müddətində aktivləşdirməlidir, əks halda yalnız
-                  ödənilən (endirimli) məbləğ qədər hədiyyə dəyəri keçərli olur. */}
-              {giftInCart && isDiscounted && (
-                <p className="mt-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-left text-[10px] font-medium leading-snug text-amber-300 sm:text-[11px]">
-                  ⚠️ Endirimli hədiyyə: dostunuz endirim müddətində aktivləşdirməlidir.
-                  Gec aktivləşdirsə, yalnız ödədiyiniz {game.finalAzn.toFixed(2)}₼ məbləğ qədər
-                  hədiyyə dəyəri keçərli olacaq.
-                </p>
-              )}
-            </>
           )}
-        </div>
 
-        {/* Nəşriyyatçı + çıxış ili. Alış qərarına birbaşa təsir edən, amma
-            kartda yer tutmayan siqnal: tanınmış nəşriyyatçı etibar, il isə
-            oyunun nə qədər köhnə olduğunu bildirir. */}
-        {!compact && footerBits.length > 0 && (
-          <p className="mt-2.5 truncate border-t border-zinc-100 pt-2 text-[10px] font-medium text-zinc-500 dark:border-white/[0.06] dark:text-zinc-500 sm:mt-3 sm:pt-2.5 sm:text-[11px]">
-            {footerBits.join(" · ")}
-          </p>
-        )}
+          {/* Tək əsas hərəkət — "Hədiyyə" düyməsi kartdan çıxarılıb (2026-11). */}
+          <button
+            type="button"
+            onClick={() => (inCart ? remove(game.id) : add(cartPayload))}
+            title={inCart ? "Səbətdən sil" : "Səbətə əlavə et"}
+            className={`mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all duration-200 sm:gap-2 sm:py-3 sm:text-sm ${
+              inCart
+                ? "border border-rose-500/30 bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 dark:text-rose-300"
+                : "bg-[#6D28D9] text-white shadow-lg shadow-purple-500/20 hover:bg-[#5B21B6]"
+            }`}
+          >
+            {inCart ? (
+              <Trash2 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            ) : (
+              <Plus className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+            )}
+            <span className="truncate">{inCart ? "Səbətdədir" : "Səbətə əlavə et"}</span>
+          </button>
+        </div>
       </div>
     </li>
   );

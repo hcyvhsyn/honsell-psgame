@@ -23,6 +23,7 @@ import {
 import { useCart, type CartItem } from "@/lib/cart";
 import { attributionPayload, trackEvent } from "@/lib/track";
 import { MIN_ORDER_AZN, minOrderMessage, minOrderProgress } from "@/lib/cartLimits";
+import { CART_SERVICE_FEE_PCT, cartServiceFeeCents } from "@/lib/cartServiceFee";
 import CouponCodeBox, {
   validateCoupon,
   type AppliedCoupon,
@@ -200,6 +201,12 @@ export default function CartView({
 
   const discountAzn = appliedCoupon ? Math.min(appliedCoupon.discountCents / 100, totalAzn) : 0;
   const finalPayAzn = Math.max(0, totalAzn - discountAzn);
+  // Xidmət haqqı (3%) bütün ödəniş üsullarında kupondan sonrakı cəmin üstünə
+  // gəlir — server (`checkout/route.ts`) eyni funksiya ilə hesablayır.
+  const finalPayCents = Math.round(finalPayAzn * 100);
+  const serviceFeeCents = cartServiceFeeCents(finalPayCents);
+  const payTotalCents = finalPayCents + serviceFeeCents;
+  const payTotalAzn = payTotalCents / 100;
 
   // Məhsulların öz endirimlərindən yaranan qənaət. `totalAzn` onsuz da endirimli
   // cəmdir — xülasədə "Məhsullar" sətri list qiymətlə göstərilir ki, müştəri nə
@@ -474,7 +481,7 @@ export default function CartView({
     );
   }
 
-  const insufficientWallet = isAuthed && walletBalanceAzn < finalPayAzn;
+  const insufficientWallet = isAuthed && Math.round(walletBalanceAzn * 100) < payTotalCents;
 
   // Minimum sifariş məbləği — KUPONDAN ƏVVƏLKİ cəm üzərində (server
   // `checkout/route.ts` eyni rəqəmi yoxlayır, lib/cartLimits.ts).
@@ -869,22 +876,26 @@ export default function CartView({
 
         <aside className="h-fit space-y-4 rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-4 sm:p-5 xl:sticky xl:top-4">
           <dl className="space-y-1.5 text-sm">
+            <div className="flex justify-between text-zinc-400">
+              <dt>Məhsullar</dt>
+              <dd className="tabular-nums">{listTotalAzn.toFixed(2)} AZN</dd>
+            </div>
             {totalDiscountAzn > 0 ? (
-              <>
-                <div className="flex justify-between text-zinc-400">
-                  <dt>Məhsullar</dt>
-                  <dd className="tabular-nums">{listTotalAzn.toFixed(2)} AZN</dd>
-                </div>
-                <div className="flex justify-between text-zinc-400">
-                  <dt>Endirim</dt>
-                  <dd className="tabular-nums text-emerald-400">−{totalDiscountAzn.toFixed(2)} AZN</dd>
-                </div>
-              </>
+              <div className="flex justify-between text-zinc-400">
+                <dt>Endirim</dt>
+                <dd className="tabular-nums text-emerald-400">−{totalDiscountAzn.toFixed(2)} AZN</dd>
+              </div>
+            ) : null}
+            {serviceFeeCents > 0 ? (
+              <div className="flex justify-between text-zinc-400">
+                <dt>Komissiya ({CART_SERVICE_FEE_PCT}%)</dt>
+                <dd className="tabular-nums">+{(serviceFeeCents / 100).toFixed(2)} AZN</dd>
+              </div>
             ) : null}
             <div className="flex items-baseline justify-between pt-1">
               <dt className="text-zinc-300">Yekun</dt>
               <dd className="text-2xl font-bold tabular-nums text-white">
-                {finalPayAzn.toFixed(2)} <span className="text-sm font-medium text-zinc-400">AZN</span>
+                {payTotalAzn.toFixed(2)} <span className="text-sm font-medium text-zinc-400">AZN</span>
               </dd>
             </div>
           </dl>
@@ -1000,7 +1011,7 @@ export default function CartView({
                 >
                   <span>Balansı artır</span>
                   <span className="rounded-md bg-white/20 px-2 py-0.5 text-xs">
-                    {(finalPayAzn - walletBalanceAzn).toFixed(2)} AZN çatmır
+                    {(payTotalAzn - walletBalanceAzn).toFixed(2)} AZN çatmır
                   </span>
                 </Link>
               ) : (
@@ -1024,7 +1035,7 @@ export default function CartView({
               </button>
 
               <InstallmentPicker
-                amountAzn={finalPayAzn}
+                amountAzn={payTotalAzn}
                 busy={busy}
                 onPay={(choice) => checkout("epoint-installment", "google", false, choice)}
               />

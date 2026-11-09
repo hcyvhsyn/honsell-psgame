@@ -23,6 +23,10 @@ import {
   type StreamingServiceMeta,
 } from "@/lib/streamingCart";
 import { getDbStreamingSlug, getPublicStreamingSlug } from "@/lib/streamingPlatforms";
+import { loadDbStreamingTiers } from "@/lib/streamingDbGroups";
+import { ACCESS_MODE_META, accessModeFromSelection } from "@/lib/streamingAccess";
+import { isSellableServiceProduct } from "@/lib/storeScope";
+import type { StreamingGroupChoice } from "@/lib/streamingGroups";
 
 type Props = {
   svc: StreamingServiceMeta;
@@ -274,6 +278,89 @@ export default async function StreamingServiceDetail({
       })
       .filter((x): x is LandingVariant => x !== null);
   }
+  // ── Admin-dən qurulan qrup (Şəxsi / Paylaşımlı planlar — lib/streamingAccess.ts) ──
+  // Netflix kodda qurulub (yuxarıdakı `group`); qalan xidmətlərin planları DB-dədir. Plan varsa
+  // üst xidmətin öz (rejimsiz) paketləri göstərilmir — alış planlar üzərindən gedir.
+  const dbTiers = !isMusic && !group && !svc.parentCode ? await loadDbStreamingTiers(svc) : [];
+  const dbTierByCode = new Map(dbTiers.map((t) => [t.code, t]));
+  const productCode = (p: (typeof products)[number]) =>
+    String((p.metadata as Record<string, unknown> | null)?.service ?? "").toUpperCase();
+  const dbProducts = dbTiers.length
+    ? products.filter((p) => dbTierByCode.has(productCode(p)) && isSellableServiceProduct(p))
+    : [];
+  const dbModeTiers = (mode: "PERSONAL" | "SHARED") =>
+    dbTiers.filter((t) => t.mode === mode && dbProducts.some((p) => productCode(p) === t.code));
+  const dbPersonalTiers = dbModeTiers("PERSONAL");
+  const dbSharedTiers = dbModeTiers("SHARED");
+  const dbRequested = accessModeFromSelection(groupSelection);
+  const dbView: "CHOOSER" | "PERSONAL" | "SHARED" | "EMPTY" | null = dbTiers.length === 0
+    ? null
+    : dbRequested === "PERSONAL" && dbPersonalTiers.length
+      ? "PERSONAL"
+      : dbRequested === "SHARED" && dbSharedTiers.length
+        ? "SHARED"
+        : dbPersonalTiers.length && dbSharedTiers.length
+          ? "CHOOSER"
+          : dbPersonalTiers.length
+            ? "PERSONAL"
+            : dbSharedTiers.length
+              ? "SHARED"
+              : "EMPTY";
+  const dbProductsFor = (tiers: typeof dbTiers) => {
+    const codes = new Set(tiers.map((t) => t.code));
+    return dbProducts.filter((p) => codes.has(productCode(p)));
+  };
+  const dbFromPerMonth = (rows: typeof products): number | null => {
+    let best = Infinity;
+    for (const p of rows) {
+      const months = Number((p.metadata as Record<string, unknown> | null)?.durationMonths);
+      if (Number.isFinite(months) && months > 0) best = Math.min(best, p.priceAznCents / months / 100);
+    }
+    return Number.isFinite(best) ? best : null;
+  };
+  const dbChoices: StreamingGroupChoice[] = [
+    {
+      title: "Bizə aid email, sizə aid otaq",
+      subtitle: "Hesab bizim, otaq sizin",
+      points: ["Mail, şifrə və PIN-i biz veririk", "Neçə nəfər üçün olduğunu seçirsiniz"],
+      accent: "kabinet",
+      selection: ACCESS_MODE_META.SHARED.selection,
+    },
+    {
+      title: "Sizə aid email ilə hesab",
+      subtitle: "Hesab sizin, plan sizin",
+      points: ["Öz mailiniz və şifrənizlə", "Abunəlik birbaşa öz hesabınıza qoşulur"],
+      accent: "hesab",
+      selection: ACCESS_MODE_META.PERSONAL.selection,
+    },
+  ];
+  const dbChoicePricing: StreamingGroupChoicePricing[] = [
+    { accent: "kabinet", fromPerMonthAzn: dbFromPerMonth(dbProductsFor(dbSharedTiers)), plans: [] },
+    { accent: "hesab", fromPerMonthAzn: dbFromPerMonth(dbProductsFor(dbPersonalTiers)), plans: [] },
+  ];
+  const toPickerProduct = (p: (typeof products)[number], metadata: Record<string, unknown> | null) => ({
+    id: p.id,
+    title: p.title,
+    description: p.description,
+    imageUrl: p.imageUrl,
+    priceAznCents: p.priceAznCents,
+    metadata,
+    availableStock: p._count.codes,
+  });
+  // Şəxsi planlar plan seçicinin tab-larına çevrilir (variant məlumatı plandan inject olunur).
+  const dbPersonalProducts = dbProductsFor(dbPersonalTiers).map((p) => {
+    const tier = dbTierByCode.get(productCode(p))!;
+    const base = (p.metadata as Record<string, unknown> | null) ?? {};
+    return toPickerProduct(p, {
+      ...base,
+      variant: tier.name,
+      variantSlug: tier.key,
+      variantRank: tier.rank,
+      variantFeatures: tier.features,
+      commonFeatures: [],
+    });
+  });
+
   // Parent chooser (məs. /streaming/netflix) — "secim" verilməyibsə 2 seçim
   // göstərilir; "kabinet" verilibsə kabinet landing açılır.
   const groupChooser = group?.chooser ?? null;
@@ -282,12 +369,14 @@ export default async function StreamingServiceDetail({
   // Netflix otaq addımı: paket + nəfər + müddət bir səhifədədir (müqayisə səhifəsi yoxdur).
   const showCabinetPicker = showGroupLanding && svc.slug === "netflix";
   // Header/icmal/featured bölmələrini gizlədən "landing" rejimi.
-  const landingMode = showVariantLanding || showGroupLanding || showGroupChooser;
+  const landingMode =
+    showVariantLanding || showGroupLanding || showGroupChooser || (dbView != null && dbView !== "PERSONAL");
   // Qrup alt-paket səhifəsidirsə (məs. netflix-yanimda) icmallar gizlənir —
   // icmallar yalnız ümumi parent səhifədə (məs. /streaming/netflix) göstərilir.
   // Qrup alt-paketi və ya chooser hədəfi (məs. netflix-hesab) — icmal bloku göstərilmir.
   const isGroupChild =
-    !isMusic && (isStreamingGroupChild(svc.slug) || getStreamingGroupParentSlug(svc.slug) !== null);
+    !isMusic &&
+    (isStreamingGroupChild(svc.slug) || getStreamingGroupParentSlug(svc.slug) !== null || dbView != null);
 
   // Picker-ə ötürüləcək məhsullar: konkret tier seçilibsə yalnız onun paketləri.
   const pickerProducts = activeVariant
@@ -375,13 +464,52 @@ export default async function StreamingServiceDetail({
             <p className="mt-1 text-sm text-zinc-500">
               {isMusic
                 ? "Müddətini seç, sifarişdən sonra hesab məlumatları emailinə göndəriləcək."
-                : streamingUsesCustomerEmail(svc.code)
-                  ? "Azərbaycanda yaşayan müştərilər üçün uyğundur."
-                  : "Müddətini seç, ödənişdən sonra giriş məlumatları sənə göndəriləcək."}
+                : dbView === "PERSONAL"
+                  ? `Abunəlik birbaşa öz ${svc.label} hesabına aktivləşdirilir — alışda hesabın e-poçtunu və şifrəsini yazırsan.`
+                  : streamingUsesCustomerEmail(svc.code)
+                    ? "Azərbaycanda yaşayan müştərilər üçün uyğundur."
+                    : "Müddətini seç, ödənişdən sonra giriş məlumatları sənə göndəriləcək."}
             </p>
           </header>
         )}
-        {showGroupChooser ? (
+        {dbView === "CHOOSER" ? (
+          <StreamingGroupChooser
+            serviceLabel={svc.label}
+            basePath={detailHref}
+            choices={dbChoices}
+            pricing={dbChoicePricing}
+          />
+        ) : dbView === "SHARED" ? (
+          <NetflixCabinetPicker
+            serviceLabel={svc.label}
+            initialKey={initialPackage}
+            tiers={dbSharedTiers.map((t) => ({ key: t.key, code: t.code, name: t.name, features: t.features }))}
+            products={dbProductsFor(dbSharedTiers).map((p) => ({
+              id: p.id,
+              title: p.title,
+              imageUrl: p.imageUrl,
+              priceAznCents: p.priceAznCents,
+              metadata: (p.metadata as Record<string, unknown> | null) ?? null,
+            }))}
+          />
+        ) : dbView === "PERSONAL" ? (
+          <StreamingPlanPicker
+            allowAnyEmail
+            authMode="GMAIL_PASSWORD"
+            accountLabel={svc.label}
+            serviceOverride={{
+              code: svc.code,
+              label: svc.label,
+              tagline: svc.tagline,
+              description: svc.description,
+            }}
+            products={dbPersonalProducts}
+          />
+        ) : dbView === "EMPTY" ? (
+          <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-8 text-center text-sm text-zinc-400">
+            {svc.label} üçün aktiv plan yoxdur.
+          </div>
+        ) : showGroupChooser ? (
           <StreamingGroupChooser
             serviceLabel={svc.label}
             basePath={detailHref}
@@ -480,7 +608,7 @@ export default async function StreamingServiceDetail({
       )}
 
       {/* Netflix seçim addımları qısa qalır: xəbər və bələdçi bloku yoxdur. */}
-      {!showGroupChooser && !showCabinetPicker && (
+      {!showGroupChooser && !showCabinetPicker && dbView !== "CHOOSER" && dbView !== "SHARED" && (
         <>
           <NewsSection
             scope={`STREAMING_${svc.code}`}

@@ -33,8 +33,9 @@ export default async function StreamingPage() {
   // Qrup alt-paketləri (netflix-yanimda/evimde/evimde-vip) və hesab platforması
   // (netflix-hesab) ana siyahıda gizlənir — hamısı /streaming/netflix seçim
   // ekranı vasitəsilə açılır.
+  // Admin-dən qurulan planlar (parentCode dolu) da yalnız üst xidmətin səhifəsindən açılır.
   const streamingPlatforms = (await getStreamingPlatformsByCategory("STREAMING")).filter(
-    (p) => !isHiddenFromStreamingGrid(p.slug),
+    (p) => !isHiddenFromStreamingGrid(p.slug) && !p.parentCode,
   );
 
   const allTitles = await prisma.streamingTitle.findMany({

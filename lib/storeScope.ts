@@ -22,6 +22,10 @@
  * (`metadata.service`) satılır: öz hesabına plan (Basic/Standart/Premium) və bizim hesabda otaq
  * (Yanımda/Evimdə/Evimdə VIP). Sifariş ödənişdən sonra CRM-ə gedir (`lib/crmNetflix.ts`).
  * HBO, Gain, Prime və `/streaming` kataloqu bağlı qalır.
+ *
+ * İstisna — **admin-dən açılan streaming xidmətləri** (2026-11): `/admin/streaming`-də xidmətin
+ * "Saytda satılır" açarı (`StreamingPlatform.storeSellable`) paketlərin metadata-sına
+ * `storeSellable: true` kimi köçürülür (lib/streamingAccess.ts). Netflix bu bayraqdan asılı deyil.
  */
 
 export const STORE_SCOPE: "PLAYSTATION" | "ALL" =
@@ -80,6 +84,15 @@ export function isNetflixProduct(type: string | null | undefined, metadata: unkn
   return NETFLIX_SERVICE_CODES.includes(String((metadata as Record<string, unknown>).service ?? ""));
 }
 
+/** Paket metadata-sında admin "Saytda satılır" bayrağı — üst xidmətin `StreamingPlatform.storeSellable`-ından köçürülür. */
+export const STORE_SELLABLE_META_KEY = "storeSellable";
+
+/** Admin-dən satışa açılmış (Netflix olmayan) streaming paketi. */
+export function isStoreSellableStreaming(type: string | null | undefined, metadata: unknown): boolean {
+  if (type !== "STREAMING" || !metadata || typeof metadata !== "object") return false;
+  return (metadata as Record<string, unknown>)[STORE_SELLABLE_META_KEY] === true;
+}
+
 const SERVICE_TYPE_SET = new Set(PLAYSTATION_SERVICE_TYPES);
 const CATEGORY_KEY_SET = new Set(PLAYSTATION_CATEGORY_KEYS);
 
@@ -88,13 +101,14 @@ export function isSellableServiceType(type: string | null | undefined): boolean 
   return SERVICE_TYPE_SET.has(String(type ?? ""));
 }
 
-/** Məhsul səviyyəli yoxlama: PS tipləri + Spotify + Netflix (hər tipin içində yalnız onlar). */
+/** Məhsul səviyyəli yoxlama: PS tipləri + Spotify + Netflix + admin-dən açılan streaming. */
 export function isSellableServiceProduct(product: { type: string; metadata?: unknown }): boolean {
   if (!PLAYSTATION_ONLY) return true;
   return (
     SERVICE_TYPE_SET.has(product.type) ||
     isSpotifyProduct(product.type, product.metadata) ||
-    isNetflixProduct(product.type, product.metadata)
+    isNetflixProduct(product.type, product.metadata) ||
+    isStoreSellableStreaming(product.type, product.metadata)
   );
 }
 
@@ -115,6 +129,7 @@ export function sellableServiceWhere(): { AND?: Record<string, unknown>[] } {
             type: "STREAMING",
             metadata: { path: ["service"], equals: code },
           })),
+          { type: "STREAMING", metadata: { path: [STORE_SELLABLE_META_KEY], equals: true } },
         ],
       },
     ],
@@ -155,7 +170,14 @@ const CLOSED_PATH_PREFIXES = [
   "/xidmet-paket",
 ];
 
-export function isOpenStorePath(href: string | null | undefined): boolean {
+/**
+ * `openStreamingSlugs` — admin-dən satışa açılmış streaming xidmətlərinin slug-ları (server DB-dən
+ * oxuyub ötürür; bu modul sinxron qalmalıdır). `/streaming/<slug>` və alt yolları açıq sayılır.
+ */
+export function isOpenStorePath(
+  href: string | null | undefined,
+  openStreamingSlugs?: ReadonlySet<string>,
+): boolean {
   if (!PLAYSTATION_ONLY || !href) return true;
   let path = href.trim();
   if (/^https?:\/\//i.test(path)) {
@@ -175,6 +197,10 @@ export function isOpenStorePath(href: string | null | undefined): boolean {
   }
   // Bağlı `/streaming` altında yalnız Netflix səhifələri açıqdır (netflix, netflix-hesab, netflix-yanimda…).
   if (/^\/streaming\/netflix(-[a-z-]+)?([/?]|$)/.test(path)) {
+    return true;
+  }
+  const streamingSlug = /^\/streaming\/([a-z0-9-]+)([/?]|$)/.exec(path)?.[1];
+  if (streamingSlug && openStreamingSlugs?.has(streamingSlug)) {
     return true;
   }
   return !CLOSED_PATH_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`) || path.startsWith(`${p}?`));

@@ -4,6 +4,7 @@ import {
   type StreamingServiceCategory,
   type StreamingServiceMeta,
 } from "@/lib/streamingCart";
+import { getDbStreamingSlug, getPublicStreamingSlug, resolvePlatformGroup } from "@/lib/streamingAccess";
 
 /**
  * Platforma kimliyi həqiqət mənbəyi olaraq `StreamingPlatform` DB cədvəlindədir.
@@ -19,21 +20,8 @@ export const DEFAULT_STREAMING_PLATFORMS: StreamingServiceMeta[] = Object.values
   STREAMING_SERVICE_META,
 );
 
-const PUBLIC_SLUG_BY_DB_SLUG: Record<string, string> = {
-  "netflix-vvip": "netflix-hesab",
-};
-
-const DB_SLUG_BY_PUBLIC_SLUG: Record<string, string> = Object.fromEntries(
-  Object.entries(PUBLIC_SLUG_BY_DB_SLUG).map(([dbSlug, publicSlug]) => [publicSlug, dbSlug]),
-);
-
-export function getPublicStreamingSlug(slug: string): string {
-  return PUBLIC_SLUG_BY_DB_SLUG[slug] ?? slug;
-}
-
-export function getDbStreamingSlug(slug: string): string {
-  return DB_SLUG_BY_PUBLIC_SLUG[slug] ?? slug;
-}
+// Slug xəritəsi client-safe modulda yaşayır (admin UI da işlədir).
+export { getDbStreamingSlug, getPublicStreamingSlug };
 
 function isCategory(value: string): value is StreamingServiceCategory {
   return value === "STREAMING" || value === "MUSIC";
@@ -47,7 +35,11 @@ function toMeta(row: {
   tagline: string;
   description: string;
   heroImageUrl?: string | null;
+  parentCode?: string | null;
+  accessMode?: string | null;
+  tierName?: string | null;
 }): StreamingServiceMeta {
+  const group = resolvePlatformGroup(row);
   return {
     code: row.code,
     slug: getPublicStreamingSlug(row.slug),
@@ -56,6 +48,9 @@ function toMeta(row: {
     tagline: row.tagline,
     description: row.description,
     heroImageUrl: row.heroImageUrl ?? null,
+    parentCode: group.parentCode,
+    accessMode: group.accessMode,
+    tierName: row.tierName ?? "",
   };
 }
 

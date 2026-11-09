@@ -51,9 +51,11 @@ import {
   isOpenStorePath,
   isSellableGameStore,
   isSellableServiceProduct,
+  isStoreSellableStreaming,
   sellableGameWhere,
   sellableServiceWhere,
 } from "@/lib/storeScope";
+import { getPublicStreamingSlug } from "@/lib/streamingPlatforms";
 
 export const revalidate = 1800;
 
@@ -216,10 +218,16 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
 
   // Netflix vitrində tək kartdır: ayrı-ayrı paketlər 12 kartlıq limiti doldurub Spotify-ı
   // çıxarardı və e-poçt/şifrə tələb edən plan birbaşa səbətə düşə bilərdi.
+  // Admin-dən satışa açılan streaming xidmətləri (HBO Max və s.) də eyni qaydada tək kartdır.
   const netflixCard = buildNetflixLandingCard(services);
+  const streamingCards = [
+    ...(await buildStreamingGroupCards(services)),
+    ...(netflixCard ? [netflixCard] : []),
+  ];
 
   const cards = services
     .filter((service) => !isNetflixProduct(service.type, service.metadata))
+    .filter((service) => !isStoreSellableStreaming(service.type, service.metadata))
     .filter((service) => !isHiddenFromLanding(service.metadata))
     .sort((a, b) => {
       const orderA = LANDING_SERVICE_ORDER.get(a.type) ?? 999;
@@ -229,7 +237,7 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
     // Ana səhifə HTML-ini yüngül saxlamaq üçün maks. 12 kart server-render olunur
     // (əvvəl bütün aktiv landing məhsulları gəlirdi → onlarla kart, böyük HTML).
     // Tam siyahı kateqoriya səhifələrindədir.
-    .slice(0, netflixCard ? 11 : 12)
+    .slice(0, Math.max(0, 12 - streamingCards.length))
     .map((service) => ({
       id: service.id,
       title: service.title,
@@ -242,7 +250,55 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
       requiresAccount: landingServiceRequiresAccount(service.type, service.metadata),
     }));
 
-  return netflixCard ? [...cards, netflixCard] : cards;
+  return [...cards, ...streamingCards];
+}
+
+/**
+ * Admin-dən satışa açılan hər streaming xidməti üçün tək "ayda X ₼-dan" kartı. Qruplaşma
+ * `metadata.groupCode` (plan → üst xidmət) ilədir; rejimsiz köhnə paket öz `service`-i ilə qruplaşır.
+ */
+async function buildStreamingGroupCards(
+  services: Array<{ type: string; priceAznCents: number; imageUrl: string | null; metadata: unknown }>,
+): Promise<HomeProductMatrixItem[]> {
+  const best = new Map<string, { perMonthCents: number; imageUrl: string | null }>();
+  for (const service of services) {
+    if (!isStoreSellableStreaming(service.type, service.metadata)) continue;
+    if (isNetflixProduct(service.type, service.metadata)) continue;
+    const meta = asRecord(service.metadata);
+    const key = String(meta?.groupCode ?? meta?.service ?? "").toUpperCase();
+    const months = Number(meta?.durationMonths);
+    if (!key || !Number.isFinite(months) || months <= 0) continue;
+    const perMonthCents = service.priceAznCents / months;
+    const image =
+      typeof meta?.platformImageUrl === "string" && meta.platformImageUrl ? meta.platformImageUrl : service.imageUrl;
+    const current = best.get(key);
+    best.set(key, {
+      perMonthCents: Math.min(perMonthCents, current?.perMonthCents ?? Infinity),
+      imageUrl: current?.imageUrl ?? image ?? null,
+    });
+  }
+  if (best.size === 0) return [];
+  const platforms = await prisma.streamingPlatform
+    .findMany({
+      where: { code: { in: Array.from(best.keys()) }, isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { label: "asc" }],
+      select: { code: true, slug: true, label: true, heroImageUrl: true },
+    })
+    .catch(() => []);
+  return platforms.map((p) => {
+    const b = best.get(p.code.toUpperCase())!;
+    return {
+      id: `streaming-${p.code.toLowerCase()}`,
+      title: p.label,
+      subtitle: "Aylıq başlanğıc qiymət",
+      href: `/streaming/${getPublicStreamingSlug(p.slug)}`,
+      imageUrl: p.heroImageUrl || b.imageUrl,
+      finalAzn: Math.round(b.perMonthCents) / 100,
+      productType: "STREAMING",
+      badge: p.label,
+      requiresAccount: true,
+    };
+  });
 }
 
 /** Ən ucuz aylıq qiymətli tək "Netflix" kartı; aktiv Netflix paketi yoxdursa `null`. */
@@ -351,7 +407,7 @@ async function fetchFlashDeals(
 const getHomePageData = unstable_cache(
   async () => {
   const settings = await getSettings();
-  const [banners, landingProducts, totalsArr, orderCount, testimonialAgg, flashDeals, serviceBundles] = await Promise.all([
+  const [banners, landingProducts, totalsArr, orderCount, testimonialAgg, flashDeals, serviceBundles, openStreamingSlugs] = await Promise.all([
     prisma.banner
       .findMany({
         where: { isActive: true, scope: "HOME" },
@@ -371,6 +427,11 @@ const getHomePageData = unstable_cache(
     // Xidmət dəstləri. ⚠️ `.catch` vacibdir: ana səhifə prerender olunur və
     // miqrasiya tətbiq olunmayıbsa `next build`-in özü sınardı.
     loadActiveServiceBundles().catch(() => []),
+    // Admin-dən satışa açılan streaming xidmətləri — onların bannerləri də göstərilir.
+    prisma.streamingPlatform
+      .findMany({ where: { storeSellable: true, isActive: true }, select: { slug: true } })
+      .then((rows) => new Set(rows.map((r) => getPublicStreamingSlug(r.slug))))
+      .catch(() => new Set<string>()),
   ]);
 
   const totalsAll = totalsArr.reduce((sum, row) => sum + row._count._all, 0);
@@ -387,7 +448,7 @@ const getHomePageData = unstable_cache(
       (b) =>
         (!b.game || isSellableGameStore(b.game.store)) &&
         (!b.serviceProduct || isSellableServiceProduct(b.serviceProduct)) &&
-        isOpenStorePath(b.linkUrl),
+        isOpenStorePath(b.linkUrl, openStreamingSlugs),
     )
     .map((b) => {
       const price = b.game ? computeDisplayPrice(b.game, settings) : null;

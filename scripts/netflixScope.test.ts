@@ -9,8 +9,20 @@ import {
   isNetflixProduct,
   isOpenStorePath,
   isSellableServiceProduct,
+  isStoreSellableStreaming,
   sellableServiceWhere,
 } from "@/lib/storeScope";
+import {
+  accessModeFromSelection,
+  childPlatformCode,
+  childPlatformSlug,
+  featuresFromText,
+  featuresToText,
+  isLockedStreamingGroup,
+  parseStreamingFeatures,
+  resolvePlatformGroup,
+  tierKeyFromSlug,
+} from "@/lib/streamingAccess";
 import { streamingDeliveryMode, streamingUsesCustomerEmail } from "@/lib/streamingCart";
 import { serviceInputRequirement } from "@/lib/serviceBundleShared";
 import { newPasswordValid } from "@/lib/accountPassword";
@@ -62,5 +74,60 @@ assert.equal(serviceInputRequirement(streaming("NETFLIX_EVIMD_VIP", { deliveryMo
 assert.equal(newPasswordValid("qisa@1"), false);
 assert.equal(newPasswordValid("uzunsifre123"), false);
 assert.equal(newPasswordValid("uzunsifre@123"), true);
+
+// ─── Admin-dən qurulan xidmətlər (lib/streamingAccess.ts) ───────────────────
+// Satış bayrağı: yalnız `storeSellable: true` açır, Netflix-ə ehtiyac yoxdur.
+assert.equal(isSellableServiceProduct(streaming("HBO_MAX_PAYLASIMLI_STANDART", { storeSellable: true })), true);
+assert.equal(isSellableServiceProduct(streaming("HBO_MAX_PAYLASIMLI_STANDART", { storeSellable: "true" })), false);
+assert.equal(isSellableServiceProduct({ type: "PLATFORM", metadata: { storeSellable: true } }), false);
+assert.equal(isStoreSellableStreaming("STREAMING", { service: "HBO_MAX", storeSellable: true }), true);
+assert.ok(clauses.includes('"storeSellable"'));
+assert.equal(isNetflixProduct("STREAMING", { service: "HBO_MAX", storeSellable: true }), false); // CRM-ə getmir
+
+// Açıq streaming slug-ları (banner linki).
+assert.equal(isOpenStorePath("/streaming/hbo-max", new Set(["hbo-max"])), true);
+assert.equal(isOpenStorePath("/streaming/hbo-max?secim=sexsi", new Set(["hbo-max"])), true);
+assert.equal(isOpenStorePath("/streaming/gain", new Set(["hbo-max"])), false);
+
+// Şəxsi hesab planı: e-poçt (hər provayder) + şifrə; paylaşımlı: heç nə.
+const personal = { service: "HBO_MAX_SEXSI_STANDART", accessMode: "PERSONAL", deliveryMode: "CODE" };
+const shared = { service: "HBO_MAX_PAYLASIMLI_STANDART", accessMode: "SHARED", deliveryMode: "GMAIL" };
+assert.equal(streamingUsesCustomerEmail(personal), true);
+assert.equal(streamingUsesCustomerEmail(shared), false);
+assert.equal(streamingUsesCustomerEmail("HBO_MAX_SEXSI_STANDART"), false); // kod tək başına tanınmır
+assert.equal(streamingDeliveryMode(personal), "GMAIL"); // rejim köhnə deliveryMode-u üstələyir
+assert.equal(streamingDeliveryMode(shared), "CODE");
+assert.equal(serviceInputRequirement({ type: "STREAMING", metadata: personal }).kind, "EMAIL_PASSWORD");
+assert.equal(serviceInputRequirement({ type: "STREAMING", metadata: personal }).emailLabel, "Hesab e-poçtu");
+assert.equal(serviceInputRequirement({ type: "STREAMING", metadata: shared }).kind, "NONE");
+// Netflix otağı köhnə səhv accessMode ilə də müştəri hesabı istəmir.
+assert.equal(streamingUsesCustomerEmail({ service: "NETFLIX_EVIMD", accessMode: "PERSONAL" }), false);
+assert.equal(streamingUsesCustomerEmail({ service: "NETFLIX_VVIP" }), true);
+
+// Kod / slug: Azərbaycan hərfləri latına çevrilir.
+assert.equal(childPlatformCode("HBO_MAX", "SHARED", "Evimdə VIP"), "HBO_MAX_PAYLASIMLI_EVIMDE_VIP");
+assert.equal(childPlatformSlug("hbo-max", "PERSONAL", "Şəxsi Üstün"), "hbo-max-sexsi-sexsi-ustun");
+assert.equal(tierKeyFromSlug("hbo-max-paylasimli-standart", "hbo-max", "SHARED"), "standart");
+assert.equal(tierKeyFromSlug("netflix-evimde", "netflix", "SHARED"), "netflix-evimde");
+assert.equal(accessModeFromSelection("kabinet"), "SHARED");
+assert.equal(accessModeFromSelection("sexsi"), "PERSONAL");
+assert.equal(accessModeFromSelection("x"), null);
+
+// Netflix planları DB sütunu boş olsa da tanınır; yeni xidmət planı DB-dən.
+assert.deepEqual(resolvePlatformGroup({ code: "NETFLIX_VVIP" }), { parentCode: "NETFLIX", accessMode: "PERSONAL" });
+assert.deepEqual(resolvePlatformGroup({ code: "NETFLIX_YANIMDA" }), { parentCode: "NETFLIX", accessMode: "SHARED" });
+assert.deepEqual(resolvePlatformGroup({ code: "HBO_MAX" }), { parentCode: null, accessMode: null });
+assert.deepEqual(
+  resolvePlatformGroup({ code: "HBO_MAX_SEXSI_X", parentCode: "hbo_max", accessMode: "PERSONAL" }),
+  { parentCode: "HBO_MAX", accessMode: "PERSONAL" },
+);
+assert.equal(isLockedStreamingGroup("netflix"), true);
+assert.equal(isLockedStreamingGroup("HBO_MAX"), false);
+
+// Bulletlər: "+ / - / !" prefiksi ton verir, gediş-dönüş itkisizdir.
+const feats = featuresFromText("+ 4K\n- TV yox\n! Bəzən gecikmə\nAdi bənd\n\n");
+assert.deepEqual(feats.map((f) => f.tone), ["good", "bad", "warn", "neutral"]);
+assert.deepEqual(featuresFromText(featuresToText(feats)), feats);
+assert.deepEqual(parseStreamingFeatures([{ text: " x ", tone: "weird" }, { text: "" }, null]), [{ text: "x", tone: "neutral" }]);
 
 console.log("netflixScope: bütün testlər keçdi");

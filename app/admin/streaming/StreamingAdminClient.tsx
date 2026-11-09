@@ -1,1896 +1,638 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { uploadAdminImage } from "@/lib/uploadImageClient";
-import { Loader2, Plus, Edit2, Upload, X, Trash2, Check, Pencil } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Check,
+  ChevronDown,
+  ExternalLink,
+  KeyRound,
+  Loader2,
+  Lock,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+  UserRound,
+} from "lucide-react";
 import { useDialog } from "@/lib/dialogs";
-import { getServiceVariantConfig } from "@/lib/streamingVariants";
-import { streamingUsesCustomerEmail } from "@/lib/streamingCart";
+import { ACCESS_MODE_META, type StreamingAccessMode } from "@/lib/streamingAccess";
+import PriceGrid from "./PriceGrid";
+import StockPanel from "./StockPanel";
+import { DEVICES, PackageModal, ServiceModal, TierModal, uploadStreamingImage } from "./StreamingAdminModals";
+import { Switch, btn, postStreaming } from "./adminUi";
+import {
+  buildServiceViews,
+  type AdminPlatform,
+  type AdminProduct,
+  type AdminStock,
+  type ServiceView,
+  type TierView,
+} from "./streamingAdminModel";
 
-type ServiceProduct = {
-  id: string;
-  type: string;
-  title: string;
-  description?: string | null;
-  imageUrl?: string | null;
-  priceAznCents: number;
-  metadata: Record<string, unknown> | null;
-  isActive: boolean;
-  sortOrder: number;
-};
+const SELECTED_KEY = "admin-streaming-service";
+const DEVICE_LABEL = new Map(DEVICES.map((d) => [d.value, d.label]));
 
-const DURATIONS = [1, 2, 3, 6, 12];
-const SEATS = [1, 2];
+type TierModalState = { service: ServiceView; mode: StreamingAccessMode; tier?: TierView } | null;
 
-const DEVICES = [
-  { value: "computer", label: "Kompüter" },
-  { value: "tv", label: "Televizor" },
-  { value: "phone", label: "Telefon" },
-  { value: "tablet", label: "Planşet" },
-];
-
-type Platform = {
-  id: string;
-  code: string;
-  slug: string;
-  label: string;
-  category: string;
-  tagline: string;
-  description: string;
-  sortOrder: number;
-  isActive: boolean;
-};
-
-// Stok platformaya görədir (aya/müddətə görə deyil). Hər giriş bir hesab/kabinet.
-type StockEntry = {
-  id: string;
-  platformCode: string;
-  mail: string;
-  password: string;
-  cabinetName: string;
-  pinCode: string;
-  isUsed: boolean;
-  note: string | null;
-  createdAt: string;
-  usedAt: string | null;
-};
-
-type StockForm = {
-  mail: string;
-  password: string;
-  cabinetName: string;
-  pinCode: string;
-  note: string;
-};
-
-function emptyStockForm(): StockForm {
-  return { mail: "", password: "", cabinetName: "", pinCode: "", note: "" };
-}
-
-function slugifyPlatform(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function platformCodeFromLabel(label: string): string {
-  return label
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
-
-type PlatformForm = {
-  code: string;
-  label: string;
-  slug: string;
-  category: string;
-  tagline: string;
-  description: string;
-  sortOrder: string;
-  isActive: boolean;
-};
-
-function emptyPlatformForm(): PlatformForm {
-  return {
-    code: "",
-    label: "",
-    slug: "",
-    category: "STREAMING",
-    tagline: "",
-    description: "",
-    sortOrder: "0",
-    isActive: true,
-  };
-}
-
-function readMeta(p: ServiceProduct) {
-  const m = p.metadata ?? {};
-  const opc = Number(m.originalPriceAznCents);
-  const rawDevices = Array.isArray(m.devices) ? (m.devices as unknown[]) : [];
-  return {
-    service: String(m.service ?? ""),
-    variantSlug: typeof m.variantSlug === "string" ? m.variantSlug : "",
-    durationMonths: Number(m.durationMonths ?? 0),
-    seats: Number(m.seats ?? 1),
-    originalPriceAznCents: Number.isFinite(opc) && opc > 0 ? opc : null,
-    devices: rawDevices.filter((x): x is string => typeof x === "string"),
-    vpnRequired: Boolean(m.vpnRequired),
-    platformImageUrl:
-      typeof m.platformImageUrl === "string" && m.platformImageUrl.trim()
-        ? String(m.platformImageUrl)
-        : "",
-  };
-}
-
+/**
+ * Streaming abunəlikləri: xidmət → (Şəxsi hesab | Paylaşımlı hesab) → plan → qiymət cədvəli + stok.
+ * Quruluşun izahı: lib/streamingAccess.ts.
+ */
 export default function StreamingAdminClient() {
-  const dialog = useDialog();
-  const [products, setProducts] = useState<ServiceProduct[]>([]);
-  const [platforms, setPlatforms] = useState<Platform[]>([]);
-  const [stock, setStock] = useState<StockEntry[]>([]);
+  const [platforms, setPlatforms] = useState<AdminPlatform[]>([]);
+  const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [stock, setStock] = useState<AdminStock[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
 
-  // Platforma üzrə stok əlavə formu + əməliyyat vəziyyəti.
-  const [stockForms, setStockForms] = useState<Record<string, StockForm>>({});
-  const [stockBusy, setStockBusy] = useState<string | null>(null); // əlavə edilən platformCode
-  const [stockError, setStockError] = useState<{ code: string; msg: string } | null>(null);
-  const [stockRowBusy, setStockRowBusy] = useState<string | null>(null); // entry id
+  const [serviceModal, setServiceModal] = useState<null | { platform?: AdminPlatform }>(null);
+  const [tierModal, setTierModal] = useState<TierModalState>(null);
+  const [packageModal, setPackageModal] = useState<AdminProduct | null>(null);
 
-  // Platforma yaratma/redaktə modalı.
-  const [platformModal, setPlatformModal] = useState<
-    null | { mode: "create" | "edit"; form: PlatformForm }
-  >(null);
-  const [platformSaving, setPlatformSaving] = useState(false);
-  const [platformError, setPlatformError] = useState<string | null>(null);
-  const [platformCodeTouched, setPlatformCodeTouched] = useState(false);
-  const [platformSlugTouched, setPlatformSlugTouched] = useState(false);
-  const [platformBusyCode, setPlatformBusyCode] = useState<string | null>(null);
-
-  const [editingId, setEditingId] = useState<string | "NEW" | null>(null);
-  const [editForm, setEditForm] = useState<Record<string, string | number | boolean>>({});
-
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [uploadingProductImage, setUploadingProductImage] = useState<string | null>(null);
-  const [uploadingPlatformImage, setUploadingPlatformImage] = useState<string | null>(null);
-  const [savingServiceAccess, setSavingServiceAccess] = useState<string | null>(null);
-  const productImageInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const platformImageInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-
-  // Inline sətir əməliyyatları (modal olmadan qiymət/status).
-  const [priceEditId, setPriceEditId] = useState<string | null>(null);
-  const [priceEditValue, setPriceEditValue] = useState("");
-  const [priceEditOriginalValue, setPriceEditOriginalValue] = useState("");
-  const [rowBusyId, setRowBusyId] = useState<string | null>(null);
-  const [rowError, setRowError] = useState<{ id: string; msg: string } | null>(null);
-
-  // Platforma üzrə sürətli paket əlavəsi (modalsız).
-  const [quickAdd, setQuickAdd] = useState<
-    Record<string, { durationMonths: number; seats: number; priceAzn: string; variantSlug?: string }>
-  >({});
-  const [quickAddBusy, setQuickAddBusy] = useState<string | null>(null);
-  const [quickAddError, setQuickAddError] = useState<{ service: string; msg: string } | null>(null);
-
-  // Bu admin yalnız STREAMING kateqoriyalı platformaları idarə edir.
-  // MUSIC platformaları (məs. YouTube Premium) /admin/music altında idarə olunur.
-  const streamingPlatforms = useMemo(
-    () => platforms.filter((p) => p.category !== "MUSIC"),
-    [platforms],
-  );
-  // DB platformaları → köhnə {value,label} formatı (mövcud JSX ilə uyğun).
-  const services = useMemo(
-    () => streamingPlatforms.map((p) => ({ value: p.code, label: p.label })),
-    [streamingPlatforms],
-  );
-  const labelByCode = useMemo(
-    () => new Map(platforms.map((p) => [p.code, p.label])),
-    [platforms],
-  );
-  const serviceLabel = (code: string) => labelByCode.get(code) ?? code;
-
-  const serviceImageMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const p of products) {
-      const service = readMeta(p).service;
-      if (service && p.imageUrl && !map.has(service)) map.set(service, p.imageUrl);
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/streaming", { cache: "no-store" });
+      if (!res.ok) throw new Error(`Yüklənmədi (${res.status})`);
+      const data = await res.json();
+      setPlatforms(Array.isArray(data?.platforms) ? data.platforms : []);
+      setProducts(Array.isArray(data?.products) ? data.products : []);
+      setStock(Array.isArray(data?.stock) ? data.stock : []);
+      setLoadError(null);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "Yüklənmədi");
+    } finally {
+      setLoading(false);
     }
-    return map;
-  }, [products]);
-
-  // Platforma şəkli (metadata.platformImageUrl) — xidmət üzrə bütün paketlərə tətbiq olunur.
-  const platformImageMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const p of products) {
-      const m = readMeta(p);
-      if (m.service && m.platformImageUrl && !map.has(m.service)) map.set(m.service, m.platformImageUrl);
-    }
-    return map;
-  }, [products]);
-
-  const serviceAccessMap = useMemo(() => {
-    const map = new Map<string, { devices: string[]; vpnRequired: boolean }>();
-    for (const p of products) {
-      const m = readMeta(p);
-      if (!m.service) continue;
-      const existing = map.get(m.service);
-      map.set(m.service, {
-        devices: existing?.devices.length ? existing.devices : m.devices,
-        vpnRequired: Boolean(existing?.vpnRequired || m.vpnRequired),
-      });
-    }
-    return map;
-  }, [products]);
-
-  const productCountByService = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const p of products) {
-      const service = readMeta(p).service;
-      if (service) map.set(service, (map.get(service) ?? 0) + 1);
-    }
-    return map;
-  }, [products]);
-
-  // Stoku platforma koduna görə qruplaşdır.
-  const stockByPlatform = useMemo(() => {
-    const map = new Map<string, StockEntry[]>();
-    for (const s of stock) {
-      if (!map.has(s.platformCode)) map.set(s.platformCode, []);
-      map.get(s.platformCode)!.push(s);
-    }
-    return map;
-  }, [stock]);
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
-
-  // silent=true: yalnız məhsulları yenidən yükləyir, tam ekran spinner'ini
-  // göstərmir (qiymət/status dəyişəndə bütün səhifənin "reload" effekti olmasın).
-  async function load(silent = false) {
-    if (!silent) setLoading(true);
-    const res = await fetch("/api/admin/streaming", { cache: "no-store" });
-    if (res.ok) {
-      const data = await res.json();
-      setProducts(Array.isArray(data?.products) ? data.products : []);
-      setPlatforms(Array.isArray(data?.platforms) ? data.platforms : []);
-      setStock(Array.isArray(data?.stock) ? data.stock : []);
-    }
-    if (!silent) setLoading(false);
-  }
-
-  function handleEdit(p: ServiceProduct) {
-    setSaveError(null);
-    setEditingId(p.id);
-    const m = readMeta(p);
-    setEditForm({
-      title: p.title,
-      description: p.description ?? "",
-      isActive: p.isActive,
-      sortOrder: p.sortOrder,
-      service: m.service || "HBO_MAX",
-      variantSlug: m.variantSlug || "",
-      durationMonths: m.durationMonths || 1,
-      seats: m.seats || 1,
-      priceAzn: (p.priceAznCents / 100).toFixed(2),
-      originalPriceAzn: m.originalPriceAznCents != null ? (m.originalPriceAznCents / 100).toFixed(2) : "",
-    });
-  }
-
-  function handleNew() {
-    setSaveError(null);
-    setEditingId("NEW");
-    setEditForm({
-      title: "",
-      description: "",
-      isActive: true,
-      sortOrder: 0,
-      service: services[0]?.value ?? "",
-      variantSlug: "",
-      durationMonths: 1,
-      seats: 1,
-      priceAzn: "",
-      originalPriceAzn: "",
-    });
-  }
-
-  async function uploadImageFile(file: File): Promise<string | null> {
-    if (!file.type.startsWith("image/")) {
-      await dialog.alert({ title: "Yanlış fayl tipi", message: "Yalnız şəkil faylı yükləyə bilərsiniz", tone: "warning" });
-      return null;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      await dialog.alert({ title: "Fayl ölçüsü çox böyükdür", message: "Fayl çox böyükdür (max 5 MB)", tone: "warning" });
-      return null;
-    }
-
-    const up = await uploadAdminImage("/api/admin/services/image-upload", file);
-    if (!up.ok) {
-      await dialog.alert({ title: "Upload hazırlanmadı", message: up.error ?? "Upload hazırlanmadı", tone: "danger" });
-      return null;
-    }
-
-    return String(up.url ?? "");
-  }
-
-  async function saveProductImage(id: string, imageUrl: string) {
-    const res = await fetch("/api/admin/streaming", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "SET_PRODUCT_IMAGE", id, imageUrl }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      await dialog.alert({ title: "Şəkil yadda saxlanmadı", message: String(data.error ?? res.status), tone: "danger" });
-      return false;
-    }
-    await load(true);
-    return true;
-  }
-
-  async function handleProductImageUpload(id: string, file: File) {
-    setUploadingProductImage(id);
     try {
-      const publicUrl = await uploadImageFile(file);
-      if (!publicUrl) return;
-      await saveProductImage(id, publicUrl);
-    } finally {
-      setUploadingProductImage(null);
+      setSelectedCode(window.localStorage.getItem(SELECTED_KEY));
+    } catch {
+      /* gizli pəncərə — default seçim */
     }
-  }
+  }, [load]);
 
-  async function clearProductImage(p: ServiceProduct) {
-    if (
-      !(await dialog.confirm({
-        title: "Paket şəklini sil?",
-        message: <p>«{p.title}» paketi üçün ayrıca şəkil silinsin?</p>,
-        confirmLabel: "Sil",
-        tone: "danger",
-      }))
-    )
-      return;
-    setUploadingProductImage(p.id);
+  const services = useMemo(() => buildServiceViews(platforms, products, stock), [platforms, products, stock]);
+  const selected = services.find((s) => s.code === selectedCode) ?? services[0] ?? null;
+
+  function select(code: string) {
+    setSelectedCode(code);
     try {
-      await saveProductImage(p.id, "");
-    } finally {
-      setUploadingProductImage(null);
+      window.localStorage.setItem(SELECTED_KEY, code);
+    } catch {
+      /* yox */
     }
   }
 
-  async function savePlatformImage(service: string, imageUrl: string) {
-    const res = await fetch("/api/admin/streaming", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "SET_SERVICE_PLATFORM_IMAGE", service, imageUrl }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      await dialog.alert({ title: "Şəkil yadda saxlanmadı", message: String(data.error ?? res.status), tone: "danger" });
-      return false;
-    }
-    await load(true);
-    return true;
+  if (loading) {
+    return (
+      <div className="py-20 text-center">
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-violet-500" />
+      </div>
+    );
   }
 
-  async function handlePlatformImageUpload(service: string, file: File) {
-    setUploadingPlatformImage(service);
-    try {
-      const publicUrl = await uploadImageFile(file);
-      if (!publicUrl) return;
-      await savePlatformImage(service, publicUrl);
-    } finally {
-      setUploadingPlatformImage(null);
-    }
-  }
+  const nextServiceSort = services.reduce((max, s) => Math.max(max, s.platform.sortOrder), -1) + 1;
 
-  async function clearPlatformImage(service: string) {
-    if (
-      !(await dialog.confirm({
-        title: "Platforma şəklini sil?",
-        message: <p>«{serviceLabel(service)}» üçün platforma şəkli silinsin?</p>,
-        confirmLabel: "Sil",
-        tone: "danger",
-      }))
-    )
-      return;
-    setUploadingPlatformImage(service);
-    try {
-      await savePlatformImage(service, "");
-    } finally {
-      setUploadingPlatformImage(null);
-    }
-  }
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="max-w-2xl">
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Streaming abunəlikləri</h1>
+          <p className="mt-1 text-sm text-zinc-600">
+            Xidməti seç → <b>Şəxsi hesab</b> və ya <b>Paylaşımlı hesab</b> planı əlavə et → qiyməti cədvələ yaz → saytda
+            satışa aç. Boş xana satılmır.
+          </p>
+        </div>
+        <button type="button" onClick={() => setServiceModal({})} className={btn.primary}>
+          <Plus className="h-4 w-4" /> Yeni xidmət
+        </button>
+      </div>
 
-  async function saveServiceAccess(
-    service: string,
-    access: { devices: string[]; vpnRequired: boolean },
-  ) {
-    setSavingServiceAccess(service);
-    try {
-      const res = await fetch("/api/admin/streaming", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "SET_SERVICE_ACCESS",
-          service,
-          devices: access.devices,
-          vpnRequired: access.vpnRequired,
-        }),
+      {loadError && (
+        <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">
+          {loadError}{" "}
+          <button type="button" onClick={load} className="font-semibold underline">
+            Yenidən yüklə
+          </button>
+        </div>
+      )}
+
+      {/* Xidmət seçimi */}
+      <nav aria-label="Xidmətlər" className="flex flex-wrap gap-2">
+        {services.map((s) => {
+          const active = s.code === selected?.code;
+          const live = s.sellable && s.activeCount > 0 && s.platform.isActive;
+          return (
+            <button
+              key={s.code}
+              type="button"
+              onClick={() => select(s.code)}
+              aria-current={active ? "page" : undefined}
+              className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
+                active
+                  ? "border-violet-600 bg-violet-600 text-white"
+                  : "border-admin-line bg-admin-card text-zinc-700 hover:border-violet-400"
+              } ${s.platform.isActive ? "" : "opacity-60"}`}
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${live ? "bg-emerald-500" : active ? "bg-white/50" : "bg-zinc-400"}`}
+                title={live ? "Saytda satılır" : "Saytda satılmır"}
+              />
+              {s.label}
+              <span className={`text-xs font-medium ${active ? "text-white/80" : "text-zinc-500"}`}>{s.activeCount}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {selected ? (
+        <ServiceWorkspace
+          key={selected.code}
+          service={selected}
+          reload={load}
+          onEditService={() => setServiceModal({ platform: selected.platform })}
+          onDeleted={() => select(services.find((s) => s.code !== selected.code)?.code ?? "")}
+          onAddTier={(mode) => setTierModal({ service: selected, mode })}
+          onEditTier={(tier) => setTierModal({ service: selected, mode: tier.mode, tier })}
+          onOpenPackage={setPackageModal}
+        />
+      ) : (
+        <div className="rounded-xl border border-dashed border-admin-line bg-admin-card px-5 py-12 text-center text-sm text-zinc-500">
+          Hələ xidmət yoxdur. «Yeni xidmət» ilə başla.
+        </div>
+      )}
+
+      {serviceModal && (
+        <ServiceModal
+          platform={serviceModal.platform}
+          nextSortOrder={nextServiceSort}
+          onClose={() => setServiceModal(null)}
+          onSaved={async (code) => {
+            await load();
+            select(code);
+          }}
+        />
+      )}
+      {tierModal && (
+        <TierModal
+          service={tierModal.service}
+          accessMode={tierModal.mode}
+          tier={tierModal.tier}
+          nextSortOrder={
+            [...tierModal.service.personal, ...tierModal.service.shared].reduce(
+              (max, t) => Math.max(max, t.platform.sortOrder),
+              tierModal.service.platform.sortOrder,
+            ) + 1
+          }
+          onClose={() => setTierModal(null)}
+          onSaved={load}
+        />
+      )}
+      {packageModal && (
+        <PackageModal product={packageModal} onClose={() => setPackageModal(null)} onSaved={load} />
+      )}
+    </div>
+  );
+}
+
+// ─── Seçilmiş xidmət ──────────────────────────────────────────────────────
+
+function ServiceWorkspace({
+  service,
+  reload,
+  onEditService,
+  onDeleted,
+  onAddTier,
+  onEditTier,
+  onOpenPackage,
+}: {
+  service: ServiceView;
+  reload: () => Promise<void>;
+  onEditService: () => void;
+  onDeleted: () => void;
+  onAddTier: (mode: StreamingAccessMode) => void;
+  onEditTier: (tier: TierView) => void;
+  onOpenPackage: (p: AdminProduct) => void;
+}) {
+  const dialog = useDialog();
+  const [busy, setBusy] = useState<null | "sellable" | "image" | "delete">(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const tiers = [...service.personal, ...service.shared];
+  const hasTiers = tiers.length > 0;
+  const pricedTiers = tiers.filter((t) => t.activeCount > 0).length;
+
+  async function toggleSellable(next: boolean) {
+    if (next) {
+      const ok = await dialog.confirm({
+        title: `${service.label} saytda satışa açılsın?`,
+        message: (
+          <div className="space-y-2">
+            <p>Müştərilər {service.storePath} səhifəsindən ala biləcək, ana səhifədə də kart görünəcək.</p>
+            <p>Sifarişlər «Sifarişlər» bölməsinə düşür və əl ilə təsdiqlənir — CRM-ə avtomatik getmir.</p>
+          </div>
+        ),
+        confirmLabel: "Satışa aç",
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        await dialog.alert({ title: "Platforma məlumatı yadda saxlanmadı", message: String(data.error ?? res.status), tone: "danger" });
-        return false;
+      if (!ok) return;
+    }
+    setBusy("sellable");
+    const res = await postStreaming({ action: "SET_SERVICE_SELLABLE", code: service.code, storeSellable: next });
+    setBusy(null);
+    if (!res.ok) return void dialog.alert({ title: "Dəyişmədi", message: res.error, tone: "danger" });
+    await reload();
+  }
+
+  async function changeImage(file: File | null) {
+    setBusy("image");
+    let url = "";
+    if (file) {
+      const up = await uploadStreamingImage(file);
+      if ("error" in up) {
+        setBusy(null);
+        return void dialog.alert({ title: "Şəkil yüklənmədi", message: up.error, tone: "warning" });
       }
-      await load(true);
-      return true;
-    } finally {
-      setSavingServiceAccess(null);
+      url = up.url;
     }
+    const res = await postStreaming({ action: "SET_SERVICE_PLATFORM_IMAGE", service: service.code, imageUrl: url });
+    setBusy(null);
+    if (!res.ok) return void dialog.alert({ title: "Şəkil yadda saxlanmadı", message: res.error, tone: "danger" });
+    await reload();
   }
 
-  async function toggleServiceDevice(service: string, device: string) {
-    const current = serviceAccessMap.get(service) ?? { devices: [], vpnRequired: false };
-    const devices = current.devices.includes(device)
-      ? current.devices.filter((d) => d !== device)
-      : [...current.devices, device];
-    await saveServiceAccess(service, { devices, vpnRequired: current.vpnRequired });
-  }
-
-  async function toggleServiceVpn(service: string, vpnRequired: boolean) {
-    const current = serviceAccessMap.get(service) ?? { devices: [], vpnRequired: false };
-    await saveServiceAccess(service, { devices: current.devices, vpnRequired });
-  }
-
-  async function saveProduct() {
-    setSaving(true);
-    setSaveError(null);
-    try {
-      const priceAzn = Number(editForm.priceAzn);
-      if (!Number.isFinite(priceAzn) || priceAzn <= 0) {
-        setSaveError("Qiymət düzgün deyil!");
-        return;
-      }
-
-      const service = String(editForm.service).trim();
-      if (!service) {
-        setSaveError("Xidmət adı tələb olunur!");
-        return;
-      }
-      const variantCfg = getServiceVariantConfig(service);
-      const variantSlug = String(editForm.variantSlug ?? "").trim();
-      if (variantCfg && !variantSlug) {
-        setSaveError("Variant (tier) seçilməlidir!");
-        return;
-      }
-      const variantName = variantCfg?.variants.find((v) => v.slug === variantSlug)?.name ?? "";
-      const durationMonths = Number(editForm.durationMonths);
-      const seats = Number(editForm.seats);
-      const autoTitle =
-        String(editForm.title).trim() ||
-        `${serviceLabel(service)}${variantName ? ` ${variantName}` : ""} ${durationMonths} ay${seats > 1 ? ` · ${seats} nəfərlik` : ""}`;
-
-      const originalPriceAznRaw = String(editForm.originalPriceAzn ?? "").trim();
-      const originalPriceAzn = originalPriceAznRaw === "" ? null : Number(originalPriceAznRaw);
-
-      const res = await fetch("/api/admin/streaming", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "UPSERT_PRODUCT",
-          id: editingId === "NEW" ? undefined : editingId,
-          title: autoTitle,
-          description: String(editForm.description ?? ""),
-          isActive: editForm.isActive,
-          sortOrder: Number(editForm.sortOrder || 0),
-          service,
-          variantSlug,
-          durationMonths,
-          seats,
-          priceAzn,
-          originalPriceAzn,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setSaveError(`Yadda saxlanmadı: ${data.error ?? res.status}`);
-        return;
-      }
-      setEditingId(null);
-      load(true);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function deleteProduct(p: ServiceProduct) {
-    if (
-      !(await dialog.confirm({
-        title: "Məhsulu sil?",
-        message: <p>«{p.title}» məhsulu silinsin?</p>,
-        confirmLabel: "Sil",
-        tone: "danger",
-      }))
-    )
-      return;
-    const res = await fetch("/api/admin/streaming", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "DELETE_PRODUCT", id: p.id }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      await dialog.alert({ title: "Silinmədi", message: String(data.error ?? res.status), tone: "danger" });
-      return;
-    }
-    load(true);
-  }
-
-  // ─── Platforma idarəetməsi ──────────────────────────────────────────────
-  function startCreatePlatform() {
-    setPlatformError(null);
-    setPlatformCodeTouched(false);
-    setPlatformSlugTouched(false);
-    const nextSort = platforms.reduce((max, p) => Math.max(max, p.sortOrder), -1) + 1;
-    setPlatformModal({
-      mode: "create",
-      form: { ...emptyPlatformForm(), sortOrder: String(nextSort) },
-    });
-  }
-
-  function startEditPlatform(p: Platform) {
-    setPlatformError(null);
-    setPlatformCodeTouched(true);
-    setPlatformSlugTouched(true);
-    setPlatformModal({
-      mode: "edit",
-      form: {
-        code: p.code,
-        label: p.label,
-        slug: p.slug,
-        category: p.category,
-        tagline: p.tagline,
-        description: p.description,
-        sortOrder: String(p.sortOrder),
-        isActive: p.isActive,
-      },
-    });
-  }
-
-  async function savePlatform() {
-    if (!platformModal) return;
-    const { mode, form } = platformModal;
-    const code = mode === "create" ? platformCodeFromLabel(form.code || form.label) : form.code;
-    const slug = slugifyPlatform(form.slug || form.label);
-    if (!form.label.trim()) {
-      setPlatformError("Ad tələb olunur.");
-      return;
-    }
-    if (!code) {
-      setPlatformError("Kod tələb olunur (məs: PRIME_VIDEO).");
-      return;
-    }
-    if (!slug) {
-      setPlatformError("Slug tələb olunur (məs: prime).");
-      return;
-    }
-    setPlatformSaving(true);
-    setPlatformError(null);
-    try {
-      const res = await fetch("/api/admin/streaming", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "UPSERT_PLATFORM",
-          code,
-          slug,
-          label: form.label.trim(),
-          category: form.category,
-          tagline: form.tagline.trim(),
-          description: form.description.trim(),
-          sortOrder: Number(form.sortOrder || 0),
-          isActive: form.isActive,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setPlatformError(String(data.error ?? res.status));
-        return;
-      }
-      setPlatformModal(null);
-      await load(true);
-    } finally {
-      setPlatformSaving(false);
-    }
-  }
-
-  async function deletePlatform(p: Platform) {
+  async function removeService() {
     const ok = await dialog.confirm({
-      title: "Platformanı sil?",
-      message: <p>«{p.label}» platforması silinsin? Paketi olan platforma silinə bilməz.</p>,
+      title: `${service.label} silinsin?`,
+      message: <p>Planı və ya paketi olan xidmət silinmir — əvvəlcə onları sil və ya xidməti gizlət.</p>,
       confirmLabel: "Sil",
       tone: "danger",
     });
     if (!ok) return;
-    setPlatformBusyCode(p.code);
-    try {
-      const res = await fetch("/api/admin/streaming", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "DELETE_PLATFORM", code: p.code }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        await dialog.alert({ title: "Silinmədi", message: String(data.error ?? res.status), tone: "danger" });
-        return;
-      }
-      await load(true);
-    } finally {
-      setPlatformBusyCode(null);
-    }
+    setBusy("delete");
+    const res = await postStreaming({ action: "DELETE_PLATFORM", code: service.code });
+    setBusy(null);
+    if (!res.ok) return void dialog.alert({ title: "Silinmədi", message: res.error, tone: "danger" });
+    onDeleted();
+    await reload();
   }
-
-  // Mövcud məhsulun tam UPSERT yükünü qurur (yalnız dəyişən sahələri override edir).
-  // API şəkil/cihaz/VPN/referal-ı avtomatik qoruyur, ona görə yalnız əsas sahələri göndəririk.
-  function upsertPayload(
-    p: ServiceProduct,
-    overrides: { priceAzn?: number; originalPriceAzn?: number | null; isActive?: boolean },
-  ) {
-    const m = readMeta(p);
-    return {
-      action: "UPSERT_PRODUCT",
-      id: p.id,
-      title: p.title,
-      description: p.description ?? "",
-      isActive: overrides.isActive ?? p.isActive,
-      sortOrder: p.sortOrder,
-      service: m.service,
-      durationMonths: m.durationMonths,
-      seats: m.seats,
-      priceAzn: overrides.priceAzn ?? p.priceAznCents / 100,
-      originalPriceAzn:
-        overrides.originalPriceAzn !== undefined
-          ? overrides.originalPriceAzn ?? ""
-          : m.originalPriceAznCents != null
-            ? m.originalPriceAznCents / 100
-            : "",
-    };
-  }
-
-  function startPriceEdit(p: ServiceProduct) {
-    const m = readMeta(p);
-    setRowError(null);
-    setPriceEditId(p.id);
-    setPriceEditValue((p.priceAznCents / 100).toFixed(2));
-    setPriceEditOriginalValue(
-      m.originalPriceAznCents != null ? (m.originalPriceAznCents / 100).toFixed(2) : "",
-    );
-  }
-
-  function cancelPriceEdit() {
-    setPriceEditId(null);
-    setPriceEditValue("");
-    setPriceEditOriginalValue("");
-    setRowError(null);
-  }
-
-  async function savePriceInline(p: ServiceProduct) {
-    const value = Number(String(priceEditValue).replace(",", "."));
-    if (!Number.isFinite(value) || value <= 0) {
-      setRowError({ id: p.id, msg: "Qiymət düzgün deyil" });
-      return;
-    }
-
-    const originalRaw = String(priceEditOriginalValue).replace(",", ".").trim();
-    let originalPriceAzn: number | null = null;
-    if (originalRaw !== "") {
-      originalPriceAzn = Number(originalRaw);
-      if (!Number.isFinite(originalPriceAzn) || originalPriceAzn <= 0) {
-        setRowError({ id: p.id, msg: "Köhnə qiymət düzgün deyil" });
-        return;
-      }
-      if (originalPriceAzn <= value) {
-        setRowError({ id: p.id, msg: "Köhnə qiymət hazırkı qiymətdən böyük olmalıdır" });
-        return;
-      }
-    }
-
-    setRowBusyId(p.id);
-    setRowError(null);
-    try {
-      const res = await fetch("/api/admin/streaming", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(upsertPayload(p, { priceAzn: value, originalPriceAzn })),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setRowError({ id: p.id, msg: String(data.error ?? res.status) });
-        return;
-      }
-      cancelPriceEdit();
-      await load(true);
-    } finally {
-      setRowBusyId(null);
-    }
-  }
-
-  async function toggleActiveInline(p: ServiceProduct) {
-    setRowBusyId(p.id);
-    setRowError(null);
-    try {
-      const res = await fetch("/api/admin/streaming", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(upsertPayload(p, { isActive: !p.isActive })),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setRowError({ id: p.id, msg: String(data.error ?? res.status) });
-        return;
-      }
-      await load(true);
-    } finally {
-      setRowBusyId(null);
-    }
-  }
-
-  function getQuickAdd(service: string) {
-    return quickAdd[service] ?? { durationMonths: 1, seats: 1, priceAzn: "" };
-  }
-
-  function patchQuickAdd(
-    service: string,
-    patch: Partial<{ durationMonths: number; seats: number; priceAzn: string; variantSlug: string }>,
-  ) {
-    setQuickAddError(null);
-    setQuickAdd((prev) => ({
-      ...prev,
-      [service]: { ...getQuickAdd(service), ...patch },
-    }));
-  }
-
-  async function submitQuickAdd(service: string) {
-    const qa = getQuickAdd(service);
-    const value = Number(String(qa.priceAzn).replace(",", "."));
-    if (!Number.isFinite(value) || value <= 0) {
-      setQuickAddError({ service, msg: "Qiymət düzgün deyil" });
-      return;
-    }
-    const variantCfg = getServiceVariantConfig(service);
-    const variantSlug = String(qa.variantSlug ?? "").trim();
-    if (variantCfg && !variantSlug) {
-      setQuickAddError({ service, msg: "Variant (tier) seçilməlidir" });
-      return;
-    }
-    const duplicate = products.some((p) => {
-      const m = readMeta(p);
-      return (
-        m.service === service &&
-        m.durationMonths === qa.durationMonths &&
-        m.seats === qa.seats &&
-        m.variantSlug === variantSlug
-      );
-    });
-    if (duplicate) {
-      setQuickAddError({ service, msg: "Bu variant/müddət/nəfər kombinasiyası artıq var" });
-      return;
-    }
-    setQuickAddBusy(service);
-    setQuickAddError(null);
-    try {
-      const res = await fetch("/api/admin/streaming", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "UPSERT_PRODUCT",
-          title: "",
-          description: "",
-          isActive: true,
-          sortOrder: 0,
-          service,
-          variantSlug,
-          durationMonths: qa.durationMonths,
-          seats: qa.seats,
-          priceAzn: value,
-          originalPriceAzn: "",
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setQuickAddError({ service, msg: String(data.error ?? res.status) });
-        return;
-      }
-      patchQuickAdd(service, { priceAzn: "" });
-      await load(true);
-    } finally {
-      setQuickAddBusy(null);
-    }
-  }
-
-  // ─── Stok idarəetməsi ───────────────────────────────────────────────────
-  function getStockForm(code: string): StockForm {
-    return stockForms[code] ?? emptyStockForm();
-  }
-
-  function patchStockForm(code: string, patch: Partial<StockForm>) {
-    setStockError(null);
-    setStockForms((prev) => ({ ...prev, [code]: { ...getStockForm(code), ...patch } }));
-  }
-
-  async function submitStock(code: string) {
-    const f = getStockForm(code);
-    if (!f.mail.trim() || !f.password.trim() || !f.cabinetName.trim() || !f.pinCode.trim()) {
-      setStockError({ code, msg: "Mail, şifrə, kabinet adı və pin kodu tələb olunur." });
-      return;
-    }
-    setStockBusy(code);
-    setStockError(null);
-    try {
-      const res = await fetch("/api/admin/streaming", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "ADD_STOCK",
-          platformCode: code,
-          mail: f.mail,
-          password: f.password,
-          cabinetName: f.cabinetName,
-          pinCode: f.pinCode,
-          note: f.note,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setStockError({ code, msg: String(data.error ?? res.status) });
-        return;
-      }
-      setStockForms((prev) => ({ ...prev, [code]: emptyStockForm() }));
-      await load(true);
-    } finally {
-      setStockBusy(null);
-    }
-  }
-
-  async function toggleStockUsed(entry: StockEntry) {
-    setStockRowBusy(entry.id);
-    try {
-      const res = await fetch("/api/admin/streaming", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "TOGGLE_STOCK_USED", id: entry.id, isUsed: !entry.isUsed }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        await dialog.alert({ title: "Dəyişmədi", message: String(data.error ?? res.status), tone: "danger" });
-        return;
-      }
-      await load(true);
-    } finally {
-      setStockRowBusy(null);
-    }
-  }
-
-  async function deleteStock(entry: StockEntry) {
-    if (
-      !(await dialog.confirm({
-        title: "Stoku sil?",
-        message: <p>«{entry.mail}» ({entry.cabinetName}) stoku silinsin?</p>,
-        confirmLabel: "Sil",
-        tone: "danger",
-      }))
-    )
-      return;
-    setStockRowBusy(entry.id);
-    try {
-      const res = await fetch("/api/admin/streaming", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "DELETE_STOCK", id: entry.id }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        await dialog.alert({ title: "Silinmədi", message: String(data.error ?? res.status), tone: "danger" });
-        return;
-      }
-      await load(true);
-    } finally {
-      setStockRowBusy(null);
-    }
-  }
-
-  if (loading) return <div className="py-20 text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin text-violet-500" /></div>;
-
-  const groupedByService = services.map((svc) => ({
-    svc,
-    items: products
-      .filter((p) => readMeta(p).service === svc.value)
-      .sort((a, b) => {
-        const ma = readMeta(a);
-        const mb = readMeta(b);
-        return ma.durationMonths - mb.durationMonths || ma.seats - mb.seats;
-      }),
-  })).filter((g) => g.items.length > 0);
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4">
-        <p className="max-w-2xl text-xs text-zinc-500">
-          Müştəri sifariş yaradanda statusu <span className="text-amber-700">Gözləmədə</span> olur.
-          Hesab məlumatları &laquo;Sifarişlər&raquo; bölməsindən sifarişin təsdiqi zamanı əl ilə daxil edilir.
-          Yeni paket sürətli sətirdən və ya «Paket əlavə et» düyməsindən əlavə olunur.
-        </p>
-        <button
-          onClick={handleNew}
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500"
-        >
-          <Plus className="h-4 w-4" /> Paket əlavə et
-        </button>
-      </div>
-
-      <section className="rounded-xl border border-admin-line bg-admin-card p-5">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold text-zinc-900">Platforma məlumatları</h2>
-            <p className="mt-1 text-xs text-zinc-500">
-              Platforma adı, slug, kateqoriya və təsviri burada idarə olunur. Platforma şəkli (hero),
-              izlənilə bilən cihazlar və VPN tələbi platforma üzrə saxlanır və bütün paketlərə tətbiq olunur.
-              Hər paketin öz şəkli isə aşağıda «Paketlər» bölməsində həmin sətirdən «Şəkil» düyməsi ilə yüklənir.
-            </p>
-          </div>
+    <div className="space-y-4">
+      {/* Başlıq */}
+      <section className="rounded-xl border border-admin-line bg-admin-card p-4">
+        <div className="flex flex-wrap items-start gap-4">
           <button
             type="button"
-            onClick={startCreatePlatform}
-            className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500"
+            onClick={() => fileRef.current?.click()}
+            disabled={busy !== null}
+            className="group relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-admin-line bg-admin-chip"
+            title="Xidmət şəkli — bütün paketlərə tətbiq olunur"
           >
-            <Plus className="h-4 w-4" /> Yeni platforma
+            {service.imageUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={service.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <span className="grid h-full place-items-center text-[10px] text-zinc-500">Şəkil yoxdur</span>
+            )}
+            <span className="absolute inset-0 grid place-items-center bg-black/50 text-white opacity-0 transition group-hover:opacity-100">
+              {busy === "image" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+            </span>
           </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) changeImage(f);
+            }}
+          />
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-xl font-bold text-zinc-900">{service.label}</h2>
+              {!service.platform.isActive && (
+                <span className="rounded bg-admin-chip2 px-1.5 py-0.5 text-[10px] font-bold text-zinc-600">GİZLİ</span>
+              )}
+              {service.locked && (
+                <span className="inline-flex items-center gap-1 rounded bg-admin-chip px-1.5 py-0.5 text-[10px] font-bold text-zinc-600">
+                  <Lock className="h-3 w-3" /> CRM
+                </span>
+              )}
+            </div>
+            <a
+              href={service.storePath}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-0.5 inline-flex items-center gap-1 font-mono text-xs text-zinc-500 hover:text-violet-700"
+            >
+              {service.storePath} <ExternalLink className="h-3 w-3" />
+            </a>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button type="button" onClick={onEditService} className={btn.ghost}>
+                <Pencil className="h-3.5 w-3.5" /> Ad, təsvir, ünvan
+              </button>
+              {service.imageUrl && (
+                <button type="button" onClick={() => changeImage(null)} disabled={busy !== null} className={btn.ghost}>
+                  Şəkli sil
+                </button>
+              )}
+              {!service.locked && (
+                <button type="button" onClick={removeService} disabled={busy !== null} className={btn.ghost}>
+                  <Trash2 className="h-3.5 w-3.5" /> Xidməti sil
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 rounded-lg border border-admin-line px-3 py-2">
+            <div className="text-right">
+              <p className="text-sm font-semibold text-zinc-900">Saytda satılır</p>
+              <p className="text-[11px] text-zinc-500">{service.locked ? "Həmişə açıq · CRM" : service.sellable ? "Açıqdır" : "Bağlıdır"}</p>
+            </div>
+            {busy === "sellable" ? (
+              <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
+            ) : (
+              <Switch
+                label="Saytda satılır"
+                checked={service.sellable}
+                disabled={service.locked}
+                onChange={toggleSellable}
+              />
+            )}
+          </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {streamingPlatforms.map((p) => {
-            const svc = { value: p.code, label: p.label };
-            const access = serviceAccessMap.get(svc.value) ?? { devices: [], vpnRequired: false };
-            const productCount = productCountByService.get(svc.value) ?? 0;
-            const accessBusy = savingServiceAccess === svc.value;
-            const disabled = productCount === 0;
-            const platformImage = platformImageMap.get(svc.value) ?? "";
-            const platformImageBusy = uploadingPlatformImage === svc.value;
-            const platformBusy = platformBusyCode === p.code;
-            // Hesab tipli platforma (məs. Netflix Hesab): müştərinin öz hesabına
-            // aktivləşir — cihaz/VPN/hero şəkil tələb olunmur, kart sadələşir.
-            const isAccount = !!getServiceVariantConfig(svc.value)?.inlineVariantPicker;
-            return (
-              <div
-                key={svc.value}
-                className={`rounded-xl border border-admin-line bg-admin-card p-3 ${
-                  p.isActive ? "" : "opacity-70"
-                }`}
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="font-semibold text-zinc-900">
-                    {svc.label}
-                    {!p.isActive && (
-                      <span className="ml-2 rounded bg-admin-chip2 px-1.5 py-0.5 text-[10px] font-bold text-zinc-600">
-                        Gizli
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-zinc-500">{productCount} paket</p>
-                </div>
-
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
-                  <span className="font-mono">/{p.category === "MUSIC" ? "music" : "streaming"}/{p.slug}</span>
-                  <span className="rounded bg-admin-chip px-1.5 py-0.5 font-semibold text-zinc-700">{p.category}</span>
-                </div>
-
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => startEditPlatform(p)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-admin-line px-2.5 py-1.5 text-xs font-semibold text-zinc-700 transition hover:border-violet-500 hover:text-violet-700"
-                  >
-                    <Edit2 className="h-3.5 w-3.5" /> Redaktə
-                  </button>
-                  <button
-                    type="button"
-                    disabled={platformBusy}
-                    onClick={() => deletePlatform(p)}
-                    title={productCount > 0 ? "Paketi olan platforma silinə bilməz" : "Platformanı sil"}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/30 px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-500/10 disabled:opacity-50"
-                  >
-                    {platformBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Sil
-                  </button>
-                </div>
-
-                {isAccount ? (
-                  <p className="mt-3 rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-[11px] leading-relaxed text-zinc-500">
-                    Bu platforma müştərinin öz Netflix hesabına aktivləşir — cihaz, VPN və hero şəkil
-                    tələb olunmur. Planlar (Basic / Standart / Premium) və qiymətlər «Paketlər»
-                    bölməsində idarə olunur.
-                  </p>
-                ) : (
-                <>
-                <div className="mt-3 flex gap-3">
-                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-admin-line bg-admin-card">
-                    {platformImage ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={platformImage} alt={svc.label} className="absolute inset-0 h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-center text-[11px] text-zinc-500">
-                        Platforma şəkli yoxdur
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <input
-                      ref={(node) => {
-                        platformImageInputRefs.current[svc.value] = node;
-                      }}
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) handlePlatformImageUpload(svc.value, f);
-                        e.target.value = "";
-                      }}
-                    />
-                    <button
-                      type="button"
-                      disabled={platformImageBusy || disabled}
-                      onClick={() => platformImageInputRefs.current[svc.value]?.click()}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-admin-line2 bg-admin-card px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:border-violet-500 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {platformImageBusy ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" /> Yüklənir...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-4 w-4" /> {platformImage ? "Platforma şəklini dəyiş" : "Platforma şəkli yüklə"}
-                        </>
-                      )}
-                    </button>
-                    {platformImage && (
-                      <button
-                        type="button"
-                        disabled={platformImageBusy}
-                        onClick={() => clearPlatformImage(svc.value)}
-                        className="mt-1 text-[11px] text-zinc-500 transition hover:text-rose-600 disabled:opacity-50"
-                      >
-                        Şəkli sil
-                      </button>
-                    )}
-                    <p className="mt-1 text-[11px] text-zinc-500">
-                      Bu şəkil həmin platformanın əsas (hero) şəklidir, bütün paketlərə tətbiq olunur. Hər paketin öz şəkli «Paketlər» bölməsindədir.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-3 border-t border-admin-line pt-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                      İzlənilə bilən cihazlar
-                    </p>
-                    {accessBusy && <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-600" />}
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    {DEVICES.map((d) => {
-                      const checked = access.devices.includes(d.value);
-                      return (
-                        <label
-                          key={d.value}
-                          className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs transition ${
-                            checked
-                              ? "border-violet-500/45 bg-violet-500/10 text-violet-700"
-                              : "border-admin-line bg-admin-card text-zinc-600 hover:border-admin-line2"
-                          } ${disabled || accessBusy ? "cursor-not-allowed opacity-60" : ""}`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={disabled || accessBusy}
-                            onChange={() => toggleServiceDevice(svc.value, d.value)}
-                            className="h-3.5 w-3.5"
-                          />
-                          {d.label}
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <label
-                    className={`mt-2 flex cursor-pointer items-center gap-2 rounded-lg border border-admin-line bg-admin-card px-3 py-2 text-xs text-zinc-700 ${
-                      disabled || accessBusy ? "cursor-not-allowed opacity-60" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={access.vpnRequired}
-                      disabled={disabled || accessBusy}
-                      onChange={(e) => toggleServiceVpn(svc.value, e.target.checked)}
-                      className="h-3.5 w-3.5"
-                    />
-                    VPN-ə ehtiyac var
-                  </label>
-                  {disabled && (
-                    <p className="mt-2 text-[11px] text-zinc-600">
-                      Əvvəlcə bu platforma üçün paket yarat.
-                    </p>
-                  )}
-                </div>
-                </>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        {/* Hazırlıq addımları */}
+        {!service.locked && (
+          <ol className="mt-4 grid gap-2 border-t border-admin-line pt-3 text-xs sm:grid-cols-3">
+            <Step done={hasTiers} n={1} text={hasTiers ? `${tiers.length} plan` : "Plan əlavə et"} />
+            <Step done={pricedTiers > 0} n={2} text={pricedTiers > 0 ? `${service.activeCount} paket satışda` : "Qiymət yaz"} />
+            <Step done={service.sellable} n={3} text={service.sellable ? "Saytda açıqdır" : "Satışa aç"} />
+          </ol>
+        )}
+        <ServiceHint service={service} />
       </section>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold text-zinc-900">Paketlər</h2>
-            <p className="mt-1 text-xs text-zinc-500">
-              Qiyməti dəyişmək üçün qiymətin üstünə kliklə. Yeni müddət əlavə etmək üçün
-              platformanın altındakı sürətli sətirdən istifadə et.
-            </p>
-          </div>
-        </div>
+      {(["PERSONAL", "SHARED"] as const).map((mode) => (
+        <ModeSection
+          key={mode}
+          mode={mode}
+          service={service}
+          tiers={mode === "PERSONAL" ? service.personal : service.shared}
+          reload={reload}
+          onAdd={() => onAddTier(mode)}
+          onEditTier={onEditTier}
+          onOpenPackage={onOpenPackage}
+        />
+      ))}
 
-        {groupedByService.length === 0 && (
-          <div className="rounded-xl border border-dashed border-admin-line bg-admin-card px-5 py-12 text-center text-sm text-zinc-500">
-            Hələ paket əlavə edilməyib. Platforma seçib altındakı sürətli sətirdən ilk paketi əlavə et.
-          </div>
-        )}
-
-        {groupedByService.map(({ svc, items }) => {
-          const qa = getQuickAdd(svc.value);
-          const headerImage = serviceImageMap.get(svc.value) ?? "";
-          const addBusy = quickAddBusy === svc.value;
-          return (
-            <section key={svc.value} className="overflow-hidden rounded-xl border border-admin-line bg-admin-card">
-              <div className="flex items-center gap-3 border-b border-admin-line bg-admin-card px-5 py-3">
-                <div className="h-9 w-12 shrink-0 overflow-hidden rounded border border-admin-line bg-admin-card">
-                  {headerImage ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={headerImage} alt={svc.label} className="h-full w-full object-cover" />
-                  ) : null}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-bold text-zinc-900">{svc.label}</h3>
-                  <p className="text-xs text-zinc-500">{items.length} paket</p>
-                </div>
-              </div>
-
-              <div className="divide-y divide-admin-line">
-                {items.map((p) => {
-                  const m = readMeta(p);
-                  const editing = priceEditId === p.id;
-                  const busy = rowBusyId === p.id;
-                  const err = rowError?.id === p.id ? rowError.msg : null;
-                  const hasDiscount = m.originalPriceAznCents != null;
-                  const imgBusy = uploadingProductImage === p.id;
-                  return (
-                    <div key={p.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="relative h-11 w-16 shrink-0 overflow-hidden rounded-md border border-admin-line bg-admin-card">
-                          {p.imageUrl ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img src={p.imageUrl} alt={p.title} className="absolute inset-0 h-full w-full object-cover" />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-[10px] text-zinc-500">yoxdur</div>
-                          )}
-                        </div>
-                        <input
-                          ref={(node) => {
-                            productImageInputRefs.current[p.id] = node;
-                          }}
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp"
-                          className="hidden"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f) handleProductImageUpload(p.id, f);
-                            e.target.value = "";
-                          }}
-                        />
-                        <div className="flex flex-col items-start gap-0.5">
-                          <button
-                            type="button"
-                            disabled={imgBusy}
-                            onClick={() => productImageInputRefs.current[p.id]?.click()}
-                            title={p.imageUrl ? "Bu paketin şəklini dəyiş" : "Bu paket üçün ayrıca şəkil yüklə"}
-                            className="inline-flex items-center gap-1 rounded border border-dashed border-admin-line2 px-2 py-1 text-[11px] font-semibold text-zinc-600 transition hover:border-violet-500 hover:text-violet-700 disabled:opacity-50"
-                          >
-                            {imgBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                            {p.imageUrl ? "Şəkli dəyiş" : "Şəkil"}
-                          </button>
-                          {p.imageUrl && (
-                            <button
-                              type="button"
-                              disabled={imgBusy}
-                              onClick={() => clearProductImage(p)}
-                              className="text-[11px] text-zinc-500 transition hover:text-rose-600 disabled:opacity-50"
-                            >
-                              Sil
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex min-w-[140px] items-center gap-2">
-                        <span className="rounded-md bg-admin-chip px-2 py-1 text-xs font-semibold text-zinc-900">
-                          {m.durationMonths} ay
-                        </span>
-                        {(() => {
-                          const cfg = getServiceVariantConfig(m.service);
-                          const variantName = cfg?.variants.find((v) => v.slug === m.variantSlug)?.name;
-                          // Variantlı xidmətlərdə (məs. Netflix Hesab) plan adı göstərilir;
-                          // nəfər sayı isə plan tərəfindən təyin olunur (gizli).
-                          return variantName ? (
-                            <span className="rounded-md bg-violet-500/10 px-2 py-1 text-xs font-semibold text-violet-700">
-                              {variantName}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-zinc-500">{m.seats} nəfərlik</span>
-                          );
-                        })()}
-                      </div>
-
-                      <div className="flex min-w-[200px] items-center gap-2">
-                        {editing ? (
-                          <>
-                            <label className="flex flex-col gap-0.5">
-                              <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                                Satış qiyməti
-                              </span>
-                              <input
-                                autoFocus
-                                type="number"
-                                step="0.01"
-                                value={priceEditValue}
-                                onChange={(e) => setPriceEditValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") savePriceInline(p);
-                                  if (e.key === "Escape") cancelPriceEdit();
-                                }}
-                                className="w-24 rounded border border-violet-500/60 bg-admin-card px-2 py-1 text-sm text-zinc-900 outline-none focus:border-violet-400"
-                              />
-                            </label>
-                            <label className="flex flex-col gap-0.5">
-                              <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                                Köhnə qiymət
-                              </span>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={priceEditOriginalValue}
-                                placeholder="endirim yox"
-                                onChange={(e) => setPriceEditOriginalValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") savePriceInline(p);
-                                  if (e.key === "Escape") cancelPriceEdit();
-                                }}
-                                className="w-24 rounded border border-admin-line bg-admin-card px-2 py-1 text-sm text-zinc-900 outline-none focus:border-violet-400"
-                              />
-                            </label>
-                            <span className="self-end pb-1.5 text-xs text-zinc-500">AZN</span>
-                            <button
-                              type="button"
-                              onClick={() => savePriceInline(p)}
-                              disabled={busy}
-                              className="grid h-7 w-7 place-items-center self-end rounded bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 disabled:opacity-50"
-                              title="Yadda saxla"
-                            >
-                              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={cancelPriceEdit}
-                              className="grid h-7 w-7 place-items-center self-end rounded bg-admin-chip text-zinc-600 hover:text-zinc-900"
-                              title="İmtina"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => startPriceEdit(p)}
-                            className="group inline-flex items-center gap-2 rounded-md px-2 py-1 transition hover:bg-admin-chip2"
-                            title="Qiyməti dəyiş"
-                          >
-                            <span className="tabular-nums font-semibold text-zinc-900">
-                              {(p.priceAznCents / 100).toFixed(2)} AZN
-                            </span>
-                            {hasDiscount && (
-                              <span className="text-xs text-zinc-500 line-through">
-                                {((m.originalPriceAznCents as number) / 100).toFixed(2)}
-                              </span>
-                            )}
-                            <Pencil className="h-3.5 w-3.5 text-zinc-600 transition group-hover:text-violet-600" />
-                          </button>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => toggleActiveInline(p)}
-                        disabled={busy}
-                        title="Status dəyiş"
-                        className={`rounded px-2 py-0.5 text-xs font-medium transition disabled:opacity-50 ${
-                          p.isActive
-                            ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25"
-                            : "bg-rose-500/20 text-rose-600 hover:bg-rose-500/30"
-                        }`}
-                      >
-                        {p.isActive ? "Aktiv" : "Passiv"}
-                      </button>
-
-                      <div className="ml-auto flex items-center gap-1">
-                        <button
-                          onClick={() => handleEdit(p)}
-                          title="Detallı redaktə (təsvir, endirim, sıralama)"
-                          className="p-2 text-zinc-500 hover:text-violet-600"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => deleteProduct(p)}
-                          title="Sil"
-                          className="p-2 text-zinc-500 hover:text-rose-600"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-
-                      {err && <p className="w-full text-xs text-rose-600">{err}</p>}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="border-t border-admin-line bg-admin-card px-5 py-3">
-                <div className="flex flex-wrap items-end gap-2">
-                  {(() => {
-                    const cfg = getServiceVariantConfig(svc.value);
-                    if (!cfg) return null;
-                    return (
-                      <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                        Variant
-                        <select
-                          value={qa.variantSlug ?? ""}
-                          onChange={(e) => patchQuickAdd(svc.value, { variantSlug: e.target.value })}
-                          className="mt-1 block rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900"
-                        >
-                          <option value="">— Seç —</option>
-                          {cfg.variants.map((v) => (
-                            <option key={v.slug} value={v.slug}>{v.name}</option>
-                          ))}
-                        </select>
-                      </label>
-                    );
-                  })()}
-                  <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                    Müddət
-                    <select
-                      value={qa.durationMonths}
-                      onChange={(e) => patchQuickAdd(svc.value, { durationMonths: Number(e.target.value) })}
-                      className="mt-1 block rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900"
-                    >
-                      {DURATIONS.map((d) => (
-                        <option key={d} value={d}>{d} ay</option>
-                      ))}
-                    </select>
-                  </label>
-                  {/* Hesab tipli xidmətlərdə (məs. Netflix Hesab) nəfər sayı plana
-                      görə Netflix tərəfindən təyin olunur — admin soruşulmur. */}
-                  {!getServiceVariantConfig(svc.value)?.inlineVariantPicker && (
-                    <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                      Nəfər
-                      <select
-                        value={qa.seats}
-                        onChange={(e) => patchQuickAdd(svc.value, { seats: Number(e.target.value) })}
-                        className="mt-1 block rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900"
-                      >
-                        {SEATS.map((s) => (
-                          <option key={s} value={s}>{s} nəfərlik</option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                    Qiymət (AZN)
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={qa.priceAzn}
-                      onChange={(e) => patchQuickAdd(svc.value, { priceAzn: e.target.value })}
-                      onKeyDown={(e) => { if (e.key === "Enter") submitQuickAdd(svc.value); }}
-                      className="mt-1 block w-28 rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-violet-400"
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => submitQuickAdd(svc.value)}
-                    disabled={addBusy}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
-                  >
-                    {addBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                    Əlavə et
-                  </button>
-                </div>
-                {quickAddError?.service === svc.value && (
-                  <p className="mt-2 text-xs text-rose-600">{quickAddError.msg}</p>
-                )}
-              </div>
-            </section>
-          );
-        })}
-      </div>
-
-      {/* ─── Stok (platformaya görə hesablar) ─────────────────────────────── */}
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-base font-bold text-zinc-900">Stok (hesablar)</h2>
+      {service.legacy && (
+        <section className="rounded-xl border border-dashed border-admin-line2 bg-admin-card p-4">
+          <h3 className="text-sm font-bold text-zinc-900">Rejimsiz paketlər (köhnə quruluş)</h3>
           <p className="mt-1 text-xs text-zinc-500">
-            Stok platformaya görədir, müddətə (aya) görə deyil — müştəri 3 ay da, 12 ay da alsa
-            eyni stokdan istifadə olunur. Sifariş təsdiqi zamanı uyğun stoku götür, CRM-də müddətlə
-            qeyd et və burada «İstifadədə» kimi işarələ.
+            {hasTiers
+              ? "Bu xidmətdə plan qurulduğu üçün bu paketlər saytda göstərilmir. Lazım deyilsə xanaları boşaldıb satışdan çıxar."
+              : "Planı olmayan xidmət saytda bu paketlərlə satılır. Şəxsi/paylaşımlı plan əlavə etsən, sayt planları göstərəcək."}
           </p>
-        </div>
-
-        {/* Müştərinin öz maili ilə açılan xidmətlərin (VVIP, Evimdə VIP) stoku yoxdur. */}
-        {streamingPlatforms
-          .filter((p) => !streamingUsesCustomerEmail(p.code))
-          .map((p) => {
-          const entries = stockByPlatform.get(p.code) ?? [];
-          const free = entries.filter((e) => !e.isUsed).length;
-          const used = entries.length - free;
-          const sf = getStockForm(p.code);
-          const addBusy = stockBusy === p.code;
-          return (
-            <section key={p.code} className="overflow-hidden rounded-xl border border-admin-line bg-admin-card">
-              <div className="flex items-center justify-between gap-3 border-b border-admin-line px-5 py-3">
-                <div className="min-w-0">
-                  <h3 className="font-bold text-zinc-900">{p.label}</h3>
-                  <p className="text-xs text-zinc-500">
-                    <span className="font-mono">/streaming/{p.slug}</span>
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2 text-xs font-semibold">
-                  <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-emerald-700">{free} boşda</span>
-                  <span className="rounded bg-admin-chip2 px-2 py-0.5 text-zinc-600">{used} istifadədə</span>
-                </div>
-              </div>
-
-              {/* Stok əlavə formu */}
-              <div className="border-b border-admin-line bg-admin-card px-5 py-3">
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-                  <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                    Mail
-                    <input
-                      type="text"
-                      value={sf.mail}
-                      onChange={(e) => patchStockForm(p.code, { mail: e.target.value })}
-                      placeholder="netflix@mail.com"
-                      className="mt-1 block w-full rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-violet-400"
-                    />
-                  </label>
-                  <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                    Şifrə
-                    <input
-                      type="text"
-                      value={sf.password}
-                      onChange={(e) => patchStockForm(p.code, { password: e.target.value })}
-                      className="mt-1 block w-full rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-violet-400"
-                    />
-                  </label>
-                  <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                    Kabinet adı
-                    <input
-                      type="text"
-                      value={sf.cabinetName}
-                      onChange={(e) => patchStockForm(p.code, { cabinetName: e.target.value })}
-                      className="mt-1 block w-full rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-violet-400"
-                    />
-                  </label>
-                  <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                    Pin kodu
-                    <input
-                      type="text"
-                      value={sf.pinCode}
-                      onChange={(e) => patchStockForm(p.code, { pinCode: e.target.value })}
-                      className="mt-1 block w-full rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-violet-400"
-                    />
-                  </label>
-                  <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                    Qeyd (ixtiyari)
-                    <input
-                      type="text"
-                      value={sf.note}
-                      onChange={(e) => patchStockForm(p.code, { note: e.target.value })}
-                      onKeyDown={(e) => { if (e.key === "Enter") submitStock(p.code); }}
-                      className="mt-1 block w-full rounded border border-admin-line bg-admin-card px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-violet-400"
-                    />
-                  </label>
-                </div>
-                <div className="mt-2 flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => submitStock(p.code)}
-                    disabled={addBusy}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
-                  >
-                    {addBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                    Stok əlavə et
-                  </button>
-                  {stockError?.code === p.code && (
-                    <p className="text-xs text-rose-600">{stockError.msg}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Stok siyahısı */}
-              {entries.length === 0 ? (
-                <div className="px-5 py-6 text-center text-sm text-zinc-500">Hələ stok yoxdur.</div>
-              ) : (
-                <div className="divide-y divide-admin-line">
-                  {entries.map((e) => {
-                    const busy = stockRowBusy === e.id;
-                    return (
-                      <div
-                        key={e.id}
-                        className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 text-sm ${
-                          e.isUsed ? "opacity-60" : ""
-                        }`}
-                      >
-                        <div className="min-w-[180px]">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Mail</span>
-                          <p className="font-mono text-zinc-900">{e.mail}</p>
-                        </div>
-                        <div className="min-w-[120px]">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Şifrə</span>
-                          <p className="font-mono text-zinc-900">{e.password}</p>
-                        </div>
-                        <div className="min-w-[120px]">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Kabinet</span>
-                          <p className="text-zinc-900">{e.cabinetName}</p>
-                        </div>
-                        <div className="min-w-[80px]">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Pin</span>
-                          <p className="font-mono text-zinc-900">{e.pinCode}</p>
-                        </div>
-                        {e.note && (
-                          <div className="min-w-[120px]">
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Qeyd</span>
-                            <p className="text-zinc-700">{e.note}</p>
-                          </div>
-                        )}
-                        <div className="ml-auto flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => toggleStockUsed(e)}
-                            disabled={busy}
-                            title="Status dəyiş"
-                            className={`rounded px-2 py-0.5 text-xs font-medium transition disabled:opacity-50 ${
-                              e.isUsed
-                                ? "bg-admin-chip2 text-zinc-600 hover:bg-zinc-300"
-                                : "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25"
-                            }`}
-                          >
-                            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : e.isUsed ? "İstifadədə" : "Boşda"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteStock(e)}
-                            disabled={busy}
-                            title="Sil"
-                            className="p-2 text-zinc-500 hover:text-rose-600 disabled:opacity-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          );
-        })}
-      </div>
-
-      {/* Editor Modal */}
-      {editingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-admin-line bg-admin-card p-6 shadow-2xl">
-            <h3 className="mb-6 text-lg font-bold">Streaming paketi</h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block text-sm">
-                  Xidmət
-                  <select
-                    className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                    value={String(editForm.service ?? services[0]?.value ?? "")}
-                    onChange={(e) => setEditForm({ ...editForm, service: e.target.value })}
-                  >
-                    {services.map((s) => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block text-sm">
-                  Müddət (ay)
-                  <select
-                    className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                    value={Number(editForm.durationMonths)}
-                    onChange={(e) => setEditForm({ ...editForm, durationMonths: Number(e.target.value) })}
-                  >
-                    {DURATIONS.map((d) => (
-                      <option key={d} value={d}>{d} ay</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              {(() => {
-                const cfg = getServiceVariantConfig(String(editForm.service ?? ""));
-                if (!cfg) return null;
-                return (
-                  <label className="block text-sm">
-                    Variant (tier)
-                    <select
-                      className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                      value={String(editForm.variantSlug ?? "")}
-                      onChange={(e) => setEditForm({ ...editForm, variantSlug: e.target.value })}
-                    >
-                      <option value="">— Seç —</option>
-                      {cfg.variants.map((v) => (
-                        <option key={v.slug} value={v.slug}>{v.name}</option>
-                      ))}
-                    </select>
-                    <span className="mt-1 block text-xs text-zinc-500">
-                      Bu xidmətin alt-paketi. Fərqlər koddan idarə olunur (lib/streamingVariants).
-                    </span>
-                  </label>
-                );
-              })()}
-
-              {/* Hesab tipli xidmətlərdə nəfər sayı plana görə Netflix təyin edir. */}
-              {!getServiceVariantConfig(String(editForm.service ?? ""))?.inlineVariantPicker && (
-                <label className="block text-sm">
-                  Nəfər sayı
-                  <select
-                    className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                    value={Number(editForm.seats)}
-                    onChange={(e) => setEditForm({ ...editForm, seats: Number(e.target.value) })}
-                  >
-                    {SEATS.map((s) => (
-                      <option key={s} value={s}>{s} nəfərlik</option>
-                    ))}
-                  </select>
-                </label>
-              )}
-
-              <label className="block text-sm">
-                Başlıq (boşdursa avtomatik olar)
-                <input
-                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                  value={String(editForm.title || "")}
-                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  placeholder="Məs: HBO Max 3 ay · 2 nəfərlik"
-                />
-              </label>
-
-              <label className="block text-sm">
-                Təsvir
-                <textarea
-                  rows={2}
-                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                  value={String(editForm.description || "")}
-                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                />
-              </label>
-
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block text-sm">
-                  Qiymət (AZN)
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                    value={String(editForm.priceAzn || "")}
-                    onChange={(e) => setEditForm({ ...editForm, priceAzn: e.target.value })}
-                  />
-                </label>
-                <label className="block text-sm">
-                  Köhnə qiymət (boş = endirim yoxdur)
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="məs: 12.00"
-                    className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                    value={String(editForm.originalPriceAzn ?? "")}
-                    onChange={(e) => setEditForm({ ...editForm, originalPriceAzn: e.target.value })}
-                  />
-                </label>
-              </div>
-
-              <label className="block text-sm">
-                Sıralama (0 ən öndə)
-                <input
-                  type="number"
-                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                  value={String(editForm.sortOrder || "0")}
-                  onChange={(e) => setEditForm({ ...editForm, sortOrder: e.target.value })}
-                />
-              </label>
-
-              <label className="flex items-center gap-2 rounded-lg border border-admin-line bg-admin-card p-3 text-sm">
-                <input type="checkbox" checked={Boolean(editForm.isActive)} onChange={(e) => setEditForm({ ...editForm, isActive: e.target.checked })} /> Aktivdir
-              </label>
-            </div>
-            {saveError && (
-              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">
-                {saveError}
-              </div>
-            )}
-            <div className="mt-8 flex justify-end gap-3">
-              <button onClick={() => { setEditingId(null); setSaveError(null); }} className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-700">İmtina</button>
-              <button onClick={saveProduct} disabled={saving} className="rounded bg-violet-600 px-4 py-2 text-sm font-bold text-white">Yadda saxla</button>
-            </div>
+          <div className="mt-3">
+            <PriceGrid tier={service.legacy} onSaved={reload} onOpenPackage={onOpenPackage} />
           </div>
+          <div className="mt-4 border-t border-admin-line pt-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">Stok</p>
+            <StockPanel platformCode={service.code} entries={service.legacy.stock} onChanged={reload} />
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function Step({ done, n, text }: { done: boolean; n: number; text: string }) {
+  return (
+    <li className={`flex items-center gap-2 font-semibold ${done ? "text-emerald-700" : "text-zinc-500"}`}>
+      <span
+        className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] ${
+          done ? "bg-emerald-500 text-white" : "bg-admin-chip2 text-zinc-600"
+        }`}
+      >
+        {done ? <Check className="h-3 w-3" /> : n}
+      </span>
+      {text}
+    </li>
+  );
+}
+
+function ServiceHint({ service }: { service: ServiceView }) {
+  let tone: "info" | "warn" = "info";
+  let text: string | null = null;
+  if (service.locked) {
+    text = "Netflix sifarişləri ödənişdən sonra CRM-ə avtomatik gedir. Plan quruluşu CRM ilə bağlıdır — burada qiymət, cihaz və stok dəyişir.";
+  } else if (service.sellable && service.activeCount === 0) {
+    tone = "warn";
+    text = "Saytda açıqdır, amma satışda paket yoxdur — müştəri boş səhifə görür.";
+  } else if (service.sellable && !service.platform.isActive) {
+    tone = "warn";
+    text = "Xidmət gizlidir — satış açıq olsa da səhifə görünmür.";
+  } else if (service.sellable) {
+    text = "Sifarişlər «Sifarişlər» bölməsinə düşür və əl ilə təsdiqlənir (CRM-ə getmir). Şəxsi hesab sifarişində müştərinin e-poçtu və şifrəsi orada görünür.";
+  } else if (service.activeCount > 0) {
+    text = "Paketlər hazırdır. Müştərilər görsün deyə «Saytda satılır»-ı yandır.";
+  }
+  if (!text) return null;
+  return (
+    <p
+      className={`mt-3 rounded-lg px-3 py-2 text-xs leading-relaxed ${
+        tone === "warn" ? "bg-amber-500/10 text-amber-800" : "bg-admin-chip/60 text-zinc-600"
+      }`}
+    >
+      {text}
+    </p>
+  );
+}
+
+// ─── Rejim bölməsi ────────────────────────────────────────────────────────
+
+function ModeSection({
+  mode,
+  service,
+  tiers,
+  reload,
+  onAdd,
+  onEditTier,
+  onOpenPackage,
+}: {
+  mode: StreamingAccessMode;
+  service: ServiceView;
+  tiers: TierView[];
+  reload: () => Promise<void>;
+  onAdd: () => void;
+  onEditTier: (tier: TierView) => void;
+  onOpenPackage: (p: AdminProduct) => void;
+}) {
+  const meta = ACCESS_MODE_META[mode];
+  const Icon = mode === "PERSONAL" ? UserRound : KeyRound;
+  return (
+    <section className="rounded-xl border border-admin-line bg-admin-card">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-admin-line px-4 py-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-violet-500/10 text-violet-700">
+            <Icon className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="font-bold text-zinc-900">{meta.label}</h3>
+            <p className="text-xs text-zinc-500">{meta.description}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onAdd}
+          disabled={service.locked}
+          title={service.locked ? "Netflix planları CRM ilə bağlıdır — yeni plan koddan əlavə olunur." : undefined}
+          className={btn.secondary}
+        >
+          <Plus className="h-4 w-4" /> Plan əlavə et
+        </button>
+      </header>
+
+      {tiers.length === 0 ? (
+        <div className="px-4 py-8 text-center">
+          <p className="text-sm text-zinc-500">
+            {mode === "PERSONAL"
+              ? "Şəxsi hesab planı yoxdur. Məs: «Standart», «Premium» — müştəri öz hesabını yazır."
+              : "Paylaşımlı plan yoxdur. Məs: «Standart» — bizim hesabdan otaq veririk."}
+          </p>
+          {!service.locked && (
+            <button type="button" onClick={onAdd} className={`${btn.primary} mt-3`}>
+              <Plus className="h-4 w-4" /> İlk planı əlavə et
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="divide-y divide-admin-line">
+          {tiers.map((tier) => (
+            <TierCard
+              key={tier.key}
+              tier={tier}
+              reload={reload}
+              onEdit={() => onEditTier(tier)}
+              onOpenPackage={onOpenPackage}
+            />
+          ))}
         </div>
       )}
+    </section>
+  );
+}
 
-      {/* Platforma Modalı */}
-      {platformModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-admin-line bg-admin-card p-6 shadow-2xl">
-            <h3 className="mb-6 text-lg font-bold">
-              {platformModal.mode === "create" ? "Yeni platforma" : "Platformanı redaktə et"}
-            </h3>
-            <div className="space-y-4">
-              <label className="block text-sm">
-                Ad
-                <input
-                  autoFocus
-                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                  value={platformModal.form.label}
-                  placeholder="Məs: Disney+"
-                  onChange={(e) => {
-                    const label = e.target.value;
-                    setPlatformModal((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            form: {
-                              ...prev.form,
-                              label,
-                              code:
-                                prev.mode === "create" && !platformCodeTouched
-                                  ? platformCodeFromLabel(label)
-                                  : prev.form.code,
-                              slug: !platformSlugTouched ? slugifyPlatform(label) : prev.form.slug,
-                            },
-                          }
-                        : prev,
-                    );
-                  }}
-                />
-              </label>
+function TierCard({
+  tier,
+  reload,
+  onEdit,
+  onOpenPackage,
+}: {
+  tier: TierView;
+  reload: () => Promise<void>;
+  onEdit: () => void;
+  onOpenPackage: (p: AdminProduct) => void;
+}) {
+  const dialog = useDialog();
+  const [stockOpen, setStockOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const free = tier.stock.filter((s) => !s.isUsed).length;
+  const hidden = !tier.platform.isActive;
 
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block text-sm">
-                  Kod (key)
-                  <input
-                    disabled={platformModal.mode === "edit"}
-                    className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 font-mono text-zinc-900 disabled:opacity-60"
-                    value={platformModal.form.code}
-                    placeholder="PRIME_VIDEO"
-                    onChange={(e) => {
-                      setPlatformCodeTouched(true);
-                      const code = e.target.value.toUpperCase();
-                      setPlatformModal((prev) => (prev ? { ...prev, form: { ...prev.form, code } } : prev));
-                    }}
-                  />
-                  {platformModal.mode === "edit" && (
-                    <span className="mt-1 block text-[11px] text-zinc-500">Kod dəyişdirilə bilməz.</span>
-                  )}
-                </label>
-                <label className="block text-sm">
-                  Slug (URL)
-                  <input
-                    className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 font-mono text-zinc-900"
-                    value={platformModal.form.slug}
-                    placeholder="prime"
-                    onChange={(e) => {
-                      setPlatformSlugTouched(true);
-                      const slug = e.target.value;
-                      setPlatformModal((prev) => (prev ? { ...prev, form: { ...prev.form, slug } } : prev));
-                    }}
-                  />
-                </label>
-              </div>
+  async function remove() {
+    const ok = await dialog.confirm({
+      title: `«${tier.name}» planı silinsin?`,
+      message: <p>Paketi və ya stoku olan plan silinmir — əvvəlcə xanaları boşalt və ya planı gizlət.</p>,
+      confirmLabel: "Sil",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setDeleting(true);
+    const res = await postStreaming({ action: "DELETE_PLATFORM", code: tier.code });
+    setDeleting(false);
+    if (!res.ok) return void dialog.alert({ title: "Silinmədi", message: res.error, tone: "danger" });
+    await reload();
+  }
 
-              <label className="block text-sm">
-                Sıralama (0 ən öndə)
-                <input
-                  type="number"
-                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                  value={platformModal.form.sortOrder}
-                  onChange={(e) => {
-                    const sortOrder = e.target.value;
-                    setPlatformModal((prev) => (prev ? { ...prev, form: { ...prev.form, sortOrder } } : prev));
-                  }}
-                />
-              </label>
-
-              <label className="block text-sm">
-                Qısa təsvir (tagline)
-                <input
-                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                  value={platformModal.form.tagline}
-                  placeholder="Bir cümlə — kart sub-mətni"
-                  onChange={(e) => {
-                    const tagline = e.target.value;
-                    setPlatformModal((prev) => (prev ? { ...prev, form: { ...prev.form, tagline } } : prev));
-                  }}
-                />
-              </label>
-
-              <label className="block text-sm">
-                Təsvir (hero)
-                <textarea
-                  rows={3}
-                  className="mt-1 w-full rounded border border-admin-line bg-admin-card px-3 py-2 text-zinc-900"
-                  value={platformModal.form.description}
-                  onChange={(e) => {
-                    const description = e.target.value;
-                    setPlatformModal((prev) => (prev ? { ...prev, form: { ...prev.form, description } } : prev));
-                  }}
-                />
-              </label>
-
-              <label className="flex items-center gap-2 rounded-lg border border-admin-line bg-admin-card p-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={platformModal.form.isActive}
-                  onChange={(e) => {
-                    const isActive = e.target.checked;
-                    setPlatformModal((prev) => (prev ? { ...prev, form: { ...prev.form, isActive } } : prev));
-                  }}
-                />
-                Aktivdir (söndürüləndə public-də gizlənir)
-              </label>
-            </div>
-            {platformError && (
-              <div className="mt-4 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-700">
-                {platformError}
-              </div>
-            )}
-            <div className="mt-8 flex justify-end gap-3">
-              <button
-                onClick={() => { setPlatformModal(null); setPlatformError(null); }}
-                className="rounded bg-admin-chip px-4 py-2 text-sm text-zinc-700"
-              >
-                İmtina
-              </button>
-              <button
-                onClick={savePlatform}
-                disabled={platformSaving}
-                className="inline-flex items-center gap-2 rounded bg-violet-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
-              >
-                {platformSaving && <Loader2 className="h-4 w-4 animate-spin" />}
-                Yadda saxla
-              </button>
-            </div>
+  return (
+    <div className={`px-4 py-4 ${hidden ? "opacity-70" : ""}`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="text-base font-bold text-zinc-900">{tier.name}</h4>
+            {hidden && <span className="rounded bg-admin-chip2 px-1.5 py-0.5 text-[10px] font-bold text-zinc-600">GİZLİ</span>}
+            <span className="text-xs text-zinc-500">{tier.activeCount} paket satışda</span>
           </div>
+          {tier.features.length > 0 && (
+            <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-zinc-500">
+              {tier.features.slice(0, 4).map((f, i) => (
+                <li
+                  key={i}
+                  className={f.tone === "good" ? "text-emerald-700" : f.tone === "bad" ? "text-rose-600" : f.tone === "warn" ? "text-amber-700" : ""}
+                >
+                  • {f.text}
+                </li>
+              ))}
+            </ul>
+          )}
+          {!tier.isCodeVariant && (
+            <p className="mt-1 text-[11px] text-zinc-500">
+              {tier.devices.length ? tier.devices.map((d) => DEVICE_LABEL.get(d) ?? d).join(", ") : "Cihaz seçilməyib"}
+              {tier.vpnRequired ? " · VPN lazımdır" : ""}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          {tier.isCodeVariant ? (
+            <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500" title="Plan məlumatı lib/streamingVariants.ts-dədir">
+              <Lock className="h-3 w-3" /> koddan
+            </span>
+          ) : (
+            <>
+              <button type="button" onClick={onEdit} className={btn.ghost}>
+                <Pencil className="h-3.5 w-3.5" /> Redaktə
+              </button>
+              {!tier.locked && (
+                <button type="button" onClick={remove} disabled={deleting} className={btn.ghost} aria-label="Planı sil">
+                  {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <PriceGrid tier={tier} onSaved={reload} onOpenPackage={onOpenPackage} />
+      </div>
+
+      {tier.mode === "SHARED" && (
+        <div className="mt-3 rounded-lg border border-admin-line">
+          <button
+            type="button"
+            onClick={() => setStockOpen((v) => !v)}
+            aria-expanded={stockOpen}
+            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold text-zinc-700"
+          >
+            <span>
+              Stok — hesablar{" "}
+              <span className={free > 0 ? "text-emerald-700" : "text-amber-700"}>({free} boşda)</span>
+            </span>
+            <ChevronDown className={`h-4 w-4 transition ${stockOpen ? "rotate-180" : ""}`} />
+          </button>
+          {stockOpen && (
+            <div className="border-t border-admin-line p-3">
+              <StockPanel platformCode={tier.code} entries={tier.stock} onChanged={reload} />
+            </div>
+          )}
         </div>
       )}
     </div>

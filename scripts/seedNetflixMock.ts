@@ -35,12 +35,13 @@ const PACKS: Pack[] = [
   { service: "NETFLIX_EVIMD_VIP", label: "Evimdə VIP", deliveryMode: "CODE", devices: ALL_DEVICES, prices: { 1: 15, 3: 42, 6: 78, 12: 140 } },
 ];
 
+// Qrup sahələri (lib/streamingAccess.ts) — admin Netflix-i "Şəxsi / Paylaşımlı hesab" kimi göstərir.
 const PLATFORMS = [
-  { code: "NETFLIX", slug: "netflix", label: "Netflix", tagline: "Öz hesabına plan və ya sənə aid otaq", sortOrder: 10 },
-  { code: "NETFLIX_VVIP", slug: "netflix-vvip", label: "Netflix Hesab", tagline: "Öz Netflix hesabına Basic / Standart / Premium plan", sortOrder: 11 },
-  { code: "NETFLIX_YANIMDA", slug: "netflix-yanimda", label: "Netflix Yanımda", tagline: "Telefon, planşet və kompüter üçün sənə aid otaq", sortOrder: 12 },
-  { code: "NETFLIX_EVIMD", slug: "netflix-evimde", label: "Netflix Evimdə", tagline: "TV daxil bütün cihazlar üçün sənə aid otaq", sortOrder: 13 },
-  { code: "NETFLIX_EVIMD_VIP", slug: "netflix-evimde-vip", label: "Netflix Evimdə VIP", tagline: "Ən stabil seçim, TV daxil sənə aid otaq", sortOrder: 14 },
+  { code: "NETFLIX", slug: "netflix", label: "Netflix", tagline: "Öz hesabına plan və ya sənə aid otaq", sortOrder: 10, parentCode: null, accessMode: null, tierName: "" },
+  { code: "NETFLIX_VVIP", slug: "netflix-vvip", label: "Netflix Hesab", tagline: "Öz Netflix hesabına Basic / Standart / Premium plan", sortOrder: 11, parentCode: "NETFLIX", accessMode: "PERSONAL", tierName: "Hesab" },
+  { code: "NETFLIX_YANIMDA", slug: "netflix-yanimda", label: "Netflix Yanımda", tagline: "Telefon, planşet və kompüter üçün sənə aid otaq", sortOrder: 12, parentCode: "NETFLIX", accessMode: "SHARED", tierName: "Yanımda" },
+  { code: "NETFLIX_EVIMD", slug: "netflix-evimde", label: "Netflix Evimdə", tagline: "TV daxil bütün cihazlar üçün sənə aid otaq", sortOrder: 13, parentCode: "NETFLIX", accessMode: "SHARED", tierName: "Evimdə" },
+  { code: "NETFLIX_EVIMD_VIP", slug: "netflix-evimde-vip", label: "Netflix Evimdə VIP", tagline: "Ən stabil seçim, TV daxil sənə aid otaq", sortOrder: 14, parentCode: "NETFLIX", accessMode: "SHARED", tierName: "Evimdə VIP" },
 ];
 
 async function main() {
@@ -59,7 +60,10 @@ async function main() {
   const { prisma } = await import("@/lib/prisma");
 
   for (const p of PLATFORMS) {
-    const data = { slug: p.slug, label: p.label, category: "STREAMING", tagline: p.tagline, description: p.tagline, sortOrder: p.sortOrder, isActive: true };
+    const data = {
+      slug: p.slug, label: p.label, category: "STREAMING", tagline: p.tagline, description: p.tagline, sortOrder: p.sortOrder, isActive: true,
+      parentCode: p.parentCode, accessMode: p.accessMode, tierName: p.tierName, storeSellable: p.code === "NETFLIX",
+    };
     await prisma.streamingPlatform.upsert({ where: { code: p.code }, create: { code: p.code, ...data }, update: data });
   }
 
@@ -84,6 +88,8 @@ async function main() {
             durationMonths: months,
             seats,
             deliveryMode: pack.deliveryMode,
+            accessMode: pack.deliveryMode === "GMAIL" ? "PERSONAL" : "SHARED",
+            groupCode: "NETFLIX",
             devices: pack.devices,
             vpnRequired: false,
             ...(pack.variantSlug ? { variantSlug: pack.variantSlug } : {}),

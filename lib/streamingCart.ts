@@ -1,5 +1,6 @@
 import type { StreamingCartDetails } from "@/lib/cart";
 import { NETFLIX_ACCOUNT_SERVICE_CODE, NETFLIX_CABINET_SERVICE_CODES } from "@/lib/storeScope";
+import { productAccessMode } from "@/lib/streamingAccess";
 
 export function validateStreamingDetails(d: StreamingCartDetails): string | null {
   const mail = (d.gmail ?? "").trim().toLowerCase();
@@ -29,11 +30,30 @@ export type StreamingService = (typeof STREAMING_SERVICES)[number];
  * Kodlar metadata.service ilə uyğun gəlir (StreamingPlatform.code).
  *
  * ⚠️ Evimdə VIP (`NETFLIX_EVIMD_VIP`) bura DAXİL DEYİL: o, bizim hesabda otaqdır.
+ *
+ * Admin-dən qurulan "Şəxsi hesab" planları (HBO Max və s.) kodla yox, paket metadata-sı ilə
+ * tanınır (`accessMode: "PERSONAL"`, lib/streamingAccess.ts) — ona görə funksiya paketin
+ * `metadata`-sını da qəbul edir. Kod ötürülsə yalnız Netflix tanınır.
  */
 export const CUSTOMER_EMAIL_STREAMING_SERVICES = new Set<string>([NETFLIX_ACCOUNT_SERVICE_CODE]);
 
-export function streamingUsesCustomerEmail(code: string | null | undefined): boolean {
-  return CUSTOMER_EMAIL_STREAMING_SERVICES.has(String(code ?? "").toUpperCase());
+export function streamingUsesCustomerEmail(
+  codeOrMetadata: string | null | undefined | Record<string, unknown>,
+): boolean {
+  if (codeOrMetadata && typeof codeOrMetadata === "object") {
+    const code = String(codeOrMetadata.service ?? "").toUpperCase();
+    if (CUSTOMER_EMAIL_STREAMING_SERVICES.has(code)) return true;
+    // Netflix otağı köhnə DB dəyərinə baxmayaraq heç vaxt müştəri hesabı istəmir.
+    if (NETFLIX_CABINET_SERVICE_CODES.includes(code)) return false;
+    return productAccessMode(codeOrMetadata) === "PERSONAL";
+  }
+  return CUSTOMER_EMAIL_STREAMING_SERVICES.has(String(codeOrMetadata ?? "").toUpperCase());
+}
+
+/** Müştəri hesabı formasındakı ad: "Netflix hesab e-poçtu" / "Hesab e-poçtu". */
+export function streamingCustomerAccountLabel(metadata: Record<string, unknown> | null | undefined): string {
+  const code = String(metadata?.service ?? "").toUpperCase();
+  return code === NETFLIX_ACCOUNT_SERVICE_CODE ? "Netflix hesab" : "Hesab";
 }
 
 /**
@@ -46,6 +66,9 @@ export function streamingDeliveryMode(metadata: unknown): "CODE" | "GMAIL" {
   const code = String(meta.service ?? "").toUpperCase();
   if (streamingUsesCustomerEmail(code)) return "GMAIL";
   if (NETFLIX_CABINET_SERVICE_CODES.includes(code)) return "CODE";
+  // Admin planı: rejim çatdırılmanı təyin edir (metadata.deliveryMode köhnə qala bilər).
+  const mode = productAccessMode(meta);
+  if (mode) return mode === "PERSONAL" ? "GMAIL" : "CODE";
   return String(meta.deliveryMode ?? "CODE") === "GMAIL" ? "GMAIL" : "CODE";
 }
 
@@ -71,6 +94,12 @@ export type StreamingServiceMeta = {
   description: string;
   /** Platforma hero şəkli (DB-dən). Statik defaults-da yoxdur. */
   heroImageUrl?: string | null;
+  /** Plan sətiridirsə üst xidmətin kodu (lib/streamingAccess.ts). */
+  parentCode?: string | null;
+  /** Plan rejimi: PERSONAL | SHARED. Üst xidmətdə null. */
+  accessMode?: string | null;
+  /** Vitrində plan adı. */
+  tierName?: string;
 };
 
 export const STREAMING_SERVICE_META: Record<StreamingService, StreamingServiceMeta> = {

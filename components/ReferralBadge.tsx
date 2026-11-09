@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Gift, Sparkles, Users } from "lucide-react";
+import { Gift, Sparkles, UserPlus, Users } from "lucide-react";
 import Modal from "./Modal";
 import { useReferralCategoryRates, type ReferralCategoryRates } from "./ReferralRatesProvider";
 
@@ -15,15 +15,20 @@ type Props = {
   productName?: string;
   /** Kart üstündə yerləşmə üçün əlavə class. */
   className?: string;
-  /** Kompakt (yalnız ikon + faiz) yoxsa mətnli. */
-  compact?: boolean;
+  /**
+   * `pill` — yaşıl nişan ("Referal 3%").
+   * `line` — kataloq kartı üçün `InstallmentHint card` üslubunda mətn sətri
+   * ("Dəvət et, 3% qazan"). Əvvəlki yalnız "🎁 3%" kompakt variantı silindi:
+   * müştəri onu endirim/cashback və ya 3% xidmət haqqı sanırdı.
+   */
+  variant?: "pill" | "line";
 };
 
 function fmtPct(value: number) {
   return Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1);
 }
 
-export default function ReferralBadge({ pct, category, productName, className, compact }: Props) {
+export default function ReferralBadge({ pct, category, productName, className, variant = "pill" }: Props) {
   const categoryRates = useReferralCategoryRates();
   const [open, setOpen] = useState(false);
 
@@ -40,13 +45,32 @@ export default function ReferralBadge({ pct, category, productName, className, c
           e.stopPropagation();
           setOpen(true);
         }}
-        title="Referal qazancı — ətraflı"
-        className={`inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-700 transition hover:bg-emerald-500/20 dark:text-emerald-300 ${
-          className ?? ""
-        }`}
+        title={`Dostunu dəvət et — o alanda məbləğin ${pctText}%-i sənin balansına yazılır`}
+        className={
+          variant === "line"
+            ? `inline-flex max-w-full items-center gap-1 text-left text-[11px] font-medium text-zinc-600 transition hover:text-emerald-700 dark:text-zinc-400 dark:hover:text-emerald-300 sm:text-xs ${
+                className ?? ""
+              }`
+            : `inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-700 transition hover:bg-emerald-500/20 dark:text-emerald-300 ${
+                className ?? ""
+              }`
+        }
       >
-        <Gift className="h-3 w-3" />
-        {compact ? `${pctText}%` : `Referal ${pctText}%`}
+        {variant === "line" ? (
+          <>
+            <UserPlus className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400 sm:h-3.5 sm:w-3.5" />
+            <span className="truncate">
+              Dəvət et,{" "}
+              <span className="font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{pctText}%</span>{" "}
+              qazan
+            </span>
+          </>
+        ) : (
+          <>
+            <Gift className="h-3 w-3" />
+            {`Referal ${pctText}%`}
+          </>
+        )}
       </button>
 
       <Modal open={open} onClose={() => setOpen(false)} size="sm" closeOnBackdrop>

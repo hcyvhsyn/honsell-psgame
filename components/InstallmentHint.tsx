@@ -4,10 +4,11 @@ import { CalendarDays } from "lucide-react";
 import { useInstallmentOffer } from "@/components/useInstallmentOffer";
 import InstallmentCardLogo from "@/components/InstallmentCardLogo";
 import { cheapestMonthly, installmentAvailable } from "@/lib/installmentsShared";
+import { cartServiceFeeCents } from "@/lib/cartServiceFee";
 
 /**
  * Qiymətin altında "Taksitlə ayda 7.13 ₼-dan" — ən aşağı aylıq ödəniş, taksit
- * faizi DAXİL (ən uzun müddət həmişə ən ucuz aylıq deyil). Məhsul səhifəsi
+ * faizi və 3% xidmət haqqı DAXİL (ən uzun müddət həmişə ən ucuz aylıq deyil). Məhsul səhifəsi
  * statik qaldığı üçün təklif client-də yüklənir; taksit söndürülübsə və ya
  * qiymət minimumdan azdırsa heç nə göstərilmir (layout sürüşməsi olmur).
  */
@@ -22,9 +23,13 @@ export default function InstallmentHint({
   variant?: "detail" | "card";
 }) {
   const offer = useInstallmentOffer();
-  if (!offer || !installmentAvailable(offer, priceAzn)) return null;
+  // Səbətdə taksit faizi 3% xidmət haqqı daxil məbləğin üstünə gəlir
+  // (lib/cartServiceFee.ts) — ipucu da eyni bazadan hesablanır.
+  const priceCents = Math.round(priceAzn * 100);
+  const payAzn = (priceCents + cartServiceFeeCents(priceCents)) / 100;
+  if (!offer || !installmentAvailable(offer, payAzn)) return null;
 
-  const best = cheapestMonthly(priceAzn, offer.cards);
+  const best = cheapestMonthly(payAzn, offer.cards);
   if (!best) return null;
 
   if (variant === "card") {

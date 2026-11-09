@@ -235,7 +235,7 @@ async function hydrateReels(rows: ReelRow[]): Promise<ReelFeedItem[]> {
       // Netflix hesab planı e-poçt+şifrə tələb edir — tək toxunuşla səbətə atıla bilməz.
       const needsCustomerAccount =
         s?.type === "STREAMING" &&
-        streamingUsesCustomerEmail(String((s.metadata as Record<string, unknown> | null)?.service ?? ""));
+        streamingUsesCustomerEmail((s.metadata as Record<string, unknown> | null) ?? {});
       if (s && isSellableServiceProduct(s) && !needsCustomerAccount) {
         product = {
           id: s.id,

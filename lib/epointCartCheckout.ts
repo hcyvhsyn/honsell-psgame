@@ -179,6 +179,8 @@ export type EpointCartPaymentMetadata = {
      * 0 və ya yoxdursa round-up tətbiq olunmayıb (adi sifariş).
      */
     topUpCents?: number;
+    /** Səbət xidmət haqqı (3%, lib/cartServiceFee.ts) — kartdan tutulur, məhsul dəyəri deyil. */
+    serviceFeeCents?: number;
     loyalty: {
       label: string;
       cashbackPct: number;
@@ -310,7 +312,7 @@ export async function finalizeEpointCartCheckout(
             orderCode: meta.orderCode,
             epointPaymentId: payment.id,
             cartTotalCents: meta.checkout.totalCents,
-            chargedCents: meta.checkout.totalCents + topUpCents,
+            chargedCents: meta.checkout.totalCents + (meta.checkout.serviceFeeCents ?? 0) + topUpCents,
           }),
         },
       });

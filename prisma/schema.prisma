@@ -1227,10 +1227,28 @@ model StreamingPlatform {
   heroImageUrl String?
   sortOrder    Int      @default(0)
   isActive    Boolean  @default(true)
+  /// Qrup quruluşu (lib/streamingAccess.ts). Boşdursa bu platforma özü üst xidmətdir (Netflix, HBO Max).
+  /// Doludursa üst xidmətin bir planıdır — məs. HBO_MAX_PAYLASIMLI_STANDART → "HBO_MAX".
+  parentCode    String?
+  /// Yalnız plan sətirlərində: PERSONAL — müştərinin öz hesabı (alışda e-poçt + şifrə),
+  /// SHARED — bizim hesabda otaq (giriş StreamingStock-dan verilir).
+  accessMode    String?
+  /// Vitrində plan adı — "Standart", "Yanımda".
+  tierName      String   @default("")
+  /// Plan kartının bulletləri: [{ text, tone: good|bad|warn|neutral }].
+  features      Json?
+  /// Plan yaradılanda seçilən cihazlar / VPN — ilk paketlərə default. Sonra paket metadata-sı ilə
+  /// birlikdə yenilənir (admin SET_SERVICE_ACCESS hər ikisinə yazır); vitrin paket metadata-sını oxuyur.
+  devices       String[] @default([])
+  vpnRequired   Boolean  @default(false)
+  /// Yalnız üst xidmətdə: PS-only əhatəsində saytda satılırmı. Paket metadata-sına
+  /// `storeSellable` kimi köçürülür (lib/storeScope.ts sinxron oxuyur). Netflix koda görə həmişə açıqdır.
+  storeSellable Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([isActive, sortOrder])
+  @@index([parentCode])
 }
 
 /// Streaming hesab stoku. Stok PLATFORMAYA görədir (müddətə/aya görə DEYİL) —

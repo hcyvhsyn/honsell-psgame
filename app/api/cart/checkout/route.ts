@@ -25,7 +25,11 @@ import {
   recordSuccessfulInvite,
 } from "@/lib/referralCycle";
 import { awardStreamingReferralCommission } from "@/lib/streamingReferral";
-import { streamingDeliveryMode, streamingUsesCustomerEmail } from "@/lib/streamingCart";
+import {
+  streamingCustomerAccountLabel,
+  streamingDeliveryMode,
+  streamingUsesCustomerEmail,
+} from "@/lib/streamingCart";
 import {
   EPOINT_CART_PAYMENT_TYPE,
   type EpointCartLineSnapshot,
@@ -51,6 +55,7 @@ import {
 } from "@/lib/productGift";
 import { sendProductGiftCodeEmail } from "@/lib/resend";
 import { EPOINT_MIN_CHARGE_AZN_CENTS, meetsMinOrder, minOrderMessage } from "@/lib/cartLimits";
+import { cartServiceFeeCents } from "@/lib/cartServiceFee";
 import { getInstallmentOffer } from "@/lib/installments";
 import {
   installmentAvailable,
@@ -650,12 +655,13 @@ export async function POST(req: Request) {
       let customerPassword: string | undefined;
       let streamingHasAccount: boolean | undefined;
       if (deliveryMode === "GMAIL") {
-        // Müştərinin öz hesabına qoşulan plan (Netflix hesab) — e-poçt hər provayder
-        // ola bilər (yalnız @gmail.com deyil) və şifrə məcburidir: CRM provayderə ötürür.
-        const customerEmail = streamingUsesCustomerEmail(meta.service as string);
+        // Müştərinin öz hesabına qoşulan plan (Netflix hesab, admin "Şəxsi hesab" planları) —
+        // e-poçt hər provayder ola bilər (yalnız @gmail.com deyil) və şifrə məcburidir.
+        const customerEmail = streamingUsesCustomerEmail(meta);
+        const accountLabel = streamingCustomerAccountLabel(meta);
         const parsed = parseStreamingBody(
           p.streaming,
-          customerEmail ? { allowAnyEmail: true, emailLabel: "Netflix hesab e-poçtu" } : {},
+          customerEmail ? { allowAnyEmail: true, emailLabel: `${accountLabel} e-poçtu` } : {},
         );
         if (!parsed.ok) {
           return NextResponse.json({ error: parsed.error }, { status: 400 });
@@ -664,7 +670,7 @@ export async function POST(req: Request) {
         if (customerEmail) {
           customerPassword = parsed.value.password;
           if (!customerPassword) {
-            return NextResponse.json({ error: "Netflix hesab şifrəsi tələb olunur." }, { status: 400 });
+            return NextResponse.json({ error: `${accountLabel} şifrəsi tələb olunur.` }, { status: 400 });
           }
           const s = p.streaming as Record<string, unknown>;
           streamingHasAccount = typeof s.hasAccount === "boolean" ? s.hasAccount : true;
@@ -876,6 +882,12 @@ export async function POST(req: Request) {
     );
   }
 
+  // Xidmət haqqı (3%, lib/cartServiceFee.ts) BÜTÜN ödəniş üsullarında kupondan
+  // sonrakı cəmin üstünə gəlir. `payableCents` müştəridən tutulan məbləğdir;
+  // fulfillment/cashback/bonus isə `discountedTotalCents` (məhsul dəyəri) ilədir.
+  const serviceFeeCents = cartServiceFeeCents(discountedTotalCents);
+  const payableCents = discountedTotalCents + serviceFeeCents;
+
   // Epoint-in minimum işləm məbləği 5 AZN-dir. Sebet bundan azdırsa ödənişi
   // bloklamaq əvəzinə KARTDAN minimum 5 AZN tutub aradakı fərqi müştərinin
   // cüzdanına kredit olaraq qaytarırıq (round-up to wallet). Beləcə 4.98 kimi
@@ -887,9 +899,9 @@ export async function POST(req: Request) {
     body.paymentMethod === "epoint-widget" ||
     body.paymentMethod === "epoint-installment";
   const chargeCents = isCardPayment
-    ? Math.max(discountedTotalCents, EPOINT_MIN_CHARGE_AZN_CENTS)
-    : discountedTotalCents;
-  const topUpCents = chargeCents - discountedTotalCents;
+    ? Math.max(payableCents, EPOINT_MIN_CHARGE_AZN_CENTS)
+    : payableCents;
+  const topUpCents = chargeCents - payableCents;
 
   const spentAzn = await getLifetimeSpendAznForLoyalty(prisma, user.id);
   const effTier = await getEffectiveTier(user.id, spentAzn);
@@ -1104,6 +1116,7 @@ export async function POST(req: Request) {
         discountCents,
         couponCode: promoForOrder ? promoForOrder.code : null,
         promoCodeId: promoForOrder ? promoForOrder.id : null,
+        serviceFeeCents,
         topUpCents,
         loyalty: {
           label: loyalty.label,
@@ -1306,21 +1319,21 @@ export async function POST(req: Request) {
   }
 
   if (paymentSource === "referral") {
-    if (user.referralBalanceCents < discountedTotalCents) {
+    if (user.referralBalanceCents < payableCents) {
       return NextResponse.json(
         {
           error: "Referal balansı kifayət etmir.",
-          requiredAzn: discountedTotalCents / 100,
+          requiredAzn: payableCents / 100,
           referralBalanceAzn: user.referralBalanceCents / 100,
         },
         { status: 402 }
       );
     }
-  } else if (user.walletBalance < discountedTotalCents) {
+  } else if (user.walletBalance < payableCents) {
     return NextResponse.json(
       {
         error: "Cüzdan balansı kifayət etmir.",
-        requiredAzn: discountedTotalCents / 100,
+        requiredAzn: payableCents / 100,
         balanceAzn: user.walletBalance / 100,
       },
       { status: 402 }
@@ -1355,9 +1368,27 @@ export async function POST(req: Request) {
         where: { id: user.id },
         data:
           paymentSource === "referral"
-            ? { referralBalanceCents: { decrement: discountedTotalCents } }
-            : { walletBalance: { decrement: discountedTotalCents } },
+            ? { referralBalanceCents: { decrement: payableCents } }
+            : { walletBalance: { decrement: payableCents } },
       });
+
+      // Xidmət haqqının audit sətri — balansdan sətirlərin cəmindən artıq
+      // tutulan hissə budur (kart yolunda o, ödəniş Transaction-unun içindədir).
+      if (serviceFeeCents > 0) {
+        await tx.transaction.create({
+          data: {
+            userId: user.id,
+            type: "SERVICE_FEE",
+            status: "SUCCESS",
+            amountAznCents: -serviceFeeCents,
+            metadata: JSON.stringify({
+              paymentSource: paymentSource === "referral" ? "REFERRAL" : "WALLET",
+              orderCode,
+              baseCents: discountedTotalCents,
+            }),
+          },
+        });
+      }
 
       const purchaseIds: string[] = [];
       const serviceOrderIds: string[] = [];
@@ -1888,11 +1919,11 @@ export async function POST(req: Request) {
   let newWalletCents = user.walletBalance;
   let newReferralCents = user.referralBalanceCents;
   if (paymentSource === "wallet") {
-    newWalletCents = user.walletBalance - discountedTotalCents + walletBonusCents;
+    newWalletCents = user.walletBalance - payableCents + walletBonusCents;
     newReferralCents = user.referralBalanceCents;
   } else {
     newWalletCents = user.walletBalance + walletBonusCents;
-    newReferralCents = user.referralBalanceCents - discountedTotalCents;
+    newReferralCents = user.referralBalanceCents - payableCents;
   }
   const prevCashbackCents = user.cashbackBalanceCents ?? 0;
   const newCashbackBalanceAzn = (prevCashbackCents + cashbackCentsApplied) / 100;
@@ -1963,7 +1994,8 @@ export async function POST(req: Request) {
     pointBlankPendingCount,
     paymentSourceUsed: paymentSource,
     purchaseCount: result.purchaseIds.length + result.serviceOrderIds.length,
-    paidAzn: discountedTotalCents / 100,
+    paidAzn: payableCents / 100,
+    serviceFeeAzn: serviceFeeCents / 100,
     discountAzn: discountCents / 100,
     bonus: result.bonus
       ? {

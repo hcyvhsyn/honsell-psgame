@@ -38,15 +38,20 @@ function toRow(p: NetflixCabinetProduct): Row {
 
 const uniqueSorted = (values: number[]) => Array.from(new Set(values)).sort((a, b) => a - b);
 
-/** İkinci addım (otaq): paket → nəfər → müddət, hamısı bir səhifədə. */
+/**
+ * İkinci addım (otaq): paket → nəfər → müddət, hamısı bir səhifədə.
+ * Admin-dən qurulan "Paylaşımlı hesab" planları (HBO Max və s.) da eyni ekranı işlədir — `serviceLabel`.
+ */
 export default function NetflixCabinetPicker({
   tiers,
   products,
   initialKey,
+  serviceLabel = "Netflix",
 }: {
   tiers: NetflixCabinetTier[];
   products: NetflixCabinetProduct[];
   initialKey?: string;
+  serviceLabel?: string;
 }) {
   const cart = useCart();
   const rows = useMemo(() => products.map(toRow).filter((r) => r.months > 0), [products]);
@@ -70,7 +75,7 @@ export default function NetflixCabinetPicker({
   if (!tier) {
     return (
       <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-8 text-center text-sm text-zinc-400">
-        Netflix üçün aktiv paket yoxdur.
+        {serviceLabel} üçün aktiv paket yoxdur.
       </div>
     );
   }
@@ -186,7 +191,7 @@ export default function NetflixCabinetPicker({
       {termsOpen && terms && (
         <TermsModal
           terms={terms}
-          serviceLabel={`Netflix ${tier.name}`}
+          serviceLabel={`${serviceLabel} ${tier.name}`}
           theme={netflixTheme}
           mode="confirm"
           onClose={() => setTermsOpen(false)}

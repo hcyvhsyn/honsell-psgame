@@ -644,8 +644,10 @@ export default function GameBrowser({
     <>
       <section className="relative z-40 mb-5 overflow-visible rounded-2xl border border-zinc-200 bg-white p-3 shadow-[0_16px_48px_-38px_rgba(15,23,42,0.5)] dark:border-white/10 dark:bg-[#0c0b12] dark:shadow-[0_20px_60px_-42px_rgba(0,0,0,0.9)] sm:rounded-3xl sm:p-5">
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className={`-mx-1 overflow-x-auto px-1 pb-1 ${isEpic ? "hidden" : ""}`}>
+          {/* flex-wrap: statistika tab-ların yanına sığmırsa alt sətrə keçir.
+              Sabit `xl:flex-row` tab sətrini sıxıb son tab-ı kəsirdi. */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className={`-mx-1 max-w-full overflow-x-auto px-1 pb-1 ${isEpic ? "hidden" : ""}`}>
               <div className="flex min-w-max gap-2">
                 {TYPE_TABS.map((tab) => {
                   const count =
@@ -697,7 +699,7 @@ export default function GameBrowser({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
               <span className="hidden sm:inline">Kataloqda</span>
               <strong className="tabular-nums text-zinc-900 dark:text-zinc-100">{data.totalAll.toLocaleString("en-US")}</strong>
               <span className="hidden sm:inline">məhsul</span>

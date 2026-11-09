@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import StreamingServiceDetail from "@/components/StreamingServiceDetail";
 import {
+  getStreamingPlatformByCode,
   getStreamingPlatformBySlug,
   getStreamingPlatformsByCategory,
 } from "@/lib/streamingPlatforms";
+import { ACCESS_MODE_META, isStreamingAccessMode, tierKeyFromSlug } from "@/lib/streamingAccess";
 import { getStreamingGroupChildRedirect, getStreamingGroupParentSlug } from "@/lib/streamingGroups";
 import { NETFLIX_STORE_PATH, PLAYSTATION_ONLY } from "@/lib/storeScope";
 
@@ -75,12 +77,23 @@ export default async function StreamingServicePage({
   if (childRedirect) redirect(childRedirect);
 
   const parentSlug = getStreamingGroupParentSlug(svc.slug);
-  // PS-only rejimdə `/streaming` kataloqu bağlıdır — Netflix girişi ana səhifəyə qayıdır.
-  let parent =
-    PLAYSTATION_ONLY && svc.slug === "netflix"
-      ? groupSelection
-        ? { href: NETFLIX_STORE_PATH, label: svc.label }
-        : { href: "/", label: "Ana səhifə" }
+
+  // Admin-dən qurulan plan (məs. hbo-max-paylasimli-standart) ayrıca səhifə deyil — alış üst
+  // xidmətin səhifəsindədir (?secim=sexsi|paylasimli&paket=…). Netflix planları yuxarıda koddan həll olunur.
+  if (!parentSlug && svc.parentCode && isStreamingAccessMode(svc.accessMode)) {
+    const top = await getStreamingPlatformByCode(svc.parentCode);
+    if (top) {
+      const key = tierKeyFromSlug(svc.slug, top.slug, svc.accessMode);
+      redirect(`/streaming/${top.slug}?secim=${ACCESS_MODE_META[svc.accessMode].selection}&paket=${key}`);
+    }
+  }
+
+  // PS-only rejimdə `/streaming` kataloqu bağlıdır — xidmət girişi ana səhifəyə qayıdır;
+  // seçim addımından (?secim=) isə xidmətin öz seçim ekranına.
+  let parent = groupSelection
+    ? { href: svc.slug === "netflix" ? NETFLIX_STORE_PATH : `/streaming/${svc.slug}`, label: svc.label }
+    : PLAYSTATION_ONLY
+      ? { href: "/", label: "Ana səhifə" }
       : { href: "/streaming", label: "Streaming xidmətləri" };
   if (parentSlug) {
     const parentSvc = await getStreamingPlatformBySlug(parentSlug);

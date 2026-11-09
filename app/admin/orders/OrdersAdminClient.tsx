@@ -143,6 +143,8 @@ function fmtDate(d: string) {
 function parseStreamingMeta(metadata?: string | null): {
   deliveryMode?: "CODE" | "GMAIL";
   gmail?: string;
+  /** Şəxsi hesab planı — müştərinin öz hesab şifrəsi (admin əl ilə aktivləşdirir). */
+  customerPassword?: string;
   reason?: string;
   orderCode?: string;
 } {
@@ -152,6 +154,7 @@ function parseStreamingMeta(metadata?: string | null): {
     return {
       deliveryMode: m.deliveryMode === "GMAIL" ? "GMAIL" : m.deliveryMode === "CODE" ? "CODE" : undefined,
       gmail: typeof m.gmail === "string" ? m.gmail : undefined,
+      customerPassword: typeof m.customerPassword === "string" ? m.customerPassword : undefined,
       reason: typeof m.reason === "string" ? m.reason : undefined,
       orderCode: typeof m.orderCode === "string" ? m.orderCode : undefined,
     };
@@ -1127,6 +1130,12 @@ export default function OrdersAdminClient() {
                             ? "Bizim hesabda otaq"
                             : "Manual təsdiq"}
                       </div>
+                      {/* Admin-dən qurulan şəxsi hesab planı (HBO Max və s.) CRM-ə getmir — şifrə burada lazımdır. */}
+                      {meta.deliveryMode === "GMAIL" &&
+                        meta.customerPassword &&
+                        !isNetflixProduct(o.serviceProduct?.type, o.serviceProduct?.metadata) && (
+                          <div className="font-mono">Şifrə: {meta.customerPassword}</div>
+                        )}
                       {isNetflixProduct(o.serviceProduct?.type, o.serviceProduct?.metadata) && (
                         <CrmOrderSync orderId={o.id} metadata={o.metadata} netflix />
                       )}

@@ -7,7 +7,11 @@
  * server faylını import etsə `next build` sınır (tsc keçsə də).
  */
 
-import { streamingDeliveryMode, streamingUsesCustomerEmail } from "@/lib/streamingCart";
+import {
+  streamingCustomerAccountLabel,
+  streamingDeliveryMode,
+  streamingUsesCustomerEmail,
+} from "@/lib/streamingCart";
 
 /** Səbətdəki xidmət dəsti sətrinin `productType` dəyəri. */
 export const SERVICE_BUNDLE_PRODUCT_TYPE = "SERVICE_BUNDLE";
@@ -63,10 +67,14 @@ export function serviceInputRequirement(product: {
 
   if (product.type === "STREAMING") {
     if (streamingDeliveryMode(meta) !== "GMAIL") return NO_INPUT;
-    // Müştərinin öz hesabına qoşulan plan (Netflix hesab) — e-poçt hər provayder
-    // ola bilər və şifrə də lazımdır (CRM provayderə ötürür).
-    if (streamingUsesCustomerEmail(meta.service as string)) {
-      return { kind: "EMAIL_PASSWORD", allowAnyEmail: true, emailLabel: "Netflix hesab e-poçtu" };
+    // Müştərinin öz hesabına qoşulan plan (Netflix hesab, admin "Şəxsi hesab" planları) —
+    // e-poçt hər provayder ola bilər və şifrə də lazımdır.
+    if (streamingUsesCustomerEmail(meta)) {
+      return {
+        kind: "EMAIL_PASSWORD",
+        allowAnyEmail: true,
+        emailLabel: `${streamingCustomerAccountLabel(meta)} e-poçtu`,
+      };
     }
     return { kind: "EMAIL", allowAnyEmail: false, emailLabel: "Gmail ünvanı" };
   }
