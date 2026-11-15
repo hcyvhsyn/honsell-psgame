@@ -31,6 +31,7 @@ const NAV_SECTIONS: NavSectionSpec[] = [
         items: [
           { href: "/admin", label: "Dashboard", iconName: "LayoutDashboard" },
           { href: "/admin/orders", label: "Sifarişlər", iconName: "ClipboardList", badgeKey: "pendingAllOrders" },
+          { href: "/admin/crm-renewals", label: "CRM yeniləmələri", iconName: "RefreshCw" },
           { href: "/admin/deposits", label: "Balans artırma", iconName: "Wallet", badgeKey: "pendingDeposits" },
           { href: "/admin/transactions", label: "Tranzaksiyalar", iconName: "Receipt" },
           { href: "/admin/subscriptions", label: "Aktiv abunəliklər", iconName: "Crown", badgeKey: "expiringSubs" },

@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isSpotifyOrderRow, pushSpotifyOrderToCrm } from "@/lib/crmSpotify";
 import { isNetflixOrderRow, pushNetflixOrderToCrm } from "@/lib/crmNetflix";
+import { pushCrmRenewalToCrm } from "@/lib/crmRenewals";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,6 +47,20 @@ export async function POST() {
     } catch (e) {
       failed.push({ id: row.id, error: e instanceof Error ? e.message : String(e) });
     }
+  }
+
+  // /abunelik CRM yeniləmələri (ayrıca cədvəl) — CRM-ə çatmayanlar da eyni düymə ilə
+  const renewals = await prisma.crmRenewalOrder.findMany({
+    where: { status: "PENDING", crmSyncedAt: null, crmSyncError: { not: null }, createdAt: { gte: since } },
+    orderBy: { createdAt: "asc" },
+    take: MAX_ROWS,
+    select: { id: true },
+  });
+  for (const r of renewals) {
+    total++;
+    const res = await pushCrmRenewalToCrm(r.id);
+    if (res.ok) ok++;
+    else failed.push({ id: r.id, error: res.error });
   }
 
   return NextResponse.json({ total, ok, failed });

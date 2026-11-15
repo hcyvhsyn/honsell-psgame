@@ -17,6 +17,7 @@
     "test:editions": "tsx scripts/gameEditions.test.ts",
     "test:netflix": "tsx scripts/netflixScope.test.ts",
     "test:cartlimits": "tsx scripts/cartLimits.test.ts",
+    "test:crmrenewal": "tsx scripts/crmRenewal.test.ts",
     "seed:netflix-mock": "tsx scripts/seedNetflixMock.ts",
     "test:reelranking": "tsx scripts/reelRanking.test.ts",
     "clean:reeltitles": "tsx scripts/cleanReelTitles.ts",

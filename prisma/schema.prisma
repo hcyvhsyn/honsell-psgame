@@ -171,6 +171,8 @@ model User {
   promoCodes       PromoCode[]       @relation("UserPromoCodes")
   promoRedemptions PromoRedemption[] @relation("UserPromoRedemptions")
   bonusGrants      BonusGrant[]      @relation("UserBonusGrants")
+  // /abunelik — CRM abunəliklərinin saytdan yenilənməsi
+  crmRenewalOrders CrmRenewalOrder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3414,4 +3416,62 @@ model ProviderTitleLanguage {
 
   @@unique([titleId, region, kind, trackGroup, code, locale])
   @@index([region, kind, code, status])
+}
+
+/// Telefonla giriş kodu (WhatsApp OTP). Kod açıq saxlanılmır — HMAC hash (lib/abunelik/otp.ts).
+model PhoneOtp {
+  id         String    @id @default(cuid())
+  phoneE164  String
+  /// "ABUNELIK"
+  purpose    String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  ip         String?
+  createdAt  DateTime  @default(now())
+
+  @@index([phoneE164, purpose, createdAt])
+}
+
+/// /abunelik: CRM abunəliyinin saytda kartla ödənilmiş yeniləməsi (lib/crmRenewals.ts).
+/// Ödəniş özü `Transaction` (CHECKOUT_PAYMENT, metadata.flow = "crm-renewal") sətridir;
+/// bu cədvəl CRM-ə ötürmə və nəticə vəziyyətini saxlayır. externalRef = "store:renewal:<paymentTransactionId>".
+model CrmRenewalOrder {
+  id                   String    @id @default(cuid())
+  paymentTransactionId String    @unique
+  externalRef          String    @unique
+  orderCode            String
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id])
+  /// E.164 (+994…) — OTP ilə təsdiqlənmiş nömrə
+  phone                String
+  /// CRM ref: slot:<id> | fam:<id> | si:<id> | ni:<id> | ps:<id>
+  ref                  String
+  kind                 String
+  title                String
+  months               Int
+  /// CRM qiyməti (CRM-ə bu göndərilir)
+  amountAznCents       Int
+  /// Kartdan tutulan (min 5 AZN round-up daxil)
+  chargedAznCents      Int
+  /// PENDING | SUCCESS | FAILED
+  status               String    @default("PENDING")
+  /// CRM-in son bildirdiyi status (PROCESSING, AWAITING_VENDOR, COMPLETED …)
+  crmStatus            String?
+  crmOrderId           String?
+  crmSyncedAt          DateTime?
+  crmSyncError         String?
+  crmSyncAttemptAt     DateTime?
+  resultEndDate        DateTime?
+  failReason           String?
+  /// null | WALLET (cüzdana qaytarıldı) | CARD_MANUAL
+  refundStatus         String?
+  completedAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@index([phone, ref])
 }

@@ -1000,6 +1000,41 @@ raw SQL-də (`regexp_replace` — telefon sərbəst formatda saxlanılır, `phon
 formatı tutmur). Yalnız oxumadır; cavab formasını dəyişəndə CRM-in `HonsellStoreAccount`
 tipini ([psCustomer/lib/honsell-store.ts](../psCustomer/lib/honsell-store.ts)) də yenilə.
 
+# /abunelik — CRM müştərilərinin abunəlikləri + saytdan yeniləmə (2026-11)
+
+Link: `https://honsell.site/abunelik` (müştəriyə WhatsApp-da göndərilir). Nömrə + WhatsApp kodu → CRM-dəki bütün
+abunəliklər (Netflix kabineti, Spotify/YouTube Family, Netflix/Spotify Individual, PS Plus; aktiv + son 45 gün
+bitmiş), giriş məlumatları və **CRM `/pricing` qiyməti ilə** (3% haqq YOX) Epoint kartla yeniləmə.
+
+| Qat | Fayl |
+| --- | --- |
+| Telefon (saf) / imzalı cookie / OTP | [lib/abunelik/](lib/abunelik/) — `phoneFormat.ts`, `token.ts`, `session.ts`, `otp.ts`, `charge.ts` |
+| CRM klienti + CRM-ə ötürmə | [lib/crmRenewals.ts](lib/crmRenewals.ts) |
+| Ödəniş tamamlanması | [lib/crmRenewalCheckout.ts](lib/crmRenewalCheckout.ts) + [lib/epointCheckoutDispatch.ts](lib/epointCheckoutDispatch.ts) |
+| API | `app/api/abunelik/{otp/send,otp/verify,account,subscriptions,renew,logout}` |
+| CRM → nəticə | `POST /api/partner/crm-renewals/complete` |
+| Admin | `/admin/crm-renewals` (CRM-ə yenidən göndər, Tamamlandı/Uğursuz, Cüzdana qaytar) |
+| Test | `npm run test:crmrenewal`; lokal Epoint callback: `scripts/epointSimulateResult.ts` |
+
+- **CRM datası YALNIZ imzalı `honsell_abunelik` cookie-dəki nömrə ilə çəkilir** (OTP ilə təsdiqlənib, 2 saat) —
+  `User.phone` ilə YOX (profil səhifəsindən OTP-siz dəyişir), xam `honsell_session` ilə YOX. Cookie-də `uid` var:
+  başqa hesab daxil olubsa rədd edilir. Prod-da `ABUNELIK_COOKIE_SECRET` məcburidir.
+- **Kod yalnız CRM müştərisinə gedir** (CRM-də abunəliyi olan nömrə) — cavab isə həmişə eynidir (enumeration).
+  Limitlər: 45 san cooldown, nömrəyə gündə 5, IP-dən saatda 3 fərqli nömrə + Turnstile.
+- **Sayt hesabı:** nömrəyə tək aktiv (admin olmayan) hesab uyğun gəlirsə kodla ona daxil edilir; yoxdursa ödəniş
+  anında ad + e-poçtla şifrəsiz hesab yaranır (`/rey` kimi, `pending:` hash); bir neçə hesab → şifrə ilə giriş.
+- **Ödəniş** = `Transaction` (`CHECKOUT_PAYMENT`, `metadata.flow = "crm-renewal"`). `/result` və reconcile
+  `finalizeEpointCheckoutPayment` dispatcher-indən keçir — yeni axın əlavə edəndə yalnız orada qeyd et.
+  Qiymət serverdə CRM-dən alınır (`quoteCrmRenewal`); klientin məbləği yalnız `PRICE_CHANGED` yoxlaması üçündür.
+  5 ₼-dan aşağı qiymət → kartdan 5 ₼, fərq cüzdana (`CRM_RENEWAL_MIN_ROUNDUP`). Referal/cashback yoxdur.
+- **Vəziyyət** `CrmRenewalOrder`-dədir (`PENDING → SUCCESS | FAILED`). Kabinet/Family CRM cavabında dərhal
+  `SUCCESS`; Individual-lar və PS CRM-in `crm-renewals/complete` callback-i ilə. CRM-ə çatmayan sifariş
+  `crmSyncError` daşıyır və "Hamısını CRM-ə yenidən göndər" (`crm-retry`) onu da götürür (idempotent).
+- `FAILED` = CRM uzatmadı (məs. slot arada boşaldılıb) → müştəriyə geri ödəniş: "Cüzdana qaytar" CRM qiymətini
+  (round-up onsuz da cüzdandadır) bir dəfə yazır; kart geri ödənişi Epoint kabinetindən.
+- Söndürmə/açma: `ABUNELIK_ENABLED=1` (yoxdursa səhifə "Tezliklə", API 404). Lokal: `ABUNELIK_OTP_DEV_ECHO=1`
+  (kod log-a), `EPOINT_MOCK=1` (Epoint-ə getmir) — hər ikisi production-da işləmir.
+
 # PS Store skreypi — concept ↔ SKU (ƏN VACİB TƏLƏ)
 
 PS Store iki fərqli obyekt qaytarır və skreyperin **hər iki mənbəyi** var:

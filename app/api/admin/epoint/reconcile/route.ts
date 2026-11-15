@@ -8,10 +8,8 @@ import {
   readEpointAmountCents,
   type EpointResultData,
 } from "@/lib/epoint";
-import {
-  EPOINT_CART_PAYMENT_TYPE,
-  finalizeEpointCartCheckout,
-} from "@/lib/epointCartCheckout";
+import { EPOINT_CART_PAYMENT_TYPE } from "@/lib/epointCartCheckout";
+import { finalizeEpointCheckoutPayment } from "@/lib/epointCheckoutDispatch";
 
 export const runtime = "nodejs";
 
@@ -113,7 +111,7 @@ export async function POST(req: Request) {
 
   if (tx.type === EPOINT_CART_PAYMENT_TYPE) {
     if (isSuccess) {
-      const checkoutResult = await finalizeEpointCartCheckout(tx, decoded);
+      const checkoutResult = await finalizeEpointCheckoutPayment(tx, decoded);
       return NextResponse.json({
         ok: checkoutResult.ok,
         status: newStatus,

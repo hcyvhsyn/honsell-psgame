@@ -8,10 +8,8 @@ import {
   verifyEpointSignature,
   type EpointResultData,
 } from "@/lib/epoint";
-import {
-  EPOINT_CART_PAYMENT_TYPE,
-  finalizeEpointCartCheckout,
-} from "@/lib/epointCartCheckout";
+import { EPOINT_CART_PAYMENT_TYPE } from "@/lib/epointCartCheckout";
+import { finalizeEpointCheckoutPayment } from "@/lib/epointCheckoutDispatch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -137,7 +135,7 @@ async function applyResult(payload: ResultPayload) {
 
   if (tx.type === EPOINT_CART_PAYMENT_TYPE) {
     if (status === "SUCCESS") {
-      const checkoutResult = await finalizeEpointCartCheckout(tx, payload.decoded);
+      const checkoutResult = await finalizeEpointCheckoutPayment(tx, payload.decoded);
       return {
         orderId,
         updated: checkoutResult.ok,
