@@ -16,6 +16,7 @@
     "test:lootbox": "tsx scripts/lootBox.test.ts",
     "test:editions": "tsx scripts/gameEditions.test.ts",
     "test:netflix": "tsx scripts/netflixScope.test.ts",
+    "test:homeshowcase": "tsx scripts/homeShowcase.test.ts",
     "test:cartlimits": "tsx scripts/cartLimits.test.ts",
     "test:crmrenewal": "tsx scripts/crmRenewal.test.ts",
     "seed:netflix-mock": "tsx scripts/seedNetflixMock.ts",

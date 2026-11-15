@@ -47,6 +47,8 @@ type Props = {
   groupSelection?: string;
   /** `?paket=` — otaq seçimində əvvəlcədən seçilmiş paket. */
   initialPackage?: string;
+  /** `?mehsul=` — ana səhifə vitrinindən gələn konkret paket (plan + nəfər + müddət seçili açılır). */
+  initialProductId?: string;
 };
 
 export default async function StreamingServiceDetail({
@@ -56,6 +58,7 @@ export default async function StreamingServiceDetail({
   variantSlug,
   groupSelection,
   initialPackage,
+  initialProductId,
 }: Props) {
   const isMusic = svc.category === "MUSIC";
 
@@ -483,6 +486,7 @@ export default async function StreamingServiceDetail({
           <NetflixCabinetPicker
             serviceLabel={svc.label}
             initialKey={initialPackage}
+            initialProductId={initialProductId}
             tiers={dbSharedTiers.map((t) => ({ key: t.key, code: t.code, name: t.name, features: t.features }))}
             products={dbProductsFor(dbSharedTiers).map((p) => ({
               id: p.id,
@@ -520,6 +524,7 @@ export default async function StreamingServiceDetail({
           <NetflixCabinetPicker
             tiers={cabinetTiers}
             initialKey={initialPackage}
+            initialProductId={initialProductId}
             products={products
               .filter((p) => cabinetTiers.some((t) => t.code === String((p.metadata as Record<string, unknown> | null)?.service ?? "").toUpperCase()))
               .map((p) => ({
@@ -570,6 +575,7 @@ export default async function StreamingServiceDetail({
           </div>
         ) : (
           <StreamingPlanPicker
+            initialProductId={initialProductId}
             allowAnyEmail={streamingUsesCustomerEmail(svc.code)}
             {...(streamingUsesCustomerEmail(svc.code)
               ? { authMode: "GMAIL_PASSWORD" as const, platformKind: "NETFLIX_ACCOUNT" }

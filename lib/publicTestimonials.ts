@@ -3,6 +3,7 @@ import "server-only";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getTierBadgesForUsers, type UserTierBadge } from "@/lib/customerTier";
+import { stripRegionCodes } from "@/lib/customerProductTitle";
 
 export const TESTIMONIAL_PAGE_SIZE = 9;
 
@@ -188,7 +189,8 @@ export async function getPublicTestimonials({
         // Alış mənbəyi: bağlı tranzaksiya (email dəvəti / anasayfa modalı) və
         // ya WhatsApp dəvəti (admin real sifariş üçün yaradır).
         isVerifiedPurchase: Boolean(txn ?? invite),
-        productTitle: testimonial.productTitle,
+        // Köhnə rəylərdə CRM region kodu qala bilər ("Netflix Evimdə (TR)").
+        productTitle: testimonial.productTitle ? stripRegionCodes(testimonial.productTitle) : null,
         adminReply: testimonial.adminReply,
         adminReplyImageUrl: testimonial.adminReplyImageUrl,
         tier: authorId ? tierBadges.get(authorId) ?? null : null,

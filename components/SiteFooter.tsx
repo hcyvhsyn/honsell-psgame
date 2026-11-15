@@ -1,205 +1,153 @@
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  Clock3,
-  Mail,
-  MessageCircle,
-  Phone,
-  ShieldCheck,
-  Sparkles,
-  Zap,
-} from "lucide-react";
+import FooterBackToTop from "./FooterBackToTop";
 import styles from "./SiteFooter.module.css";
 
 const WHATSAPP_HREF = "https://wa.me/994702560509";
+const PHONE_HREF = "tel:+994702560509";
+const EMAIL = "info@honsell.site";
 
-const linkGroups = [
+type FooterLink = { label: string; href: string; external?: boolean };
+
+/**
+ * Sütunlar. ⚠️ Mağaza əhatəsi PS-only-dir (lib/storeScope.ts) — yeni link əlavə edəndə
+ * `isOpenStorePath` ilə açıq olduğunu yoxla, bağlı kateqoriyaya keçid vermə.
+ */
+const LINK_GROUPS: { title: string; links: FooterLink[] }[] = [
   {
     title: "Mağaza",
     links: [
-      ["PlayStation oyunları", "/oyunlar"],
-      ["Endirimdə olan oyunlar", "/endirimler"],
-      ["PS Plus paketləri", "/ps-plus"],
-      ["EA Play", "/ea-play"],
-      ["Netflix", "/streaming/netflix"],
+      { label: "PlayStation oyunları", href: "/oyunlar" },
+      { label: "Endirimlər", href: "/endirimler" },
+      { label: "PSN hədiyyə kartları", href: "/hediyye-kartlari" },
+      { label: "Türkiyə PSN hesabı", href: "/hesab-acma" },
     ],
   },
   {
-    title: "Xidmətlər",
+    title: "Abunəliklər",
     links: [
-      ["Hədiyyə kartları", "/hediyye-kartlari"],
-      ["Türkiyə PSN hesabı", "/hesab-acma"],
-      ["İcmallar", "/icma?tab=icmallar"],
-      ["Qazan (Referal)", "/qazan"],
+      { label: "PS Plus", href: "/ps-plus" },
+      { label: "EA Play", href: "/ea-play" },
+      { label: "Netflix", href: "/streaming/netflix" },
+      { label: "Spotify Premium", href: "/music/spotify-premium" },
+    ],
+  },
+  {
+    title: "Kəşf et",
+    links: [
+      { label: "Reels", href: "/reels" },
+      { label: "İcmallar", href: "/icma?tab=icmallar" },
+      { label: "Bələdçilər", href: "/bilmeli-olduglarin" },
+      { label: "Qazan (Referal)", href: "/qazan" },
     ],
   },
   {
     title: "Dəstək",
     links: [
-      ["Tez verilən suallar", "/faq"],
-      ["Geri qaytarma", "/geri-qaytarma-siyaseti"],
-      ["Məxfilik siyasəti", "/mexfilik-siyaseti"],
-      ["Bələdçilər", "/bilmeli-olduglarin"],
+      { label: "Tez verilən suallar", href: "/faq" },
+      { label: "WhatsApp-da yaz", href: WHATSAPP_HREF, external: true },
+      { label: "Bizə zəng et", href: PHONE_HREF, external: true },
+      { label: "E-poçt göndər", href: `mailto:${EMAIL}`, external: true },
     ],
   },
   {
     title: "Honsell",
     links: [
-      ["Haqqımızda", "/haqqimizda"],
-      ["Müştəri rəyləri", "/reyler"],
-      ["Niyə biz?", "/#niye-biz"],
-      ["Hesabım", "/profile"],
+      { label: "Haqqımızda", href: "/haqqimizda" },
+      { label: "Müştəri rəyləri", href: "/reyler" },
+      { label: "Hesabım", href: "/profile" },
     ],
   },
-] as const;
+];
 
-const mobileLinks = [
-  ["Oyunlar", "/oyunlar"],
-  ["PS Plus", "/ps-plus"],
-  ["Gift Card", "/hediyye-kartlari"],
-  ["FAQ", "/faq"],
-] as const;
+const LEGAL_LINKS: FooterLink[] = [
+  { label: "Məxfilik siyasəti", href: "/mexfilik-siyaseti" },
+  { label: "Geri qaytarma siyasəti", href: "/geri-qaytarma-siyaseti" },
+];
+
+function FooterAnchor({ link }: { link: FooterLink }) {
+  if (!link.external) return <Link href={link.href}>{link.label}</Link>;
+  const isWeb = link.href.startsWith("http");
+  return (
+    <a href={link.href} {...(isWeb ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+      {link.label}
+    </a>
+  );
+}
 
 /**
- * `showSupportCta={false}` — yuxarıdakı "Honsell Dəstək" blokunu gizlədir
- * (ana səhifədə istifadə olunmur; digər səhifələrdə default görünür).
+ * Sayt footer-i: tünd bənövşəyi panel (hər iki temada eyni), brend + 5 sütun, hüquqi sətir,
+ * Epoint ödəniş nişanı və altda solğun "HONSELL" su nişanı. Panelin kənarı navbar qabığı ilə
+ * eyni xəttdədir (`--site-*` tokenləri).
+ *
+ * Performans: blur/daimi animasiya yoxdur; su nişanı loqo SVG-sinin CSS mask-ıdır (əlavə şəkil yox).
  */
-export default function SiteFooter({ showSupportCta = true }: { showSupportCta?: boolean } = {}) {
+export default function SiteFooter() {
   const year = new Date().getFullYear();
 
   return (
     <footer className={styles.footer}>
-      <span className={styles.ambientOne} aria-hidden />
-      <span className={styles.ambientTwo} aria-hidden />
-
-      <div className={styles.desktopFooter}>
-        {showSupportCta && (
-          <section className={styles.cta} aria-label="Honsell dəstək">
-            <div className={styles.ctaCopy}>
-              <span className={styles.eyebrow}>
-                <Sparkles aria-hidden />
-                HONSELL DƏSTƏK
-              </span>
-              <h2>Növbəti seçimin bir mesaj uzaqdadır.</h2>
-              <p>Oyun, paket və qiymət seçərkən komandamız sənə kömək edəcək.</p>
+      <div className={styles.shell}>
+        <div className={styles.panel}>
+          <div className={styles.top}>
+            <div className={styles.brand}>
+              <Link href="/" aria-label="Honsell ana səhifə" className={styles.logo}>
+                <Image src="/honsell-logo.svg" alt="Honsell" width={168} height={29} />
+              </Link>
+              <p className={styles.tagline}>
+                PlayStation oyunları, PS Plus, Netflix və Spotify abunəlikləri — hamısı bir yerdə.
+              </p>
+              <p className={styles.status}>
+                <i aria-hidden />
+                Hər gün 10:00–00:00 onlayn dəstək
+              </p>
             </div>
 
-            <div className={styles.ctaActions}>
-              <a
-                href={WHATSAPP_HREF}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.primaryAction}
-              >
-                <MessageCircle aria-hidden />
-                WhatsApp-da yaz
-                <ArrowUpRight aria-hidden />
-              </a>
-              <a href="mailto:info@honsell.site" className={styles.secondaryAction}>
-                <Mail aria-hidden />
-                E-poçt göndər
-              </a>
-            </div>
-          </section>
-        )}
-
-        <div className={styles.mainGrid}>
-          <div className={styles.brandColumn}>
-            <Link href="/" aria-label="Honsell ana səhifə" className={styles.logoLink}>
-              <Image
-                src="/honsell-logo.svg"
-                alt="Honsell"
-                width={168}
-                height={29}
-                className="honsell-logo-img"
-              />
-            </Link>
-            <p>Oyun, abunəlik və rəqəmsal xidmətlər üçün etibarlı ünvan.</p>
-
-            <div className={styles.contactList}>
-              <a href="tel:+994702560509">
-                <Phone aria-hidden />
-                +994 70 256 05 09
-              </a>
-              <a href="mailto:info@honsell.site">
-                <Mail aria-hidden />
-                info@honsell.site
-              </a>
-            </div>
+            <nav className={styles.nav} aria-label="Footer naviqasiyası">
+              {LINK_GROUPS.map((group) => (
+                <div key={group.title} className={styles.group}>
+                  <p className={styles.groupTitle}>{group.title}</p>
+                  <ul>
+                    {group.links.map((link) => (
+                      <li key={link.label}>
+                        <FooterAnchor link={link} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </nav>
           </div>
 
-          <nav className={styles.linkGrid} aria-label="Footer naviqasiyası">
-            {linkGroups.map((group) => (
-              <div key={group.title} className={styles.linkGroup}>
-                <p>{group.title}</p>
-                <ul>
-                  {group.links.map(([label, href]) => (
-                    <li key={label}>
-                      <Link href={href}>{label}</Link>
-                    </li>
-                  ))}
-                </ul>
+          <div className={styles.bottom}>
+            <div className={styles.legal}>
+              <span>© {year} Honsell</span>
+              {LEGAL_LINKS.map((link) => (
+                <FooterAnchor key={link.label} link={link} />
+              ))}
+            </div>
+
+            <div className={styles.actions}>
+              <div className={styles.payment}>
+                <span>Ödənişlər</span>
+                <span className={styles.paymentChip} title="Ödəniş sistemi: Epoint">
+                  <Image src="/payments/epoint.png" alt="Epoint" width={64} height={24} />
+                </span>
               </div>
-            ))}
-          </nav>
-        </div>
+              <FooterBackToTop className={styles.toTop} labelClassName={styles.toTopLabel} />
+            </div>
+          </div>
 
-        <div className={styles.trustStrip}>
-          <span><Zap aria-hidden /> Ani rəqəmsal çatdırılma</span>
-          <span><ShieldCheck aria-hidden /> Təhlükəsiz ödəniş</span>
-          <span><Clock3 aria-hidden /> Hər gün 10:00–00:00 dəstək</span>
-        </div>
+          <p className={styles.company}>
+            <span>Azərbaycan</span>
+            <a href={PHONE_HREF}>+994 70 256 05 09</a>
+            <a href={`mailto:${EMAIL}`}>{EMAIL}</a>
+          </p>
 
-        <div className={styles.legalRow}>
-          <p>© {year} Honsell. Bütün hüquqlar qorunur.</p>
-          <div>
-            <Link href="/mexfilik-siyaseti">Məxfilik</Link>
-            <Link href="/geri-qaytarma-siyaseti">Geri qaytarma</Link>
+          <div className={styles.watermark} aria-hidden>
+            <span />
           </div>
         </div>
-      </div>
-
-      <div className={styles.mobileFooter}>
-        <div className={styles.mobileTop}>
-          <Link href="/" aria-label="Honsell ana səhifə">
-            <Image
-              src="/honsell-logo.svg"
-              alt="Honsell"
-              width={145}
-              height={25}
-              className="honsell-logo-img"
-            />
-          </Link>
-          <span className={styles.mobileStatus}><i /> Onlayn dəstək</span>
-        </div>
-
-        <p className={styles.mobileTagline}>Rəqəmsal əyləncə, sadə və etibarlı.</p>
-
-        <a
-          href={WHATSAPP_HREF}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.mobileWhatsapp}
-        >
-          <MessageCircle aria-hidden />
-          WhatsApp-da bizə yaz
-          <ArrowUpRight aria-hidden />
-        </a>
-
-        <nav className={styles.mobileLinks} aria-label="Footer naviqasiyası">
-          {mobileLinks.map(([label, href]) => (
-            <Link key={label} href={href}>{label}</Link>
-          ))}
-        </nav>
-
-        <div className={styles.mobileContact}>
-          <a href="tel:+994702560509">+994 70 256 05 09</a>
-          <span aria-hidden>•</span>
-          <a href="mailto:info@honsell.site">info@honsell.site</a>
-        </div>
-
-        <p className={styles.mobileLegal}>© {year} Honsell</p>
       </div>
     </footer>
   );

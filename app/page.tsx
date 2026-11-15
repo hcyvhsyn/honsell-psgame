@@ -20,6 +20,12 @@ import HomeFlashDeals, { type FlashDealCard } from "@/components/HomeFlashDeals"
 import HomeServiceBundles from "@/components/HomeServiceBundles";
 import { loadActiveServiceBundles } from "@/lib/serviceBundles";
 import HomeTestimonials from "@/components/HomeTestimonials";
+import HomeSubscriptionShowcase from "@/components/HomeSubscriptionShowcase";
+import {
+  buildHomeSubscriptionShowcase,
+  isShowcaseSpotifyProduct,
+  type ShowcaseBrand,
+} from "@/lib/homeSubscriptionShowcase";
 import {
   HeroMotionOverlay,
   SectionFlowDivider,
@@ -196,7 +202,10 @@ function serviceBadge(type: string, metadata: unknown): string {
   return SERVICE_TYPE_BADGES[type] ?? "Məhsul";
 }
 
-async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
+async function fetchLandingProducts(): Promise<{
+  products: HomeProductMatrixItem[];
+  showcase: ShowcaseBrand[];
+}> {
   const services = await prisma.serviceProduct.findMany({
     where: {
       isActive: true,
@@ -216,17 +225,17 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
     },
   });
 
-  // Netflix vitrində tək kartdır: ayrı-ayrı paketlər 12 kartlıq limiti doldurub Spotify-ı
-  // çıxarardı və e-poçt/şifrə tələb edən plan birbaşa səbətə düşə bilərdi.
-  // Admin-dən satışa açılan streaming xidmətləri (HBO Max və s.) də eyni qaydada tək kartdır.
-  const netflixCard = buildNetflixLandingCard(services);
-  const streamingCards = [
-    ...(await buildStreamingGroupCards(services)),
-    ...(netflixCard ? [netflixCard] : []),
-  ];
+  // Netflix və Spotify plan paketləri matrisdə deyil, öz vitrinlərindədir (hər plan × müddət
+  // ayrıca kart, `HomeSubscriptionShowcase`). Admin-dən satışa açılan streaming xidmətləri
+  // (HBO Max və s.) matrisdə tək "ayda X ₼-dan" kartıdır.
+  const showcase = buildHomeSubscriptionShowcase(
+    services.filter((service) => !isHiddenFromLanding(service.metadata)),
+  );
+  const streamingCards = await buildStreamingGroupCards(services);
 
   const cards = services
     .filter((service) => !isNetflixProduct(service.type, service.metadata))
+    .filter((service) => !isShowcaseSpotifyProduct(service.type, service.metadata))
     .filter((service) => !isStoreSellableStreaming(service.type, service.metadata))
     .filter((service) => !isHiddenFromLanding(service.metadata))
     .sort((a, b) => {
@@ -250,7 +259,7 @@ async function fetchLandingProducts(): Promise<HomeProductMatrixItem[]> {
       requiresAccount: landingServiceRequiresAccount(service.type, service.metadata),
     }));
 
-  return [...cards, ...streamingCards];
+  return { products: [...cards, ...streamingCards], showcase };
 }
 
 /**
@@ -299,31 +308,6 @@ async function buildStreamingGroupCards(
       requiresAccount: true,
     };
   });
-}
-
-/** Ən ucuz aylıq qiymətli tək "Netflix" kartı; aktiv Netflix paketi yoxdursa `null`. */
-function buildNetflixLandingCard(
-  services: Array<{ type: string; priceAznCents: number; metadata: unknown }>,
-): HomeProductMatrixItem | null {
-  let bestPerMonthCents = Infinity;
-  for (const service of services) {
-    if (!isNetflixProduct(service.type, service.metadata)) continue;
-    const months = Number(asRecord(service.metadata)?.durationMonths);
-    if (!Number.isFinite(months) || months <= 0) continue;
-    bestPerMonthCents = Math.min(bestPerMonthCents, service.priceAznCents / months);
-  }
-  if (!Number.isFinite(bestPerMonthCents)) return null;
-  return {
-    id: "netflix",
-    title: "Netflix",
-    subtitle: "Aylıq başlanğıc qiymət",
-    href: NETFLIX_STORE_PATH,
-    imageUrl: "/netflix-honsell.png",
-    finalAzn: Math.round(bestPerMonthCents) / 100,
-    productType: "STREAMING",
-    badge: "Netflix",
-    requiresAccount: true,
-  };
 }
 
 /**
@@ -407,7 +391,7 @@ async function fetchFlashDeals(
 const getHomePageData = unstable_cache(
   async () => {
   const settings = await getSettings();
-  const [banners, landingProducts, totalsArr, orderCount, testimonialAgg, flashDeals, serviceBundles, openStreamingSlugs] = await Promise.all([
+  const [banners, landing, totalsArr, orderCount, testimonialAgg, flashDeals, serviceBundles, openStreamingSlugs] = await Promise.all([
     prisma.banner
       .findMany({
         where: { isActive: true, scope: "HOME" },
@@ -515,7 +499,8 @@ const getHomePageData = unstable_cache(
   return {
     bannerSlides,
     trustStats,
-    landingProducts,
+    landingProducts: landing.products,
+    subscriptionShowcase: landing.showcase,
     flashDeals,
     serviceBundles,
   };
@@ -529,6 +514,7 @@ export default async function HomePage() {
     bannerSlides,
     trustStats,
     landingProducts,
+    subscriptionShowcase,
     flashDeals,
     serviceBundles,
   } = await getHomePageData();
@@ -628,6 +614,9 @@ export default async function HomePage() {
       <SectionFlowDivider text="Abunəlik paketləri" tone="violet" />
       <HomeProductMatrix products={landingProducts} />
 
+      {/* Netflix və Spotify — hər plan × müddət ayrıca kart (lib/homeSubscriptionShowcase.ts). */}
+      <HomeSubscriptionShowcase brands={subscriptionShowcase} />
+
       {/* Fürsətləri qaçırma — admin panelindən əl ilə seçilən kampaniya oyunları.
           Əvvəlki avtomatik "Endirimdə olan oyunlar" karuselinin yerini tutur.
           Öz başlığı olan bir panel olduğu üçün qabağına SectionFlowDivider qoyulmur. */}
@@ -681,7 +670,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <SiteFooter showSupportCta={false} />
+      <SiteFooter />
     </main>
   );
 }

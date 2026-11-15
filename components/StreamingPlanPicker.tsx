@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
@@ -299,6 +299,7 @@ export default function StreamingPlanPicker({
   serviceOverride,
   allowAnyEmail = false,
   accountLabel = "Netflix",
+  initialProductId,
 }: {
   products: PlanProduct[];
   /** Cart-a yazılan məhsul tipi. PLATFORM (music) üçün "PLATFORM" ötürülür. */
@@ -317,6 +318,8 @@ export default function StreamingPlanPicker({
   allowAnyEmail?: boolean;
   /** Müştəri hesabı formasında xidmət adı ("Plan birbaşa SƏNİN <X> hesabına…"). Admin şəxsi planları üçün. */
   accountLabel?: string;
+  /** Ana səhifə vitrinindən (`?mehsul=`) gələn paket — hazırda yalnız Netflix hesab planlarında seçili açılır. */
+  initialProductId?: string;
 }) {
   const enriched = useMemo(
     () => products.map((p) => ({ p, m: readMeta(p) })).filter((x) => x.m.durationMonths > 0),
@@ -501,6 +504,7 @@ export default function StreamingPlanPicker({
           authMode={authMode}
           platformKind={platformKind}
           allowAnyEmail={allowAnyEmail}
+          initialProductId={initialProductId}
         />
       ) : (
         <>
@@ -701,6 +705,7 @@ function NetflixAccountPlans({
   authMode,
   platformKind,
   allowAnyEmail,
+  initialProductId,
 }: {
   variants: NetflixAccountVariantOption[];
   durationsByVariant: Map<string, Array<{ p: PlanProduct; m: Meta }>>;
@@ -709,6 +714,7 @@ function NetflixAccountPlans({
   authMode?: "GMAIL" | "GMAIL_PASSWORD";
   platformKind?: string;
   allowAnyEmail?: boolean;
+  initialProductId?: string;
 }) {
   return (
     <section aria-label="Netflix hesab planını seç" className="space-y-4">
@@ -740,6 +746,7 @@ function NetflixAccountPlans({
             authMode={authMode}
             platformKind={platformKind}
             allowAnyEmail={allowAnyEmail}
+            initialProductId={initialProductId}
           />
         ))}
       </div>
@@ -824,6 +831,7 @@ function NetflixAccountPlanCard({
   authMode,
   platformKind,
   allowAnyEmail,
+  initialProductId,
 }: {
   variant: NetflixAccountVariantOption;
   durations: Array<{ p: PlanProduct; m: Meta }>;
@@ -832,17 +840,32 @@ function NetflixAccountPlanCard({
   authMode?: "GMAIL" | "GMAIL_PASSWORD";
   platformKind?: string;
   allowAnyEmail?: boolean;
+  initialProductId?: string;
 }) {
   const spec = netflixPlanSpec(variant);
   const available = durations.length > 0;
-  const [selectedId, setSelectedId] = useState<string>(durations[0]?.p.id ?? "");
+  // Vitrindən gələn paket bu plandadırsa onun müddəti seçili açılır və kart vurğulanır.
+  const preselected = !!initialProductId && durations.some((d) => d.p.id === initialProductId);
+  const [selectedId, setSelectedId] = useState<string>(
+    preselected ? initialProductId! : durations[0]?.p.id ?? "",
+  );
   const selected = durations.find((d) => d.p.id === selectedId) ?? durations[0] ?? null;
   const isPremium = /premium/i.test(variant.name);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (preselected) cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [preselected]);
 
   return (
     <div
-      className={`group relative flex h-full flex-col overflow-hidden rounded-[24px] border bg-zinc-950/80 transition duration-200 ${
-        available ? "border-zinc-200 dark:border-white/10 hover:border-zinc-200 dark:hover:border-white/25" : "border-zinc-200 dark:border-white/10 opacity-70"
+      ref={cardRef}
+      className={`group relative flex h-full scroll-mt-24 flex-col overflow-hidden rounded-[24px] border bg-zinc-950/80 transition duration-200 ${
+        preselected
+          ? "border-violet-500 ring-2 ring-violet-500/40"
+          : available
+            ? "border-zinc-200 dark:border-white/10 hover:border-zinc-200 dark:hover:border-white/25"
+            : "border-zinc-200 dark:border-white/10 opacity-70"
       }`}
     >
       {/* Başlıq — sayt teması (qaranlıq), Netflix-in rəsmi rəngləri deyil. */}

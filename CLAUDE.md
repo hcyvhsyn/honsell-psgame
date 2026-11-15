@@ -113,7 +113,15 @@ Tək mənbə: [lib/streamingAccess.ts](lib/streamingAccess.ts) (client-safe). Ad
   → `isSellableServiceProduct` / `sellableServiceWhere`. Netflix koda görə həmişə açıqdır, bayraqdan asılı deyil.
 - **Qiymət cədvəli boş xana = satışdan çıxır** (`isActive=false`), paket SİLİNMİR (sifariş tarixçəsi).
 - **Vitrin**: `/streaming/<xidmət>` — iki rejim varsa seçim ekranı, `?secim=sexsi|paylasimli` (+`&paket=`).
-  Plan slug-ı üst xidmətə yönləndirir. Ana səhifədə hər xidmətə tək "ayda X ₼-dan" kartı.
+  Plan slug-ı üst xidmətə yönləndirir. Ana səhifə matrisində admin xidmətlərinə (HBO Max və s.) tək
+  "ayda X ₼-dan" kartı; **Netflix və Spotify isə öz vitrinindədir** (aşağıya bax).
+- **Ana səhifə vitrini (2026-11)**: [lib/homeSubscriptionShowcase.ts](lib/homeSubscriptionShowcase.ts) (saf) +
+  [HomeSubscriptionShowcase](components/HomeSubscriptionShowcase.tsx) (server komponenti, şəkilsiz). Netflix: hər plan
+  (Basic/Standart/Premium, Yanımda/Evimdə/Evimdə VIP) × nəfər bir sətir, hər müddət ayrıca kart; Spotify: Individual/
+  Duo/Family. Kart səbətə atmır — `?mehsul=<id>` linkidir, alış səhifəsi həmin paketi seçili açır
+  (`NetflixCabinetPicker`/`NetflixAccountPlanCard` server-dən, `SpotifyPlanPicker` mount-da URL-dən — music səhifəsi
+  statik qalsın deyə). Bu paketlər matrisə düşmür (`isNetflixProduct`, `isShowcaseSpotifyProduct`). `hideFromLanding`
+  burada da işləyir. Test: `npm run test:homeshowcase`.
 - **Netflix kilidlidir** (`isLockedStreamingGroup`): vitrini koddadır (`lib/streamingGroups.ts`), planları CRM
   xəritəsinə bağlıdır (`lib/crmNetflix.ts`) — admin plan əlavə/silə bilməz, yalnız qiymət/cihaz/stok.
   DB sütunları boş olsa da `resolvePlatformGroup` Netflix kodlarını tanıyır.

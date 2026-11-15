@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { stripRegionCodes } from "@/lib/customerProductTitle";
 import ReviewForm from "./ReviewForm";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ export default async function ReviewInvitePage({
         <header className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Rəyini bizimlə bölüş</h1>
           <p className="mt-2 text-sm text-zinc-400">
-            <span className="text-zinc-200">{invite.productTitle}</span> üçün təcrübəni qiymətləndir.
+            <span className="text-zinc-200">{stripRegionCodes(invite.productTitle)}</span> üçün təcrübəni qiymətləndir.
             Rəyin başqa müştərilərə qərar verməyə yardım edir.
           </p>
         </header>
@@ -58,7 +59,7 @@ export default async function ReviewInvitePage({
         ) : (
           <ReviewForm
             token={invite.token}
-            productTitle={invite.productTitle}
+            productTitle={stripRegionCodes(invite.productTitle)}
             defaultName={inviteUser?.name ?? inviteUser?.email.split("@")[0] ?? "Müştəri"}
           />
         )}

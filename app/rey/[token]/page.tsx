@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { stripRegionCodes } from "@/lib/customerProductTitle";
 import ReviewWizardClient from "./ReviewWizardClient";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,8 @@ export default async function WhatsappReviewPage({
 
   if (!invite) notFound();
 
+  // Düzəlişdən əvvəl yaranmış dəvətlərdə CRM region kodu qala bilər ("(TR)").
+  const productTitle = stripRegionCodes(invite.productTitle);
   const used = invite.usedAt != null || invite.status === "SUBMITTED";
   const expired = invite.expiresAt.getTime() < Date.now();
 
@@ -50,7 +53,7 @@ export default async function WhatsappReviewPage({
         <header className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Rəyini bizimlə bölüş</h1>
           <p className="mt-2 text-sm text-zinc-400">
-            <span className="text-zinc-200">{invite.productTitle}</span> üçün təcrübəni
+            <span className="text-zinc-200">{productTitle}</span> üçün təcrübəni
             qiymətləndir. Bir neçə addımda tamamlanır — həm rəyin dərc olunur, həm də
             honsell.site hesabın yaranır.
           </p>
@@ -75,7 +78,7 @@ export default async function WhatsappReviewPage({
         ) : (
           <ReviewWizardClient
             token={invite.token}
-            productTitle={invite.productTitle}
+            productTitle={productTitle}
             knownCustomer={knownCustomer}
           />
         )}

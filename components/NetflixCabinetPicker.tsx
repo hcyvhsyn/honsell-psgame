@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, ShoppingCart, Users } from "lucide-react";
 import { useCart } from "@/lib/cart";
@@ -85,21 +85,34 @@ export default function NetflixCabinetPicker({
   tiers,
   products,
   initialKey,
+  initialProductId,
   serviceLabel = "Netflix",
 }: {
   tiers: NetflixCabinetTier[];
   products: NetflixCabinetProduct[];
   initialKey?: string;
+  /** Ana səhifə vitrinindən (`?mehsul=`) gələn paket: paket + nəfər + müddət onunla seçili açılır. */
+  initialProductId?: string;
   serviceLabel?: string;
 }) {
   const cart = useCart();
   const rows = useMemo(() => products.map(toRow).filter((r) => r.months > 0), [products]);
   const available = useMemo(() => tiers.filter((t) => rows.some((r) => r.code === t.code)), [tiers, rows]);
+  // Yalnız ilk render üçün — sonra müştərinin öz seçimi keçərlidir.
+  const initialRow = initialProductId ? rows.find((r) => r.id === initialProductId) : undefined;
+  const initialTierKey = initialRow ? tiers.find((t) => t.code === initialRow.code)?.key : undefined;
 
-  const [tierKey, setTierKey] = useState(initialKey ?? "");
-  const [seatsWanted, setSeatsWanted] = useState(1);
-  const [monthsWanted, setMonthsWanted] = useState(0);
+  const [tierKey, setTierKey] = useState(initialTierKey ?? initialKey ?? "");
+  const [seatsWanted, setSeatsWanted] = useState(initialRow?.seats ?? 1);
+  const [monthsWanted, setMonthsWanted] = useState(initialRow?.months ?? 0);
   const [termsOpen, setTermsOpen] = useState(false);
+  const summaryRef = useRef<HTMLElement>(null);
+  const preselected = Boolean(initialRow);
+
+  // Vitrindən konkret paketə gəlibsə seçim artıq hazırdır — səbət düyməsi olan xülasəni göstər.
+  useEffect(() => {
+    if (preselected) summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [preselected]);
 
   // Seçim mövcud birləşməyə düşmürsə ən yaxın mövcud dəyər götürülür (paket dəyişəndə də).
   const tier = available.find((t) => t.key === tierKey) ?? available[0] ?? null;
@@ -260,7 +273,10 @@ export default function NetflixCabinetPicker({
         </div>
       </section>
 
-      <section className="flex flex-col gap-4 rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-900/60 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <section
+        ref={summaryRef}
+        className="flex scroll-mt-24 flex-col gap-4 rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-900/60 p-5 sm:flex-row sm:items-center sm:justify-between"
+      >
         <div>
           <p className="text-sm font-semibold text-zinc-300">
             {tier.name} · {seats} nəfər · {months} ay

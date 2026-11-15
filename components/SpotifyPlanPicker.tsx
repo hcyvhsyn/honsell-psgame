@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowDown,
@@ -171,6 +171,27 @@ export default function SpotifyPlanPicker({
   const [selected, setSelected] = useState<PlanItem | null>(null);
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  /** Ana səhifə vitrinindən (`?mehsul=`) gələn paket — vurğulanır. */
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  // Səhifə statik keşlənir (revalidate) — `searchParams` server-də oxunmur ki, dinamik olmasın;
+  // parametr mount-da URL-dən götürülür, planı seçib kartı göstərir.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("mehsul");
+    const product = id ? products.find((p) => p.id === id) : undefined;
+    const meta = product ? readMeta(product) : null;
+    if (!product || !meta) return;
+    setActiveTier(meta.planTier);
+    setHighlightId(product.id);
+  }, [products]);
+
+  // Ayrı effekt: plan tab-ı dəyişəndən SONRAKI render-də kart DOM-dadır.
+  useEffect(() => {
+    if (!highlightId) return;
+    document
+      .getElementById(`spotify-plan-${highlightId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightId]);
 
   const groups = useMemo(() => {
     const byTier = new Map<SpotifyPlanTier, PlanItem[]>();
@@ -388,7 +409,10 @@ export default function SpotifyPlanPicker({
             return (
               <li
                 key={product.id}
-                className={`group relative flex min-h-[430px] flex-col overflow-hidden rounded-lg border ${accent.ring} bg-zinc-900 ${accent.glow} transition duration-200 hover:-translate-y-0.5 hover:border-violet-500`}
+                id={`spotify-plan-${product.id}`}
+                className={`group relative flex min-h-[430px] scroll-mt-24 flex-col overflow-hidden rounded-lg border ${
+                  highlightId === product.id ? "border-violet-500 ring-2 ring-violet-500/40" : accent.ring
+                } bg-zinc-900 ${accent.glow} transition duration-200 hover:-translate-y-0.5 hover:border-violet-500`}
               >
                 <div className="relative aspect-[16/10] overflow-hidden bg-zinc-950">
                   {productImage ? (

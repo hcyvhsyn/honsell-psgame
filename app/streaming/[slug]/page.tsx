@@ -49,12 +49,14 @@ export default async function StreamingServicePage({
   searchParams,
 }: {
   params: Promise<Params>;
-  searchParams: Promise<{ secim?: string | string[]; paket?: string | string[] }>;
+  searchParams: Promise<{ secim?: string | string[]; paket?: string | string[]; mehsul?: string | string[] }>;
 }) {
   const { slug } = await params;
-  const { secim, paket } = await searchParams;
+  const { secim, paket, mehsul } = await searchParams;
   const groupSelection = Array.isArray(secim) ? secim[0] : secim;
   const initialPackage = Array.isArray(paket) ? paket[0] : paket;
+  // Ana səhifə vitrinindən (lib/homeSubscriptionShowcase.ts) gələn konkret paket — seçili açılır.
+  const initialProductId = Array.isArray(mehsul) ? mehsul[0] : mehsul;
 
   if (slug === "netflix-vvip") {
     redirect("/streaming/netflix-hesab");
@@ -109,6 +111,7 @@ export default async function StreamingServicePage({
       detailHref={`/streaming/${svc.slug}`}
       groupSelection={groupSelection}
       initialPackage={initialPackage}
+      initialProductId={initialProductId}
     />
   );
 }

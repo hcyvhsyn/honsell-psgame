@@ -21,6 +21,7 @@ import { findCustomerByPhone } from "@/lib/whatsappCustomerLookup";
 import { isReviewCategoryOverride } from "@/lib/reviewCategoryShared";
 import { computeDisplayPrice, getSettings } from "@/lib/pricing";
 import { serviceProductLabel } from "@/lib/serviceProductLabel";
+import { stripRegionCodes } from "@/lib/customerProductTitle";
 import {
   REVIEW_SERVICE_TYPES,
   derivePlatform,
@@ -253,9 +254,10 @@ export async function createWhatsappReviewInvite(
     }
   }
 
-  const combinedTitle = products.length
-    ? products.map((p) => p.title).join(" + ")
-    : freeTitle;
+  // Region kodları ("Netflix Evimdə (TR)") müştəriyə getməsin — WhatsApp mətni, /rey səhifəsi, rəy.
+  const combinedTitle = stripRegionCodes(
+    products.length ? products.map((p) => p.title).join(" + ") : freeTitle
+  );
   const totalPriceCents = products.length
     ? products.reduce((sum, p) => sum + p.priceAznCents, 0)
     : null;
