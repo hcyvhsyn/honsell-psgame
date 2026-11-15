@@ -1109,57 +1109,60 @@ export default function OrdersAdminClient() {
           )}
 
           {tab === "streaming" && (
-            <OrdersTable
-              empty="Gözləyən streaming sifarişi yoxdur."
-              rows={(data.streamingOrders ?? []).map((o) => {
-                const meta = parseStreamingMeta(o.metadata);
-                return {
-                  id: o.id,
-                  userId: o.user.id,
-                  userLabel: o.user.name ?? o.user.email,
-                  userSub: o.user.email,
-                  item: itemLabelWithBundle(o.serviceProduct?.title ?? "Streaming", o.metadata),
-                  itemSub: (
-                    <div className="space-y-1">
-                      <div>
-                        {meta.deliveryMode === "GMAIL"
-                          ? meta.gmail
-                            ? `E-poçt: ${meta.gmail}`
-                            : "E-poçt (məlumat yoxdur)"
-                          : isNetflixProduct(o.serviceProduct?.type, o.serviceProduct?.metadata)
-                            ? "Bizim hesabda otaq"
-                            : "Manual təsdiq"}
-                      </div>
-                      {/* Admin-dən qurulan şəxsi hesab planı (HBO Max və s.) CRM-ə getmir — şifrə burada lazımdır. */}
-                      {meta.deliveryMode === "GMAIL" &&
-                        meta.customerPassword &&
-                        !isNetflixProduct(o.serviceProduct?.type, o.serviceProduct?.metadata) && (
-                          <div className="font-mono">Şifrə: {meta.customerPassword}</div>
+            <>
+              <CrmRetryAllBar orders={data.streamingOrders ?? []} onDone={() => load({ silent: true })} />
+              <OrdersTable
+                empty="Gözləyən streaming sifarişi yoxdur."
+                rows={(data.streamingOrders ?? []).map((o) => {
+                  const meta = parseStreamingMeta(o.metadata);
+                  return {
+                    id: o.id,
+                    userId: o.user.id,
+                    userLabel: o.user.name ?? o.user.email,
+                    userSub: o.user.email,
+                    item: itemLabelWithBundle(o.serviceProduct?.title ?? "Streaming", o.metadata),
+                    itemSub: (
+                      <div className="space-y-1">
+                        <div>
+                          {meta.deliveryMode === "GMAIL"
+                            ? meta.gmail
+                              ? `E-poçt: ${meta.gmail}`
+                              : "E-poçt (məlumat yoxdur)"
+                            : isNetflixProduct(o.serviceProduct?.type, o.serviceProduct?.metadata)
+                              ? "Bizim hesabda otaq"
+                              : "Manual təsdiq"}
+                        </div>
+                        {/* Admin-dən qurulan şəxsi hesab planı (HBO Max və s.) CRM-ə getmir — şifrə burada lazımdır. */}
+                        {meta.deliveryMode === "GMAIL" &&
+                          meta.customerPassword &&
+                          !isNetflixProduct(o.serviceProduct?.type, o.serviceProduct?.metadata) && (
+                            <div className="font-mono">Şifrə: {meta.customerPassword}</div>
+                          )}
+                        {isNetflixProduct(o.serviceProduct?.type, o.serviceProduct?.metadata) && (
+                          <CrmOrderSync key={o.metadata ?? ""} orderId={o.id} metadata={o.metadata} netflix />
                         )}
-                      {isNetflixProduct(o.serviceProduct?.type, o.serviceProduct?.metadata) && (
-                        <CrmOrderSync orderId={o.id} metadata={o.metadata} netflix />
-                      )}
-                    </div>
-                  ),
-                  paymentSource: getPaymentSource(o.metadata),
-                  amount: fmtAzn(o.amountAznCents),
-                  date: fmtDate(o.createdAt),
-                  actions: (
-                    <RowActions
-                      pending={pending}
-                      onApprove={() => actService(o.id, "SUCCESS", "streamingOrders")}
-                      onReject={() =>
-                        rejectService(
-                          o.id,
-                          o.serviceProduct?.title ?? "Streaming",
-                          "streamingOrders"
-                        )
-                      }
-                    />
-                  ),
-                };
-              })}
-            />
+                      </div>
+                    ),
+                    paymentSource: getPaymentSource(o.metadata),
+                    amount: fmtAzn(o.amountAznCents),
+                    date: fmtDate(o.createdAt),
+                    actions: (
+                      <RowActions
+                        pending={pending}
+                        onApprove={() => actService(o.id, "SUCCESS", "streamingOrders")}
+                        onReject={() =>
+                          rejectService(
+                            o.id,
+                            o.serviceProduct?.title ?? "Streaming",
+                            "streamingOrders"
+                          )
+                        }
+                      />
+                    ),
+                  };
+                })}
+              />
+            </>
           )}
 
           {tab === "ai" && (
@@ -1173,13 +1176,16 @@ export default function OrdersAdminClient() {
           )}
 
           {tab === "music" && (
-            <PlatformOrdersTable
-              orders={data.musicOrders ?? []}
-              empty="Gözləyən musiqi sifarişi yoxdur."
-              pending={pending}
-              onApprove={(id) => actService(id, "SUCCESS", "musicOrders")}
-              onReject={(id, title) => rejectService(id, title, "musicOrders")}
-            />
+            <>
+              <CrmRetryAllBar orders={data.musicOrders ?? []} onDone={() => load({ silent: true })} />
+              <PlatformOrdersTable
+                orders={data.musicOrders ?? []}
+                empty="Gözləyən musiqi sifarişi yoxdur."
+                pending={pending}
+                onApprove={(id) => actService(id, "SUCCESS", "musicOrders")}
+                onReject={(id, title) => rejectService(id, title, "musicOrders")}
+              />
+            </>
           )}
 
           {tab === "work" && (
@@ -2398,6 +2404,78 @@ function CrmOrderSync({
   );
 }
 
+/** Gözləyən sifariş CRM-ə göndərilə bilməyib (avtomatik göndəriş uğursuz) — CrmOrderSync ilə eyni meyar. */
+function hasCrmSyncError(metadata?: string | null): boolean {
+  try {
+    const meta = metadata ? (JSON.parse(metadata) as Record<string, unknown>) : {};
+    return typeof meta.crmSyncError === "string" && !meta.crmSyncedAt;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Spotify / Netflix: CRM-ə gedə bilməmiş bütün gözləyən sifarişləri bir düymə ilə yenidən göndərir
+ * (POST /api/admin/service-orders/crm-retry — idempotent). Məs. CRM müvəqqəti əlçatmaz olubsa.
+ */
+function CrmRetryAllBar({ orders, onDone }: { orders: { metadata?: string | null }[]; onDone: () => void }) {
+  const failedCount = orders.filter((o) => hasCrmSyncError(o.metadata)).length;
+  const [state, setState] = useState<{ busy: boolean; result: string | null; error: boolean }>({
+    busy: false,
+    result: null,
+    error: false,
+  });
+  if (failedCount === 0 && !state.result) return null;
+
+  async function retryAll() {
+    setState({ busy: true, result: null, error: false });
+    try {
+      const res = await fetch("/api/admin/service-orders/crm-retry", { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as {
+        total?: number;
+        ok?: number;
+        failed?: { id: string; error: string }[];
+        error?: string;
+      };
+      if (!res.ok) {
+        setState({ busy: false, result: data.error || "Göndərilmədi", error: true });
+        return;
+      }
+      const failed = data.failed ?? [];
+      setState({
+        busy: false,
+        result:
+          failed.length === 0
+            ? `${data.ok ?? 0} sifariş CRM-ə göndərildi.`
+            : `${data.ok ?? 0}/${data.total ?? 0} göndərildi. Xəta: ${failed[0].error}`,
+        error: failed.length > 0,
+      });
+      onDone();
+    } catch (e) {
+      setState({ busy: false, result: e instanceof Error ? e.message : "Şəbəkə xətası", error: true });
+    }
+  }
+
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+      {failedCount > 0 && <span className="font-semibold">{failedCount} sifariş CRM-ə göndərilə bilməyib.</span>}
+      {failedCount > 0 && (
+        <button
+          type="button"
+          onClick={retryAll}
+          disabled={state.busy}
+          className="rounded-md border border-rose-300 bg-white px-2 py-1 font-bold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+        >
+          {state.busy ? "Göndərilir..." : "Hamısını CRM-ə yenidən göndər"}
+        </button>
+      )}
+      {state.result && (
+        <span className={state.error ? "font-medium text-rose-700" : "font-medium text-emerald-700"}>{state.result}</span>
+      )}
+    </div>
+  );
+}
+
 function PlatformOrdersTable({
   orders,
   empty,
@@ -2455,7 +2533,7 @@ function PlatformOrdersTable({
                 )}
               </div>
             )}
-            <CrmOrderSync orderId={o.id} metadata={o.metadata} />
+            <CrmOrderSync key={o.metadata ?? ""} orderId={o.id} metadata={o.metadata} />
           </div>
         ) : (
           platformDurationLabel(o)
