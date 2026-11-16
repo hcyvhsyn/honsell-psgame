@@ -6,7 +6,11 @@ import crypto from "node:crypto";
  */
 export const ABUNELIK_TTL_SECONDS = 2 * 60 * 60;
 
-type Payload = { p9: string; e164: string; uid: string | null; exp: number; v: 1 };
+/** `k: "link"` — WhatsApp-a göndərilən birbaşa giriş linki; cookie tokenində `k` yoxdur (bir-birinin yerinə keçmir). */
+type Payload = { p9: string; e164: string; uid: string | null; exp: number; v: 1; k?: "link" };
+
+/** WhatsApp birbaşa giriş linkinin ömrü */
+export const ABUNELIK_LINK_TTL_SECONDS = 24 * 60 * 60;
 
 function secret(): string | null {
   const s = process.env.ABUNELIK_COOKIE_SECRET?.trim();
@@ -32,7 +36,7 @@ export function createPhoneToken(p: { e164: string; phone9: string; uid: string 
   return `${b64}.${sign(b64, key)}`;
 }
 
-export function verifyPhoneToken(token: string | null | undefined): Payload | null {
+function decode(token: string | null | undefined): Payload | null {
   const key = secret();
   if (!key || !token) return null;
   const [b64, sig] = token.split(".");
@@ -51,3 +55,25 @@ export function verifyPhoneToken(token: string | null | undefined): Payload | nu
   }
 }
 
+/** Cookie tokeni (link tokeni burada keçmir). */
+export function verifyPhoneToken(token: string | null | undefined): Payload | null {
+  const p = decode(token);
+  return p && !p.k ? p : null;
+}
+
+/**
+ * WhatsApp-a göndərilən birbaşa giriş linki (CRM mağazadan istəyir — /api/partner/abunelik-link).
+ * Link həmin nömrənin WhatsApp-ına getdiyi üçün OTP kodu qədər sübutdur; 24 saat etibarlıdır.
+ */
+export function createLinkToken(p: { e164: string; phone9: string }): string {
+  const key = secret();
+  if (!key) throw new Error("ABUNELIK_COOKIE_SECRET təyin olunmayıb");
+  const payload: Payload = { p9: p.phone9, e164: p.e164, uid: null, exp: Date.now() + ABUNELIK_LINK_TTL_SECONDS * 1000, v: 1, k: "link" };
+  const b64 = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  return `${b64}.${sign(b64, key)}`;
+}
+
+export function verifyLinkToken(token: string | null | undefined): Payload | null {
+  const p = decode(token);
+  return p && p.k === "link" ? p : null;
+}

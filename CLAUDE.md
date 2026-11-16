@@ -1040,6 +1040,10 @@ bitmiş), giriş məlumatları və **CRM `/pricing` qiyməti ilə** (3% haqq YOX
   `crmSyncError` daşıyır və "Hamısını CRM-ə yenidən göndər" (`crm-retry`) onu da götürür (idempotent).
 - `FAILED` = CRM uzatmadı (məs. slot arada boşaldılıb) → müştəriyə geri ödəniş: "Cüzdana qaytar" CRM qiymətini
   (round-up onsuz da cüzdandadır) bir dəfə yazır; kart geri ödənişi Epoint kabinetindən.
+- **WhatsApp birbaşa giriş linki:** CRM abunəçi yazanda 7 gündə bir `POST /api/partner/abunelik-link` ilə link istəyir →
+  `/abunelik/giris?t=<token>` (24 saat, `createLinkToken`, `k: "link"` — cookie tokeni ilə bir-birinin yerinə keçmir).
+  Route telefon cookie-sini qoyur, sayt hesabını OTP ilə EYNİ qaydada bağlayır (`lib/abunelik/login.ts`) və tokensiz
+  `/abunelik`-ə yönləndirir. WhatsApp/Facebook önizləmə botları giriş etmir (user-agent). Vaxtı keçmiş → `?link=kohne`.
 - Söndürmə/açma: `ABUNELIK_ENABLED=1` (yoxdursa səhifə "Tezliklə", API 404). Lokal: `ABUNELIK_OTP_DEV_ECHO=1`
   (kod log-a), `EPOINT_MOCK=1` (Epoint-ə getmir) — hər ikisi production-da işləmir.
 

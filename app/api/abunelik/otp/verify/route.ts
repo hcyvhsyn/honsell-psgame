@@ -1,18 +1,9 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { SESSION_COOKIE_NAME } from "@/lib/auth";
-import { findUsersByPhone9, normalizeAzPhone } from "@/lib/abunelik/phone";
-import {
-  ABUNELIK_COOKIE,
-  createPhoneToken,
-  isAbunelikConfigured,
-  isAbunelikEnabled,
-  phoneCookieOptions,
-  sessionCookieOptions,
-} from "@/lib/abunelik/session";
+import { normalizeAzPhone } from "@/lib/abunelik/phone";
+import { isAbunelikConfigured, isAbunelikEnabled } from "@/lib/abunelik/session";
 import { OTP_MAX_ATTEMPTS, OTP_PURPOSE, otpMatches } from "@/lib/abunelik/otp";
-import { getClientIp } from "@/lib/clientInfo";
+import { applyPhoneLogin, resolvePhoneLogin } from "@/lib/abunelik/login";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -71,41 +62,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Kod artıq istifadə olunub. Yeni kod istəyin." }, { status: 401 });
   }
 
-  // ── Sayt hesabı ──
-  const sessionUid = cookies().get(SESSION_COOKIE_NAME)?.value || null;
-  const current = sessionUid ? await prisma.user.findUnique({ where: { id: sessionUid } }) : null;
-
-  let uid: string | null = null;
-  let account: "session" | "linked" | "none" | "ambiguous";
-  let loginUserId: string | null = null;
-  if (current && !current.disabled) {
-    uid = current.id;
-    account = "session";
-    if (!current.phone) await prisma.user.update({ where: { id: current.id }, data: { phone: phone.e164 } });
-  } else {
-    const candidates = (await findUsersByPhone9(phone.phone9)).filter((u) => !u.disabled && u.role !== "ADMIN");
-    if (candidates.length === 1) {
-      uid = candidates[0].id;
-      loginUserId = uid;
-      account = "linked";
-    } else {
-      account = candidates.length === 0 ? "none" : "ambiguous";
-    }
-  }
-
-  const res = NextResponse.json({ ok: true, account });
-  res.cookies.set(ABUNELIK_COOKIE, createPhoneToken({ e164: phone.e164, phone9: phone.phone9, uid }), phoneCookieOptions);
-  if (loginUserId) {
-    await prisma.user.update({
-      where: { id: loginUserId },
-      data: {
-        lastLoginAt: new Date(),
-        lastLoginIp: getClientIp(req) === "unknown" ? null : getClientIp(req),
-        lastUserAgent: req.headers.get("user-agent")?.slice(0, 500) ?? null,
-        loginCount: { increment: 1 },
-      },
-    });
-    res.cookies.set(SESSION_COOKIE_NAME, loginUserId, sessionCookieOptions);
-  }
+  // ── Sayt hesabı (lib/abunelik/login.ts — WhatsApp birbaşa giriş linki ilə ortaq) ──
+  const login = await resolvePhoneLogin(phone);
+  const res = NextResponse.json({ ok: true, account: login.account });
+  await applyPhoneLogin(res, req, phone, login);
   return res;
 }

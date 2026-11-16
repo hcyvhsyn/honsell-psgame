@@ -49,3 +49,18 @@ assert.deepEqual(renewalCharge(12.99), { priceCents: 1299, chargeCents: 1299, to
 assert.deepEqual(renewalCharge(5), { priceCents: 500, chargeCents: 500, topUpCents: 0 });
 
 console.log("crmRenewal: bütün testlər keçdi");
+
+// ── Birbaşa giriş linki ──
+import("../lib/abunelik/token").then(({ createLinkToken, verifyLinkToken, createPhoneToken: cpt, verifyPhoneToken: vpt }) => {
+  process.env.ABUNELIK_COOKIE_SECRET = "test-secret";
+  const link = createLinkToken({ e164: az.e164, phone9: az.phone9 });
+  assert.equal(verifyLinkToken(link)?.p9, az.phone9);
+  assert.equal(vpt(link), null, "link tokeni cookie kimi keçmir");
+  const cookieTok = cpt({ e164: az.e164, phone9: az.phone9, uid: null });
+  assert.equal(verifyLinkToken(cookieTok), null, "cookie tokeni link kimi keçmir");
+  const now = Date.now;
+  Date.now = () => now() + 25 * 60 * 60 * 1000;
+  assert.equal(verifyLinkToken(link), null, "link 24 saatdan sonra keçmir");
+  Date.now = now;
+  console.log("crmRenewal link: testlər keçdi");
+});

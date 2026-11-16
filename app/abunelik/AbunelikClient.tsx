@@ -273,7 +273,10 @@ export default function AbunelikClient({ initialVerified }: { initialVerified: b
     const tx = sp.get("o") || undefined;
     if (odenis === "ugurlu") setPayBanner({ kind: "ok", text: "Ödəniş qəbul edildi — yeniləmə emal olunur…", txId: tx });
     else if (odenis === "xeta") setPayBanner({ kind: "err", text: "Ödəniş alınmadı. Kartdan pul tutulmayıbsa yenidən cəhd edin." });
-    if (odenis) window.history.replaceState(null, "", "/abunelik");
+    // WhatsApp birbaşa giriş linkindən qayıdış (/abunelik/giris)
+    if (sp.get("link") === "kohne") setError("Giriş linkinin vaxtı keçib. Nömrənizi yazıb WhatsApp kodu ilə daxil olun.");
+    if (sp.get("giris") === "coxlu") setAccountState("ambiguous");
+    if (odenis || sp.get("link") || sp.get("giris")) window.history.replaceState(null, "", "/abunelik");
   }, []);
 
   useEffect(() => {
