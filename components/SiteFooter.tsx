@@ -86,7 +86,7 @@ export default function SiteFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className={styles.footer}>
+    <footer className={`honsell-site-footer ${styles.footer}`}>
       <div className={styles.shell}>
         <div className={styles.panel}>
           <div className={styles.top}>

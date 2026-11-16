@@ -489,6 +489,16 @@ html {
   }
 }
 
+/* Alt menyu (SiteHeader `MobileBottomNav`, fixed, xl:hidden) 1280px-dən dar HƏR ekranda —
+   telefon VƏ planşet/iPad — görünür və səhifənin sonunu örtür. Footer-li səhifədə boşluğu
+   footer özü verir (SiteFooter.module.css); footer-siz səhifələrdə (/oyunlar, /cart,
+   /profile… ~30 səhifə) səhifələmə və son düymələr menyunun altında qalırdı. */
+@media (max-width: 1279.98px) {
+  body:has(.honsell-mobile-bottom-nav):not(:has(.honsell-site-footer)) {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+}
+
 :root.light .honsell-mobile-bottom-bar .text-slate-400 { color: #475569 !important; }
 :root.light .honsell-mobile-bottom-bar .text-violet-100 { color: #5b21b6 !important; }
 :root.light .honsell-mobile-bottom-bar .text-sky-300 { color: #0284c7 !important; }

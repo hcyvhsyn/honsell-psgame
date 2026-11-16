@@ -38,6 +38,11 @@ həndəsəni verir, ona görə qarışıq olması problem deyil.
   bağlıdır. Konteyner enini dəyişmək lazımdırsa **yalnız `:root` tokenini** dəyiş —
   navbar, footer və bütün səhifələr birlikdə sürüşür.
 
+**Alt menyu boşluğu qlobaldır.** `MobileBottomNav` (fixed, `xl:hidden`) 1280px-dən dar hər
+ekranda — iPad daxil — görünür. Footer-li səhifədə boşluğu footer verir, footer-siz səhifədə
+`body:has(.honsell-mobile-bottom-nav):not(:has(.honsell-site-footer))` ([app/globals.css](app/globals.css)).
+Yeni səhifəyə bunun üçün `pb-24` və s. **əlavə etmə**; `SiteFooter`-dən `honsell-site-footer` sinfini silmə.
+
 ⚠️ Navbar-ın daxili padding-i (`px-4 md:px-5 xl:px-6`) qabığın **içindədir** — o, kartın
 sərhədini yerindən tərpətmir. Hizalanma meyarı qabığın **kənarı**dır, loqonun yeri yox.
 

@@ -226,7 +226,8 @@
 
 /* ── Responsiv ──────────────────────────────────────────────────────── */
 
-/* Mobil alt menyu (SiteHeader `MobileBottomNav`, xl:hidden) footer-in üstünü örtməsin. */
+/* Mobil alt menyu (SiteHeader `MobileBottomNav`, xl:hidden) footer-in üstünü örtməsin.
+   Footer-siz səhifələrdə eyni boşluğu body verir (globals.css, `.honsell-site-footer` markeri). */
 @media (max-width: 1279.98px) {
   .footer { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
 }
