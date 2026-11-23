@@ -79,8 +79,9 @@ ağır şəkillər** idi. Ölçmə: `/oyunlar` mobil — blur elementi 142 → 2
 
 Tək mənbə: [lib/storeScope.ts](lib/storeScope.ts) (client-safe, saf). Satılan:
 PS oyunları (`Game.store = "PS"`), `PS_PLUS`, `EA_PLAY`, `TRY_BALANCE`,
-`ACCOUNT_CREATION` (TR PSN hesabı), Spotify Premium (`PLATFORM` + `metadata.musicBrand
-= "SPOTIFY"`, sifariş CRM-ə gedir — `lib/crmSpotify.ts`), Netflix (`STREAMING` +
+`ACCOUNT_CREATION` (TR PSN hesabı), Spotify Premium (`PLATFORM` + `isSpotifyMusicBrand(metadata.musicBrand)`
+— ⚠️ music admin brendi platforma kodundan yazır: lokal `SPOTIFY`, **prod `SPOTIFY_PREMIUM`**; `=== "SPOTIFY"`
+yazma, yoxsa prod Spotify satışdan düşür (2026-11-də belə olmuşdu); sifariş CRM-ə gedir — `lib/crmSpotify.ts`), Netflix (`STREAMING` +
 `metadata.service` ∈ `NETFLIX_SERVICE_CODES`, sifariş CRM-ə gedir — `lib/crmNetflix.ts`,
 `/streaming/netflix` iki seçimlidir: öz hesabına plan (hesabı var/yoxdur, e-poçt + şifrə) və ya
 bizim hesabda otaq (`NetflixCabinetPicker`: paket + 1/2 nəfər + müddət, hər nəfərə ayrıca otaq;
@@ -125,8 +126,13 @@ Tək mənbə: [lib/streamingAccess.ts](lib/streamingAccess.ts) (client-safe). Ad
   (Basic/Standart/Premium, Yanımda/Evimdə/Evimdə VIP) × nəfər bir sətir, hər müddət ayrıca kart; Spotify: Individual/
   Duo/Family. Kart səbətə atmır — `?mehsul=<id>` linkidir, alış səhifəsi həmin paketi seçili açır
   (`NetflixCabinetPicker`/`NetflixAccountPlanCard` server-dən, `SpotifyPlanPicker` mount-da URL-dən — music səhifəsi
-  statik qalsın deyə). Bu paketlər matrisə düşmür (`isNetflixProduct`, `isShowcaseSpotifyProduct`). `hideFromLanding`
-  burada da işləyir. Test: `npm run test:homeshowcase`.
+  statik qalsın deyə). Bu paketlər matrisə düşmür (`isNetflixProduct`, `isShowcaseSpotifyProduct`).
+  ⚠️ `hideFromLanding` vitrində **işləmir** — o, köhnə matrisin bayrağıdır; prod-da köhnə bayraq 1 nəfərlik otaqları
+  gizlədirdi. Paketi vitrindən çıxarmaq = qiymət xanasını boşaltmaq. `/admin/subscription-packages` bu paketləri
+  "Öz vitrinində" kimi göstərir. Netflix panelinin altında **"Aralarındakı fərq nədir?"** modalı
+  ([HomePlanGuide](components/HomePlanGuide.tsx)): YouTube videosu `StreamingPlatform(NETFLIX).guideVideoUrl`-dandır
+  (admin → Netflix → "Ad, təsvir, ünvan"), boşdursa yalnız `STREAMING_VARIANTS` müqayisəsi; iframe yalnız açılanda.
+  Test: `npm run test:homeshowcase`.
 - **Netflix kilidlidir** (`isLockedStreamingGroup`): vitrini koddadır (`lib/streamingGroups.ts`), planları CRM
   xəritəsinə bağlıdır (`lib/crmNetflix.ts`) — admin plan əlavə/silə bilməz, yalnız qiymət/cihaz/stok.
   DB sütunları boş olsa da `resolvePlatformGroup` Netflix kodlarını tanıyır.

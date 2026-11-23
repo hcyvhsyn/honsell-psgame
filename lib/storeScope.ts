@@ -12,8 +12,8 @@
  * Geri qaytarmaq: `NEXT_PUBLIC_STORE_SCOPE=ALL` (build-time env, `next build`
  * yenidən lazımdır) — bütün süzgəclər no-op olur.
  *
- * İstisna — **Spotify** (2026-10): `PLATFORM` tipindən YALNIZ `metadata.musicBrand = "SPOTIFY"`
- * olan məhsullar satılır (sifariş ödənişdən sonra CRM-ə gedir, `lib/crmSpotify.ts`).
+ * İstisna — **Spotify** (2026-10): `PLATFORM` tipindən YALNIZ Spotify brendli (`isSpotifyMusicBrand`)
+ * məhsullar satılır (sifariş ödənişdən sonra CRM-ə gedir, `lib/crmSpotify.ts`).
  * Qalan PLATFORM məhsulları (YouTube, AI, LinkedIn) bağlı qalır. Ona görə məhsul
  * səviyyəli yoxlama lazımdır: `isSellableServiceProduct` / `sellableServiceWhere()` —
  * yalnız `type`-a baxan `isSellableServiceType` Spotify-ı tanımır.
@@ -52,13 +52,22 @@ export const PLAYSTATION_CATEGORY_KEYS: readonly string[] = [
   "NETFLIX",
 ];
 
-/** Spotify Premium məhsulu: `PLATFORM` + `metadata.musicBrand = "SPOTIFY"`. */
-export const SPOTIFY_MUSIC_BRAND = "SPOTIFY";
+/**
+ * Spotify Premium-un `metadata.musicBrand` dəyərləri. Music admin onu platformanın KODUNDAN yazır və
+ * kod mühitə görə fərqlidir: lokal seed `SPOTIFY`, prod `SPOTIFY_PREMIUM` (2026-11: yalnız `SPOTIFY`
+ * yoxlananda prod Spotify paketləri satış əhatəsindən düşürdü — səbət onları silir, checkout 409 verirdi).
+ * ⚠️ Brendi birbaşa `=== "SPOTIFY"` ilə müqayisə ETMƏ — `isSpotifyMusicBrand` işlət.
+ */
+export const SPOTIFY_MUSIC_BRANDS: readonly string[] = ["SPOTIFY", "SPOTIFY_PREMIUM"];
 export const SPOTIFY_STORE_PATH = "/music/spotify-premium";
+
+export function isSpotifyMusicBrand(value: unknown): boolean {
+  return SPOTIFY_MUSIC_BRANDS.includes(String(value ?? "").trim().toUpperCase());
+}
 
 export function isSpotifyProduct(type: string | null | undefined, metadata: unknown): boolean {
   if (type !== "PLATFORM" || !metadata || typeof metadata !== "object") return false;
-  return (metadata as Record<string, unknown>).musicBrand === SPOTIFY_MUSIC_BRAND;
+  return isSpotifyMusicBrand((metadata as Record<string, unknown>).musicBrand);
 }
 
 /** Netflix giriş səhifəsi: 2 seçimli ekran (öz hesabın / bizim hesabda otaq). */
@@ -124,7 +133,11 @@ export function sellableServiceWhere(): { AND?: Record<string, unknown>[] } {
       {
         OR: [
           { type: { in: [...PLAYSTATION_SERVICE_TYPES] } },
-          { type: "PLATFORM", metadata: { path: ["musicBrand"], equals: SPOTIFY_MUSIC_BRAND } },
+          // Music admin brendi böyük hərflə yazır — SQL bərabərliyi hər iki kodu ayrıca yoxlayır.
+          ...SPOTIFY_MUSIC_BRANDS.map((brand) => ({
+            type: "PLATFORM",
+            metadata: { path: ["musicBrand"], equals: brand },
+          })),
           ...NETFLIX_SERVICE_CODES.map((code) => ({
             type: "STREAMING",
             metadata: { path: ["service"], equals: code },

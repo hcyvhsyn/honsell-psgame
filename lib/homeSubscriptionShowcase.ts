@@ -1,19 +1,31 @@
 // Ana səhifənin Netflix və Spotify vitrinləri — hər plan × müddət (× nəfər) AYRICA kart.
 //
-// SAF modul (DB yoxdur, client-safe): `app/page.tsx` aktiv + satılan + landing-dən gizlədilməmiş
-// paketləri ötürür, nəticə serializable-dır (`unstable_cache`-ə düşür).
+// SAF modul (DB yoxdur, client-safe): `app/page.tsx` aktiv + satılan paketləri ötürür, nəticə
+// serializable-dır (`unstable_cache`-ə düşür).
+//
+// ⚠️ `metadata.hideFromLanding` burada NƏZƏRƏ ALINMIR. O bayraq köhnə "Abunəlik paketləri"
+// matrisinindir (/admin/subscription-packages); Netflix/Spotify o matrisə düşmür. Prod-da
+// köhnə bayraq 1 nəfərlik otaqları vitrindən gizlədirdi (2026-11). Paketi satışdan çıxarmaq
+// üçün qiymət xanasını boşalt (`isActive=false`).
 //
 // Kart səbətə atmır, LİNKDİR: Netflix hesab planı və Spotify e-poçt/şifrə tələb edir, Netflix
 // otağı isə alışdan əvvəl şərt modalı göstərir. Link `?mehsul=<id>` daşıyır — alış səhifəsi
 // (NetflixCabinetPicker / NetflixAccountPlans / SpotifyPlanPicker) həmin paketi seçili açır.
 
-import { NETFLIX_ACCOUNT_SERVICE_CODE, NETFLIX_STORE_PATH, isNetflixProduct } from "@/lib/storeScope";
-import { STREAMING_VARIANTS } from "@/lib/streamingVariants";
+import {
+  NETFLIX_ACCOUNT_SERVICE_CODE,
+  NETFLIX_STORE_PATH,
+  SPOTIFY_STORE_PATH,
+  isNetflixProduct,
+  isSpotifyProduct,
+} from "@/lib/storeScope";
+import { STREAMING_VARIANTS, type VariantFeature } from "@/lib/streamingVariants";
 import {
   SPOTIFY_PLAN_LABELS,
   SPOTIFY_PLAN_TIERS,
   isValidSpotifyPlanTier,
 } from "@/lib/platformSubscriptions";
+import { extractYouTubeId } from "@/lib/youtubeUtils";
 
 export type ShowcaseInputProduct = {
   id: string;
@@ -38,6 +50,12 @@ export type ShowcaseOffer = {
 
 export type ShowcaseRow = { key: string; title: string; caption: string; offers: ShowcaseOffer[] };
 export type ShowcaseGroup = { key: string; title: string; rows: ShowcaseRow[] };
+
+/** "Aralarındakı fərq nədir?" modalı: video (varsa) + plan müqayisəsi (həmişə). */
+export type ShowcaseGuidePlan = { name: string; points: VariantFeature[] };
+export type ShowcaseGuideGroup = { title: string; intro: string; plans: ShowcaseGuidePlan[] };
+export type ShowcaseGuide = { title: string; videoId: string | null; groups: ShowcaseGuideGroup[] };
+
 export type ShowcaseBrand = {
   key: "netflix" | "spotify";
   title: string;
@@ -46,11 +64,11 @@ export type ShowcaseBrand = {
   fromPerMonthAzn: number;
   offerCount: number;
   groups: ShowcaseGroup[];
+  guide: ShowcaseGuide | null;
 };
 
 /** Netflix hesab planlarının (Basic/Standart/Premium) alış səhifəsi — `lib/streamingGroups.ts` chooser-i. */
 export const NETFLIX_ACCOUNT_STORE_PATH = "/streaming/netflix-hesab";
-export const SPOTIFY_STORE_PATH = "/music/spotify-premium";
 
 /** Otaq kodu → `STREAMING_VARIANTS.NETFLIX` slug-ı (`?paket=` dəyəri). */
 const NETFLIX_CABINET_SLUG_BY_CODE: Record<string, string> = {
@@ -68,6 +86,9 @@ const NETFLIX_CAPTIONS: Record<string, string> = {
   evimde: "TV daxil bütün cihazlar",
   evimdevip: "TV daxil · ən stabil",
 };
+
+/** Bələdçidə hesab planlarının bütün bulletləri yox — fərqi göstərən üçü. */
+const ACCOUNT_GUIDE_POINT = /^(Çözünürlük|Eyni anda|Kimlər üçün)/;
 
 function meta(p: ShowcaseInputProduct): Record<string, unknown> {
   return p.metadata && typeof p.metadata === "object" && !Array.isArray(p.metadata)
@@ -87,12 +108,8 @@ function seats(p: ShowcaseInputProduct): number {
 
 /** Spotify plan paketi (Individual/Duo/Family) — ana səhifədə öz vitrinindədir, matrisdə yox. */
 export function isShowcaseSpotifyProduct(type: string, metadata: unknown): boolean {
-  if (type !== "PLATFORM" || !metadata || typeof metadata !== "object") return false;
-  const m = metadata as Record<string, unknown>;
-  return (
-    String(m.musicBrand ?? "").toUpperCase() === "SPOTIFY" &&
-    isValidSpotifyPlanTier(String(m.planTier ?? "").toUpperCase())
-  );
+  if (!isSpotifyProduct(type, metadata)) return false;
+  return isValidSpotifyPlanTier(String((metadata as Record<string, unknown>).planTier ?? "").toUpperCase());
 }
 
 /**
@@ -164,45 +181,90 @@ function finishBrand(
   return { ...base, fromPerMonthAzn, offerCount: offers.length, groups: live };
 }
 
-export function buildNetflixShowcase(products: ShowcaseInputProduct[]): ShowcaseBrand | null {
+export type NetflixShowcaseOptions = {
+  /** `StreamingPlatform(NETFLIX).guideVideoUrl` — admin "Ad, təsvir, ünvan" modalından. */
+  guideVideoUrl?: string | null;
+};
+
+export function buildNetflixShowcase(
+  products: ShowcaseInputProduct[],
+  options: NetflixShowcaseOptions = {},
+): ShowcaseBrand | null {
   const netflix = products.filter((p) => isNetflixProduct(p.type, p.metadata));
   const serviceOf = (p: ShowcaseInputProduct) => String(meta(p).service ?? "").toUpperCase();
 
+  const accountVariants = STREAMING_VARIANTS.NETFLIX_VVIP?.variants ?? [];
+  const cabinetVariants = STREAMING_VARIANTS.NETFLIX?.variants ?? [];
   const account = netflix.filter((p) => serviceOf(p) === NETFLIX_ACCOUNT_SERVICE_CODE);
-  const accountRows = (STREAMING_VARIANTS.NETFLIX_VVIP?.variants ?? []).flatMap((v) =>
-    seatRows(
+  const cabinetFor = (slug: string) =>
+    netflix.filter((p) => NETFLIX_CABINET_SLUG_BY_CODE[serviceOf(p)] === slug);
+
+  const accountByVariant = accountVariants.map((v) => ({
+    v,
+    rows: seatRows(
       `hesab-${v.slug}`,
       v.name,
       NETFLIX_CAPTIONS[v.slug] ?? "",
       account.filter((p) => String(meta(p).variantSlug ?? "").trim() === v.slug),
       (p) => `${NETFLIX_ACCOUNT_STORE_PATH}?mehsul=${encodeURIComponent(p.id)}`,
     ),
-  );
-
-  const cabinetRows = (STREAMING_VARIANTS.NETFLIX?.variants ?? []).flatMap((v) => {
-    const codes = Object.keys(NETFLIX_CABINET_SLUG_BY_CODE).filter((c) => NETFLIX_CABINET_SLUG_BY_CODE[c] === v.slug);
-    return seatRows(
+  }));
+  const cabinetByVariant = cabinetVariants.map((v) => ({
+    v,
+    rows: seatRows(
       `otaq-${v.slug}`,
       v.name,
       NETFLIX_CAPTIONS[v.slug] ?? "",
-      netflix.filter((p) => codes.includes(serviceOf(p))),
-      (p) =>
-        `${NETFLIX_STORE_PATH}?secim=kabinet&paket=${v.slug}&mehsul=${encodeURIComponent(p.id)}`,
-    );
-  });
+      cabinetFor(v.slug),
+      (p) => `${NETFLIX_STORE_PATH}?secim=kabinet&paket=${v.slug}&mehsul=${encodeURIComponent(p.id)}`,
+    ),
+  }));
+  const accountRows = accountByVariant.flatMap((x) => x.rows);
+  const cabinetRows = cabinetByVariant.flatMap((x) => x.rows);
 
-  return finishBrand(
+  // Bələdçi yalnız vitrində kartı olan planları izah edir (satılmayan planı tanıtmırıq).
+  // Mətn `STREAMING_VARIANTS`-dandır — alış səhifəsindəki bulletlərlə eyni qalsın.
+  const guideGroups: ShowcaseGuideGroup[] = [
+    {
+      title: "Öz hesabına plan",
+      intro:
+        "Plan sənin öz Netflix hesabına aktivləşir — alışda hesabın e-poçtunu və şifrəsini yazırsan. Netflix qaydasına görə hesab bir ev üçündür.",
+      plans: accountByVariant
+        .filter((x) => x.rows.length > 0)
+        .map(({ v }) => ({ name: v.name, points: v.features.filter((f) => ACCOUNT_GUIDE_POINT.test(f.text)) })),
+    },
+    {
+      title: "Sənə aid otaq",
+      intro:
+        "Bizim Premium hesabımızda yalnız sənə məxsus otaq (profil) verilir, 4K Ultra HD keyfiyyətlə. Mail, şifrə və PIN-i biz göndəririk.",
+      plans: cabinetByVariant
+        .filter((x) => x.rows.length > 0)
+        .map(({ v }) => ({ name: v.name, points: v.features })),
+    },
+  ].filter((g) => g.plans.length > 0);
+
+  const brand = finishBrand(
     {
       key: "netflix",
       title: "Netflix",
       subtitle: "Öz hesabına plan və ya sənə aid otaq",
       href: NETFLIX_STORE_PATH,
+      guide: null,
     },
     [
       { key: "hesab", title: "Öz hesabına plan", rows: accountRows },
       { key: "otaq", title: "Sənə aid otaq", rows: cabinetRows },
     ],
   );
+  if (!brand) return null;
+  return {
+    ...brand,
+    guide: {
+      title: "Netflix planları arasında fərq nədir?",
+      videoId: extractYouTubeId(options.guideVideoUrl),
+      groups: guideGroups,
+    },
+  };
 }
 
 export function buildSpotifyShowcase(products: ShowcaseInputProduct[]): ShowcaseBrand | null {
@@ -225,14 +287,18 @@ export function buildSpotifyShowcase(products: ShowcaseInputProduct[]): Showcase
       title: "Spotify Premium",
       subtitle: "Premium öz Spotify hesabına qoşulur",
       href: SPOTIFY_STORE_PATH,
+      guide: null,
     },
     [{ key: "planlar", title: "", rows }],
   );
 }
 
 /** Ana səhifə sırası: Netflix, sonra Spotify. Paketi olmayan brend göstərilmir. */
-export function buildHomeSubscriptionShowcase(products: ShowcaseInputProduct[]): ShowcaseBrand[] {
-  return [buildNetflixShowcase(products), buildSpotifyShowcase(products)].filter(
+export function buildHomeSubscriptionShowcase(
+  products: ShowcaseInputProduct[],
+  options: { netflix?: NetflixShowcaseOptions } = {},
+): ShowcaseBrand[] {
+  return [buildNetflixShowcase(products, options.netflix), buildSpotifyShowcase(products)].filter(
     (b): b is ShowcaseBrand => b !== null,
   );
 }

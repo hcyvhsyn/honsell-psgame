@@ -1246,6 +1246,9 @@ model StreamingPlatform {
   /// Yalnız üst xidmətdə: PS-only əhatəsində saytda satılırmı. Paket metadata-sına
   /// `storeSellable` kimi köçürülür (lib/storeScope.ts sinxron oxuyur). Netflix koda görə həmişə açıqdır.
   storeSellable Boolean  @default(false)
+  /// Yalnız üst xidmətdə: planlar arasındakı fərqi izah edən YouTube videosu (kanonik watch URL).
+  /// Ana səhifə vitrinindəki "Aralarındakı fərq nədir?" modalı bunu açır (lib/homeSubscriptionShowcase.ts).
+  guideVideoUrl String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

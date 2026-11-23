@@ -8,6 +8,7 @@ import {
 } from "@/lib/streamingPlatforms";
 import { getServiceVariantConfig, getServiceVariantSlugs } from "@/lib/streamingVariants";
 import { streamingUsesCustomerEmail } from "@/lib/streamingCart";
+import { extractYouTubeId } from "@/lib/youtubeUtils";
 import { NETFLIX_SERVICE_CODES, STORE_SELLABLE_META_KEY } from "@/lib/storeScope";
 import {
   STREAMING_DURATION_OPTIONS,
@@ -836,6 +837,20 @@ export async function POST(req: Request) {
       const sortOrder = Number.isFinite(sortRaw) ? sortRaw : 0;
       const isActive = body.isActive !== false;
 
+      // Planların fərqi videosu (yalnız üst xidmət). Göndərilməyibsə toxunulmur; boş → silinir.
+      let guideVideoData: { guideVideoUrl: string | null } | Record<string, never> = {};
+      if (body.guideVideoUrl !== undefined) {
+        const raw = String(body.guideVideoUrl ?? "").trim();
+        const videoId = raw ? extractYouTubeId(raw) : null;
+        if (raw && !videoId) {
+          return NextResponse.json(
+            { error: "YouTube linki tanınmadı (məs: https://youtu.be/… və ya youtube.com/watch?v=…)." },
+            { status: 400 },
+          );
+        }
+        guideVideoData = { guideVideoUrl: videoId ? `https://www.youtube.com/watch?v=${videoId}` : null };
+      }
+
       // Slug başqa platformada istifadə olunmamalıdır.
       const slugOwner = await prisma.streamingPlatform.findUnique({ where: { slug } });
       if (slugOwner && slugOwner.code !== code) {
@@ -860,8 +875,8 @@ export async function POST(req: Request) {
 
       const platform = await prisma.streamingPlatform.upsert({
         where: { code },
-        create: { code, slug, label, category, tagline, description, sortOrder, isActive, ...groupData },
-        update: { slug, label, category, tagline, description, sortOrder, isActive, ...groupData },
+        create: { code, slug, label, category, tagline, description, sortOrder, isActive, ...groupData, ...guideVideoData },
+        update: { slug, label, category, tagline, description, sortOrder, isActive, ...groupData, ...guideVideoData },
       });
 
       byCode.set(code, platform);

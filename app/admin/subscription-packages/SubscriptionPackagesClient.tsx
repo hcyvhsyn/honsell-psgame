@@ -8,6 +8,8 @@ import {
   LANDING_SERVICE_TYPE_LABELS,
   isHiddenFromLanding,
 } from "@/lib/landingServices";
+import { isNetflixProduct } from "@/lib/storeScope";
+import { isShowcaseSpotifyProduct } from "@/lib/homeSubscriptionShowcase";
 
 type LandingProduct = {
   id: string;
@@ -113,7 +115,10 @@ export default function SubscriptionPackagesClient() {
 
       <ul className="space-y-2">
         {products.map((p) => {
-          const hidden = isHiddenFromLanding(p.metadata);
+          // Netflix/Spotify matrisdə deyil, ana səhifədə öz vitrinindədir — bu bayraq onlara təsir etmir.
+          const ownShowcase =
+            isNetflixProduct(p.type, p.metadata) || isShowcaseSpotifyProduct(p.type, p.metadata);
+          const hidden = !ownShowcase && isHiddenFromLanding(p.metadata);
           const busy = busyId === p.id;
           return (
             <li
@@ -139,6 +144,10 @@ export default function SubscriptionPackagesClient() {
                     <span className="rounded-full bg-admin-chip2 px-2 py-0.5 text-[10px] font-bold text-zinc-600">
                       Deaktiv
                     </span>
+                  ) : ownShowcase ? (
+                    <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700">
+                      Öz vitrinində
+                    </span>
                   ) : hidden ? (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
                       Vitrində gizli
@@ -157,11 +166,13 @@ export default function SubscriptionPackagesClient() {
                 <button
                   type="button"
                   onClick={() => toggleLanding(p)}
-                  disabled={busy || !p.isActive}
+                  disabled={busy || !p.isActive || ownShowcase}
                   title={
                     !p.isActive
                       ? "Deaktiv məhsul vitrində görünmür"
-                      : hidden
+                      : ownShowcase
+                        ? "Netflix/Spotify ana səhifədə öz vitrinindədir — satışdan çıxarmaq üçün qiymət xanasını boşalt"
+                        : hidden
                         ? "Vitrində göstər"
                         : "Vitrindən gizlə"
                   }

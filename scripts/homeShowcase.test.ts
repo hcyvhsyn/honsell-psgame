@@ -34,16 +34,20 @@ const products = [
   netflix("NETFLIX_YANIMDA", 1, 8),
   netflix("NETFLIX_YANIMDA", 3, 22),
   netflix("NETFLIX_YANIMDA", 1, 14, { seats: 2 }),
-  netflix("NETFLIX_EVIMD_VIP", 1, 15),
+  // Prod-dakı kimi köhnə matris bayrağı — vitrin onu nəzərə ALMAMALIDIR.
+  netflix("NETFLIX_EVIMD_VIP", 1, 15, { hideFromLanding: true }),
   netflix("NETFLIX", 1, 5), // köhnə kod satılmır
   netflix("HBO_MAX", 1, 9), // başqa xidmət
   spotify("INDIVIDUAL", 3, 16, { originalPriceAznCents: 1800 }),
   spotify("INDIVIDUAL", 1, 6),
-  spotify("FAMILY", 1, 14, { accountSlots: 5 }),
+  // Prod music admin brendi platforma kodundan yazır: "SPOTIFY_PREMIUM".
+  spotify("FAMILY", 1, 14, { accountSlots: 5, musicBrand: "SPOTIFY_PREMIUM", hideFromLanding: true }),
   { id: "sp-x", type: "PLATFORM", priceAznCents: 500, metadata: { musicBrand: "SPOTIFY" } }, // planTier yoxdur
 ];
 
-const [nf, sp, ...rest] = buildHomeSubscriptionShowcase(products);
+const [nf, sp, ...rest] = buildHomeSubscriptionShowcase(products, {
+  netflix: { guideVideoUrl: "https://youtu.be/dQw4w9WgXcQ" },
+});
 assert.equal(rest.length, 0);
 assert.equal(nf.key, "netflix");
 assert.equal(sp.key, "spotify");
@@ -84,6 +88,29 @@ assert.equal(individual[1].originalAzn, 18);
 assert.equal(individual[0].originalAzn, null);
 assert.match(individual[0].href, /^\/music\/spotify-premium\?mehsul=sp-\d+$/);
 assert.equal(isShowcaseSpotifyProduct("PLATFORM", { musicBrand: "SPOTIFY" }), false);
+assert.equal(isShowcaseSpotifyProduct("PLATFORM", { musicBrand: "SPOTIFY_PREMIUM", planTier: "FAMILY" }), true);
+assert.equal(isShowcaseSpotifyProduct("PLATFORM", { musicBrand: "YOUTUBE_PREMIUM", planTier: "FAMILY" }), false);
+assert.equal(sp.guide, null);
+
+// Bələdçi: video ID linkdən çıxarılır; yalnız vitrində kartı olan planlar izah olunur.
+assert.ok(nf.guide);
+assert.equal(nf.guide.videoId, "dQw4w9WgXcQ");
+assert.deepEqual(
+  nf.guide.groups.map((g) => [g.title, g.plans.map((p) => p.name)]),
+  [
+    ["Öz hesabına plan", ["Basic", "Premium"]],
+    ["Sənə aid otaq", ["Yanımda", "Evimdə VIP"]],
+  ],
+);
+// Hesab planlarında yalnız fərqi göstərən bulletlər (çözünürlük, ekran, kimlər üçün).
+assert.equal(nf.guide.groups[0].plans[0].points.length, 3);
+assert.ok(nf.guide.groups[1].plans[0].points.some((p) => p.tone === "bad")); // Yanımda: TV yox
+// Link yoxdur / yanlışdır → video yox, müqayisə qalır.
+assert.equal(buildHomeSubscriptionShowcase(products)[0].guide?.videoId, null);
+assert.equal(
+  buildHomeSubscriptionShowcase(products, { netflix: { guideVideoUrl: "https://example.com/x" } })[0].guide?.videoId,
+  null,
+);
 assert.equal(isShowcaseSpotifyProduct("PLATFORM", { musicBrand: "spotify", planTier: "duo" }), true);
 assert.equal(isShowcaseSpotifyProduct("STREAMING", { musicBrand: "SPOTIFY", planTier: "DUO" }), false);
 

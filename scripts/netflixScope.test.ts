@@ -9,6 +9,7 @@ import {
   isNetflixProduct,
   isOpenStorePath,
   isSellableServiceProduct,
+  isSpotifyMusicBrand,
   isStoreSellableStreaming,
   sellableServiceWhere,
 } from "@/lib/storeScope";
@@ -129,5 +130,17 @@ const feats = featuresFromText("+ 4K\n- TV yox\n! Bəzən gecikmə\nAdi bənd\n\
 assert.deepEqual(feats.map((f) => f.tone), ["good", "bad", "warn", "neutral"]);
 assert.deepEqual(featuresFromText(featuresToText(feats)), feats);
 assert.deepEqual(parseStreamingFeatures([{ text: " x ", tone: "weird" }, { text: "" }, null]), [{ text: "x", tone: "neutral" }]);
+
+// ── Spotify brendi: lokal "SPOTIFY", prod "SPOTIFY_PREMIUM" (music admin platforma kodunu yazır) ──
+for (const brand of ["SPOTIFY", "SPOTIFY_PREMIUM", "spotify_premium"]) {
+  assert.equal(isSpotifyMusicBrand(brand), true, brand);
+  assert.equal(isSellableServiceProduct({ type: "PLATFORM", metadata: { musicBrand: brand } }), true, brand);
+}
+assert.equal(isSpotifyMusicBrand("YOUTUBE_PREMIUM"), false);
+assert.equal(isSellableServiceProduct({ type: "PLATFORM", metadata: { musicBrand: "YOUTUBE_PREMIUM" } }), false);
+assert.equal(isSellableServiceProduct({ type: "STREAMING", metadata: { musicBrand: "SPOTIFY_PREMIUM" } }), false);
+// SQL qarşılığı hər iki kodu ayrıca yoxlayır (JSON bərabərliyi registr həssasdır).
+const scopeOr = JSON.stringify(sellableServiceWhere());
+assert.ok(scopeOr.includes('"equals":"SPOTIFY"') && scopeOr.includes('"equals":"SPOTIFY_PREMIUM"'));
 
 console.log("netflixScope: bütün testlər keçdi");

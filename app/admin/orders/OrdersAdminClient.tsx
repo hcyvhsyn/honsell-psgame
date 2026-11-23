@@ -32,7 +32,7 @@ import {
 } from "@/lib/gameOrderFulfillment";
 import CopyableField from "@/components/CopyableField";
 import { useDialog } from "@/lib/dialogs";
-import { isNetflixProduct } from "@/lib/storeScope";
+import { isNetflixProduct, isSpotifyMusicBrand } from "@/lib/storeScope";
 
 type AnyOrder = {
   id: string;
@@ -2368,7 +2368,7 @@ function CrmOrderSync({
     error: typeof meta.crmSyncError === "string" && !meta.crmSyncedAt ? meta.crmSyncError : null,
     busy: false,
   });
-  if (!netflix && String(meta.musicBrand ?? "").toUpperCase() !== "SPOTIFY") return null;
+  if (!netflix && !isSpotifyMusicBrand(meta.musicBrand)) return null;
 
   async function push() {
     setState((s) => ({ ...s, busy: true }));

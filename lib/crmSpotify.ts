@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { SPOTIFY_MUSIC_BRAND } from "@/lib/storeScope";
+import { isSpotifyMusicBrand } from "@/lib/storeScope";
 
 /**
  * Spotify Premium sifarişləri → CRM (crm.honsell.site) Spotify Individual sistemi.
@@ -46,9 +46,9 @@ export function isSpotifyOrderRow(row: {
 }): boolean {
   const meta = parseMeta(row.metadata);
   if (meta.kind !== "PLATFORM") return false;
-  if (String(meta.musicBrand ?? "").toUpperCase() === SPOTIFY_MUSIC_BRAND) return true;
+  if (isSpotifyMusicBrand(meta.musicBrand)) return true;
   const pm = (row.serviceProduct?.metadata as Record<string, unknown> | null) ?? {};
-  return row.serviceProduct?.type === "PLATFORM" && String(pm.musicBrand ?? "").toUpperCase() === SPOTIFY_MUSIC_BRAND;
+  return row.serviceProduct?.type === "PLATFORM" && isSpotifyMusicBrand(pm.musicBrand);
 }
 
 function splitName(full: string | null | undefined): { firstName: string; lastName: string } {

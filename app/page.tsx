@@ -57,11 +57,13 @@ import {
   isOpenStorePath,
   isSellableGameStore,
   isSellableServiceProduct,
+  isSpotifyMusicBrand,
   isStoreSellableStreaming,
   sellableGameWhere,
   sellableServiceWhere,
 } from "@/lib/storeScope";
 import { getPublicStreamingSlug } from "@/lib/streamingPlatforms";
+import { NETFLIX_GROUP_CODE } from "@/lib/streamingAccess";
 
 export const revalidate = 1800;
 
@@ -151,7 +153,7 @@ function serviceHref(type: string, metadata: unknown, title: string): string {
       // Spotify çoxhesablı paketləri (Individual/Duo/Family) Spotify SEO səhifəsinə.
       if (
         platform.category === "MUSIC" &&
-        String(meta?.musicBrand ?? "").toUpperCase() === "SPOTIFY"
+        isSpotifyMusicBrand(meta?.musicBrand)
       ) {
         return "/music/spotify-premium";
       }
@@ -228,9 +230,13 @@ async function fetchLandingProducts(): Promise<{
   // Netflix və Spotify plan paketləri matrisdə deyil, öz vitrinlərindədir (hər plan × müddət
   // ayrıca kart, `HomeSubscriptionShowcase`). Admin-dən satışa açılan streaming xidmətləri
   // (HBO Max və s.) matrisdə tək "ayda X ₼-dan" kartıdır.
-  const showcase = buildHomeSubscriptionShowcase(
-    services.filter((service) => !isHiddenFromLanding(service.metadata)),
-  );
+  // ⚠️ Vitrinə `hideFromLanding` süzgəci TƏTBİQ ETMƏ — o, matrisin bayrağıdır (lib/homeSubscriptionShowcase.ts).
+  const netflixPlatform = await prisma.streamingPlatform
+    .findUnique({ where: { code: NETFLIX_GROUP_CODE }, select: { guideVideoUrl: true } })
+    .catch(() => null);
+  const showcase = buildHomeSubscriptionShowcase(services, {
+    netflix: { guideVideoUrl: netflixPlatform?.guideVideoUrl ?? null },
+  });
   const streamingCards = await buildStreamingGroupCards(services);
 
   const cards = services

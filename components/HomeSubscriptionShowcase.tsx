@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { ArrowRight, Music2, Tv } from "lucide-react";
 import type { ShowcaseBrand, ShowcaseOffer, ShowcaseRow } from "@/lib/homeSubscriptionShowcase";
+import HomePlanGuide from "./HomePlanGuide";
 
 /**
  * Ana səhifədə Netflix və Spotify — hər plan bir sətir, hər müddət ayrıca kart
- * (`lib/homeSubscriptionShowcase.ts`). Server komponentidir: kart linkdir, JS yoxdur.
+ * (`lib/homeSubscriptionShowcase.ts`). Server komponentidir: kart linkdir. Yeganə client hissə
+ * "Aralarındakı fərq nədir?" modalıdır (`HomePlanGuide`).
  *
  * ⚠️ Performans: kartlarda şəkil və `backdrop-blur` YOXDUR (onlarla kart təkrarlanır).
  */
@@ -67,6 +69,9 @@ function BrandPanel({ brand }: { brand: ShowcaseBrand }) {
               </div>
             ))}
           </div>
+
+          {/* "Aralarındakı fərq nədir?" — video + müqayisə modalı (yalnız client hissə budur). */}
+          {brand.guide && <HomePlanGuide guide={brand.guide} />}
         </div>
       </div>
     </section>

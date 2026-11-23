@@ -6,6 +6,7 @@ import { useDialog } from "@/lib/dialogs";
 import { uploadAdminImage } from "@/lib/uploadImageClient";
 import {
   ACCESS_MODE_META,
+  NETFLIX_GROUP_CODE,
   childPlatformCode,
   featuresFromText,
   featuresToText,
@@ -61,10 +62,13 @@ export function ServiceModal({
   const [description, setDescription] = useState(platform?.description ?? "");
   const [sortOrder, setSortOrder] = useState(String(platform?.sortOrder ?? nextSortOrder));
   const [isActive, setIsActive] = useState(platform?.isActive ?? true);
+  const [guideVideoUrl, setGuideVideoUrl] = useState(platform?.guideVideoUrl ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const code = platform?.code ?? streamingCode(label);
+  // Hələlik yalnız Netflix ana səhifə vitrinində göstərilir — başqa xidmətdə xana çaşdırmasın.
+  const showGuideVideo = !isCreate && platform!.code === NETFLIX_GROUP_CODE;
   const effectiveSlug = slugTouched ? streamingSlug(slug) : streamingSlug(label);
 
   async function save() {
@@ -83,6 +87,7 @@ export function ServiceModal({
       description: description.trim(),
       sortOrder: Number(sortOrder || 0),
       isActive,
+      ...(showGuideVideo ? { guideVideoUrl: guideVideoUrl.trim() } : {}),
     });
     setSaving(false);
     if (!res.ok) return setError(res.error);
@@ -127,6 +132,19 @@ export function ServiceModal({
         <Field label="Ətraflı təsvir (SEO)">
           <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className={inputCls} />
         </Field>
+        {showGuideVideo && (
+          <Field
+            label="Planların fərqi — YouTube videosu"
+            hint="Ana səhifədə «Aralarındakı fərq nədir?» modalında açılır. Boş qalsa modal yalnız müqayisə cədvəlini göstərir."
+          >
+            <input
+              value={guideVideoUrl}
+              onChange={(e) => setGuideVideoUrl(e.target.value)}
+              placeholder="https://youtu.be/…"
+              className={`${inputCls} font-mono`}
+            />
+          </Field>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Sıralama" hint="Kiçik rəqəm əvvəl.">
             <input type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className={inputCls} />

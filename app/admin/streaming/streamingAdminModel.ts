@@ -32,6 +32,8 @@ export type AdminPlatform = {
   devices: string[];
   vpnRequired: boolean;
   storeSellable: boolean;
+  /** Planların fərqi videosu (YouTube) — ana səhifə "Aralarındakı fərq nədir?" modalı. */
+  guideVideoUrl?: string | null;
 };
 
 export type AdminProduct = {
