@@ -1,8 +1,9 @@
 import crypto from "node:crypto";
 
 /**
- * /abunelik təsdiqlənmiş telefon tokeni (HMAC-SHA256, base64url) — saf, DB/Next-siz (test: npm run test:crmrenewal).
- * Prod-da ABUNELIK_COOKIE_SECRET məcburidir; lokal dev-də DATABASE_URL-dən törədilir.
+ * /abunelik telefon / birbaşa giriş linki tokeni (HMAC-SHA256, base64url) — saf, DB/Next-siz (test: npm run test:crmrenewal).
+ * Açar `ABUNELIK_COOKIE_SECRET`, yoxdursa `DATABASE_URL`-dən törədilir (sessiya açarı kimi — serverdə əlavə env
+ * tələb etməsin; prod-da env yox idi və link tokeni heç yaranmırdı). Açar dəyişsə köhnə linklər (24 saat) keçmir.
  */
 export const ABUNELIK_TTL_SECONDS = 2 * 60 * 60;
 
@@ -15,9 +16,9 @@ export const ABUNELIK_LINK_TTL_SECONDS = 24 * 60 * 60;
 function secret(): string | null {
   const s = process.env.ABUNELIK_COOKIE_SECRET?.trim();
   if (s) return s;
-  if (process.env.NODE_ENV === "production") return null;
-  // Lokal dev: env-siz işləsin (prod-da açar MƏCBURİDİR)
-  return crypto.createHash("sha256").update(`abunelik-dev|${process.env.DATABASE_URL ?? ""}`).digest("hex");
+  const db = process.env.DATABASE_URL?.trim();
+  if (!db) return null;
+  return crypto.createHash("sha256").update(`abunelik-token:v1|${db}`).digest("hex");
 }
 
 export function isAbunelikConfigured(): boolean {

@@ -1082,7 +1082,9 @@ daxil olmuş istifadəçini profilə yönləndirir. Giriş səhifəsində "Whats
   `/abunelik/giris?t=<token>` (24 saat, `createLinkToken`, `k: "link"`). Route müştərini `loginByPhone` ilə nömrəyə
   bağlı sayt hesabına daxil edir və tokensiz `/profile/abunelikler`-ə yönləndirir. WhatsApp/Facebook önizləmə botları
   giriş etmir (user-agent). Vaxtı keçmiş → `/abunelik?link=kohne`. Ödəniş qayıdışı: `/profile/abunelikler?odenis=…`.
-- Söndürmə/açma: `ABUNELIK_ENABLED=1` (yoxdursa səhifə "Tezliklə", API 404). Lokal: `ABUNELIK_OTP_DEV_ECHO=1`
+- Funksiya **default açıqdır**; `ABUNELIK_ENABLED=0` söndürür (səhifə "Tezliklə", API 404, CRM linki 409 DISABLED).
+  Əvvəl `=1` tələb edirdi, prod-da təyin olunmadığı üçün profil "Tezliklə" göstərir, CRM linkləri getmirdi.
+  Link/OTP açarı `ABUNELIK_COOKIE_SECRET`, yoxdursa `DATABASE_URL`-dən törədilir. Lokal: `ABUNELIK_OTP_DEV_ECHO=1`
   (kod log-a), `EPOINT_MOCK=1` (Epoint-ə getmir) — hər ikisi production-da işləmir.
 
 # PS Store skreypi — concept ↔ SKU (ƏN VACİB TƏLƏ)

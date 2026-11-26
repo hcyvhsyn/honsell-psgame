@@ -34,7 +34,11 @@ export async function resolveVerifiedPhone(): Promise<VerifiedPhone | null> {
   return { e164: user.verifiedPhone, phone9: digits.slice(-9), uid: user.id };
 }
 
-/** Funksiya açarı: ABUNELIK_ENABLED=1 olmadan səhifə "Tezliklə", API-lər 404. */
+/**
+ * Funksiya açarı — DEFAULT AÇIQDIR; yalnız `ABUNELIK_ENABLED=0` söndürür (səhifə "Tezliklə", API-lər 404,
+ * CRM-in WhatsApp linki 409 DISABLED alır və göndərilmir). Əvvəl `=1` tələb edirdi və prod-da təyin olunmadığı
+ * üçün profildə abunəliklər görünmür, CRM linkləri də getmirdi.
+ */
 export function isAbunelikEnabled(): boolean {
-  return process.env.ABUNELIK_ENABLED?.trim() === "1";
+  return process.env.ABUNELIK_ENABLED?.trim() !== "0";
 }

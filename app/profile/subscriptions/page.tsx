@@ -156,6 +156,18 @@ export default async function ProfileSubscriptionsPage() {
         </span>
       </div>
 
+      {/* Bu səhifə yalnız saytdan alınanları göstərir; WhatsApp ilə alınanlar (CRM) ayrıca bölmədədir */}
+      <Link
+        href="/profile/abunelikler"
+        className="flex items-center justify-between gap-3 rounded-2xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm transition hover:bg-violet-500/15"
+      >
+        <span className="text-zinc-200">
+          <span className="font-semibold text-white">Netflix, Spotify, YouTube, PS Plus</span> — bizdən WhatsApp ilə
+          aldığınız abunəliklər, giriş məlumatları və onlayn yeniləmə
+        </span>
+        <span className="shrink-0 font-bold text-violet-300">Bax →</span>
+      </Link>
+
       <section className="space-y-3">
         <SubHeader
           icon={<Gamepad2 className="h-4 w-4 text-amber-400" />}
