@@ -1,44 +1,38 @@
-import { cookies } from "next/headers";
-import { SESSION_COOKIE_NAME } from "@/lib/auth";
-import { ABUNELIK_TTL_SECONDS, verifyPhoneToken } from "@/lib/abunelik/token";
+import { getCurrentUser } from "@/lib/auth";
 
 export { createPhoneToken, verifyPhoneToken, isAbunelikConfigured, ABUNELIK_TTL_SECONDS } from "@/lib/abunelik/token";
+export { sessionCookieOptions } from "@/lib/auth";
 
 /**
- * /abunelik "təsdiqlənmiş telefon" cookie-si: OTP ilə sübut olunmuş nömrə, HMAC ilə imzalı, 2 saat.
- * CRM datası (hesab məlumatları daxil) YALNIZ bu cookie-dəki nömrə ilə çəkilir — `User.phone` ilə yox
- * (o, profil səhifəsindən OTP-siz dəyişdirilə bilir) və xam `honsell_session` (User.id) ilə yox.
+ * CRM abunəlikləri (giriş məlumatları daxil) YALNIZ saytda daxil olmuş istifadəçiyə, profil bölməsində
+ * (/profile/abunelikler) göstərilir və YALNIZ onun WhatsApp ilə sübut olunmuş nömrəsi ilə çəkilir
+ * (`User.verifiedPhone`) — `User.phone` ilə YOX (profil səhifəsindən kodsuz dəyişir).
  *
- * `uid`: cookie verilən anda daxil olmuş sayt hesabı. Sonra BAŞQA hesab daxil olubsa cookie rədd edilir
- * (paylaşılan cihazda hesab dəyişəndə əvvəlki şəxsin abunəlikləri görünməsin).
+ * Nömrə sübutu: CRM-in WhatsApp birbaşa giriş linki, /abunelik WhatsApp kodu, WhatsApp kodu ilə qeydiyyat
+ * təsdiqi. Sübut `VERIFIED_PHONE_TTL_DAYS` gün etibarlıdır (nömrə başqasına keçə bilər) — CRM-in həftəlik
+ * linki aktiv müştəri üçün onu özü yeniləyir, yoxsa profil səhifəsi kodu yenidən istəyir.
+ * Sessiya cookie-si imzalıdır (lib/auth.ts).
  */
+export const VERIFIED_PHONE_TTL_DAYS = 90;
+
+/** Köhnə ayrıca telefon cookie-si — artıq yazılmır, çıxışda silinir. */
 export const ABUNELIK_COOKIE = "honsell_abunelik";
 
-/** Cari sorğunun təsdiqlənmiş telefonu (server komponenti / route handler). */
-export function readVerifiedPhone(): { e164: string; phone9: string; uid: string | null } | null {
-  const jar = cookies();
-  const p = verifyPhoneToken(jar.get(ABUNELIK_COOKIE)?.value);
-  if (!p) return null;
-  const sessionUid = jar.get(SESSION_COOKIE_NAME)?.value || null;
-  if (p.uid && sessionUid && p.uid !== sessionUid) return null;
-  return { e164: p.e164, phone9: p.p9, uid: p.uid };
+export type VerifiedPhone = { e164: string; phone9: string; uid: string };
+
+export function isPhoneVerificationFresh(at: Date | null | undefined): boolean {
+  return !!at && Date.now() - at.getTime() < VERIFIED_PHONE_TTL_DAYS * 24 * 60 * 60 * 1000;
 }
 
-export const phoneCookieOptions = {
-  httpOnly: true,
-  sameSite: "lax" as const,
-  path: "/",
-  secure: process.env.NODE_ENV === "production",
-  maxAge: ABUNELIK_TTL_SECONDS,
-};
-
-export const sessionCookieOptions = {
-  httpOnly: true,
-  sameSite: "lax" as const,
-  path: "/",
-  secure: process.env.NODE_ENV === "production",
-  maxAge: 60 * 60 * 24 * 30,
-};
+/** Cari daxil olmuş istifadəçinin sübut olunmuş nömrəsi (route handler / server komponenti). */
+export async function resolveVerifiedPhone(): Promise<VerifiedPhone | null> {
+  const user = await getCurrentUser();
+  if (!user || user.disabled || !user.verifiedPhone) return null;
+  if (!isPhoneVerificationFresh(user.phoneVerifiedAt)) return null;
+  const digits = user.verifiedPhone.replace(/\D/g, "");
+  if (digits.length < 9) return null;
+  return { e164: user.verifiedPhone, phone9: digits.slice(-9), uid: user.id };
+}
 
 /** Funksiya açarı: ABUNELIK_ENABLED=1 olmadan səhifə "Tezliklə", API-lər 404. */
 export function isAbunelikEnabled(): boolean {

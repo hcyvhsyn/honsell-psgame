@@ -2,8 +2,30 @@ import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { prisma } from "./prisma";
+import { SESSION_MAX_AGE_SECONDS, readSessionUserId, signSessionValue } from "@/lib/sessionToken";
 
 const SESSION_COOKIE = "honsell_session";
+
+// Sayt sessiyası İMZALIDIR — bax lib/sessionToken.ts. Cookie-ni YALNIZ `setSessionCookie` ilə yaz.
+export { signSessionValue, readSessionUserId } from "@/lib/sessionToken";
+
+export const sessionCookieOptions = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  path: "/",
+  secure: process.env.NODE_ENV === "production",
+  maxAge: SESSION_MAX_AGE_SECONDS,
+};
+
+/** Sayt sessiyasını cavaba yazır (login, qeydiyyat təsdiqi, telefonla giriş, /rey). */
+export function setSessionCookie(res: { cookies: { set: (name: string, value: string, opts: typeof sessionCookieOptions) => unknown } }, userId: string) {
+  res.cookies.set(SESSION_COOKIE, signSessionValue(userId), sessionCookieOptions);
+}
+
+/** Cari sorğunun imzalı sessiyasındakı User.id (DB-yə getmir). */
+export function readSessionUserIdFromCookies(): string | null {
+  return readSessionUserId(cookies().get(SESSION_COOKIE)?.value);
+}
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -36,7 +58,7 @@ export function generateReferralCode(): string {
  * təkrar çağırışlar üçün Mumbai-yə təkrar gediş olmur).
  */
 export const getCurrentUser = cache(async function getCurrentUser() {
-  const userId = cookies().get(SESSION_COOKIE)?.value;
+  const userId = readSessionUserIdFromCookies();
   if (!userId) return null;
   return prisma.user.findUnique({ where: { id: userId } });
 });

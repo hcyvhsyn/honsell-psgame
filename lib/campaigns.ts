@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getTestAccountEmails } from "@/lib/testAccounts";
+import { CRM_PLACEHOLDER_EMAIL_SUFFIX } from "@/lib/crmAccountEmail";
 import { computeDisplayPrice, getSettings, type PricingSettings } from "@/lib/pricing";
 import { unsubscribeUrl } from "@/lib/marketing";
 import { isWasenderConfigured, normalizeToE164, sendWasenderText } from "@/lib/wasender";
@@ -254,9 +255,11 @@ export async function resolveCampaignAudience(params: {
   const cooldownDays = params.cooldownDays ?? 0;
   const testEmails = getTestAccountEmails();
 
+  // CRM telefon hesabları (lib/crmAccountEmail.ts) mağaza marketinqinə razılıq verməyib — filtrlə seçilmir;
+  // admin konkret müştərini əllə (includeUserIds) əlavə edə bilər.
   const where: Record<string, unknown> = {
     disabled: false,
-    email: { notIn: testEmails },
+    email: { notIn: testEmails, not: { endsWith: CRM_PLACEHOLDER_EMAIL_SUFFIX } },
   };
 
   if (filters.emailVerified) where.emailVerified = true;

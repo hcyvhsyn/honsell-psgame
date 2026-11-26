@@ -1019,29 +1019,56 @@ raw SQL-də (`regexp_replace` — telefon sərbəst formatda saxlanılır, `phon
 formatı tutmur). Yalnız oxumadır; cavab formasını dəyişəndə CRM-in `HonsellStoreAccount`
 tipini ([psCustomer/lib/honsell-store.ts](../psCustomer/lib/honsell-store.ts)) də yenilə.
 
-# /abunelik — CRM müştərilərinin abunəlikləri + saytdan yeniləmə (2026-11)
+# Profil → Abunəliklərim — CRM abunəlikləri + saytdan yeniləmə (2026-11)
 
-Link: `https://honsell.site/abunelik` (müştəriyə WhatsApp-da göndərilir). Nömrə + WhatsApp kodu → CRM-dəki bütün
-abunəliklər (Netflix kabineti, Spotify/YouTube Family, Netflix/Spotify Individual, PS Plus; aktiv + son 45 gün
-bitmiş), giriş məlumatları və **CRM `/pricing` qiyməti ilə** (3% haqq YOX) Epoint kartla yeniləmə.
+⛔ **Müştəri CRM-ə heç bir formada girmir** — hər şeyi honsell.site-a daxil olub **profildə** görür:
+`/profile/abunelikler` — CRM-dəki bütün abunəliklər (Netflix kabineti, Spotify/YouTube Family, Netflix/Spotify
+Individual, PS Plus; aktiv + son 45 gün bitmiş), giriş məlumatları və **CRM `/pricing` qiyməti ilə** (3% haqq YOX)
+Epoint kartla yeniləmə. `/abunelik` artıq YALNIZ giriş səhifəsidir (nömrə + WhatsApp kodu → profil), data göstərmir;
+daxil olmuş istifadəçini profilə yönləndirir. Giriş səhifəsində "WhatsApp nömrəsi ilə daxil ol" düyməsi var.
 
 | Qat | Fayl |
 | --- | --- |
-| Telefon (saf) / imzalı cookie / OTP | [lib/abunelik/](lib/abunelik/) — `phoneFormat.ts`, `token.ts`, `session.ts`, `otp.ts`, `charge.ts` |
+| İmzalı sayt sessiyası | [lib/sessionToken.ts](lib/sessionToken.ts) (saf) + `setSessionCookie` / `getCurrentUser` ([lib/auth.ts](lib/auth.ts)) |
+| Telefonla giriş / nömrə bağlama | [lib/abunelik/login.ts](lib/abunelik/login.ts) → `loginByPhone` |
+| Sübut olunmuş nömrə | [lib/abunelik/session.ts](lib/abunelik/session.ts) → `resolveVerifiedPhone` (`User.verifiedPhone`) |
+| Telefon (saf) / link tokeni / OTP | [lib/abunelik/](lib/abunelik/) — `phoneFormat.ts`, `token.ts`, `otp.ts`, `charge.ts` |
+| UI | [components/abunelik/AbunelikClient.tsx](components/abunelik/AbunelikClient.tsx) (`mode="profile" \| "login"`) |
 | CRM klienti + CRM-ə ötürmə | [lib/crmRenewals.ts](lib/crmRenewals.ts) |
 | Ödəniş tamamlanması | [lib/crmRenewalCheckout.ts](lib/crmRenewalCheckout.ts) + [lib/epointCheckoutDispatch.ts](lib/epointCheckoutDispatch.ts) |
-| API | `app/api/abunelik/{otp/send,otp/verify,account,subscriptions,renew,logout}` |
+| API | `app/api/abunelik/{otp/send,otp/verify,subscriptions,renew}` |
 | CRM → nəticə | `POST /api/partner/crm-renewals/complete` |
 | Admin | `/admin/crm-renewals` (CRM-ə yenidən göndər, Tamamlandı/Uğursuz, Cüzdana qaytar) |
 | Test | `npm run test:crmrenewal`; lokal Epoint callback: `scripts/epointSimulateResult.ts` |
 
-- **CRM datası YALNIZ imzalı `honsell_abunelik` cookie-dəki nömrə ilə çəkilir** (OTP ilə təsdiqlənib, 2 saat) —
-  `User.phone` ilə YOX (profil səhifəsindən OTP-siz dəyişir), xam `honsell_session` ilə YOX. Cookie-də `uid` var:
-  başqa hesab daxil olubsa rədd edilir. Prod-da `ABUNELIK_COOKIE_SECRET` məcburidir.
-- **Kod yalnız CRM müştərisinə gedir** (CRM-də abunəliyi olan nömrə) — cavab isə həmişə eynidir (enumeration).
-  Limitlər: 45 san cooldown, nömrəyə gündə 5, IP-dən saatda 3 fərqli nömrə + Turnstile.
-- **Sayt hesabı:** nömrəyə tək aktiv (admin olmayan) hesab uyğun gəlirsə kodla ona daxil edilir; yoxdursa ödəniş
-  anında ad + e-poçtla şifrəsiz hesab yaranır (`/rey` kimi, `pending:` hash); bir neçə hesab → şifrə ilə giriş.
+- **Sayt sessiyası İMZALIDIR** (`honsell_session = <User.id>.<HMAC>`, açar `SESSION_SECRET`, yoxdursa `DATABASE_URL`-dən
+  törədilir). Əvvəl xam `User.id` idi və id-lər açıq API-lərdə görünür (icma postları) — istənilən hesabın (admin
+  daxil) adından daxil olmaq olardı. Cookie-ni YALNIZ `setSessionCookie` ilə yaz; xam `cookies().get(...)` ilə oxuma.
+- **CRM datası YALNIZ `User.verifiedPhone` ilə çəkilir** (WhatsApp ilə SÜBUT olunmuş nömrə, `phoneVerifiedAt`
+  90 gün etibarlı — `VERIFIED_PHONE_TTL_DAYS`). `User.phone` ilə YOX — o, profildən kodsuz dəyişir. Sübut yalnız:
+  CRM-in birbaşa giriş linki, `/api/abunelik/otp/*` (WhatsApp kodu, `PhoneOtp`). ⚠️ Qeydiyyat/şifrə kodu
+  (`User.otpCode`, `/api/auth/verify-otp`) sübut DEYİL — şifrə bərpası onu e-poçta da göndərə bilir.
+  Sübut yoxdursa/köhnədirsə profil kodla təsdiq istəyir (`attach: true` → nömrə öz hesabına bağlanır).
+- **Telefonla girişdə hesab `verifiedPhone`-a görə seçilir** (dəqiq E.164), `User.phone`-a görə YOX: kimsə öz
+  hesabına başqasının nömrəsini yazıb onun girişini və CRM şifrələrini öz hesabına yönəldə bilərdi. Bağlı hesab
+  yoxdursa telefon hesabı açılır; real + telefon hesabı → real. Daxil olmuş istifadəçinin bağlı nömrəsi fərqlidirsə
+  sessiya nömrənin öz hesabına keçir (paylaşılan cihaz). Bir neçə real hesab → `/abunelik?giris=coxlu` (şifrə ilə).
+- **Kod** yalnız: daxil olmuş istifadəçiyə (profil təsdiqi), nömrəyə bağlı hesab varsa və ya CRM-də abunəlik varsa
+  — cavab isə həmişə eynidir (enumeration). Limitlər: 45 san cooldown, nömrəyə gündə 5, IP-dən saatda 3 fərqli nömrə
+  + Turnstile. Köhnə ayrıca `honsell_abunelik` telefon cookie-si artıq yazılmır (çıxışda silinir).
+- **CRM telefon hesabları** ([lib/crmAccounts.ts](lib/crmAccounts.ts), [lib/crmAccountEmail.ts](lib/crmAccountEmail.ts)):
+  CRM hər müştəri üçün `POST /api/partner/crm-accounts` (toplu, ≤200) çağırır, `abunelik-link` də nömrənin hesabını
+  təmin edir. Nömrəyə (son 9 rəqəm, `User.phone`) uyğun HƏR HANSI hesab varsa yenisi yaranmır (telefonla girişdə isə
+  bağlı hesab yoxdursa yaranır — `createBoundPhoneAccount`). Yeni hesab: ad CRM-dən, `verifiedPhone` = nömrə
+  (bağ; `phoneVerifiedAt` boş — data yalnız sahibi daxil olanda), `email = <rəqəmlər>@crm.honsell.invalid`
+  (çatdırılmayan placeholder — CRM-də şəxsi e-poçt yoxdur, `User.email` məcburidir), `pending:` şifrə,
+  `emailVerified: true`; giriş yalnız telefonla.
+  - `lib/resend.ts` placeholder ünvanlara heç nə göndərmir (`resend.emails.send` filtri) — yeni e-poçt yolu da
+    eyni klientdən keçməlidir. Kampaniya auditoriyası onları filtrlə seçmir (əllə əlavə etmək olar).
+  - Qeydiyyat: telefon yoxlaması placeholder hesabı saymır. Real hesab nömrəni profildə WhatsApp kodu ilə özünə
+    bağlayanda həmin nömrənin İSTİFADƏ OLUNMAMIŞ telefon hesabı (əməliyyat/balans yoxdur) bloklanır, nömrəsi və
+    bağı silinir (`retireUnusedCrmAccounts`). İstifadə olunmuş telefon hesabı qalır — real hesab üstün tutulur.
+  - Placeholder e-poçtu HEÇ VAXT qeydiyyatdan əvvəl dəyişmə (müştərinin hesabını ələ keçirmə yolu olar).
 - **Ödəniş** = `Transaction` (`CHECKOUT_PAYMENT`, `metadata.flow = "crm-renewal"`). `/result` və reconcile
   `finalizeEpointCheckoutPayment` dispatcher-indən keçir — yeni axın əlavə edəndə yalnız orada qeyd et.
   Qiymət serverdə CRM-dən alınır (`quoteCrmRenewal`); klientin məbləği yalnız `PRICE_CHANGED` yoxlaması üçündür.
@@ -1051,10 +1078,10 @@ bitmiş), giriş məlumatları və **CRM `/pricing` qiyməti ilə** (3% haqq YOX
   `crmSyncError` daşıyır və "Hamısını CRM-ə yenidən göndər" (`crm-retry`) onu da götürür (idempotent).
 - `FAILED` = CRM uzatmadı (məs. slot arada boşaldılıb) → müştəriyə geri ödəniş: "Cüzdana qaytar" CRM qiymətini
   (round-up onsuz da cüzdandadır) bir dəfə yazır; kart geri ödənişi Epoint kabinetindən.
-- **WhatsApp birbaşa giriş linki:** CRM abunəçi yazanda 7 gündə bir `POST /api/partner/abunelik-link` ilə link istəyir →
-  `/abunelik/giris?t=<token>` (24 saat, `createLinkToken`, `k: "link"` — cookie tokeni ilə bir-birinin yerinə keçmir).
-  Route telefon cookie-sini qoyur, sayt hesabını OTP ilə EYNİ qaydada bağlayır (`lib/abunelik/login.ts`) və tokensiz
-  `/abunelik`-ə yönləndirir. WhatsApp/Facebook önizləmə botları giriş etmir (user-agent). Vaxtı keçmiş → `?link=kohne`.
+- **WhatsApp birbaşa giriş linki:** CRM yazan hər müştəri üçün 7 gündə bir `POST /api/partner/abunelik-link` ilə link istəyir →
+  `/abunelik/giris?t=<token>` (24 saat, `createLinkToken`, `k: "link"`). Route müştərini `loginByPhone` ilə nömrəyə
+  bağlı sayt hesabına daxil edir və tokensiz `/profile/abunelikler`-ə yönləndirir. WhatsApp/Facebook önizləmə botları
+  giriş etmir (user-agent). Vaxtı keçmiş → `/abunelik?link=kohne`. Ödəniş qayıdışı: `/profile/abunelikler?odenis=…`.
 - Söndürmə/açma: `ABUNELIK_ENABLED=1` (yoxdursa səhifə "Tezliklə", API 404). Lokal: `ABUNELIK_OTP_DEV_ECHO=1`
   (kod log-a), `EPOINT_MOCK=1` (Epoint-ə getmir) — hər ikisi production-da işləmir.
 

@@ -1,6 +1,7 @@
 import { UserRound, AlertTriangle } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isCrmPlaceholderEmail } from "@/lib/crmAccountEmail";
 import ProfileSettingsForm from "@/components/ProfileSettingsForm";
 import StudentProfileForm from "@/components/StudentProfileForm";
 import { getStudentCardViewUrl } from "@/lib/imageUploadServer";
@@ -85,7 +86,7 @@ export default async function ProfileSettingsPage() {
 
       <ProfileSettingsForm
         initial={{
-          email: user.email,
+          email: isCrmPlaceholderEmail(user.email) ? "— (WhatsApp nömrəsi ilə hesab)" : user.email,
           name: user.name ?? "",
           phone: user.phone ?? "",
           birthDate: user.birthDate

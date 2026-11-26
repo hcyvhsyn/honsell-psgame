@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { readSessionUserIdFromCookies } from "@/lib/auth";
 import { normalizeAzPhone } from "@/lib/abunelik/phone";
 import { isAbunelikConfigured, isAbunelikEnabled } from "@/lib/abunelik/session";
 import { canDeliverOtp, issueOtp, OTP_TTL_MINUTES } from "@/lib/abunelik/otp";
@@ -14,9 +16,10 @@ const RESEND_COOLDOWN_SECONDS = 45;
 
 /**
  * POST /api/abunelik/otp/send  { phone, turnstileToken? }
- * Nömrə CRM-də abunəliyi olan müştəriyə aiddirsə WhatsApp-a 6 rəqəmli kod göndərir.
- * Cavab nömrənin sistemdə olub-olmamasından ASILI DEYİL (enumeration-a qarşı) — kod yalnız
- * CRM müştərisinə gedir ki, təsadüfi nömrələrə spam getməsin.
+ * WhatsApp-a 6 rəqəmli kod göndərir — yalnız: saytda daxil olmuş istifadəçi öz nömrəsini təsdiqləyirsə
+ * (profil), nömrəyə bağlı sayt hesabı varsa (`verifiedPhone`, CRM telefon hesabları daxil) və ya nömrə CRM-də
+ * abunəliyi olan müştəriyə aiddirsə. Cavab nömrənin sistemdə olub-olmamasından ASILI DEYİL (enumeration-a
+ * qarşı) — təsadüfi nömrələrə spam getmir.
  */
 export async function POST(req: Request) {
   if (!isAbunelikEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -61,12 +64,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: rateLimitMessage(perPhone.retryAfterMinutes, perPhone.retryAfterSeconds) }, { status: 429 });
   }
 
-  try {
-    const crm = await fetchCrmSubscriptions(phone.e164);
-    if (crm.items.length === 0) return generic; // CRM müştərisi deyil — kod göndərilmir, cavab eynidir
-  } catch (e) {
-    console.error("[abunelik:otp] CRM", e);
-    return NextResponse.json({ error: "Abunəlik sistemi müvəqqəti cavab vermir. Bir az sonra yenidən cəhd edin." }, { status: 503 });
+  const loggedIn = !!readSessionUserIdFromCookies();
+  const bound = loggedIn
+    ? true
+    : (await prisma.user.count({ where: { verifiedPhone: phone.e164, disabled: false } })) > 0;
+  if (!bound) {
+    try {
+      const crm = await fetchCrmSubscriptions(phone.e164);
+      if (crm.items.length === 0) return generic; // nə hesab, nə CRM abunəliyi — kod göndərilmir, cavab eynidir
+    } catch (e) {
+      console.error("[abunelik:otp] CRM", e);
+      return NextResponse.json({ error: "Abunəlik sistemi müvəqqəti cavab vermir. Bir az sonra yenidən cəhd edin." }, { status: 503 });
+    }
   }
 
   const sent = await issueOtp(phone.e164, ip === "unknown" ? null : ip);

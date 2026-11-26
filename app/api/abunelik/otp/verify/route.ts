@@ -3,24 +3,29 @@ import { prisma } from "@/lib/prisma";
 import { normalizeAzPhone } from "@/lib/abunelik/phone";
 import { isAbunelikConfigured, isAbunelikEnabled } from "@/lib/abunelik/session";
 import { OTP_MAX_ATTEMPTS, OTP_PURPOSE, otpMatches } from "@/lib/abunelik/otp";
-import { applyPhoneLogin, resolvePhoneLogin } from "@/lib/abunelik/login";
+import { loginByPhone } from "@/lib/abunelik/login";
+import { readSessionUserIdFromCookies, setSessionCookie } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/abunelik/otp/verify  { phone, code }
- * Kod doğrudursa imzalı telefon cookie-si qoyulur. Sayt hesabı:
- *   - artıq daxil olubsa → həmin hesab saxlanılır;
- *   - nömrəyə TƏK aktiv (admin olmayan) hesab uyğun gəlirsə → ona daxil edilir;
- *   - yoxdursa → `account: "none"` (hesab ödəniş anında yaradılır);
- *   - bir neçə hesab → `account: "ambiguous"` (ödəniş üçün şifrə ilə giriş).
+ * POST /api/abunelik/otp/verify  { phone, code, attach? }
+ * Kod doğrudursa nömrə sübut olunur (lib/abunelik/login.ts → loginByPhone):
+ *   - `attach: true` (profildə "nömrəni təsdiqlə", daxil olmuş istifadəçi) → nömrə ÖZ hesabına bağlanır;
+ *   - əks halda nömrəyə bağlı hesaba daxil edilir (yoxdursa telefon hesabı açılır);
+ *   - bir neçə hesab → `account: "ambiguous"` (e-poçt + şifrə ilə giriş).
+ * Cavab: `{ ok, account, redirect }`.
  */
 export async function POST(req: Request) {
   if (!isAbunelikEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (!isAbunelikConfigured()) return NextResponse.json({ error: "Giriş müvəqqəti əlçatmazdır." }, { status: 503 });
 
-  const body = (await req.json().catch(() => null)) as { phone?: string; code?: string } | null;
+  const body = (await req.json().catch(() => null)) as { phone?: string; code?: string; attach?: boolean } | null;
+  const attach = body?.attach === true;
+  if (attach && !readSessionUserIdFromCookies()) {
+    return NextResponse.json({ error: "Sessiya bitib. Hesabınıza yenidən daxil olun." }, { status: 401 });
+  }
   const phone = normalizeAzPhone(body?.phone);
   const code = String(body?.code ?? "").replace(/\D/g, "");
   if (!phone || code.length !== 6) {
@@ -63,8 +68,10 @@ export async function POST(req: Request) {
   }
 
   // ── Sayt hesabı (lib/abunelik/login.ts — WhatsApp birbaşa giriş linki ilə ortaq) ──
-  const login = await resolvePhoneLogin(phone);
-  const res = NextResponse.json({ ok: true, account: login.account });
-  await applyPhoneLogin(res, req, phone, login);
+  const login = await loginByPhone(req, phone, { attachToSession: attach });
+  const redirect =
+    login.account === "ambiguous" ? "/abunelik?giris=coxlu" : "/profile/abunelikler";
+  const res = NextResponse.json({ ok: true, account: login.account, redirect });
+  if (login.newSession && login.userId) setSessionCookie(res, login.userId);
   return res;
 }

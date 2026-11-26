@@ -38,6 +38,13 @@ model User {
   avatarUrl String?
 
   emailVerified Boolean   @default(false)
+
+  // WhatsApp ilə SÜBUT olunmuş nömrə (E.164): telefonla giriş (CRM linki / WhatsApp kodu) və ya WhatsApp
+  // kodu ilə qeydiyyat təsdiqi. `phone` profil səhifəsindən kodsuz dəyişə bilir — CRM datası (abunəliklər,
+  // giriş məlumatları) YALNIZ bu sahə ilə çəkilir (lib/abunelik/session.ts → resolveVerifiedPhone).
+  verifiedPhone   String?
+  phoneVerifiedAt DateTime?
+
   otpCode       String?
   otpExpiresAt  DateTime?
   // Brute-force qoruması: səhv OTP girişləri sayılır, müəyyən həddən sonra

@@ -10,12 +10,28 @@ import ProductGiftCodeEmail from "@/emails/ProductGiftCodeEmail";
 import ProductGiftClaimedEmail from "@/emails/ProductGiftClaimedEmail";
 import StreamingDeliveryEmail from "@/emails/StreamingDeliveryEmail";
 import ReviewInviteEmail from "@/emails/ReviewInviteEmail";
+import { isCrmPlaceholderEmail } from "@/lib/crmAccountEmail";
 
 if (!process.env.RESEND_API_KEY) {
   throw new Error("RESEND_API_KEY is not set in environment variables.");
 }
 
 export const resend = new Resend(process.env.RESEND_API_KEY);
+
+// CRM telefon hesablarının e-poçtu çatdırılmayan placeholder-dir (lib/crmAccountEmail.ts) — bütün göndərişlər
+// bu tək klientdən keçir, ona görə filtr burada: belə ünvan alıcılardan çıxarılır, başqa alıcı qalmırsa
+// Resend-ə sorğu getmir (çağıran tərəf uğur görür, xəta atılmır).
+const rawSendEmail = resend.emails.send.bind(resend.emails);
+resend.emails.send = (async (payload, options) => {
+  const list = Array.isArray(payload.to) ? payload.to : [payload.to];
+  const to = list.filter((addr) => !isCrmPlaceholderEmail(addr));
+  if (to.length === list.length) return rawSendEmail(payload, options);
+  if (to.length === 0) {
+    console.info(`[resend] CRM telefon hesabı — e-poçt göndərilmir: "${payload.subject ?? ""}"`);
+    return { data: { id: "skipped:crm-phone-account" }, error: null, headers: null };
+  }
+  return rawSendEmail({ ...payload, to }, options);
+}) as typeof resend.emails.send;
 
 const FROM_ADDRESS = "Honsell Store <onboarding@honsell.site>";
 const ADMIN_NOTIFY_EMAIL = "huseynhajiyev0@gmail.com";

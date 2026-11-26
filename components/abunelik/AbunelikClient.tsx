@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Copy, Eye, EyeOff, Loader2, LogOut, RefreshCw } from "lucide-react";
+import { Check, Copy, Eye, EyeOff, Loader2, RefreshCw } from "lucide-react";
 import TurnstileWidget from "@/components/auth/TurnstileWidget";
 
 type Option = { months: number; priceAzn: number; newEndDate: string };
@@ -38,7 +38,6 @@ type ListData = {
   firstName: string | null;
   items: Item[];
   renewals: Renewal[];
-  account: { name: string | null; email: string } | null;
 };
 
 const card = "rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/5 dark:bg-[#111116] sm:p-5";
@@ -244,25 +243,34 @@ function SubscriptionCard({
   );
 }
 
-export default function AbunelikClient({ initialVerified }: { initialVerified: boolean }) {
-  const [phase, setPhase] = useState<"phone" | "code" | "list">(initialVerified ? "list" : "phone");
-  const [phone, setPhone] = useState("");
+/**
+ * `mode="profile"` — /profile/abunelikler: daxil olmuş istifadəçinin CRM abunəlikləri; nömrəsi təsdiqlənməyibsə
+ *   (və ya müddəti keçibsə) əvvəlcə WhatsApp kodu ilə ÖZ hesabına bağlayır (`attach`).
+ * `mode="login"` — /abunelik: nömrə + WhatsApp kodu ilə sayta giriş, sonra profilə keçid. Data göstərmir.
+ */
+export default function AbunelikClient({
+  mode,
+  initialVerified,
+  defaultPhone = "",
+}: {
+  mode: "profile" | "login";
+  initialVerified: boolean;
+  defaultPhone?: string;
+}) {
+  const isProfile = mode === "profile";
+  const [phase, setPhase] = useState<"phone" | "code" | "list">(isProfile && initialVerified ? "list" : "phone");
+  const [phone, setPhone] = useState(defaultPhone);
   const [code, setCode] = useState("");
   const [captcha, setCaptcha] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [resendIn, setResendIn] = useState(0);
-  const [accountState, setAccountState] = useState<"session" | "linked" | "none" | "ambiguous" | null>(null);
+  const [ambiguous, setAmbiguous] = useState(false);
 
   const [data, setData] = useState<ListData | null>(null);
   const [loading, setLoading] = useState(false);
   const [payingRef, setPayingRef] = useState<string | null>(null);
-  const [needAccount, setNeedAccount] = useState<{ item: Item; option: Option } | null>(null);
-  const [accName, setAccName] = useState("");
-  const [accEmail, setAccEmail] = useState("");
-  const [accError, setAccError] = useState<string | null>(null);
-  const [accLoginUrl, setAccLoginUrl] = useState<string | null>(null);
   const [payBanner, setPayBanner] = useState<{ kind: "ok" | "err" | "done"; text: string; txId?: string } | null>(null);
   const pollRef = useRef(0);
 
@@ -275,8 +283,8 @@ export default function AbunelikClient({ initialVerified }: { initialVerified: b
     else if (odenis === "xeta") setPayBanner({ kind: "err", text: "Ödəniş alınmadı. Kartdan pul tutulmayıbsa yenidən cəhd edin." });
     // WhatsApp birbaşa giriş linkindən qayıdış (/abunelik/giris)
     if (sp.get("link") === "kohne") setError("Giriş linkinin vaxtı keçib. Nömrənizi yazıb WhatsApp kodu ilə daxil olun.");
-    if (sp.get("giris") === "coxlu") setAccountState("ambiguous");
-    if (odenis || sp.get("link") || sp.get("giris")) window.history.replaceState(null, "", "/abunelik");
+    if (sp.get("giris") === "coxlu") setAmbiguous(true);
+    if (odenis || sp.get("link") || sp.get("giris")) window.history.replaceState(null, "", window.location.pathname);
   }, []);
 
   useEffect(() => {
@@ -367,26 +375,24 @@ export default function AbunelikClient({ initialVerified }: { initialVerified: b
       const res = await fetch("/api/abunelik/otp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, code }),
+        body: JSON.stringify({ phone, code, attach: isProfile }),
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) {
         setError(json?.error || "Kod yanlışdır.");
         return;
       }
-      setAccountState(json?.account ?? null);
+      if (!isProfile) {
+        // Sayta daxil olundu → hər şey profildədir
+        window.location.href = typeof json?.redirect === "string" ? json.redirect : "/profile/abunelikler";
+        return;
+      }
       setInfo(null);
       setCode("");
       setPhase("list");
     } finally {
       setBusy(false);
     }
-  };
-
-  const logout = async () => {
-    await fetch("/api/abunelik/logout", { method: "POST" }).catch(() => {});
-    setData(null);
-    setPhase("phone");
   };
 
   const startPayment = useCallback(
@@ -404,14 +410,7 @@ export default function AbunelikClient({ initialVerified }: { initialVerified: b
           window.location.href = json.redirectUrl;
           return;
         }
-        if (json?.code === "NEEDS_ACCOUNT") {
-          setAccName(data?.customerName ?? "");
-          setAccError(null);
-          setAccLoginUrl(null);
-          setNeedAccount({ item, option });
-          return;
-        }
-        if (json?.code === "PHONE_SESSION") {
+        if (json?.code === "PHONE_UNVERIFIED") {
           setPhase("phone");
           return;
         }
@@ -423,32 +422,8 @@ export default function AbunelikClient({ initialVerified }: { initialVerified: b
         setPayingRef(null);
       }
     },
-    [data?.customerName, load],
+    [load],
   );
-
-  const createAccount = async () => {
-    if (!needAccount) return;
-    setBusy(true);
-    setAccError(null);
-    try {
-      const res = await fetch("/api/abunelik/account", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: accName, email: accEmail }),
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok) {
-        setAccError(json?.error || "Hesab yaradılmadı.");
-        setAccLoginUrl(json?.loginUrl ?? null);
-        return;
-      }
-      const pending = needAccount;
-      setNeedAccount(null);
-      await startPayment(pending.item, pending.option);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const openByRef = useMemo(() => {
     const m = new Map<string, Renewal>();
@@ -460,10 +435,21 @@ export default function AbunelikClient({ initialVerified }: { initialVerified: b
   if (phase !== "list") {
     return (
       <div className={`${card} mx-auto max-w-md`}>
-        <h1 className="text-xl font-bold">Abunəliklərim</h1>
+        <h1 className="text-xl font-bold">{isProfile ? "Nömrənizi təsdiqləyin" : "Nömrə ilə daxil ol"}</h1>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Netflix, Spotify, YouTube, PS Plus abunəliklərinizi görün, giriş məlumatlarınıza baxın və onlayn yeniləyin.
+          {isProfile
+            ? "Netflix, Spotify, YouTube, PS Plus abunəliklərinizi və giriş məlumatlarınızı görmək üçün bizimlə yazışdığınız WhatsApp nömrəsini kodla təsdiqləyin."
+            : "WhatsApp nömrənizə gələn kodla honsell.site hesabınıza daxil olun — abunəlikləriniz, giriş məlumatlarınız və onlayn yeniləmə profilinizdədir."}
         </p>
+        {!isProfile && ambiguous && (
+          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+            Bu nömrəyə bir neçə hesab bağlıdır.{" "}
+            <Link href="/login?next=/profile/abunelikler" className="font-bold underline">
+              E-poçt və şifrə ilə daxil olun
+            </Link>
+            , sonra profildə nömrənizi təsdiqləyin.
+          </p>
+        )}
         {phase === "phone" ? (
           <form
             className="mt-5 space-y-3"
@@ -517,7 +503,7 @@ export default function AbunelikClient({ initialVerified }: { initialVerified: b
             />
             {error && <p className="text-sm text-rose-600">{error}</p>}
             <button type="submit" disabled={busy || code.length !== 6} className={primaryBtn}>
-              {busy && <Loader2 className="h-4 w-4 animate-spin" />} Daxil ol
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />} {isProfile ? "Təsdiqlə" : "Daxil ol"}
             </button>
             <div className="flex items-center justify-between text-sm">
               <button
@@ -563,10 +549,13 @@ export default function AbunelikClient({ initialVerified }: { initialVerified: b
           </button>
           <button
             type="button"
-            onClick={() => void logout()}
+            onClick={() => {
+              setError(null);
+              setPhase("phone");
+            }}
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-semibold dark:border-white/10"
           >
-            <LogOut className="h-4 w-4" /> Çıxış
+            Başqa nömrə
           </button>
         </div>
       </div>
@@ -582,15 +571,6 @@ export default function AbunelikClient({ initialVerified }: { initialVerified: b
           {payBanner.kind === "ok" && <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />}
           {payBanner.text}
         </div>
-      )}
-      {accountState === "ambiguous" && !data?.account && (
-        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
-          Bu nömrəyə bir neçə sayt hesabı bağlıdır. Ödəniş üçün{" "}
-          <Link href="/login?next=/abunelik" className="font-bold underline">
-            hesabınıza daxil olun
-          </Link>
-          .
-        </p>
       )}
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-200">{error}</p>}
 
@@ -627,57 +607,12 @@ export default function AbunelikClient({ initialVerified }: { initialVerified: b
         </div>
       )}
 
-      {data?.account && (
-        <p className="text-center text-xs text-zinc-500">
-          Ödənişlər <span className="font-semibold">{data.account.email}</span> hesabına yazılır ·{" "}
-          <Link href="/profile/orders" className="underline">
-            Sifarişlər
-          </Link>
-        </p>
-      )}
-
-      {needAccount && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center" role="dialog" aria-modal="true">
-          <div className={`${card} w-full max-w-md`}>
-            <h2 className="text-lg font-bold">Ödəniş üçün hesab</h2>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Qəbz və sifariş tarixçəsi üçün adınızı və e-poçtunuzu yazın. Şifrə təyin etmə linki e-poçtunuza gələcək.
-            </p>
-            <div className="mt-4 space-y-3">
-              <input className={input} placeholder="Ad Soyad" value={accName} onChange={(e) => setAccName(e.target.value)} autoComplete="name" />
-              <input
-                className={input}
-                type="email"
-                placeholder="E-poçt"
-                value={accEmail}
-                onChange={(e) => setAccEmail(e.target.value)}
-                autoComplete="email"
-              />
-              {accError && (
-                <p className="text-sm text-rose-600">
-                  {accError}{" "}
-                  {accLoginUrl && (
-                    <Link href={accLoginUrl} className="font-bold underline">
-                      Daxil ol
-                    </Link>
-                  )}
-                </p>
-              )}
-              <button type="button" disabled={busy} onClick={() => void createAccount()} className={primaryBtn}>
-                {busy && <Loader2 className="h-4 w-4 animate-spin" />} Davam et və ödə
-              </button>
-              <div className="flex items-center justify-between text-sm">
-                <Link href="/login?next=/abunelik" className="font-semibold text-violet-700 hover:underline dark:text-violet-300">
-                  Hesabım var
-                </Link>
-                <button type="button" onClick={() => setNeedAccount(null)} className="font-semibold text-zinc-500 hover:underline">
-                  Ləğv et
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <p className="text-center text-xs text-zinc-500">
+        Ödənişlər bu hesaba yazılır ·{" "}
+        <Link href="/profile/orders" className="underline">
+          Sifarişlər
+        </Link>
+      </p>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { SESSION_COOKIE_NAME } from "@/lib/auth";
+import { setSessionCookie } from "@/lib/auth";
 import { sendAdminNewUserNotification, sendWelcomeEmail } from "@/lib/resend";
 import { rateLimitMessage } from "@/lib/rateLimit";
 import { heardAboutLabel } from "@/lib/heardAbout";
@@ -95,6 +95,9 @@ export async function POST(req: Request) {
     },
   });
 
+  // ⚠️ Burada nömrə SÜBUT SAYILMIR: `user.otpCode` şifrə bərpası ilə ortaqdır və o kod e-poçta da gedə bilər.
+  // Nömrə bağlama / CRM telefon hesabını bağlama yalnız WhatsApp kodu / linki ilə olur (lib/abunelik/login.ts).
+
   // Dəvətlə gələn istifadəçi indi təsdiqləndi — dəvət edənə sabit bonus yaz.
   // Şübhəli olarsa awardInviteBonus bonusu HELD saxlayır (admin yoxlayır).
   // Xəta təsdiqi bloklamamalıdır — welcome email kimi loglayıb davam edirik.
@@ -130,12 +133,6 @@ export async function POST(req: Request) {
     email: user.email,
     referralCode: user.referralCode,
   });
-  res.cookies.set(SESSION_COOKIE_NAME, user.id, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 30,
-  });
+  setSessionCookie(res, user.id);
   return res;
 }

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { SESSION_COOKIE_NAME, generateReferralCode } from "@/lib/auth";
+import { setSessionCookie, generateReferralCode } from "@/lib/auth";
 import { SET_PASSWORD_TTL_HOURS } from "@/lib/resend";
 import { rateLimitMessage } from "@/lib/rateLimit";
 import { parseInviteSaleItems, reviewSaleTxnData } from "@/lib/whatsappReviewProducts";
@@ -216,13 +216,7 @@ export async function POST(
       referralCode,
       setPasswordToken: result.canSetPassword ? setPasswordToken : null,
     });
-    res.cookies.set(SESSION_COOKIE_NAME, userId, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 30,
-    });
+    setSessionCookie(res, userId);
     return res;
   } catch (err) {
     console.error("[wa-review] verify/create failed", err);

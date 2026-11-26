@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { SESSION_COOKIE_NAME, verifyPassword } from "@/lib/auth";
+import { setSessionCookie, verifyPassword } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -47,12 +47,6 @@ export async function POST(req: Request) {
   });
 
   const res = NextResponse.json({ id: user.id, email: user.email });
-  res.cookies.set(SESSION_COOKIE_NAME, user.id, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 30,
-  });
+  setSessionCookie(res, user.id);
   return res;
 }

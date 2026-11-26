@@ -27,8 +27,8 @@ const ITEMS = [
   { href: "/profile/profiles", label: "Profillerim", icon: KeyRound },
   { href: "/profile/favorites", label: "Favorilər", icon: Heart },
   { href: "/profile/subscriptions", label: "Aktiv abunəliklər", icon: Crown },
-  // CRM abunəlikləri (Netflix kabineti, Spotify, PS Plus) — nömrə + WhatsApp kodu ilə, ayrıca səhifə
-  { href: "/abunelik", label: "Netflix / Spotify abunəliklərim", icon: MonitorPlay },
+  // CRM abunəlikləri (Netflix kabineti, Spotify, PS Plus) — giriş məlumatları + yeniləmə; yalnız profildə
+  { href: "/profile/abunelikler", label: "Netflix / Spotify abunəliklərim", icon: MonitorPlay },
   { href: "/profile/orders", label: "Sifarişlər", icon: Receipt },
   { href: "/profile/qutular", label: "Qutu açılışları", icon: Package },
   { href: "/profile/referrals", label: "Referallar", icon: Share2 },

@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { SITE_URL } from "@/lib/site";
 import { verifyLinkToken } from "@/lib/abunelik/token";
 import { isAbunelikConfigured, isAbunelikEnabled } from "@/lib/abunelik/session";
-import { applyPhoneLogin, resolvePhoneLogin } from "@/lib/abunelik/login";
+import { loginByPhone } from "@/lib/abunelik/login";
+import { setSessionCookie } from "@/lib/auth";
 
 export const runtime = "nodejs";
+
+const PROFILE_PATH = "/profile/abunelikler";
 export const dynamic = "force-dynamic";
 
 /** WhatsApp / Facebook link önizləmə botları — linki "açır", amma girişə sayılmamalıdır. */
@@ -19,8 +22,9 @@ function redirect(path: string) {
 
 /**
  * GET /abunelik/giris?t=<token> — CRM-in WhatsApp-a göndərdiyi birbaşa giriş linki (24 saat).
- * Token həmin nömrənin WhatsApp-ına getdiyi üçün OTP kodu qədər sübutdur: telefon cookie-si qoyulur,
- * sayt hesabı OTP girişi ilə EYNİ qaydada bağlanır, sonra token URL-də qalmasın deyə /abunelik-ə yönləndirilir.
+ * Token həmin nömrənin WhatsApp-ına getdiyi üçün WhatsApp kodu qədər sübutdur: müştəri nömrəyə bağlı sayt
+ * hesabına daxil edilir (yoxdursa telefon hesabı açılır — lib/abunelik/login.ts) və tokensiz profilin
+ * abunəliklər bölməsinə yönləndirilir. Bir neçə hesab → e-poçt + şifrə ilə giriş.
  */
 export async function GET(req: Request) {
   if (!isAbunelikEnabled() || !isAbunelikConfigured()) return redirect("/abunelik");
@@ -31,8 +35,9 @@ export async function GET(req: Request) {
   if (!payload) return redirect("/abunelik?link=kohne");
 
   const phone = { e164: payload.e164, phone9: payload.p9 };
-  const login = await resolvePhoneLogin(phone);
-  const res = redirect(login.account === "ambiguous" ? "/abunelik?giris=coxlu" : "/abunelik");
-  await applyPhoneLogin(res, req, phone, login);
+  const login = await loginByPhone(req, phone);
+  if (login.account === "ambiguous") return redirect("/abunelik?giris=coxlu");
+  const res = redirect(PROFILE_PATH);
+  if (login.newSession && login.userId) setSessionCookie(res, login.userId);
   return res;
 }

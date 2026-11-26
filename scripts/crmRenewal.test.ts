@@ -1,11 +1,14 @@
 /**
- * /abunelik saf məntiq testləri: nömrə normallaşdırması, imzalı telefon tokeni, minimum məbləğ.
+ * /abunelik saf məntiq testləri: nömrə normallaşdırması, imzalı telefon tokeni, minimum məbləğ, CRM telefon hesabı,
+ * imzalı sayt sessiyası.
  * İşə salmaq: npm run test:crmrenewal
  */
 import assert from "node:assert/strict";
 import { formatAzPhone, normalizeAzPhone } from "../lib/abunelik/phoneFormat";
 import { createPhoneToken, verifyPhoneToken } from "../lib/abunelik/token";
 import { renewalCharge } from "../lib/abunelik/charge";
+import { CRM_PLACEHOLDER_EMAIL_SUFFIX, crmPlaceholderEmail, isCrmPlaceholderEmail } from "../lib/crmAccountEmail";
+import { readSessionUserId, signSessionValue } from "../lib/sessionToken";
 
 // ── Nömrə ──
 const az = { e164: "+994501234567", phone9: "501234567" };
@@ -47,6 +50,32 @@ assert.deepEqual(renewalCharge(9), { priceCents: 900, chargeCents: 900, topUpCen
 assert.deepEqual(renewalCharge(3), { priceCents: 300, chargeCents: 500, topUpCents: 200 });
 assert.deepEqual(renewalCharge(12.99), { priceCents: 1299, chargeCents: 1299, topUpCents: 0 });
 assert.deepEqual(renewalCharge(5), { priceCents: 500, chargeCents: 500, topUpCents: 0 });
+
+// ── CRM telefon hesabı (placeholder e-poçt) ──
+assert.equal(crmPlaceholderEmail("+994501234567"), "994501234567@crm.honsell.invalid");
+assert.equal(crmPlaceholderEmail(normalizeAzPhone("050 123 45 67")!.e164), crmPlaceholderEmail("+994501234567"), "eyni nömrə → eyni ünvan");
+assert.ok(isCrmPlaceholderEmail("994501234567@crm.honsell.invalid"));
+assert.ok(isCrmPlaceholderEmail("Ad Soyad <994501234567@CRM.honsell.invalid>"));
+assert.ok(!isCrmPlaceholderEmail("ali@gmail.com"));
+assert.ok(!isCrmPlaceholderEmail("crm.honsell.invalid@gmail.com"));
+assert.ok(!isCrmPlaceholderEmail(null));
+assert.ok(("x" + CRM_PLACEHOLDER_EMAIL_SUFFIX).endsWith("@crm.honsell.invalid"));
+
+// ── İmzalı sayt sessiyası ──
+{
+  const prevSecret = process.env.SESSION_SECRET;
+  process.env.SESSION_SECRET = "test-session-secret";
+  const v = signSessionValue("cmabc123");
+  assert.equal(readSessionUserId(v), "cmabc123");
+  assert.equal(readSessionUserId("cmabc123"), null, "imzasız köhnə cookie qəbul olunmur");
+  assert.equal(readSessionUserId(`cmother.${v.split(".")[1]}`), null, "başqa id ilə imza keçmir");
+  assert.equal(readSessionUserId(`${v}x`), null);
+  assert.equal(readSessionUserId(""), null);
+  process.env.SESSION_SECRET = "another-secret";
+  assert.equal(readSessionUserId(v), null, "açar dəyişəndə sessiya bitir");
+  if (prevSecret === undefined) delete process.env.SESSION_SECRET;
+  else process.env.SESSION_SECRET = prevSecret;
+}
 
 console.log("crmRenewal: bütün testlər keçdi");
 

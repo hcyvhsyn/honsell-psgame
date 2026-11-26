@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { generateReferralCode, hashPassword } from "@/lib/auth";
 import { generateOtpCode, OTP_TTL_MINUTES } from "@/lib/resend";
 import { deliverSignupOtp } from "@/lib/otpDelivery";
+import { CRM_PLACEHOLDER_EMAIL_SUFFIX } from "@/lib/crmAccountEmail";
 import { getClientIp, ensureDeviceId, readDeviceId } from "@/lib/clientInfo";
 import {
   consumeDistinctRateLimit,
@@ -155,7 +156,12 @@ export async function POST(req: Request) {
     }
 
     // Eyni telefon nömrəsi ilə başqa hesab varsa, yenisi yaradıla bilməz.
-    const phoneOwner = await prisma.user.findFirst({ where: { phone } });
+    // İstisna: CRM-in avtomatik açdığı telefon hesabı (placeholder e-poçt) — müştəri saytda öz hesabını
+    // aça bilməlidir; kod WhatsApp-a gedir, təsdiqdən sonra istifadə olunmamış telefon hesabı bağlanır
+    // (verify-otp → retireUnusedCrmAccounts).
+    const phoneOwner = await prisma.user.findFirst({
+      where: { phone, NOT: { email: { endsWith: CRM_PLACEHOLDER_EMAIL_SUFFIX } } },
+    });
     if (phoneOwner) {
       if (phoneOwner.emailVerified) {
         return NextResponse.json(

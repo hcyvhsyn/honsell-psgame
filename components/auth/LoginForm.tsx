@@ -189,6 +189,14 @@ export default function LoginForm({
         )}
       </form>
 
+      {/* Telefon hesabları (CRM müştəriləri) e-poçtsuzdur — WhatsApp kodu ilə daxil olurlar (/abunelik) */}
+      <Link
+        href="/abunelik"
+        className="mt-3 flex w-full items-center justify-center rounded-[14px] border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-700 transition hover:bg-emerald-500/15 dark:text-emerald-300"
+      >
+        WhatsApp nömrəsi ilə daxil ol
+      </Link>
+
       <p className="mt-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
         Yeni istifadəçisən?{" "}
         {onSwitchToRegister ? (

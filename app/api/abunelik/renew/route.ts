@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { SITE_URL } from "@/lib/site";
-import { isAbunelikEnabled, readVerifiedPhone } from "@/lib/abunelik/session";
+import { isAbunelikEnabled, resolveVerifiedPhone } from "@/lib/abunelik/session";
 import { CrmRenewalError, quoteCrmRenewal } from "@/lib/crmRenewals";
 import { CRM_RENEWAL_FLOW, type CrmRenewalPaymentMetadata } from "@/lib/crmRenewalCheckout";
 import { EPOINT_CART_PAYMENT_TYPE } from "@/lib/epointCartCheckout";
@@ -42,10 +42,12 @@ const QUOTE_ERRORS: Record<string, string> = {
  */
 export async function POST(req: Request) {
   if (!isAbunelikEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const phone = readVerifiedPhone();
-  if (!phone) return NextResponse.json({ error: "Sessiya bitib. Nömrənizlə yenidən daxil olun.", code: "PHONE_SESSION" }, { status: 401 });
+  const phone = await resolveVerifiedPhone();
+  if (!phone) {
+    return NextResponse.json({ error: "Nömrənizi WhatsApp kodu ilə təsdiqləyin.", code: "PHONE_UNVERIFIED" }, { status: 401 });
+  }
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Ödəniş üçün hesab lazımdır.", code: "NEEDS_ACCOUNT" }, { status: 401 });
+  if (!user || user.id !== phone.uid) return NextResponse.json({ error: "Hesabınıza yenidən daxil olun.", code: "PHONE_UNVERIFIED" }, { status: 401 });
   if (user.disabled) return NextResponse.json({ error: "Bu hesab bloklanıb. Dəstək ilə əlaqə saxlayın." }, { status: 403 });
 
   const body = (await req.json().catch(() => null)) as { ref?: string; months?: number; expectedPriceAzn?: number } | null;
@@ -120,8 +122,8 @@ export async function POST(req: Request) {
   });
 
   const origin = requestOrigin(req);
-  const successUrl = `${origin}/abunelik?odenis=ugurlu&o=${encodeURIComponent(payment.id)}`;
-  const errorUrl = `${origin}/abunelik?odenis=xeta&o=${encodeURIComponent(payment.id)}`;
+  const successUrl = `${origin}/profile/abunelikler?odenis=ugurlu&o=${encodeURIComponent(payment.id)}`;
+  const errorUrl = `${origin}/profile/abunelikler?odenis=xeta&o=${encodeURIComponent(payment.id)}`;
 
   if (epointMock()) {
     await prisma.transaction.update({

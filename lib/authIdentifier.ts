@@ -8,6 +8,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { normalizeToE164 } from "@/lib/wasender";
+import { isCrmPlaceholderEmail } from "@/lib/crmAccountEmail";
 
 export type ResetChannel = "email" | "whatsapp";
 
@@ -88,11 +89,14 @@ export async function findUserByIdentifier(
     ]),
   );
 
-  const matches = await prisma.user.findMany({
+  const all = await prisma.user.findMany({
     where: { phone: { in: candidates } },
     select: SELECT,
-    take: 2,
+    take: 5,
   });
+  // CRM telefon hesabı (lib/crmAccountEmail.ts) + müştərinin öz hesabı → öz hesabı sayılır.
+  const real = all.filter((u) => !isCrmPlaceholderEmail(u.email));
+  const matches = real.length > 0 ? real : all;
 
   if (matches.length === 0) return { status: "none" };
   if (matches.length > 1) return { status: "ambiguous" };
