@@ -2,14 +2,16 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { pushCrmRenewalToCrm } from "@/lib/crmRenewals";
+import { parseCrmRenewalMetadata } from "@/lib/crmRenewalCheckout";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
  * Admin əməliyyatları: { action: "crm-push" | "mark-success" | "mark-failed" | "refund-wallet", reason? }
- * refund-wallet: yalnız FAILED sifarişdə, bir dəfə — CRM qiyməti (amountAznCents) cüzdana qaytarılır
- * (min 5 AZN round-up fərqi ödəniş anında onsuz da cüzdana yazılıb).
+ * refund-wallet: yalnız FAILED sifarişdə, bir dəfə — CRM qiyməti (amountAznCents) + 3% xidmət haqqı cüzdana
+ * qaytarılır (xidmət verilmədi; haqq ödənişin metadata-sındadır, köhnə ödənişlərdə 0). Min 5 AZN round-up fərqi
+ * ödəniş anında onsuz da cüzdana yazılıb.
  */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   let admin;
@@ -43,21 +45,29 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
     case "refund-wallet": {
       if (order.status !== "FAILED") return NextResponse.json({ error: "Yalnız uğursuz sifariş qaytarılır" }, { status: 409 });
+      const payment = await prisma.transaction.findUnique({
+        where: { id: order.paymentTransactionId },
+        select: { metadata: true },
+      });
+      const serviceFeeCents = Math.max(0, parseCrmRenewalMetadata(payment?.metadata ?? null)?.renewal.serviceFeeCents ?? 0);
+      const refundCents = order.amountAznCents + serviceFeeCents;
       const done = await prisma.$transaction(async (tx) => {
         const claim = await tx.crmRenewalOrder.updateMany({
           where: { id: order.id, status: "FAILED", refundStatus: null },
           data: { refundStatus: "WALLET" },
         });
         if (claim.count !== 1) return false;
-        await tx.user.update({ where: { id: order.userId }, data: { walletBalance: { increment: order.amountAznCents } } });
+        await tx.user.update({ where: { id: order.userId }, data: { walletBalance: { increment: refundCents } } });
         await tx.transaction.create({
           data: {
             userId: order.userId,
             type: "DEPOSIT",
             status: "SUCCESS",
-            amountAznCents: order.amountAznCents,
+            amountAznCents: refundCents,
             metadata: JSON.stringify({
               kind: "CRM_RENEWAL_REFUND",
+              priceCents: order.amountAznCents,
+              serviceFeeCents,
               orderCode: order.orderCode,
               crmRenewalOrderId: order.id,
               epointPaymentId: order.paymentTransactionId,

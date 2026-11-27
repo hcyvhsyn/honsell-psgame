@@ -1,4 +1,5 @@
 import { countsTowardMinOrder, meetsMinOrder, minOrderMessage } from "@/lib/cartLimits";
+import { cartServiceFeeCents } from "@/lib/cartServiceFee";
 import { isSellableServiceType } from "@/lib/storeScope";
 import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
@@ -40,18 +41,22 @@ export async function POST(req: Request) {
   if (!meetsMinOrder(minOrderCents)) {
     return NextResponse.json({ error: minOrderMessage(minOrderCents), code: "MIN_ORDER" }, { status: 400 });
   }
+  // 3% xidmət haqqı — səbətdəki kimi cüzdan/referal ödənişinə də gəlir (lib/cartServiceFee.ts).
+  // Sifariş sətri, komissiya və cashback haqqsız qiymətlədir.
+  const serviceFeeCents = cartServiceFeeCents(price);
+  const debitCents = price + serviceFeeCents;
   if (paymentSource === "referral") {
-    if (user.referralBalanceCents < price) {
+    if (user.referralBalanceCents < debitCents) {
       return NextResponse.json({ error: "Referal balansı kifayət etmir." }, { status: 400 });
     }
-  } else if (user.walletBalance < price) {
+  } else if (user.walletBalance < debitCents) {
     return NextResponse.json({ error: "Balans kifayət etmir." }, { status: 400 });
   }
 
   const debitPayload =
     paymentSource === "referral"
-      ? { referralBalanceCents: { decrement: price } }
-      : { walletBalance: { decrement: price } };
+      ? { referralBalanceCents: { decrement: debitCents } }
+      : { walletBalance: { decrement: debitCents } };
 
   const baseMeta =
     typeof metadata === "object" && metadata !== null && !Array.isArray(metadata)
@@ -70,6 +75,21 @@ export async function POST(req: Request) {
     loyalty.cashbackPct > 0 ? Math.round((price * loyalty.cashbackPct) / 100) : 0;
   const prevCashback = user.cashbackBalanceCents ?? 0;
 
+  // Haqqın audit sətri (səbətdəki kimi) — balansdan sifariş sətrindən artıq tutulan hissə.
+  type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+  const recordServiceFee = async (tx: Tx) => {
+    if (serviceFeeCents <= 0) return;
+    await tx.transaction.create({
+      data: {
+        userId: user.id,
+        type: "SERVICE_FEE",
+        status: "SUCCESS",
+        amountAznCents: -serviceFeeCents,
+        metadata: JSON.stringify({ paymentSource: payTag, orderCode, baseCents: price }),
+      },
+    });
+  };
+
   // TRY_BALANCE -> instant fulfilment və ya gözləmə
   if (sp.type === "TRY_BALANCE") {
     try {
@@ -83,6 +103,7 @@ export async function POST(req: Request) {
           where: { id: user.id },
           data: debitPayload,
         });
+        await recordServiceFee(tx);
 
         if (!sc) {
           const svcRow = await tx.transaction.create({
@@ -203,6 +224,7 @@ export async function POST(req: Request) {
         where: { id: user.id },
         data: debitPayload,
       });
+      await recordServiceFee(tx);
 
       const svcRow = await tx.transaction.create({
         data: {

@@ -38,9 +38,9 @@ function toRow(p: NetflixCabinetProduct): Row {
 
 const uniqueSorted = (values: number[]) => Array.from(new Set(values)).sort((a, b) => a - b);
 
-const fmtAzn = (cents: number) => (cents / 100).toFixed(2);
+const fmtManat = (cents: number) => (cents / 100).toFixed(2);
 /** Qənaət məbləği: tam manatdırsa kəsrsiz ("24 ₼"), deyilsə iki rəqəm. */
-const fmtSaving = (cents: number) => (cents % 100 === 0 ? String(cents / 100) : fmtAzn(cents));
+const fmtSaving = (cents: number) => (cents % 100 === 0 ? String(cents / 100) : fmtManat(cents));
 
 // Tailwind statik sinif tələb edir — müddət sayına görə desktop sütunu.
 const LG_COLS = ["", "lg:grid-cols-1", "lg:grid-cols-2", "lg:grid-cols-3", "lg:grid-cols-4", "lg:grid-cols-5", "lg:grid-cols-6"];
@@ -256,9 +256,9 @@ export default function NetflixCabinetPicker({
                   )}
                   {active && <Check className="ml-auto h-4 w-4 text-violet-700 dark:text-violet-300" />}
                 </span>
-                <span className="mt-2 text-2xl font-black tabular-nums text-white">{fmtAzn(o.priceAznCents)} ₼</span>
+                <span className="mt-2 text-2xl font-black tabular-nums text-white">{fmtManat(o.priceAznCents)} ₼</span>
                 <span className="mt-0.5 text-xs font-semibold tabular-nums text-zinc-400">
-                  ayda {fmtAzn(o.perMonthCents)} ₼
+                  ayda {fmtManat(o.perMonthCents)} ₼
                 </span>
                 <span
                   className={`mt-3 text-xs font-bold tabular-nums ${
@@ -284,15 +284,15 @@ export default function NetflixCabinetPicker({
           {selected && (
             <>
               <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span className="text-3xl font-black tabular-nums text-white">{fmtAzn(selected.priceAznCents)} ₼</span>
+                <span className="text-3xl font-black tabular-nums text-white">{fmtManat(selected.priceAznCents)} ₼</span>
                 {selected.savingCents > 0 && (
                   <span className="text-base font-bold tabular-nums text-zinc-500 line-through">
-                    {fmtAzn(selected.fullCents)} ₼
+                    {fmtManat(selected.fullCents)} ₼
                   </span>
                 )}
               </p>
               <p className="mt-1 text-xs font-semibold tabular-nums text-zinc-400">
-                ayda {fmtAzn(selected.perMonthCents)} ₼
+                ayda {fmtManat(selected.perMonthCents)} ₼
                 {selected.savingCents > 0 && (
                   <span className="text-emerald-600 dark:text-emerald-400"> · {fmtSaving(selected.savingCents)} ₼ qənaət</span>
                 )}

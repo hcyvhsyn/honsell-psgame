@@ -359,7 +359,7 @@ export default function CartView({
                 Sifariş kodu
               </p>
               <p className="mt-1 font-mono text-lg font-bold tracking-wide text-white">{message.orderCode}</p>
-              <p className="mt-1 text-xs text-zinc-500">Bu kodu dəstəklə əlaqə saxlayarkən göndərin.</p>
+              <p className="mt-1 text-xs text-zinc-500">Bu kodu dəstəklə əlaqə saxlayanda göndər.</p>
             </div>
           ) : null}
           {typeof message.cashbackEarnedAzn === "number" && message.cashbackEarnedAzn > 0 ? (
@@ -368,20 +368,20 @@ export default function CartView({
                 Cashback qazancı
               </p>
               <p className="mt-2 text-sm font-medium leading-snug text-amber-50">
-                Bu alışınızdan{" "}
+                Bu alışdan{" "}
                 <span className="tabular-nums font-bold text-white">
-                  {message.cashbackEarnedAzn.toFixed(2)} AZN
+                  {message.cashbackEarnedAzn.toFixed(2)} ₼
                 </span>{" "}
-                cashback qazandınız
+                cashback qazandın
                 {typeof message.cashbackPctEarned === "number" && message.cashbackPctEarned > 0
                   ? ` (${message.cashbackPctEarned}% loyalty).`
                   : "."}
               </p>
               {typeof message.newCashbackBalanceAzn === "number" ? (
                 <p className="mt-2 text-xs text-amber-200/75">
-                  Cashback balansınız indi:{" "}
+                  Cashback balansın indi:{" "}
                   <span className="font-semibold tabular-nums text-white">
-                    {message.newCashbackBalanceAzn.toFixed(2)} AZN
+                    {message.newCashbackBalanceAzn.toFixed(2)} ₼
                   </span>
                 </p>
               ) : null}
@@ -493,10 +493,10 @@ export default function CartView({
     const nw = d.newWalletBalanceAzn;
     const nr = d.newReferralBalanceAzn;
     if (typeof nw === "number" && typeof nr === "number") {
-      return ` Cüzdan: ${nw.toFixed(2)} AZN · Referal: ${nr.toFixed(2)} AZN.`;
+      return ` Cüzdan: ${nw.toFixed(2)} ₼ · Referal: ${nr.toFixed(2)} ₼.`;
     }
     if (typeof d.newBalanceAzn === "number") {
-      return ` Yeni cüzdan göstəricisi: ${d.newBalanceAzn.toFixed(2)} AZN.`;
+      return ` Yeni cüzdan göstəricisi: ${d.newBalanceAzn.toFixed(2)} ₼.`;
     }
     return "";
   }
@@ -580,7 +580,7 @@ export default function CartView({
     if (missingPlatformAccounts) {
       setMessage({
         kind: "error",
-        text: `${missingPlatformAccounts.title} üçün bütün hesab məlumatlarını doldurun (Redaktə et).`,
+        text: `${missingPlatformAccounts.title} üçün bütün hesab məlumatlarını doldur (Redaktə et).`,
       });
       return;
     }
@@ -594,7 +594,7 @@ export default function CartView({
         if (problem) {
           setMessage({
             kind: "error",
-            text: `${it.title} dəstindəki "${member.title}" üçün məlumatları doldurun (Redaktə et).`,
+            text: `${it.title} dəstindəki "${member.title}" üçün məlumatları doldur (Redaktə et).`,
           });
           return;
         }
@@ -693,7 +693,7 @@ export default function CartView({
         const gameFulfillmentSentence =
           pendingGameQty > 0
             ? pendingGameQty === 1
-              ? "Oyun admin tərəfindən seçdiyiniz PSN-da mağaza üzərindən alınacaq; tezliklə sizinlə əlaqə saxlanılacaq. Hazırki mərhələni Sifarişlər bölməsində izləyə bilərsiniz."
+              ? "Oyun seçdiyin PSN hesabına mağaza üzərindən alınacaq; tezliklə səninlə əlaqə saxlanılacaq. Mərhələni Sifarişlər bölməsində izləyə bilərsən."
               : `${pendingGameQty} oyun admin tərəfindən eyni qaydada icra olunacaq; əlaqə və status Sifarişlər bölməsindədir.`
             : "";
 
@@ -703,9 +703,9 @@ export default function CartView({
           items.every((it) => it.productType === "ACCOUNT_CREATION");
 
         if (onlyAcct && !data.deliveredTo) {
-          text = `Türkiyə PSN hesab açılışı sifarişiniz qəbul edildi və icraya götürüləcək. Ətraflı məlumat Sifarişlər bölməsindədir.${balanceSuffix}`;
+          text = `Türkiyə PSN hesab açılışı sifarişin qəbul edildi və icraya götürüləcək. Ətraflı məlumat Sifarişlər bölməsindədir.${balanceSuffix}`;
         } else if (Boolean(data?.hasAccountCreation) && data.deliveredTo) {
-          text = `Ödəniş tamamlandı (o cümlədən hesab açılışı xidməti). Hesab təhvil tarixini Sifarişlər bölməsində izləyə bilərsiniz.${balanceSuffix}`;
+          text = `Ödəniş tamamlandı (o cümlədən hesab açılışı xidməti). Hesab təhvil tarixini Sifarişlər bölməsində izləyə bilərsən.${balanceSuffix}`;
           if (gameFulfillmentSentence) text = `${text.trim()} ${gameFulfillmentSentence}`;
         } else if (pendingGameQty > 0 && !Boolean(data?.hasTryBalance)) {
           text = `Ödəniş qəbul olundu.${gameFulfillmentSentence ? ` ${gameFulfillmentSentence}` : ""}${balanceSuffix}`;
@@ -714,7 +714,7 @@ export default function CartView({
         }
         if (data.hasStreaming) {
           const streamingSuffix = pendingGameQty > 0 ? "" : checkoutBalanceSuffix(data);
-          text = `Streaming sifarişiniz qəbul edildi. Giriş məlumatları (və ya YouTube üçün dəvət) tezliklə email və Sifarişlər bölməsinə göndəriləcək.${streamingSuffix}`;
+          text = `Streaming sifarişin qəbul edildi. Giriş məlumatları (və ya YouTube üçün dəvət) tezliklə email və Sifarişlər bölməsinə göndəriləcək.${streamingSuffix}`;
           if (gameFulfillmentSentence) {
             text = `${text.trim()} ${gameFulfillmentSentence}`;
           }
@@ -723,9 +723,9 @@ export default function CartView({
           const tryBalanceSuffix = pendingGameQty > 0 ? "" : checkoutBalanceSuffix(data);
           const pendingCount = Number(data.tryBalancePendingCount ?? 0);
           if (pendingCount > 0) {
-            text = `Hədiyyə kart sifarişiniz qəbul edildi və hazırda gözləmədədir. Kodunuz hazır olduqda email ilə göndəriləcək və Sifarişlər bölməsində görünəcək.${tryBalanceSuffix}`;
+            text = `Hədiyyə kart sifarişin qəbul edildi və hazırda gözləmədədir. Kod hazır olduqda email ilə göndəriləcək və Sifarişlər bölməsində görünəcək.${tryBalanceSuffix}`;
           } else {
-            text = `Hədiyyə kartınız sisteminizə yükləndi. Kodunuzu Sifarişlər bölməsindən görə bilərsiniz.${tryBalanceSuffix}`;
+            text = `Hədiyyə kartın yükləndi. Kodu Sifarişlər bölməsində görə bilərsən.${tryBalanceSuffix}`;
           }
           if (gameFulfillmentSentence) {
             text = `${text.trim()} ${gameFulfillmentSentence}`;
@@ -735,9 +735,9 @@ export default function CartView({
           const pbSuffix = pendingGameQty > 0 ? "" : checkoutBalanceSuffix(data);
           const pendingCount = Number(data.pointBlankPendingCount ?? 0);
           if (pendingCount > 0) {
-            text = `Point Blank sifarişiniz qəbul edildi və hazırda gözləmədədir. Kodunuz hazır olduqda email ilə göndəriləcək və Sifarişlər bölməsində görünəcək.${pbSuffix}`;
+            text = `Point Blank sifarişin qəbul edildi və hazırda gözləmədədir. Kod hazır olduqda email ilə göndəriləcək və Sifarişlər bölməsində görünəcək.${pbSuffix}`;
           } else {
-            text = `Point Blank TG kodunuz hazırdır. Kodunuzu Sifarişlər bölməsindən görə bilərsiniz.${pbSuffix}`;
+            text = `Point Blank TG kodun hazırdır. Kodu Sifarişlər bölməsində görə bilərsən.${pbSuffix}`;
           }
           if (gameFulfillmentSentence) {
             text = `${text.trim()} ${gameFulfillmentSentence}`;
@@ -746,9 +746,9 @@ export default function CartView({
         if (Array.isArray(data.honsellGiftCards) && data.honsellGiftCards.length > 0) {
           const hglSuffix = pendingGameQty > 0 ? "" : checkoutBalanceSuffix(data);
           const cnt = data.honsellGiftCards.length;
-          text = `Honsell hədiyyə kart${cnt > 1 ? "larınız" : "ınız"} sifarişi qəbul edildi və hazırda gözləmədədir. ${
-            cnt > 1 ? "Kodlarınız" : "Kodunuz"
-          } hazır olduqda email ilə göndəriləcək və Sifarişlər bölməsində görünəcək. Aktivləşdirmək üçün Profil → Hədiyyə kart səhifəsinə daxil olun.${hglSuffix}`;
+          text = `Honsell hədiyyə kart${cnt > 1 ? "ların" : "ın"} sifarişi qəbul edildi və hazırda gözləmədədir. ${
+            cnt > 1 ? "Kodlar" : "Kod"
+          } hazır olduqda email ilə göndəriləcək və Sifarişlər bölməsində görünəcək. Aktivləşdirmək üçün Profil → Hədiyyə kart səhifəsinə keç.${hglSuffix}`;
           if (gameFulfillmentSentence) {
             text = `${text.trim()} ${gameFulfillmentSentence}`;
           }
@@ -822,9 +822,9 @@ export default function CartView({
                     <li key={`price-${n.id}`} className="leading-snug">
                       <span className="font-medium">{n.title}</span>:{" "}
                       <span className="text-zinc-400 line-through tabular-nums">
-                        {n.oldAzn.toFixed(2)} AZN
+                        {n.oldAzn.toFixed(2)} ₼
                       </span>{" "}
-                      → <span className="font-semibold tabular-nums">{n.newAzn.toFixed(2)} AZN</span>
+                      → <span className="font-semibold tabular-nums">{n.newAzn.toFixed(2)} ₼</span>
                     </li>
                   ) : (
                     <li key={`removed-${n.id}`} className="leading-snug">
@@ -879,24 +879,24 @@ export default function CartView({
           <dl className="space-y-1.5 text-sm">
             <div className="flex justify-between text-zinc-400">
               <dt>Məhsullar</dt>
-              <dd className="tabular-nums">{listTotalAzn.toFixed(2)} AZN</dd>
+              <dd className="tabular-nums">{listTotalAzn.toFixed(2)} ₼</dd>
             </div>
             {totalDiscountAzn > 0 ? (
               <div className="flex justify-between text-zinc-400">
                 <dt>Endirim</dt>
-                <dd className="tabular-nums text-emerald-400">−{totalDiscountAzn.toFixed(2)} AZN</dd>
+                <dd className="tabular-nums text-emerald-400">−{totalDiscountAzn.toFixed(2)} ₼</dd>
               </div>
             ) : null}
             {serviceFeeCents > 0 ? (
               <div className="flex justify-between text-zinc-400">
-                <dt>Komissiya ({CART_SERVICE_FEE_PCT}%)</dt>
-                <dd className="tabular-nums">+{(serviceFeeCents / 100).toFixed(2)} AZN</dd>
+                <dt>Xidmət haqqı ({CART_SERVICE_FEE_PCT}%)</dt>
+                <dd className="tabular-nums">+{(serviceFeeCents / 100).toFixed(2)} ₼</dd>
               </div>
             ) : null}
             <div className="flex items-baseline justify-between pt-1">
               <dt className="text-zinc-300">Yekun</dt>
               <dd className="text-2xl font-bold tabular-nums text-white">
-                {payTotalAzn.toFixed(2)} <span className="text-sm font-medium text-zinc-400">AZN</span>
+                {payTotalAzn.toFixed(2)} <span className="text-sm font-medium text-zinc-400">₼</span>
               </dd>
             </div>
           </dl>
@@ -994,7 +994,7 @@ export default function CartView({
             <div className="space-y-2">
               <p className="flex items-start gap-2 text-xs text-amber-200/90">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-                Davam etmək üçün PlayStation hesabı əlavə edin.
+                Davam etmək üçün PlayStation hesabı əlavə et.
               </p>
               <Link
                 href="/profile/accounts"
@@ -1014,7 +1014,7 @@ export default function CartView({
                 >
                   <span>Balansı artır</span>
                   <span className="rounded-md bg-white/20 px-2 py-0.5 text-xs">
-                    {(payTotalAzn - walletBalanceAzn).toFixed(2)} AZN çatmır
+                    {(payTotalAzn - walletBalanceAzn).toFixed(2)} ₼ çatmır
                   </span>
                 </Link>
               ) : (
@@ -1024,7 +1024,7 @@ export default function CartView({
                   disabled={busy}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {busy ? "İşlənir..." : `Cüzdanla ödə · ${walletBalanceAzn.toFixed(2)} AZN balans`}
+                  {busy ? "İşlənir..." : `Cüzdanla ödə · ${walletBalanceAzn.toFixed(2)} ₼ balans`}
                 </button>
               )}
 
@@ -1248,7 +1248,7 @@ function GiftDeliveryCard({
 
   async function send() {
     if (!phone.trim()) {
-      setError("Dostunuzun WhatsApp nömrəsini yazın.");
+      setError("Dostunun WhatsApp nömrəsini yaz.");
       return;
     }
     setPhase("sending");
@@ -1267,14 +1267,14 @@ function GiftDeliveryCard({
         window.open(data.waLink, "_blank", "noopener,noreferrer");
         setPhase("sent");
       } else if (data?.reason === "INVALID_PHONE") {
-        setError("Nömrə düzgün deyil. Beynəlxalq formatda yazın, məs: +99450...");
+        setError("Nömrə düzgün deyil. Beynəlxalq formatda yaz, məs: +99450...");
         setPhase("input");
       } else {
-        setError("Göndərilmədi. Nömrəni yoxlayıb yenidən cəhd edin.");
+        setError("Göndərilmədi. Nömrəni yoxlayıb yenidən cəhd et.");
         setPhase("input");
       }
     } catch {
-      setError("Şəbəkə xətası. Yenidən cəhd edin.");
+      setError("Şəbəkə xətası. Yenidən cəhd et.");
       setPhase("input");
     }
   }
@@ -1467,7 +1467,7 @@ function CartLine({
             ) : null}
             {item.gift?.discountEndAt ? (
               <p className="mt-2 w-full max-w-md rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-medium leading-snug text-amber-300">
-                ⚠️ Endirimli hədiyyə — dostunuz{" "}
+                ⚠️ Endirimli hədiyyə — dostun{" "}
                 <span className="font-semibold tabular-nums">
                   {new Date(item.gift.discountEndAt).toLocaleString("az-AZ", {
                     day: "2-digit",
@@ -1644,7 +1644,7 @@ function CartLine({
               </>
             ) : null}
             <span className="text-sm font-bold tabular-nums text-white">
-              {(item.finalAzn * item.qty).toFixed(2)} AZN
+              {(item.finalAzn * item.qty).toFixed(2)} ₼
             </span>
           </div>
         </div>

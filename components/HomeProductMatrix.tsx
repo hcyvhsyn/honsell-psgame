@@ -83,16 +83,15 @@ export default function HomeProductMatrix({
                   <h3 className="mt-3 line-clamp-2 min-h-[2.5rem] text-sm font-black leading-tight text-white">
                     {product.title}
                   </h3>
-                  <p className="mt-1 line-clamp-1 text-xs font-semibold text-zinc-500">
-                    {product.subtitle}
-                  </p>
+                  {product.subtitle && (
+                    <p className="mt-1 line-clamp-1 text-xs font-semibold text-zinc-500">
+                      {product.subtitle}
+                    </p>
+                  )}
                 </Link>
 
                 <div className="mt-auto flex items-end justify-between gap-2 pt-3">
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
-                      Qiymət
-                    </p>
                     <p className="truncate text-lg font-black text-white">
                       {product.finalAzn.toFixed(2)}₼
                     </p>

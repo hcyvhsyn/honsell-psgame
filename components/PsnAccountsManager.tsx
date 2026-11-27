@@ -208,10 +208,12 @@ function AccountCard({
         <div className="absolute -right-12 -top-12 h-24 w-24 rounded-full bg-indigo-500/15 blur-2xl" />
       )}
 
-      <div className="relative flex items-start gap-4">
+      {/* Telefonda (≈280px) ikon + sahələr + düymə sütunu sığmırdı və kart ekrandan 42px çıxırdı (2026-11):
+          ikon gizlənir, sahələr tam en, düymələr altda bir sətir. */}
+      <div className="relative flex flex-wrap items-start gap-3 sm:flex-nowrap sm:gap-4">
         {/* Console mark */}
         <div
-          className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ring-1 ${
+          className={`hidden h-12 w-12 shrink-0 place-items-center rounded-xl ring-1 sm:grid ${
             isPS5
               ? "bg-sky-500/15 text-sky-300 ring-sky-500/30"
               : "bg-zinc-800/80 text-zinc-300 ring-zinc-700/60"
@@ -221,7 +223,7 @@ function AccountCard({
         </div>
 
         {/* Body */}
-        <div className="min-w-0 flex-1 space-y-3">
+        <div className="min-w-0 flex-1 basis-full space-y-3 sm:basis-auto">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-base font-semibold text-white">
               {account.label}
@@ -268,7 +270,7 @@ function AccountCard({
         </div>
 
         {/* Actions */}
-        <div className="flex shrink-0 flex-col items-end gap-1">
+        <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto sm:flex-col sm:items-end sm:gap-1">
           <div className="flex items-center gap-1">
             <button
               type="button"

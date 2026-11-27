@@ -46,10 +46,13 @@ assert.equal(verifyPhoneToken(tok), null, "vaxtı keçib");
 Date.now = realNow;
 
 // ── Məbləğ ──
-assert.deepEqual(renewalCharge(9), { priceCents: 900, chargeCents: 900, topUpCents: 0 });
-assert.deepEqual(renewalCharge(3), { priceCents: 300, chargeCents: 500, topUpCents: 200 });
-assert.deepEqual(renewalCharge(12.99), { priceCents: 1299, chargeCents: 1299, topUpCents: 0 });
-assert.deepEqual(renewalCharge(5), { priceCents: 500, chargeCents: 500, topUpCents: 0 });
+// CRM qiyməti + 3% xidmət haqqı; qiymət+haqq < 5 ₼ olanda kartdan 5 ₼, fərq cüzdana.
+assert.deepEqual(renewalCharge(6), { priceCents: 600, serviceFeeCents: 18, payableCents: 618, chargeCents: 618, topUpCents: 0 });
+assert.deepEqual(renewalCharge(9), { priceCents: 900, serviceFeeCents: 27, payableCents: 927, chargeCents: 927, topUpCents: 0 });
+assert.deepEqual(renewalCharge(3), { priceCents: 300, serviceFeeCents: 9, payableCents: 309, chargeCents: 500, topUpCents: 191 });
+assert.deepEqual(renewalCharge(12.99), { priceCents: 1299, serviceFeeCents: 39, payableCents: 1338, chargeCents: 1338, topUpCents: 0 });
+assert.deepEqual(renewalCharge(5), { priceCents: 500, serviceFeeCents: 15, payableCents: 515, chargeCents: 515, topUpCents: 0 });
+assert.deepEqual(renewalCharge(4.9), { priceCents: 490, serviceFeeCents: 15, payableCents: 505, chargeCents: 505, topUpCents: 0 });
 
 // ── CRM telefon hesabı (placeholder e-poçt) ──
 assert.equal(crmPlaceholderEmail("+994501234567"), "994501234567@crm.honsell.invalid");

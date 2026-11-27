@@ -106,7 +106,7 @@ export default function ProfileSettingsForm({ initial }: { initial: Initial }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
-              <Cake className="h-3.5 w-3.5" /> Doğum tarixi
+              <Cake className="h-3.5 w-3.5" /> Doğum tarixi <span className="normal-case tracking-normal text-zinc-400">(istəyə bağlı)</span>
             </label>
             <input
               type="date"
@@ -119,7 +119,7 @@ export default function ProfileSettingsForm({ initial }: { initial: Initial }) {
 
           <div>
             <label className="mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
-              <User className="h-3.5 w-3.5" /> Cinsiyət
+              <User className="h-3.5 w-3.5" /> Cinsiyət <span className="normal-case tracking-normal text-zinc-400">(istəyə bağlı)</span>
             </label>
             <Select
               value={gender}

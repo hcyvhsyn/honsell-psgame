@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Gift, ShoppingCart, Trash2 } from "lucide-react";
 import { useCart } from "@/lib/cart";
 
@@ -18,42 +19,54 @@ type Props = {
   discounted?: boolean;
   /** Aktiv endirimin bitmə tarixi (ISO) — hədiyyə sətrində saxlanır. */
   discountEndAt?: string | null;
+  /** Hədiyyə düyməsinin yanında kiçik əlavə (məs. favorit ürəyi). */
+  children?: React.ReactNode;
 };
 
-export default function AddToCartButton({ game, discounted = false, discountEndAt = null }: Props) {
+export default function AddToCartButton({ game, discounted = false, discountEndAt = null, children }: Props) {
   const { add, addGift, remove, has, hasGift, hydrated } = useCart();
   const inCart = hydrated && has(game.id);
   const giftInCart = hydrated && hasGift(game.id);
 
   return (
     <div className="flex w-full flex-col gap-2.5">
-      {/* Səbət + Hədiyyə yan-yana. Müştəri eyni oyunu həm özünə ala, həm
-          dostuna hədiyyə edə bilər — iki düymə müstəqildir. */}
-      <div className="flex items-stretch gap-2.5">
-        {inCart ? (
+      {/* Əsas əməliyyat tam endədir; hədiyyə və favorit ikinci dərəcəli sırada.
+          Əvvəl iki düymə yan-yana idi və telefonda "Səbətə / əlavə et" iki sətrə bölünürdü. */}
+      {inCart ? (
+        <div className="flex items-stretch gap-2.5">
+          <Link
+            href="/cart"
+            className="inline-flex h-14 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-emerald-600 px-4 text-base font-bold text-white transition hover:bg-emerald-500"
+          >
+            <ShoppingCart className="h-5 w-5" /> Səbətə keç
+          </Link>
           <button
             type="button"
             onClick={() => remove(game.id)}
-            className="inline-flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 text-base font-bold text-rose-700 transition hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
+            aria-label="Səbətdən sil"
+            title="Səbətdən sil"
+            className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
           >
-            <Trash2 className="h-5 w-5" /> Səbətdən sil
+            <Trash2 className="h-5 w-5" />
           </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => add(game)}
-            className="inline-flex h-14 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-[#6D28D9] px-4 text-base font-bold text-white shadow-[0_18px_42px_-22px_rgba(109,40,217,0.9)] transition hover:bg-[#5B21B6]"
-          >
-            <ShoppingCart className="h-5 w-5" /> Səbətə əlavə et
-          </button>
-        )}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => add(game)}
+          className="inline-flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-[#6D28D9] px-4 text-base font-bold text-white shadow-[0_18px_42px_-22px_rgba(109,40,217,0.9)] transition hover:bg-[#5B21B6]"
+        >
+          <ShoppingCart className="h-5 w-5" /> Səbətə əlavə et
+        </button>
+      )}
 
+      <div className="flex items-stretch gap-2.5">
         <button
           type="button"
           onClick={() =>
             giftInCart ? remove(game.id, true) : addGift(game, undefined, discountEndAt)
           }
-          className={`inline-flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-bold transition ${
+          className={`inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-bold transition ${
             giftInCart
               ? "border-fuchsia-400/50 bg-fuchsia-500/15 text-fuchsia-600 hover:bg-fuchsia-500/25 dark:text-fuchsia-300"
               : "border-fuchsia-400/40 bg-transparent text-fuchsia-600 hover:bg-fuchsia-500/10 dark:text-fuchsia-300"
@@ -62,13 +75,14 @@ export default function AddToCartButton({ game, discounted = false, discountEndA
           <Gift className="h-5 w-5" />
           {giftInCart ? "Hədiyyədən sil" : "Dostuna hədiyyə et"}
         </button>
+        {children}
       </div>
 
       {/* Endirimli məhsul hədiyyə edildikdə xəbərdarlıq. */}
       {giftInCart && discounted && (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5 text-sm font-medium leading-snug text-amber-700 dark:text-amber-300">
-          ⚠️ Endirimli hədiyyə: dostunuz oyunu endirim müddəti bitənədək aktivləşdirməlidir.
-          Gec aktivləşdirsə, yalnız ödədiyiniz {game.finalAzn.toFixed(2)}₼ məbləğ qədər
+          ⚠️ Endirimli hədiyyə: dostun oyunu endirim müddəti bitənədək aktivləşdirməlidir.
+          Gec aktivləşdirsə, yalnız ödədiyin {game.finalAzn.toFixed(2)}₼ məbləğ qədər
           hədiyyə dəyəri keçərli olacaq.
         </p>
       )}

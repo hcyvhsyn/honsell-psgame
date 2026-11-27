@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { displayGameTitle } from "@/lib/gameTitle";
 import Link from "next/link";
 import {
   Wallet,
@@ -7,8 +8,6 @@ import {
   ArrowUpRight,
   Plus,
   ShoppingBag,
-  Heart,
-  Crown,
   Users,
   BadgeCheck,
   Share2,
@@ -68,8 +67,6 @@ export default async function ProfileOverviewPage() {
   if (!user) return null;
 
   let orderCount = 0;
-  let favoritesCount = 0;
-  let activeSubscriptionsCount = 0;
   let refereeCount = 0;
   let totalSavingsCents = 0;
   let recentActivity: ActivityRow[] = [];
@@ -85,8 +82,6 @@ export default async function ProfileOverviewPage() {
 
     const [
       _orderCount,
-      _favoritesCount,
-      _activeSubsCount,
       _refereeCount,
       _savingsAgg,
       _recent,
@@ -98,16 +93,6 @@ export default async function ProfileOverviewPage() {
           type: { in: ["PURCHASE", "SERVICE_PURCHASE"] },
         },
       }),
-      prisma.favorite.count({ where: { userId: user.id } }).catch(() => 0),
-      prisma.subscription
-        .count({
-          where: {
-            userId: user.id,
-            status: "ACTIVE",
-            expiresAt: { gt: new Date() },
-          },
-        })
-        .catch(() => 0),
       prisma.user.count({ where: { referredById: user.id } }),
       prisma.transaction
         .aggregate({
@@ -143,8 +128,6 @@ export default async function ProfileOverviewPage() {
     ]);
 
     orderCount = _orderCount;
-    favoritesCount = _favoritesCount;
-    activeSubscriptionsCount = _activeSubsCount;
     refereeCount = _refereeCount;
     totalSavingsCents = _savingsAgg;
     recentActivity = _recent;
@@ -287,34 +270,28 @@ export default async function ProfileOverviewPage() {
         />
       </section>
 
-      <section className="grid gap-3 xl:grid-cols-[1.25fr_0.9fr]">
-        <SavingsCard
-          latestMonthSavings={latestMonthSavings}
-          maxMonthlySavings={maxMonthlySavings}
-          savingsByMonth={savingsByMonth}
-          totalSavingsAzn={totalSavingsAzn}
-        />
-
-        <ReferralHero refereeCount={refereeCount} />
-      </section>
-
+      {/* 2026-11: "Son fəaliyyətlər" yuxarı qalxdı (telefonda ən aşağıda idi); "Sürətli icmal" menyunu
+          təkrarlayırdı — çıxarıldı; qənaət qrafiki yalnız qənaət olanda (0.00-da boş qrafik idi). */}
       <section className="grid gap-3 xl:grid-cols-[1.25fr_0.9fr]">
         <div className="relative overflow-hidden rounded-[14px] border border-zinc-200 dark:border-white/10 bg-white dark:bg-[linear-gradient(145deg,rgba(21,20,39,0.96),rgba(9,10,21,0.98))] shadow-[0_24px_64px_-50px_rgba(124,58,237,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_24px_64px_-50px_rgba(124,58,237,0.8),inset_0_1px_0_rgba(255,255,255,0.06)]">
           <header className="flex items-center justify-between px-5 pb-2 pt-4">
-            <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
               Son fəaliyyətlər
-            </h3>
+            </h2>
             <Link
               href="/profile/orders"
               className="inline-flex items-center gap-1 text-[11px] font-bold text-violet-700 dark:text-violet-300 transition hover:text-violet-900 dark:hover:text-violet-200"
             >
-              Hamısı <ArrowRight className="h-3.5 w-3.5" />
+              Bütün sifarişlər <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </header>
           <ul className="mx-5 divide-y divide-zinc-200 dark:divide-white/5 border-t border-zinc-200 dark:border-white/5 pb-2">
             {recentActivity.length === 0 ? (
               <li className="py-8 text-center text-sm text-zinc-500">
-                Hələ fəaliyyət yoxdur
+                Hələ fəaliyyət yoxdur.{" "}
+                <Link href="/oyunlar" className="font-semibold text-violet-700 hover:underline dark:text-violet-300">
+                  Oyunlara bax
+                </Link>
               </li>
             ) : (
               recentActivity.map((row) => (
@@ -324,42 +301,17 @@ export default async function ProfileOverviewPage() {
           </ul>
         </div>
 
-        <div className="relative overflow-hidden rounded-[14px] border border-zinc-200 dark:border-white/10 bg-white dark:bg-[linear-gradient(145deg,rgba(21,20,39,0.96),rgba(9,10,21,0.98))] p-5 shadow-[0_24px_64px_-50px_rgba(124,58,237,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_24px_64px_-50px_rgba(124,58,237,0.8),inset_0_1px_0_rgba(255,255,255,0.06)]">
-          <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
-            Sürətli icmal
-          </h3>
-          <div className="mt-3 grid grid-cols-2 gap-2.5">
-            <QuickStat
-              icon={<ShoppingBag className="h-4 w-4 text-amber-400" />}
-              label="Sifarişlər"
-              value={orderCount.toString()}
-              href="/profile/orders"
-              tint="amber"
-            />
-            <QuickStat
-              icon={<Heart className="h-4 w-4 text-rose-400" />}
-              label="Favorilər"
-              value={favoritesCount.toString()}
-              href="/profile/favorites"
-              tint="rose"
-            />
-            <QuickStat
-              icon={<Crown className="h-4 w-4 text-fuchsia-400" />}
-              label="Abunəliklər"
-              value={activeSubscriptionsCount.toString()}
-              href="/profile/subscriptions"
-              tint="fuchsia"
-            />
-            <QuickStat
-              icon={<Users className="h-4 w-4 text-sky-400" />}
-              label="Dəvətlər"
-              value={refereeCount.toString()}
-              href="/profile/referrals"
-              tint="sky"
-            />
-          </div>
-        </div>
+        <ReferralHero refereeCount={refereeCount} />
       </section>
+
+      {totalSavingsAzn > 0 && (
+        <SavingsCard
+          latestMonthSavings={latestMonthSavings}
+          maxMonthlySavings={maxMonthlySavings}
+          savingsByMonth={savingsByMonth}
+          totalSavingsAzn={totalSavingsAzn}
+        />
+      )}
     </div>
   );
 }
@@ -617,49 +569,11 @@ function BalanceCard({
   );
 }
 
-function QuickStat({
-  icon,
-  label,
-  value,
-  href,
-  tint,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  href: string;
-  tint: "amber" | "rose" | "fuchsia" | "sky";
-}) {
-  const tintBg = {
-    amber: "bg-amber-500/10 text-amber-300 ring-amber-500/25",
-    rose: "bg-rose-500/10 text-rose-300 ring-rose-500/25",
-    fuchsia: "bg-fuchsia-500/10 text-fuchsia-300 ring-fuchsia-500/25",
-    sky: "bg-sky-500/10 text-sky-300 ring-sky-500/25",
-  }[tint];
-  return (
-    <Link
-      href={href}
-      className="group relative overflow-hidden rounded-[11px] border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.045] p-3 transition hover:border-violet-300/35 hover:bg-zinc-100 dark:hover:border-violet-300/25 dark:hover:bg-white/[0.07]"
-    >
-      <div className="flex items-center gap-3">
-        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[10px] ring-1 ${tintBg}`}>
-          {icon}
-        </span>
-        <div className="min-w-0">
-          <p className="text-[22px] font-black leading-none tabular-nums text-zinc-900 dark:text-white">
-            {value}
-          </p>
-          <p className="mt-1 truncate text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-            {label}
-          </p>
-        </div>
-      </div>
-    </Link>
-  );
-}
+/** Pul hərəkətinin istiqaməti NÖVƏ görədir: alış həmişə çıxışdır (məbləğin işarəsi yazan koddan asılı idi). */
+const DEBIT_TYPES = new Set(["PURCHASE", "SERVICE_PURCHASE", "SERVICE_FEE"]);
 
 function ActivityItem({ row }: { row: ActivityRow }) {
-  const isCredit = row.amountAznCents >= 0;
+  const isCredit = !DEBIT_TYPES.has(row.type) && row.amountAznCents >= 0;
   const amountAzn = Math.abs(row.amountAznCents) / 100;
 
   let title = "Əməliyyat";
@@ -667,7 +581,7 @@ function ActivityItem({ row }: { row: ActivityRow }) {
   let iconBg = "bg-zinc-100 dark:bg-white/5";
 
   if (row.type === "PURCHASE") {
-    title = row.game?.title ?? "Silinmiş oyun";
+    title = row.game?.title ? displayGameTitle(row.game.title) : "Silinmiş oyun";
     icon = (
       <span className="text-[10px] font-bold tracking-tight text-white">PS</span>
     );
@@ -719,10 +633,10 @@ function ActivityItem({ row }: { row: ActivityRow }) {
           <span
             className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
               row.status === "PENDING"
-                ? "bg-amber-500/10 text-amber-300"
+                ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
                 : row.status === "FAILED"
-                  ? "bg-rose-500/10 text-rose-300"
-                  : "bg-emerald-500/10 text-emerald-300"
+                  ? "bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                  : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
             }`}
           >
             {statusLabel}
@@ -735,7 +649,7 @@ function ActivityItem({ row }: { row: ActivityRow }) {
           isCredit ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-700 dark:text-zinc-200"
         }`}
       >
-        {isCredit ? "+" : "-"}
+        {isCredit ? "+" : "−"}
         {amountAzn.toFixed(2)} ₼
       </p>
     </li>

@@ -62,16 +62,16 @@ export const STREAMING_GROUPS: Record<string, StreamingGroup> = {
     ],
     chooser: [
       {
-        title: "Bizə aid email, sizə aid otaq",
-        subtitle: "Hesab bizim, otaq sizin",
-        points: ["Mail, şifrə və PIN-i biz veririk", "Neçə nəfər üçün olduğunu seçirsiniz"],
+        title: "Bizim hesabda sənə aid otaq",
+        subtitle: "Hesab bizim, otaq sənin",
+        points: ["Mail, şifrə və PIN-i biz veririk", "Neçə nəfər üçün olduğunu sən seçirsən"],
         accent: "kabinet",
         selection: "kabinet",
       },
       {
-        title: "Sizə aid email ilə hesab",
-        subtitle: "Hesab sizin, plan sizin",
-        points: ["Öz mailiniz və şifrənizlə", "Azərbaycanda yaşayanlar üçün uyğundur"],
+        title: "Öz hesabına plan",
+        subtitle: "Hesab sənin, plan sənin",
+        points: ["Öz e-poçtun və şifrənlə", "Azərbaycanda yaşayanlar üçün uyğundur"],
         accent: "hesab",
         platformSlug: "netflix-hesab",
       },

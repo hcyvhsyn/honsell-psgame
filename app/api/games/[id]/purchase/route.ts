@@ -1,4 +1,5 @@
 import { meetsMinOrder, minOrderMessage } from "@/lib/cartLimits";
+import { cartServiceFeeCents } from "@/lib/cartServiceFee";
 import { isSellableGameStore } from "@/lib/storeScope";
 import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
@@ -41,16 +42,20 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!meetsMinOrder(priceCents)) {
     return NextResponse.json({ error: minOrderMessage(priceCents), code: "MIN_ORDER" }, { status: 400 });
   }
+  // 3% xidmət haqqı — səbətdəki kimi cüzdan/referal ödənişinə də gəlir (lib/cartServiceFee.ts).
+  // Fulfillment, cashback və PURCHASE sətri haqqsız qiymətlədir.
+  const serviceFeeCents = cartServiceFeeCents(priceCents);
+  const debitCents = priceCents + serviceFeeCents;
   const savingsCents =
     price.originalAzn != null
       ? Math.max(0, Math.round(price.originalAzn * 100) - priceCents)
       : 0;
 
   if (paymentSource === "referral") {
-    if (user.referralBalanceCents < priceCents) {
+    if (user.referralBalanceCents < debitCents) {
       return NextResponse.json({ error: "Referal balansı kifayət etmir." }, { status: 402 });
     }
-  } else if (user.walletBalance < priceCents) {
+  } else if (user.walletBalance < debitCents) {
     return NextResponse.json({ error: "Cüzdan balansı kifayət etmir." }, { status: 402 });
   }
 
@@ -90,9 +95,20 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       where: { id: user.id },
       data:
         paymentSource === "referral"
-          ? { referralBalanceCents: { decrement: priceCents } }
-          : { walletBalance: { decrement: priceCents } },
+          ? { referralBalanceCents: { decrement: debitCents } }
+          : { walletBalance: { decrement: debitCents } },
     });
+    if (serviceFeeCents > 0) {
+      await tx.transaction.create({
+        data: {
+          userId: user.id,
+          type: "SERVICE_FEE",
+          status: "SUCCESS",
+          amountAznCents: -serviceFeeCents,
+          metadata: JSON.stringify({ paymentSource: payTag, orderCode, baseCents: priceCents }),
+        },
+      });
+    }
     const purchase = await tx.transaction.create({
       data: {
         userId: user.id,
@@ -130,9 +146,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   let newReferralCents = user.referralBalanceCents;
   if (paymentSource === "referral") {
     newWalletCents = user.walletBalance;
-    newReferralCents = user.referralBalanceCents - priceCents;
+    newReferralCents = user.referralBalanceCents - debitCents;
   } else {
-    newWalletCents = user.walletBalance - priceCents;
+    newWalletCents = user.walletBalance - debitCents;
     newReferralCents = user.referralBalanceCents;
   }
 
@@ -144,7 +160,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     pendingFulfillment: true,
     paymentSourceUsed: paymentSource,
     purchaseId: result.purchase.id,
-    paidAzn: priceCents / 100,
+    paidAzn: debitCents / 100,
+    serviceFeeAzn: serviceFeeCents / 100,
     commissionPaidAzn: result.commissionCents / 100,
     newWalletBalanceAzn: newWalletCents / 100,
     newReferralBalanceAzn: newReferralCents / 100,

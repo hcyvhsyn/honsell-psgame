@@ -1,6 +1,7 @@
 import { randomBytes, randomInt } from "crypto";
 
 import { prisma } from "./prisma";
+import { cartServiceFeeCents } from "./cartServiceFee";
 import {
   getSettings,
   computeDisplayPrice,
@@ -761,15 +762,31 @@ export async function openLootBox(params: { userId: string; box: LootBoxRow }): 
   // sorğusunu tələb edir; checkout da belə edir).
   const orderCode = `BOX-${randomBytes(3).toString("hex").toUpperCase()}`;
 
+  // 3% xidmət haqqı (lib/cartServiceFee.ts) — cüzdandan qutu qiyməti + haqq tutulur. LOOT_BOX sətri,
+  // `pricePaidCents`, hədiyyə pilləsi və geri satış haqqsız qutu qiyməti ilədir.
+  const serviceFeeCents = cartServiceFeeCents(box.priceAznCents);
+  const debitCents = box.priceAznCents + serviceFeeCents;
+
   const result = await prisma.$transaction(async (tx) => {
     // Şərtli debet: balans yetərli olmasa heç nə dəyişmir. Bu, oxu-sonra-yaz
     // yanaşmasından fərqli olaraq iki dəfə klikləməni də bloklayır.
     const paid = await tx.user.updateMany({
-      where: { id: userId, walletBalance: { gte: box.priceAznCents } },
-      data: { walletBalance: { decrement: box.priceAznCents } },
+      where: { id: userId, walletBalance: { gte: debitCents } },
+      data: { walletBalance: { decrement: debitCents } },
     });
     if (paid.count !== 1) {
       throw new LootBoxError("INSUFFICIENT_BALANCE", "Balansınız kifayət etmir.");
+    }
+    if (serviceFeeCents > 0) {
+      await tx.transaction.create({
+        data: {
+          userId,
+          type: "SERVICE_FEE",
+          status: "SUCCESS",
+          amountAznCents: -serviceFeeCents,
+          metadata: JSON.stringify({ paymentSource: "WALLET", orderCode, lootBoxId: box.id, baseCents: box.priceAznCents }),
+        },
+      });
     }
 
     const ticket = await drawTicket(tx, box.id, excludeGameIds);

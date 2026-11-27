@@ -7,6 +7,7 @@ import { Check, CheckCircle2, Crown, Plus } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import ReferralBadge from "@/components/ReferralBadge";
 import InstallmentHint from "@/components/InstallmentHint";
+import ServiceFeeNote from "@/components/cart/ServiceFeeNote";
 
 type Plan = {
   id: string;
@@ -220,6 +221,7 @@ function PsPlusPicker({ plans }: { plans: Plan[] }) {
               ) : null}
             </div>
             <InstallmentHint priceAzn={selected.priceAznCents / 100} variant="card" className="mt-1" />
+            <ServiceFeeNote className="mt-1" />
           </div>
         </div>
 
@@ -373,14 +375,14 @@ function PlanCardGrid({ plans }: { plans: Plan[] }) {
 
                     <div className="mt-4 flex items-end gap-3">
                       <p className="text-[2rem] font-bold leading-none tracking-tighter text-zinc-950 dark:text-white">
-                        {(selected.priceAznCents / 100).toFixed(2)} AZN
+                        {(selected.priceAznCents / 100).toFixed(2)} ₼
                       </p>
                     </div>
 
                     {hasDiscount ? (
                       <div className="mt-2 flex items-center gap-3">
                         <p className="text-base font-medium text-zinc-500 line-through decoration-zinc-400 decoration-1 dark:decoration-zinc-600">
-                          {(originalPriceCents / 100).toFixed(2)} AZN
+                          {(originalPriceCents / 100).toFixed(2)} ₼
                         </p>
                         <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${discountTagBg}`}>
                           -{discountPercent}%

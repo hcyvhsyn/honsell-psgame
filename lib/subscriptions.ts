@@ -52,7 +52,7 @@ export function readEaPlayMeta(metadata: unknown): {
  * Create a Subscription record for a PS Plus SERVICE_PURCHASE that just went
  * SUCCESS. Idempotent: if one already exists for the transaction, returns it.
  *
- * Auto-renew defaults to OFF — user opts in from /profile/subscriptions.
+ * Auto-renew defaults to OFF — user opts in from /profile/abunelikler.
  */
 export async function createSubscriptionFromTransaction(
   ptx: Tx,

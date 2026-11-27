@@ -58,16 +58,9 @@ export default function RedeemHonsellGiftCardForm({
   }
 
   return (
-    <section className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6">
-      <div className="grid gap-2 text-xs text-zinc-500 sm:flex sm:items-center sm:justify-between">
-        <span>Hazırkı cüzdan balansı</span>
-        <span className="text-base font-semibold text-white sm:text-sm">
-          {currentWalletAzn.toFixed(2)} AZN
-        </span>
-      </div>
-
-      <form onSubmit={submit} className="mt-4 space-y-3">
-        <label className="block text-xs font-medium text-zinc-400">
+    <div>
+      <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row sm:items-start">
+        <label className="sr-only" htmlFor="honsell-gift-code">
           Hədiyyə kart kodu
         </label>
         <input
@@ -83,17 +76,16 @@ export default function RedeemHonsellGiftCardForm({
             const cleaned = normalizeHonsellGiftCardCode(v).slice(0, HONSELL_GIFT_CARD_CODE_LENGTH);
             setCode(formatHonsellGiftCardCode(cleaned));
           }}
+          id="honsell-gift-code"
           placeholder="XXXX-XXX-XXXX"
-          className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-center font-mono text-lg tracking-[0.3em] text-white outline-none focus:border-violet-500/60"
+          aria-describedby="honsell-gift-code-hint"
+          className="h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-center font-mono text-base tracking-[0.25em] text-zinc-900 outline-none focus:border-violet-500/60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white sm:flex-1"
         />
-        <div className="text-[11px] text-zinc-500">
-          {normalized.length}/{HONSELL_GIFT_CARD_CODE_LENGTH} simvol
-        </div>
 
         <button
           type="submit"
           disabled={!isComplete || busy}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-950/40 transition disabled:cursor-not-allowed disabled:opacity-50 hover:from-violet-500 hover:to-fuchsia-500"
+          className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? (
             <>
@@ -106,27 +98,30 @@ export default function RedeemHonsellGiftCardForm({
           )}
         </button>
       </form>
+      <p id="honsell-gift-code-hint" className="mt-1.5 text-[11px] text-zinc-500">
+        {normalized.length}/{HONSELL_GIFT_CARD_CODE_LENGTH} simvol · kartın məbləği dərhal cüzdana köçür
+      </p>
 
       {result?.kind === "success" && (
         <div className="mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
+          <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-200">
             <Check className="h-4 w-4" /> Uğurla aktivləşdirildi
           </div>
-          <p className="mt-2 text-xs text-emerald-200/80">
+          <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-200/80">
             <span className="font-mono">{result.formattedCode}</span> kartı üzrə {" "}
-            <b>{result.creditedAzn.toFixed(2)} AZN</b> cüzdan balansına köçürüldü.
+            <b>{result.creditedAzn.toFixed(2)} ₼</b> cüzdan balansına köçürüldü.
           </p>
-          <p className="mt-1 text-xs text-emerald-200/80">
-            Yeni balans: <b>{result.newWalletBalanceAzn.toFixed(2)} AZN</b>
+          <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-200/80">
+            Yeni balans: <b>{result.newWalletBalanceAzn.toFixed(2)} ₼</b>
           </p>
         </div>
       )}
 
       {result?.kind === "error" && (
-        <div className="mt-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+        <div className="mt-4 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-700 dark:text-rose-200">
           {result.text}
         </div>
       )}
-    </section>
+    </div>
   );
 }

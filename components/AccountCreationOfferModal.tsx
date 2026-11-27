@@ -127,7 +127,7 @@ export default function AccountCreationOfferModal({
                 Məlumatları daxil edin
               </p>
               <p className="mt-1 text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
-                {product.title} • {(product.priceAznCents / 100).toFixed(2)} AZN
+                {product.title} • {(product.priceAznCents / 100).toFixed(2)} ₼
               </p>
             </div>
           </div>

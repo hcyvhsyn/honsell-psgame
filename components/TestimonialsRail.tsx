@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   startTransition,
   useEffect,
@@ -254,7 +256,7 @@ function ReviewCard({ item }: { item: PublicTestimonialItem }) {
   const loyaltyLabel = item.tier?.displayName || item.tier?.name || "Təsdiqlənmiş müştəri";
 
   return (
-    <figure className="group relative flex h-[390px] w-[min(370px,calc(100vw-2rem))] flex-none snap-start flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white p-5 shadow-[0_22px_55px_-38px_rgba(15,23,42,0.55)] transition duration-300 hover:-translate-y-1 hover:border-violet-300/60 hover:shadow-[0_28px_65px_-42px_rgba(124,58,237,0.38)] dark:border-white/10 dark:bg-[#101014] dark:hover:border-violet-300/25 sm:p-6">
+    <figure className="group relative flex h-[320px] w-[min(370px,calc(100vw-2rem))] flex-none snap-start flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white p-5 shadow-[0_22px_55px_-38px_rgba(15,23,42,0.55)] transition duration-300 hover:-translate-y-1 hover:border-violet-300/60 hover:shadow-[0_28px_65px_-42px_rgba(124,58,237,0.38)] dark:border-white/10 dark:bg-[#101014] dark:hover:border-violet-300/25 sm:p-6">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400 via-violet-500 to-emerald-400 opacity-80" />
       <Quote className="pointer-events-none absolute right-5 top-16 h-10 w-10 text-violet-500/10 dark:text-violet-300/10" />
 
@@ -337,8 +339,14 @@ type Filters = { query: string; platform: string; rating: string };
 
 export default function TestimonialsRail({
   initialData,
+  compact = false,
 }: {
   initialData: PublicTestimonialsPage;
+  /**
+   * Ana səhifə rejimi: axtarış/filtr/səhifələmə YOXDUR, yalnız ilk 6 rəy + "Bütün rəylər".
+   * Tam siyahı `/reyler`-dədir — ana səhifədə filtr paneli yalnız yer tuturdu.
+   */
+  compact?: boolean;
 }) {
   const [data, setData] = useState(initialData);
   const [draftQuery, setDraftQuery] = useState("");
@@ -432,6 +440,32 @@ export default function TestimonialsRail({
   }
 
   const hasFilters = Boolean(filters.query || filters.platform || filters.rating);
+
+  if (compact) {
+    return (
+      <div>
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <Link
+            href="/reyler"
+            className="inline-flex items-center gap-1.5 text-sm font-bold text-violet-700 transition hover:text-violet-500 dark:text-violet-300 dark:hover:text-violet-200"
+          >
+            Bütün rəylər ({initialData.total}) <ChevronRight className="h-4 w-4" />
+          </Link>
+          <div className="flex gap-1">
+            <button type="button" onClick={() => scrollRail(-1)} aria-label="Sola sürüşdür" className="grid h-9 w-9 place-items-center rounded-xl border border-zinc-200 bg-white text-zinc-600 transition hover:border-violet-300 hover:text-violet-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={() => scrollRail(1)} aria-label="Sağa sürüşdür" className="grid h-9 w-9 place-items-center rounded-xl border border-zinc-200 bg-white text-zinc-600 transition hover:border-violet-300 hover:text-violet-600 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <div ref={railRef} className={`${styles.rail} flex snap-x snap-mandatory gap-5 overflow-x-auto pb-4`}>
+          {initialData.items.slice(0, 6).map((item) => <ReviewCard key={item.id} item={item} />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

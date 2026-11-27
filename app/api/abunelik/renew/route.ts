@@ -37,8 +37,9 @@ const QUOTE_ERRORS: Record<string, string> = {
 
 /**
  * POST /api/abunelik/renew  { ref, months, expectedPriceAzn }
- * Qiymət server tərəfdə CRM-dən alınır (klientin məbləği yalnız "qiymət dəyişib" yoxlaması üçündür).
- * Kartdan minimum 5 AZN tutulur, fərq ödənişdən sonra cüzdana yazılır (səbət qaydası).
+ * Qiymət server tərəfdə CRM-dən alınır (klientin məbləği yalnız "qiymət dəyişib" yoxlaması üçündür;
+ * `expectedPriceAzn` haqqsız CRM qiymətidir). Kartdan CRM qiyməti + 3% xidmət haqqı tutulur (`renewalCharge`),
+ * minimum 5 AZN — fərq ödənişdən sonra cüzdana yazılır (səbət qaydası).
  */
 export async function POST(req: Request) {
   if (!isAbunelikEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -88,7 +89,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Kartla ödəniş müvəqqəti əlçatmazdır." }, { status: 503 });
   }
 
-  const { priceCents, chargeCents, topUpCents } = renewalCharge(quote.priceAzn);
+  const { priceCents, serviceFeeCents, chargeCents, topUpCents } = renewalCharge(quote.priceAzn);
   const orderCode = `HON-${randomBytes(3).toString("hex").toUpperCase()}`;
   const metadata: CrmRenewalPaymentMetadata = {
     gateway: "epoint",
@@ -101,6 +102,7 @@ export async function POST(req: Request) {
       title: quote.title,
       months: quote.months,
       priceCents,
+      serviceFeeCents,
       topUpCents,
       chargeCents,
       phoneE164: phone.e164,

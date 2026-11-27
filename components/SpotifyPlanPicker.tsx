@@ -134,8 +134,8 @@ function readMeta(p: Product): PlanMeta | null {
   };
 }
 
-function fmtAzn(cents: number) {
-  return `${(cents / 100).toFixed(2)} AZN`;
+function fmtManat(cents: number) {
+  return `${(cents / 100).toFixed(2)} ₼`;
 }
 
 function monthLabel(months: number | null) {
@@ -476,15 +476,15 @@ export default function SpotifyPlanPicker({
                       <div>
                         {meta.originalPriceAznCents && meta.originalPriceAznCents > product.priceAznCents && (
                           <p className="text-sm font-semibold text-zinc-500 line-through">
-                            {fmtAzn(meta.originalPriceAznCents)}
+                            {fmtManat(meta.originalPriceAznCents)}
                           </p>
                         )}
                         <p className="text-3xl font-black tabular-nums text-white">
-                          {fmtAzn(product.priceAznCents)}
+                          {fmtManat(product.priceAznCents)}
                         </p>
                         {perMonth != null && (
                           <p className="mt-1 text-xs font-semibold text-zinc-400">
-                            Aylıq {perMonth.toFixed(2)} AZN
+                            Aylıq {perMonth.toFixed(2)} ₼
                           </p>
                         )}
                       </div>

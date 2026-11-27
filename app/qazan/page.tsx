@@ -27,7 +27,7 @@ import { getReferralCalculatorOptions } from "@/lib/referralCalculatorOptions";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Qazan — Honsell referal proqramı",
+  title: "Qazan — referal proqramı",
   description:
     "Dostunu Honsell-ə dəvət et, hər oyun, PS Plus və streaming alışından komissiya qazan.",
   alternates: { canonical: "/qazan" },

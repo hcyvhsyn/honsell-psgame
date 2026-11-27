@@ -362,7 +362,7 @@ export default function RegisterForm({
               readOnly={referralLocked}
               hint={
                 referralLocked
-                  ? "Dəvət linki ilə gəldiniz — referal kodu sabitləndi."
+                  ? "Dəvət linki ilə gəldin — referal kodu sabitləndi."
                   : undefined
               }
             />
@@ -371,7 +371,7 @@ export default function RegisterForm({
               icon={<Megaphone className="h-5 w-5" />}
               value={form.heardAboutSource}
               onChange={(v) => setForm({ ...form, heardAboutSource: v })}
-              placeholder="Bizi haradan eşitdiniz?"
+              placeholder="Bizi haradan eşitdin?"
               options={HEARD_ABOUT_OPTIONS}
             />
 
@@ -393,10 +393,10 @@ export default function RegisterForm({
 
             {accountExists && (
               <div className="rounded-[22px] border border-amber-400/25 bg-amber-400/10 px-5 py-4 text-sm text-amber-100">
-                <p className="font-bold text-amber-200">Bu e-poçtla hesabınız var</p>
+                <p className="font-bold text-amber-200">Bu e-poçtla hesabın var</p>
                 <p className="mt-1 text-amber-100/80">
                   <span className="font-mono">{accountExists.email}</span> üçün qeydiyyat
-                  tamamlanmayıb. Şifrəni yeniləyərək hesabınıza daxil olun.
+                  tamamlanmayıb. Şifrəni yeniləyərək hesabına daxil ol.
                 </p>
                 <Link
                   href={`/forgot-password?email=${encodeURIComponent(accountExists.email)}`}
@@ -719,7 +719,7 @@ function PhoneField({
         <input
           type="tel"
           inputMode="tel"
-          placeholder={isPage ? "WhatsApp nömrəniz" : "Bura WhatsApp nömrənizi yazın"}
+          placeholder={isPage ? "WhatsApp nömrən" : "WhatsApp nömrəni yaz"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           required

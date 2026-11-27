@@ -38,6 +38,9 @@ type ChatMessage = {
   services?: ServiceCard[];
 };
 
+/** sessionStorage açarı — "Birlikdə tapaq" tooltip-i sessiyada bir dəfə göstərilir. */
+const AI_TOOLTIP_SEEN_KEY = "honsell.aiTooltipSeen.v1";
+
 const GREETING =
   "Salam! 👋 Mən Honsell köməkçisiyəm. Saytdakı oyunlar, qiymətlər və endirimlər barədə istənilən sualını ver.";
 
@@ -75,26 +78,31 @@ export default function AskAiFloat() {
     };
   }, [open, authed]);
 
-  // Dövri tooltip — istifadəçini köməkçidən xəbərdar edir (panel bağlı olanda).
+  // "Birlikdə tapaq" tooltip-i — sessiyada BİR DƏFƏ və yalnız desktop-da (xl+).
+  // Əvvəl hər 14 s-dən bir sonsuz çıxırdı və telefonda başlıqları, kartın qiymətini,
+  // "Səbətə bax" düyməsini örtürdü.
   useEffect(() => {
     if (open) {
       setShowTooltip(false);
       return;
     }
-    let cancelled = false;
-    const cycle = () => {
-      if (cancelled) return;
+    if (!window.matchMedia("(min-width: 1280px)").matches) return;
+    try {
+      if (sessionStorage.getItem(AI_TOOLTIP_SEEN_KEY)) return;
+    } catch {
+      // Storage bloklanıbsa sadəcə bir dəfə göstər.
+    }
+    let hideTimer: ReturnType<typeof setTimeout> | undefined;
+    const showTimer = setTimeout(() => {
       setShowTooltip(true);
-      setTimeout(() => {
-        if (!cancelled) setShowTooltip(false);
-      }, 3500);
-    };
-    const initial = setTimeout(cycle, 4000);
-    const interval = setInterval(cycle, 14000);
+      try {
+        sessionStorage.setItem(AI_TOOLTIP_SEEN_KEY, "1");
+      } catch {}
+      hideTimer = setTimeout(() => setShowTooltip(false), 3500);
+    }, 4000);
     return () => {
-      cancelled = true;
-      clearTimeout(initial);
-      clearInterval(interval);
+      clearTimeout(showTimer);
+      if (hideTimer) clearTimeout(hideTimer);
     };
   }, [open]);
 
@@ -232,7 +240,9 @@ export default function AskAiFloat() {
   }
 
   return (
-    <div className={`${styles.root} fixed bottom-[calc(6.4rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-[130] flex flex-col items-end gap-3 xl:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] xl:right-[calc(1.5rem+env(safe-area-inset-right))]`}>
+    // `honsell-ai-float` — globals.css: səbət toast-ı açıq olanda gizlənir, yapışan alış zolağı
+    // (StickyBuyBar) görünəndə yuxarı qalxır ki, düymələri örtməsin.
+    <div className={`${styles.root} honsell-ai-float fixed bottom-[calc(6.4rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-[130] flex flex-col items-end gap-3 xl:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] xl:right-[calc(1.5rem+env(safe-area-inset-right))]`}>
       {/* Söhbət paneli */}
       {open && (
         <section className={styles.panel} aria-label="Honsell AI söhbəti">

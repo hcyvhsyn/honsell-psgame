@@ -5,6 +5,7 @@ import {
   type StreamingServiceMeta,
 } from "@/lib/streamingCart";
 import { getDbStreamingSlug, getPublicStreamingSlug, resolvePlatformGroup } from "@/lib/streamingAccess";
+import { isOpenStorePath } from "@/lib/storeScope";
 
 /**
  * Platforma kimliyi həqiqət mənbəyi olaraq `StreamingPlatform` DB cədvəlindədir.
@@ -77,6 +78,24 @@ export async function getStreamingPlatformsByCategory(
 ): Promise<StreamingServiceMeta[]> {
   const all = await getStreamingPlatforms();
   return all.filter((p) => p.category === category);
+}
+
+/**
+ * PS-only rejimdə `/streaming/<slug>` səhifəsi açıqdırmı: Netflix (koddan, `isOpenStorePath`) və ya
+ * admin-də "Saytda satılır" açarı yanmış xidmət. Bağlı xidmətin səhifəsi açılmasın — müştəri
+ * Google-dan gəlib səbətə atır, səbət isə sətri silir (satılmır).
+ */
+export async function isStreamingSlugOpen(slug: string): Promise<boolean> {
+  if (isOpenStorePath(`/streaming/${slug}`)) return true;
+  try {
+    const row = await prisma.streamingPlatform.findFirst({
+      where: { slug: getDbStreamingSlug(slug), isActive: true },
+      select: { storeSellable: true },
+    });
+    return row?.storeSellable === true;
+  } catch {
+    return false;
+  }
 }
 
 export async function getStreamingPlatformBySlug(

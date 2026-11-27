@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { SITE_NAME } from "@/lib/site";
 import StreamingServiceDetail from "@/components/StreamingServiceDetail";
 import {
   getStreamingPlatformByCode,
   getStreamingPlatformBySlug,
   getStreamingPlatformsByCategory,
+  isStreamingSlugOpen,
 } from "@/lib/streamingPlatforms";
 import { ACCESS_MODE_META, isStreamingAccessMode, tierKeyFromSlug } from "@/lib/streamingAccess";
 import { getStreamingGroupChildRedirect, getStreamingGroupParentSlug } from "@/lib/streamingGroups";
@@ -30,14 +32,16 @@ export async function generateMetadata({
   const { slug } = await params;
   const svc = await getStreamingPlatformBySlug(slug);
   if (!svc) return { title: "Streaming xidməti tapılmadı" };
-  const title = `${svc.label} — Filmlər və Seriallar | Honsell`;
+  // Brend sonluğunu layout-un `title.template`-i əlavə edir (əvvəl "| Honsell | Honsell Store" çıxırdı).
+  // "Filmlər və Seriallar" yox — bu səhifə abunəlik satır.
+  const title = `${svc.label} abunəliyi — planlar və qiymətlər`;
   const url = `/streaming/${svc.slug}`;
   return {
     title,
     description: svc.description,
     alternates: { canonical: url },
     openGraph: {
-      title,
+      title: `${title} | ${SITE_NAME}`,
       description: svc.description,
       url,
     },
@@ -88,6 +92,12 @@ export default async function StreamingServicePage({
       const key = tierKeyFromSlug(svc.slug, top.slug, svc.accessMode);
       redirect(`/streaming/${top.slug}?secim=${ACCESS_MODE_META[svc.accessMode].selection}&paket=${key}`);
     }
+  }
+
+  // Satılmayan xidmətin (HBO, Prime…) səhifəsi açılmasın — səbətə atılan sətir onsuz da silinir.
+  // Plan slug-ları yuxarıda üst xidmətə yönləndi; Netflix uşaqları (netflix-hesab…) üst slug ilə yoxlanır.
+  if (PLAYSTATION_ONLY && !(await isStreamingSlugOpen(parentSlug ?? svc.slug))) {
+    redirect(NETFLIX_STORE_PATH);
   }
 
   // PS-only rejimdə `/streaming` kataloqu bağlıdır — xidmət girişi ana səhifəyə qayıdır;

@@ -499,6 +499,31 @@ html {
   }
 }
 
+/* Üzən AI düyməsi (AskAiFloat → `.honsell-ai-float`) digər alt elementləri örtməsin:
+   - "Səbətə əlavə olundu" toast-ı açıq olanda gizlənir (eyni küncdədir, "Səbətə bax"-ı örtürdü);
+   - oyun səhifəsinin yapışan alış zolağı (StickyBuyBar, < lg) görünəndə onun üstünə qalxır. */
+body:has(.honsell-cart-toast) .honsell-ai-float {
+  opacity: 0;
+  pointer-events: none;
+}
+.honsell-ai-float {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+@media (max-width: 1023.98px) {
+  body[data-sticky-buy="1"] .honsell-ai-float {
+    transform: translateY(-56px);
+  }
+  /* Oyun səhifəsinin qiymət kartı ekrandaykən AI düyməsi "Səbətə əlavə et"-in küncünü örtürdü. */
+  body[data-buy-box-in-view="1"] .honsell-ai-float {
+    opacity: 0;
+    pointer-events: none;
+  }
+  /* Zolaq açıq olanda səhifənin son bloku onun altında qalmasın. */
+  body[data-sticky-buy="1"]:has(.honsell-mobile-bottom-nav) {
+    padding-bottom: calc(150px + env(safe-area-inset-bottom));
+  }
+}
+
 :root.light .honsell-mobile-bottom-bar .text-slate-400 { color: #475569 !important; }
 :root.light .honsell-mobile-bottom-bar .text-violet-100 { color: #5b21b6 !important; }
 :root.light .honsell-mobile-bottom-bar .text-sky-300 { color: #0284c7 !important; }

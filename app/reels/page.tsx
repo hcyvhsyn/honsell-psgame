@@ -9,7 +9,7 @@ import ReelsFeedClient from "@/components/reels/ReelsFeedClient";
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: "Reels — Honsell",
+  title: "Reels",
   description: "Oyun və film videoları — izlə, bəyən, tək toxunuşla al.",
 };
 

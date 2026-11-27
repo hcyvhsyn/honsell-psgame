@@ -49,7 +49,7 @@ function LoginInner() {
     <AuthPageShell
       mode="login"
       title="Daxil ol"
-      subtitle="Daxil olmaq üçün aşağıdakı xanaları doldurun"
+      subtitle="E-poçt və şifrənlə daxil ol"
       next={next !== "/" ? next : undefined}
     >
       <form onSubmit={submit} className="mx-auto w-full max-w-[39rem] space-y-3">
@@ -95,10 +95,10 @@ function LoginInner() {
 
         {needsReset && (
           <div className="rounded-[22px] border border-amber-400/25 bg-amber-400/10 px-5 py-4 text-sm text-amber-100">
-            <p className="font-semibold text-amber-200">Hesabınız təsdiqlənməyib</p>
+            <p className="font-semibold text-amber-200">Hesabın təsdiqlənməyib</p>
             <p className="mt-1 text-amber-100/80">
               <span className="font-mono">{needsReset.email}</span> üçün hesab
-              tamamlanmayıb. Şifrəni yeniləyərək hesabınızı aktivləşdirin.
+              tamamlanmayıb. Şifrəni yeniləyərək hesabını aktivləşdir.
             </p>
             <Link
               href={`/forgot-password?email=${encodeURIComponent(needsReset.email)}`}

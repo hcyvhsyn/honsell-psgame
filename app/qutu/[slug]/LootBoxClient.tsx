@@ -12,6 +12,7 @@ import type { ShowcasePrizeData } from "@/components/LootBoxCard";
 import type { RevealPrize } from "@/components/LootBoxReveal";
 import { useSession } from "@/components/SessionProvider";
 import { formatAzn, type PublicOddsRow } from "@/lib/lootBoxShared";
+import { CART_SERVICE_FEE_PCT, withServiceFeeCents } from "@/lib/cartServiceFee";
 
 export type LootBoxDetail = {
   slug: string;
@@ -123,7 +124,9 @@ export default function LootBoxClient({
     }
   }
 
-  const canAfford = balanceCents == null || balanceCents >= box.priceAznCents;
+  // Cüzdandan qutu qiyməti + 3% xidmət haqqı tutulur (lib/lootBoxes.ts ilə eyni).
+  const payCents = withServiceFeeCents(box.priceAznCents);
+  const canAfford = balanceCents == null || balanceCents >= payCents;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -278,6 +281,9 @@ export default function LootBoxClient({
             <div className="text-sm text-slate-500">Qutu qiyməti</div>
             <div className="text-4xl font-black text-slate-900 dark:text-white">
               {formatAzn(box.priceAznCents)}
+            </div>
+            <div className="mt-0.5 text-xs text-slate-500">
+              +{CART_SERVICE_FEE_PCT}% xidmət haqqı · cüzdandan {formatAzn(payCents)} tutulur
             </div>
 
             {!sessionLoading && user && balanceCents != null && (

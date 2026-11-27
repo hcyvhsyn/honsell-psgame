@@ -3,6 +3,12 @@ export function fmtAzn(cents: number | null | undefined): string {
   return `${n.toFixed(2)} AZN`;
 }
 
+/** Müştəri UI-ı üçün: "12.00 ₼" (CLAUDE.md → valyuta UI-da ₼). `fmtAzn` admin/e-poçt üçün "AZN" qalır. */
+export function fmtManat(cents: number | null | undefined): string {
+  const n = (cents ?? 0) / 100;
+  return `${n.toFixed(2)} ₼`;
+}
+
 /**
  * Minlik ayırıcısı ilə tam ədəd — «1000» → «1.000».
  *

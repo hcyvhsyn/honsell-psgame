@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { SITE_NAME } from "@/lib/site";
 import { PLAYSTATION_ONLY } from "@/lib/storeScope";
-import { Check, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import StreamingServiceDetail from "@/components/StreamingServiceDetail";
@@ -19,23 +20,20 @@ type Params = { slug: string };
 
 const SPOTIFY_SLUG = "spotify-premium";
 const SPOTIFY_CANONICAL = "https://www.honsell.site/music/spotify-premium";
-const SPOTIFY_SEO_TITLE = "Spotify Premium 1 Aylıq | Honsell Store";
+// Brend sonluğunu layout-un `title.template`-i əlavə edir.
+const SPOTIFY_SEO_TITLE = "Spotify Premium 1 aylıq";
 const SPOTIFY_SEO_DESCRIPTION =
   "Spotify Premium Individual paketini 1 aylıq aktiv edin. Reklamsız musiqi, offline dinləmə, limitsiz keçid və sürətli qoşulma. Honsell Store ilə rahat sifariş.";
-const SPOTIFY_H1 = "Spotify Premium 1 aylıq — şəxsi hesabınıza sürətli qoşulma";
+const SPOTIFY_H1 = "Spotify Premium 1 aylıq — öz hesabına sürətli qoşulma";
 const SPOTIFY_INTRO =
-  "Spotify Premium Individual paketini şəxsi hesabınıza qoşaraq reklamsız musiqi, offline dinləmə və limitsiz keçid imkanlarından istifadə edin.";
+  "Spotify Premium Individual paketini öz hesabına qoşaraq reklamsız musiqi, offline dinləmə və limitsiz keçid imkanlarından istifadə et.";
 const SPOTIFY_HERO_ALT = "Spotify Premium 1 aylıq Honsell Store";
-const SPOTIFY_WHATSAPP_MSISDN = "994702560509";
-const SPOTIFY_WHATSAPP_HREF = `https://wa.me/${SPOTIFY_WHATSAPP_MSISDN}?text=${encodeURIComponent(
-  "Salam, Spotify Premium 1 aylıq paketini sifariş etmək istəyirəm.",
-)}`;
 
 /** FAQ — həm görünən bölmə, həm də FAQPage JSON-LD üçün tək mənbə. */
 const SPOTIFY_FAQ: Array<{ q: string; a: string }> = [
   {
     q: "Spotify Premium necə qoşulur?",
-    a: "Spotify Premium şəxsi hesabınıza xarici region (Nigeria/Misir) üzərindən aktivləşdirilir. Siz hesab məlumatlarınızı göndərirsiniz, ödənişi tamamlayırsınız və Premium statusu mövcud hesabınıza əlavə olunur — yeni hesab açmağa ehtiyac yoxdur.",
+    a: "Spotify Premium öz hesabına xarici region (Nigeriya/Misir) üzərindən aktivləşdirilir. Hesab məlumatlarını daxil edirsən, ödənişi tamamlayırsan və Premium statusu mövcud hesabına əlavə olunur — yeni hesab açmağa ehtiyac yoxdur.",
   },
   {
     q: "Qoşulma nə qədər vaxt aparır?",
@@ -43,15 +41,15 @@ const SPOTIFY_FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: "Şəxsi hesabıma qoşulur?",
-    a: "Bəli. Premium sizin öz Spotify hesabınıza qoşulur, beləliklə bütün pleylistləriniz, izlədikləriniz və kitabxananız olduğu kimi qalır.",
+    a: "Bəli. Premium sənin öz Spotify hesabına qoşulur, beləliklə bütün pleylistlərin, izlədiklərin və kitabxanan olduğu kimi qalır.",
   },
   {
     q: "Premium dayansa nə olur?",
-    a: "Premium statusu xarici region üzərindən aktiv edildiyi üçün nadir hallarda platforma tərəfindən dəyişdirilə bilər. Bu, Honsell Store-un nəzarətində olmayan haldır; məhz buna görə hazırda yalnız 1 aylıq paket təqdim olunur ki, riskiniz minimal olsun.",
+    a: "Premium statusu xarici region üzərindən aktiv edildiyi üçün nadir hallarda platforma tərəfindən dəyişdirilə bilər. Bu, Honsell Store-un nəzarətində olmayan haldır; məhz buna görə hazırda yalnız 1 aylıq paket təqdim olunur ki, riskin minimal olsun.",
   },
   {
     q: "Niyə yalnız 1 aylıq paket var?",
-    a: "Uzunmüddətli paketlərdə region siyasəti dəyişə biləcəyi üçün şəffaflıq naminə yalnız 1 aylıq paket təklif edirik. Beləliklə hər ay statusu rahat yeniləyə bilərsiniz.",
+    a: "Uzunmüddətli paketlərdə region siyasəti dəyişə biləcəyi üçün şəffaflıq naminə yalnız 1 aylıq paket təklif edirik. Beləliklə hər ay statusu rahat yeniləyə bilərsən.",
   },
   {
     q: "Spotify Premium Individual nədir?",
@@ -81,7 +79,7 @@ export async function generateMetadata({
       description: SPOTIFY_SEO_DESCRIPTION,
       alternates: { canonical: SPOTIFY_CANONICAL },
       openGraph: {
-        title: SPOTIFY_SEO_TITLE,
+        title: `${SPOTIFY_SEO_TITLE} | ${SITE_NAME}`,
         description: SPOTIFY_SEO_DESCRIPTION,
         url: SPOTIFY_CANONICAL,
         type: "website",
@@ -90,7 +88,7 @@ export async function generateMetadata({
     };
   }
 
-  const title = `${svc.label} — Musiqi Abunəliyi | Honsell`;
+  const title = `${svc.label} — Musiqi Abunəliyi`;
   const url = `/music/${svc.slug}`;
   return {
     title,
@@ -261,67 +259,25 @@ function SpotifySeoJsonLd() {
  * mövcud yaşıl dizayn sistemindən istifadə edir. Yalnız H2/H3 başlıqlar.
  */
 function SpotifySeoContent() {
-  const packageFeatures = [
-    "Qiymət: 6 AZN",
-    "Şəxsi Spotify hesabınıza qoşulur",
-    "Ortalama 1 saata aktivləşir",
-    "Reklamsız musiqi",
-    "Offline dinləmə",
-    "Limitsiz keçid",
-    "Nigeria/Misir regionu üzərindən aktivasiya",
-  ];
-
+  // Addımlar real alış axınıdır (səbət → ödəniş). Əvvəl burada "WhatsApp ilə bizə yazın"
+  // yazılırdı və ayrıca "WhatsApp ilə sifariş et" düyməli ikinci paket kartı var idi — müştəri
+  // iki alış yolu arasında çaşırdı (2026-11-də çıxarılıb).
   const steps = [
-    "WhatsApp ilə bizə yazın.",
-    "Spotify hesab məlumatlarınızı göndərin.",
-    "Ödənişi tamamlayın.",
-    "Ortalama 1 saat ərzində aktivləşmə tamamlanır.",
+    "Yuxarıda planı seç və səbətə əlavə et.",
+    "Spotify hesabının e-poçt və şifrəsini daxil et.",
+    "Ödənişi tamamla.",
+    "Ortalama 1 saat ərzində Premium aktivləşir.",
   ];
 
   return (
     <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Paket bölməsi */}
-        <div className="rounded-lg border border-violet-500/20 bg-zinc-900 p-6 sm:p-7">
-          <h2 className="text-2xl font-black text-white">
-            Spotify Premium Individual — 1 ay
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-            Spotify Premium 1 aylıq paketi şəxsi hesabınıza qoşulur. Ucuz qiymət,
-            sürətli aktivasiya və reklamsız dinləmə təcrübəsi.
-          </p>
-          <ul className="mt-5 grid gap-2.5">
-            {packageFeatures.map((f) => (
-              <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-200">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-700 dark:text-violet-300" />
-                <span>{f}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <a
-              href={SPOTIFY_WHATSAPP_HREF}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-violet-600 px-5 text-sm font-black text-white transition hover:bg-violet-500"
-            >
-              WhatsApp ilə sifariş et
-            </a>
-            <a
-              href="#spotify-plans"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-violet-500/30 px-5 text-sm font-black text-zinc-200 transition hover:bg-zinc-800"
-            >
-              Paket məlumatlarına bax
-            </a>
-          </div>
-        </div>
-
+      <div className="grid gap-6">
         {/* Vacib məlumat bölməsi */}
         <div className="rounded-lg border border-amber-300/25 bg-zinc-900 p-6 sm:p-7">
           <h2 className="text-2xl font-black text-amber-700 dark:text-amber-200">Vacib məlumat</h2>
           <p className="mt-3 text-sm leading-relaxed text-amber-700 dark:text-amber-100">
-            Spotify Premium hesabınıza xarici region üzərindən aktiv edilir.
-            Aktivləşmə tamamlandıqdan sonra aldığınız müddət hesabınıza əlavə
+            Spotify Premium hesabına xarici region üzərindən aktiv edilir.
+            Aktivləşmə tamamlandıqdan sonra aldığın müddət hesabına əlavə
             olunur. Premium statusunun platforma tərəfindən dəyişdirilməsi və ya
             dayandırılması kimi hallar Honsell Store-un nəzarətində olmadığı üçün
             bu hallara görə məsuliyyət daşımırıq. Buna görə hazırda yalnız 1 aylıq

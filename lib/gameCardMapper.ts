@@ -12,6 +12,7 @@
  * Price) modeli ilə hesablamaqda sərbəstdir.
  */
 import type { GameCardData } from "@/lib/gameCardShared";
+import { displayGameTitle } from "@/lib/gameTitle";
 
 /** Kart üçün DB-dən oxunmalı sütunlar. */
 export type GameCardRow = {
@@ -106,7 +107,8 @@ export function buildGameCard(
     store: g.store ?? "PS",
     productId: suppressLinks ? null : g.productId,
     slug: suppressLinks ? null : (g.slug ?? null),
-    title: g.title,
+    // Göstərmə adı (lib/gameTitle.ts) — "PS4 ve PS5" sonluğu kəsilir, platforma kartda nişandır.
+    title: displayGameTitle(g.title),
     imageUrl: g.imageUrl,
     platform: g.platform,
     productType: g.productType,

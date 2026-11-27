@@ -9,7 +9,6 @@ import {
   BadgeCheck,
   BadgePercent,
   CalendarClock,
-  ExternalLink,
   Gamepad2,
   Headset,
   ShieldCheck,
@@ -24,6 +23,10 @@ import SiteHeaderServer from "@/components/SiteHeaderServer";
 import TrackView from "@/components/TrackView";
 import GameCard, { type GameCardData } from "@/components/GameCard";
 import AddToCartButton from "./AddToCartButton";
+import StickyBuyBar from "./StickyBuyBar";
+import ReferralBadge from "@/components/ReferralBadge";
+import { displayGameTitle } from "@/lib/gameTitle";
+import ServiceFeeNote from "@/components/cart/ServiceFeeNote";
 import FavoriteButton from "@/components/FavoriteButton";
 import InstallmentHint from "@/components/InstallmentHint";
 import ScreenshotGallery from "./ScreenshotGallery";
@@ -226,7 +229,7 @@ export default async function GameDetailPage({
       id: g.id,
       productId: g.productId,
       slug: g.slug,
-      title: g.title,
+      title: displayGameTitle(g.title),
       imageUrl: g.imageUrl,
       platform: g.platform,
       productType: g.productType,
@@ -238,13 +241,19 @@ export default async function GameDetailPage({
   });
 
   const platforms = game.platform ? game.platform.split(",") : [];
+  // Göstərmə adı: sondakı "PS4 ve PS5" kəsilir (platforma nişanlarda var). SEO meta xam adla qalır.
+  const shownTitle = displayGameTitle(game.title);
+  const heroImage = game.heroImageUrl ?? game.imageUrl;
+  // Qalereyada qapaq/fon şəklinin özü və eyni şəklin ölçü variantları (`?w=` fərqli) təkrarlanırdı.
+  const urlKey = (u: string) => u.split("?")[0];
+  const coverKeys = new Set([game.imageUrl, game.heroImageUrl].filter((u): u is string => Boolean(u)).map(urlKey));
   const screenshots = Array.isArray(game.screenshots)
-    ? (game.screenshots as unknown[]).filter(
-        (u): u is string => typeof u === "string" && u.length > 0
-      )
+    ? (game.screenshots as unknown[])
+        .filter((u): u is string => typeof u === "string" && u.length > 0)
+        .filter((u) => !coverKeys.has(urlKey(u)))
+        .filter((u, i, arr) => arr.findIndex((x) => urlKey(x) === urlKey(u)) === i)
     : [];
 
-  const heroImage = game.heroImageUrl ?? game.imageUrl;
   const canonicalUrl = `${SITE_URL}${gamePath(game)}`;
   const productImages = [heroImage, game.imageUrl, ...screenshots]
     .filter((u): u is string => Boolean(u))
@@ -374,7 +383,7 @@ export default async function GameDetailPage({
     },
     {
       title: "Lisenziya zəmanəti",
-      text: "Rəsmi PS Store-dan hesabınıza bağlı qalır.",
+      text: "Rəsmi PS Store-dan hesabına bağlı qalır.",
       Icon: ShieldCheck,
       iconClass: "text-emerald-600 dark:text-emerald-300",
     },
@@ -454,8 +463,10 @@ export default async function GameDetailPage({
               <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/82 to-white/58 dark:from-[#0A0A0F]/90 dark:via-[#0A0A0F]/76 dark:to-[#0A0A0F]/42" />
               <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-violet-100/45 to-transparent dark:from-violet-950/30" />
 
-              <div className="relative grid gap-6 md:grid-cols-[210px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)]">
-                <div className="max-w-[220px] md:max-w-none">
+              {/* Telefonda qapaq kiçikdir və başlığın yanındadır — qiymət kartı ilk ekrana düşsün
+                  (əvvəl 220px qapaq + 3 sətirlik başlıq + 4 güvən kartı qiyməti 3-cü ekrana itələyirdi). */}
+              <div className="relative grid grid-cols-[88px_minmax(0,1fr)] gap-4 sm:grid-cols-[140px_minmax(0,1fr)] md:grid-cols-[210px_minmax(0,1fr)] md:gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+                <div>
                   {game.imageUrl ? (
                     <div className="relative overflow-hidden rounded-2xl border border-white bg-zinc-100 shadow-2xl shadow-violet-950/15 ring-1 ring-violet-200 dark:border-white/15 dark:bg-zinc-950 dark:shadow-black/50 dark:ring-violet-300/20">
                       <Image
@@ -463,7 +474,7 @@ export default async function GameDetailPage({
                         alt={`${game.title} cover`}
                         width={520}
                         height={520}
-                        sizes="(max-width: 768px) 220px, 240px"
+                        sizes="(max-width: 640px) 88px, (max-width: 768px) 140px, 240px"
                         className="aspect-square w-full object-cover"
                       />
                     </div>
@@ -487,11 +498,11 @@ export default async function GameDetailPage({
                     </span>
                   </div>
 
-                  <h1 className="mt-4 max-w-4xl text-4xl font-black leading-[0.95] tracking-tight text-zinc-950 dark:text-white sm:text-5xl lg:text-6xl">
-                    {game.title}
+                  <h1 className="mt-2 max-w-4xl text-2xl font-black leading-[1.05] tracking-tight text-zinc-950 dark:text-white sm:mt-4 sm:text-4xl sm:leading-[0.95] md:text-5xl lg:text-6xl">
+                    {shownTitle}
                   </h1>
 
-                  <div className="mt-5 flex flex-wrap items-center gap-2">
+                  <div className="mt-3 flex flex-wrap items-center gap-2 sm:mt-5">
                     {platforms.map((p) => (
                       <span
                         key={p}
@@ -505,7 +516,7 @@ export default async function GameDetailPage({
                     </span>
                   </div>
 
-                  <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                  <div className="mt-7 hidden gap-3 sm:grid-cols-2 lg:grid">
                     {serviceHighlights.map(({ title, text, Icon, iconClass }) => (
                       <div
                         key={title}
@@ -523,34 +534,28 @@ export default async function GameDetailPage({
               </div>
             </div>
 
-            {/* Price card */}
-            <aside className="relative overflow-hidden rounded-[28px] border border-violet-200 bg-white/86 p-5 shadow-[0_24px_80px_-58px_rgba(124,58,237,0.45)] backdrop-blur-xl dark:border-violet-400/20 dark:bg-zinc-950/90 dark:shadow-[0_24px_80px_-50px_rgba(124,58,237,0.9)] sm:p-6">
+            {/* Price card — `id` yapışan alış zolağı üçün (StickyBuyBar kart ekrandan çıxanda görünür). */}
+            <aside id="game-buy-box" className="relative overflow-hidden rounded-[28px] border border-violet-200 bg-white/86 p-5 shadow-[0_24px_80px_-58px_rgba(124,58,237,0.45)] backdrop-blur-xl dark:border-violet-400/20 dark:bg-zinc-950/90 dark:shadow-[0_24px_80px_-50px_rgba(124,58,237,0.9)] sm:p-6">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-violet-100/90 to-transparent dark:from-violet-600/20" />
               <div className="relative">
-                <div className="flex flex-wrap items-center gap-2">
-                  {display.discountPct != null ? (
+                {/* Endirim nişanları yalnız endirim olanda. "Aktiv təklif" və "Satış qiyməti"
+                    etiketləri (heç nə demirdi) 2026-11-də çıxarılıb. */}
+                {display.discountPct != null && (
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-1 text-xs font-black text-white shadow-lg shadow-violet-900/30">
                       <BadgePercent className="h-3.5 w-3.5" />
                       -{display.discountPct}% endirim
                     </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white/75 px-3 py-1 text-xs font-semibold text-zinc-700 shadow-sm dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-300">
-                      <BadgeCheck className="h-3.5 w-3.5" />
-                      Aktiv təklif
-                    </span>
-                  )}
-                  {savingsAzn != null && savingsAzn > 0 && (
-                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200">
-                      {savingsAzn.toFixed(2)}₼ qənaət
-                    </span>
-                  )}
-                </div>
+                    {savingsAzn != null && savingsAzn > 0 && (
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200">
+                        {savingsAzn.toFixed(2)}₼ qənaət
+                      </span>
+                    )}
+                  </div>
+                )}
 
-                <div className="mt-6 rounded-2xl border border-zinc-200 bg-white/82 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/10 dark:bg-black/30">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-500">
-                    Satış qiyməti
-                  </p>
-                  <div className="mt-2 flex flex-wrap items-end gap-3">
+                <div className="rounded-2xl border border-zinc-200 bg-white/82 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/10 dark:bg-black/30">
+                  <div className="flex flex-wrap items-end gap-3">
                     {display.originalAzn != null && (
                       <span className="relative mb-1 text-lg font-semibold text-zinc-500 dark:text-zinc-500">
                         {display.originalAzn.toFixed(2)}₼
@@ -566,6 +571,7 @@ export default async function GameDetailPage({
                   </div>
 
                   <InstallmentHint priceAzn={display.finalAzn} className="mt-3" />
+                  <ServiceFeeNote className="mt-2" />
 
                   {discountEndLabel && display.discountPct != null && (
                     <p className="mt-4 inline-flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
@@ -580,7 +586,7 @@ export default async function GameDetailPage({
                   <AddToCartButton
                     game={{
                       id: game.id,
-                      title: game.title,
+                      title: shownTitle,
                       imageUrl: game.imageUrl,
                       finalAzn: display.finalAzn,
                       originalAzn: display.originalAzn,
@@ -592,29 +598,45 @@ export default async function GameDetailPage({
                         ? game.discountEndAt.toISOString()
                         : null
                     }
-                  />
-                </div>
-
-                <div className="mt-3">
-                  <FavoriteButton gameId={game.id} variant="detail" />
-                </div>
-
-                {game.productUrl && (
-                  <a
-                    href={game.productUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 inline-flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-zinc-200 bg-white/75 px-5 text-base font-semibold text-zinc-700 transition hover:border-violet-300 hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-900/70 dark:text-zinc-300 dark:hover:border-violet-400/40 dark:hover:text-white"
                   >
-                    <ExternalLink className="h-5 w-5" />
-                    PS Store-da bax
-                  </a>
-                )}
+                    <FavoriteButton gameId={game.id} variant="icon" />
+                  </AddToCartButton>
+                </div>
+
+                {/* "PS Store-da bax" linki çıxarılıb (2026-11) — müştərini Sony mağazasına göndərirdi.
+                    Referal təklifi kataloq kartlarından buraya köçüb (tək nüsxə). */}
+                <div className="mt-4 flex justify-center">
+                  <ReferralBadge category="games" productName={shownTitle} variant="line" />
+                </div>
               </div>
             </aside>
+
+            {/* Telefon/planşet: güvən kartları qiymət kartından sonra, yığcam. */}
+            <ul className="grid grid-cols-2 gap-2 lg:hidden">
+              {serviceHighlights.map(({ title, Icon, iconClass }) => (
+                <li
+                  key={title}
+                  className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white/78 px-3 py-2.5 text-sm font-semibold text-zinc-800 dark:border-white/10 dark:bg-black/25 dark:text-zinc-200"
+                >
+                  <Icon className={`h-4 w-4 shrink-0 ${iconClass}`} />
+                  <span className="min-w-0 truncate">{title}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
+
+      <StickyBuyBar
+        game={{
+          id: game.id,
+          title: shownTitle,
+          imageUrl: game.imageUrl,
+          finalAzn: display.finalAzn,
+          originalAzn: display.originalAzn,
+          productType: game.productType,
+        }}
+      />
 
       {/* Oyun haqqında — the unique, indexable body copy for this page.
           Rendered above the trailer so crawlers (and users) hit real text
@@ -623,7 +645,7 @@ export default async function GameDetailPage({
       {(game.descriptionAz || metaFacts.length > 0) && (
         <section className="mx-auto w-full max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
           <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-200">
-            {game.title} haqqında
+            {shownTitle} haqqında
           </h2>
           <div className="grid gap-6 lg:grid-cols-3">
             {game.descriptionAz && (
@@ -693,7 +715,7 @@ export default async function GameDetailPage({
           <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-200">
             Ekran görüntüləri
           </h2>
-          <ScreenshotGallery screenshots={screenshots} gameTitle={game.title} />
+          <ScreenshotGallery screenshots={screenshots} gameTitle={shownTitle} />
         </section>
       )}
 
@@ -703,7 +725,7 @@ export default async function GameDetailPage({
           <div className="mb-5 flex items-center gap-2">
             <Gamepad2 className="h-5 w-5 text-indigo-400" />
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-200">
-              Bunlar da xoşunuza gələ bilər
+              Bunlar da xoşuna gələ bilər
             </h2>
           </div>
           <ul className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">

@@ -10,6 +10,8 @@ import { sendAdminOrderNotification } from "@/lib/resend";
  *
  * Bir DB tranzaksiyasında: ödəniş PENDING→SUCCESS (guard — dəqiq bir dəfə), min 5 AZN round-up
  * fərqi cüzdana (səbətdəki CART_MIN_ROUNDUP kimi), CrmRenewalOrder. Sonra CRM-ə ötürülür.
+ * Məbləğ = CRM qiyməti + 3% xidmət haqqı (`renewalCharge`); CRM-ə və `CrmRenewalOrder.amountAznCents`-ə haqqsız
+ * qiymət gedir, `chargedAznCents` kartdan tutulandır.
  * Referal komissiyası / cashback YOXDUR (CRM abunəliyi mağaza məhsulu deyil).
  */
 export const CRM_RENEWAL_FLOW = "crm-renewal";
@@ -25,6 +27,8 @@ export type CrmRenewalPaymentMetadata = {
     title: string;
     months: number;
     priceCents: number;
+    /** 3% xidmət haqqı. 2026-11-dən əvvəlki ödənişlərdə yoxdur (= 0). */
+    serviceFeeCents?: number;
     topUpCents: number;
     chargeCents: number;
     phoneE164: string;
@@ -85,6 +89,7 @@ export async function finalizeCrmRenewalPayment(
             orderCode: meta.orderCode,
             epointPaymentId: payment.id,
             priceCents: r.priceCents,
+            serviceFeeCents: r.serviceFeeCents ?? 0,
             chargedCents: r.chargeCents,
           }),
         },
@@ -121,7 +126,12 @@ export async function finalizeCrmRenewalPayment(
         userName: user?.name ?? null,
         totalAzn: r.chargeCents / 100,
         paymentSource: "epoint",
-        items: [{ kind: "CRM_RENEWAL", title: `${r.title} — ${r.months} ay`, qty: 1, lineAzn: r.priceCents / 100 }],
+        items: [
+          { kind: "CRM_RENEWAL", title: `${r.title} — ${r.months} ay`, qty: 1, lineAzn: r.priceCents / 100 },
+          ...((r.serviceFeeCents ?? 0) > 0
+            ? [{ kind: "SERVICE_FEE", title: "Xidmət haqqı (3%)", qty: 1, lineAzn: (r.serviceFeeCents ?? 0) / 100 }]
+            : []),
+        ],
       });
     } catch (e) {
       console.error("[crm-renewal] admin bildirişi", e);

@@ -2,13 +2,13 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import SiteHeader from "@/components/SiteHeaderServer";
 import SiteFooter from "@/components/SiteFooter";
-import { SITE_NAME, SITE_URL } from "@/lib/site";
+import { SITE_URL } from "@/lib/site";
 import WinnersHallClient from "./WinnersHallClient";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: `Qazananlar — ${SITE_NAME}`,
+  title: "Qazananlar",
   description:
     "Honsell Store çəkilişlərinin real qazananları və onların rəyləri. Hədiyyələri həqiqətən veririk — özün bax.",
   alternates: { canonical: `${SITE_URL}/qazananlar` },

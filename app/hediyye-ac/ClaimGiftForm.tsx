@@ -148,7 +148,7 @@ export default function ClaimGiftForm({
         <div className="gift-success-card p-8 text-center">
           <div className="relative mx-auto mb-5 h-28 w-28">
             <Image
-              src="/gift.svg"
+              src="/gift.webp"
               alt="Açılmış hədiyyə"
               fill
               sizes="112px"
@@ -421,7 +421,7 @@ function GiftBurstOverlay() {
       <div className="gift-burst-ring gift-burst-ring-three" />
       <div className="gift-burst-core">
         <Image
-          src="/gift.svg"
+          src="/gift.webp"
           alt=""
           fill
           sizes="180px"

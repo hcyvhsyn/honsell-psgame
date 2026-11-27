@@ -80,8 +80,8 @@ export default function MinOrderMeter({
       aria-live="polite"
       aria-label={
         reached
-          ? `PlayStation minimumu keçildi: ${totalAzn.toFixed(2)} / ${MIN_ORDER_AZN} AZN`
-          : `PlayStation minimumu: ${totalAzn.toFixed(2)} / ${MIN_ORDER_AZN} AZN, daha ${missingAzn.toFixed(2)} AZN lazımdır`
+          ? `PlayStation minimumu keçildi: ${totalAzn.toFixed(2)} / ${MIN_ORDER_AZN} ₼`
+          : `PlayStation minimumu: ${totalAzn.toFixed(2)} / ${MIN_ORDER_AZN} ₼, daha ${missingAzn.toFixed(2)} ₼ lazımdır`
       }
       className={
         compact

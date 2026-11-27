@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 import { ArrowRight, X } from "lucide-react";
 import { useCart, type CartItem } from "@/lib/cart";
 import { useModals } from "@/lib/modals";
-import { minOrderBaseCents } from "@/lib/cartLimits";
+import { MIN_ORDER_AZN, minOrderBaseCents } from "@/lib/cartLimits";
 import MinOrderMeter from "./MinOrderMeter";
+import ServiceFeeNote from "./ServiceFeeNote";
 
 const VISIBLE_MS = 4500;
 
@@ -101,11 +102,15 @@ export default function CartAddedToast() {
         </button>
       </div>
 
-      {totalAzn > 0 && (
+      {/* Sayğac yalnız bu əlavədən ƏVVƏL minimum keçilməyibsə: ya hələ çatmır, ya da indi keçildi.
+          Artıq keçilmiş minimumu hər əlavədə "100%" kimi göstərmək yalnız yer tuturdu. */}
+      {totalAzn > 0 && fromAzn < MIN_ORDER_AZN && (
         <div className="mt-3 rounded-2xl border border-zinc-200/80 bg-zinc-50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
           <MinOrderMeter totalAzn={totalAzn} fromAzn={fromAzn} variant="compact" />
         </div>
       )}
+
+      <ServiceFeeNote className="mt-3" />
 
       <button
         type="button"

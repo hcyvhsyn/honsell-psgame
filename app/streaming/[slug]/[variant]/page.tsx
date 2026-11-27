@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { SITE_NAME } from "@/lib/site";
 import StreamingServiceDetail from "@/components/StreamingServiceDetail";
 import { prisma } from "@/lib/prisma";
 import {
   getStreamingPlatformBySlug,
   getStreamingPlatformsByCategory,
+  isStreamingSlugOpen,
 } from "@/lib/streamingPlatforms";
+import { getStreamingGroupParentSlug } from "@/lib/streamingGroups";
+import { NETFLIX_STORE_PATH, PLAYSTATION_ONLY } from "@/lib/storeScope";
 
 export const revalidate = 1800;
 
@@ -65,14 +69,14 @@ export async function generateMetadata({
   const variantName = (await getVariantMap(svc.code)).get(variant);
   if (!variantName) return { title: "Paket tapılmadı" };
 
-  const title = `${svc.label} ${variantName} — qiymət və müddətlər | Honsell`;
+  const title = `${svc.label} ${variantName} — qiymət və müddətlər`;
   const url = `/streaming/${svc.slug}/${variant}`;
   const description = `${svc.label} ${variantName} paketi — müddət seç, ödənişdən sonra giriş məlumatları sənə göndərilir.`;
   return {
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { title, description, url },
+    openGraph: { title: `${title} | ${SITE_NAME}`, description, url },
   };
 }
 
@@ -93,6 +97,12 @@ export default async function StreamingVariantPage({
   // MUSIC kateqoriyalı xidmətlərin variantı yoxdur — köhnə link-lər /music-ə.
   if (svc.category === "MUSIC") {
     redirect(`/music/${svc.slug}`);
+  }
+
+  // Satılmayan xidmətin variant səhifəsi də açılmasın (bax: /streaming/[slug]).
+  const parentSlug = getStreamingGroupParentSlug(svc.slug);
+  if (PLAYSTATION_ONLY && !(await isStreamingSlugOpen(parentSlug ?? svc.slug))) {
+    redirect(NETFLIX_STORE_PATH);
   }
 
   return (

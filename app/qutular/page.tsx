@@ -5,15 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { getPrizeShowcase, getPublicOdds } from "@/lib/lootBoxes";
 import { SITE_URL } from "@/lib/site";
 import LootBoxCard, { type LootBoxCardData } from "@/components/LootBoxCard";
+import Link from "next/link";
+import SiteHeaderServer from "@/components/SiteHeaderServer";
+import SiteFooter from "@/components/SiteFooter";
 
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: "Qutu açılışı — təsadüfi oyun qazan | Honsell",
-  description:
-    "Qutunu aç və təsadüfi PlayStation oyunu qazan. Bütün qazanma şansları açıq göstərilir, istəmədiyin hədiyyəni balansa qaytara bilərsən.",
-  alternates: { canonical: `${SITE_URL}/qutular` },
-};
 
 /** Aktiv qutular — ISR, tag "loot-boxes" ilə admin dəyişikliyində sıfırlanır. */
 const getBoxes = unstable_cache(
@@ -54,29 +51,53 @@ const getBoxes = unstable_cache(
   { tags: ["loot-boxes"], revalidate: 300 }
 );
 
+export async function generateMetadata(): Promise<Metadata> {
+  const boxes = await getBoxes().catch(() => []);
+  return {
+    // Brend sonluğunu layout-un `title.template`-i əlavə edir.
+    title: "Qutu açılışı — təsadüfi oyun qazan",
+    description:
+      "Qutunu aç və təsadüfi PlayStation oyunu qazan. Bütün qazanma şansları açıq göstərilir, istəmədiyin hədiyyəni balansa qaytara bilərsən.",
+    alternates: { canonical: `${SITE_URL}/qutular` },
+    // Aktiv qutu yoxdursa boş səhifə axtarışda görünməsin.
+    ...(boxes.length === 0 ? { robots: { index: false, follow: true } } : {}),
+  };
+}
+
 export default async function LootBoxesPage() {
   const boxes = await getBoxes().catch(() => []);
 
   return (
-    <div className="site-container py-10">
-      <h1 className="text-3xl font-black text-slate-900 dark:text-white">Qutu açılışı</h1>
-      <p className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
-        Qutunu aç və təsadüfi oyun qazan. Hər qutunun qazanma şansları tam açıq göstərilir —
-        gizli heç nə yoxdur. Çıxan hədiyyəni istəmirsənsə, dəyərinin bir hissəsini balansa
-        qaytara bilərsən.
-      </p>
+    <main className="min-h-screen">
+      {/* Əvvəl header/footer yox idi — boş səhifədən çıxış yolu qalmırdı. */}
+      <SiteHeaderServer />
+      <div className="site-container py-10">
+        <h1 className="text-3xl font-black text-slate-900 dark:text-white">Qutu açılışı</h1>
+        <p className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
+          Qutunu aç və təsadüfi oyun qazan. Hər qutunun qazanma şansları tam açıq göstərilir —
+          gizli heç nə yoxdur. Çıxan hədiyyəni istəmirsənsə, dəyərinin bir hissəsini balansa
+          qaytara bilərsən.
+        </p>
 
-      {boxes.length === 0 ? (
-        <div className="mt-8 rounded-3xl border border-dashed border-slate-300 px-6 py-16 text-center text-slate-500 dark:border-slate-700">
-          Hazırda aktiv qutu yoxdur. Tezliklə!
-        </div>
-      ) : (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {boxes.map((box) => (
-            <LootBoxCard key={box.slug} box={box} />
-          ))}
-        </div>
-      )}
-    </div>
+        {boxes.length === 0 ? (
+          <div className="mt-8 rounded-3xl border border-dashed border-slate-300 px-6 py-16 text-center text-slate-500 dark:border-slate-700">
+            <p>Hazırda aktiv qutu yoxdur. Tezliklə!</p>
+            <Link
+              href="/oyunlar"
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-violet-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-violet-500"
+            >
+              Oyunlara bax
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {boxes.map((box) => (
+              <LootBoxCard key={box.slug} box={box} />
+            ))}
+          </div>
+        )}
+      </div>
+      <SiteFooter />
+    </main>
   );
 }

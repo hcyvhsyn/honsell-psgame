@@ -3,12 +3,13 @@ import Link from "next/link";
 import { Tag, ChevronLeft, ChevronRight } from "lucide-react";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { computeDisplayPrice, getSettings } from "@/lib/pricing";
+import { computeDisplayPrice, getSettings, type PricingSettings } from "@/lib/pricing";
 import SiteHeaderServer from "@/components/SiteHeaderServer";
 import GameCard, { type GameCardData } from "@/components/GameCard";
 import { SITE_URL, SITE_NAME } from "@/lib/site";
 import { gameDetailHref } from "@/lib/gameSlug";
-import { buildGameCard } from "@/lib/gameCardMapper";
+import { buildGameCard, GAME_CARD_SELECT } from "@/lib/gameCardMapper";
+import { sellableGameWhere } from "@/lib/storeScope";
 
 export const revalidate = 600;
 
@@ -27,22 +28,54 @@ export const metadata: Metadata = {
   },
 };
 
-const getDiscountedGames = unstable_cache(
-  async () => {
+/** Sıralama üçün YALNIZ qiymət sütunları — `computeDisplayPrice` bunlardan başqa heç nə oxumur. */
+const RANKING_SELECT = {
+  id: true,
+  store: true,
+  priceTryCents: true,
+  discountTryCents: true,
+  discountEndAt: true,
+  customMarginPct: true,
+  customPriceAznCents: true,
+  priceUsdCents: true,
+  discountUsdCents: true,
+} as const;
+
+/**
+ * Endirim faizinə görə sıralanmış `[gameId, faiz]` siyahısı.
+ *
+ * ⚠️ Əvvəl burada `SELECT *` idi: ~10 min sətir `Game.embedding` (512 Float) vektoru ilə
+ * birlikdə çəkilirdi → hər açılış ~24 s, keş dəyəri də limitdən böyük olduğu üçün tutmurdu.
+ * İndi keşdə yalnız id + faiz saxlanılır (bir neçə yüz KB), kart sütunları isə
+ * səhifədəki 48 oyun üçün ayrıca çəkilir.
+ *
+ * `settingsKey` arqumenti keş açarının hissəsidir: admin marja/məzənnəni dəyişəndə sıra
+ * köhnə qiymətlə qalmasın, yeni açarla yenidən hesablansın.
+ */
+const getDiscountRanking = unstable_cache(
+  async (settingsKey: string): Promise<Array<[string, number]>> => {
+    const settings = JSON.parse(settingsKey) as PricingSettings;
     const now = new Date();
-    return prisma.game.findMany({
+    const rows = await prisma.game.findMany({
       where: {
         isActive: true,
+        ...sellableGameWhere(),
         discountTryCents: { not: null },
         // Bitməmiş endirimlər: ya `discountEndAt` boşdur, ya da gələcəkdədir.
         // Stale endirimləri DB səviyyəsində filterləyirik ki, fantom təkliflər
         // səhifəyə düşməsin.
         OR: [{ discountEndAt: null }, { discountEndAt: { gt: now } }],
       },
+      // Eyni faizli oyunlar arasında təzə yenilənənlər öndə qalsın (sort stabildir).
       orderBy: { lastScrapedAt: "desc" },
+      select: RANKING_SELECT,
     });
+    return rows
+      .map((g): [string, number] => [g.id, computeDisplayPrice(g, settings).discountPct ?? 0])
+      .filter(([, pct]) => pct > 0)
+      .sort((a, b) => b[1] - a[1]);
   },
-  ["endirimler-page-v2-all-types"],
+  ["endirimler-ranking-v3"],
   { revalidate: 600, tags: ["games"] }
 );
 
@@ -55,27 +88,30 @@ export default async function EndirimlerPage({
   const pageRaw = Array.isArray(sp.page) ? sp.page[0] : sp.page;
   const page = Math.max(1, Number(pageRaw) || 1);
 
-  const [settings, allGames] = await Promise.all([getSettings(), getDiscountedGames()]);
+  const settings = await getSettings();
+  const ranking = await getDiscountRanking(JSON.stringify(settings));
 
-  const enriched = allGames
-    .map((g) => {
-      const price = computeDisplayPrice(g, settings);
-      return { game: g, price };
-    })
-    .filter((row) => row.price.discountPct != null && row.price.discountPct > 0)
-    .sort((a, b) => (b.price.discountPct ?? 0) - (a.price.discountPct ?? 0));
-
-  const total = enriched.length;
+  const total = ranking.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const offset = (safePage - 1) * PAGE_SIZE;
-  const slice = enriched.slice(offset, offset + PAGE_SIZE);
+  const pageIds = ranking.slice(offset, offset + PAGE_SIZE).map(([id]) => id);
+
+  // Yalnız bu səhifənin kartları — sıranı `ranking` müəyyən edir (`in` sorğusu sıranı qorumur).
+  const pageRows = pageIds.length
+    ? await prisma.game.findMany({ where: { id: { in: pageIds } }, select: GAME_CARD_SELECT })
+    : [];
+  const rowById = new Map(pageRows.map((g) => [g.id, g]));
+  const slice = pageIds.flatMap((id) => {
+    const game = rowById.get(id);
+    return game ? [{ game, price: computeDisplayPrice(game, settings) }] : [];
+  });
 
   const cards: GameCardData[] = slice.map(({ game, price }) =>
     buildGameCard(game, price)
   );
 
-  const maxDiscount = enriched[0]?.price.discountPct ?? 0;
+  const maxDiscount = ranking[0]?.[1] ?? 0;
 
   const itemListJsonLd = {
     "@context": "https://schema.org",
@@ -158,13 +194,13 @@ export default async function EndirimlerPage({
           <h2 className="text-xl font-bold text-white">PS Store endirimləri haqqında</h2>
           <div className="mt-4 space-y-3 text-sm leading-relaxed text-zinc-400">
             <p>
-              Bu səhifədə PlayStation Store-un Türkiyə bölgəsində aktiv olan endirim kampaniyalarını görürsünüz. Qiymətlər hər saatda yenilənir və PS4, PS5 oyunları üzrə ən sərfəli təklifləri əhatə edir.
+              Bu səhifədə PlayStation Store-un Türkiyə bölgəsində aktiv olan endirim kampaniyalarını görürsən. Qiymətlər hər saatda yenilənir və PS4, PS5 oyunları üzrə ən sərfəli təklifləri əhatə edir.
             </p>
             <p>
-              Endirimlərdən maksimum yararlanmaq üçün <Link href="/ps-plus" className="text-indigo-400 hover:text-indigo-300">PS Plus üzvlüyü</Link> də əlavə endirim hüququ verir. Wallet-i doldurmaq istəyirsinizsə, <Link href="/hediyye-kartlari" className="text-indigo-400 hover:text-indigo-300">TRY hədiyyə kartlarımıza</Link> baxa bilərsiniz.
+              Endirimlərdən maksimum yararlanmaq üçün <Link href="/ps-plus" className="text-indigo-400 hover:text-indigo-300">PS Plus üzvlüyü</Link> də əlavə endirim hüququ verir. Wallet-i doldurmaq istəyirsənsə, <Link href="/hediyye-kartlari" className="text-indigo-400 hover:text-indigo-300">TRY hədiyyə kartlarımıza</Link> baxa bilərsən.
             </p>
             <p>
-              Bütün PS Store kataloqunu görmək üçün <Link href="/oyunlar" className="text-indigo-400 hover:text-indigo-300">oyunlar səhifəmizə</Link> daxil olun.
+              Bütün PS Store kataloqunu görmək üçün <Link href="/oyunlar" className="text-indigo-400 hover:text-indigo-300">oyunlar səhifəmizə</Link> keç.
             </p>
           </div>
         </div>

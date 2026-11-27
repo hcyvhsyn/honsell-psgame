@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import SiteHeader from "@/components/SiteHeaderServer";
 import ProfileSidebar from "@/components/ProfileSidebar";
 
@@ -17,11 +18,13 @@ export default async function ProfileLayout({
   // profil daxilindəki düymə ilədir (bax app/profile/page.tsx). /admin onsuz da
   // server tərəfdə role ilə qorunur.
 
-  const profileIncomplete =
-    !user.name?.trim() ||
-    !user.phone?.trim() ||
-    !user.birthDate ||
-    !user.gender;
+  // Menyudakı "natamam" nöqtəsi yalnız əlaqə üçün lazım olan sahələrə görədir; doğum tarixi və
+  // cinsiyyət heç yerdə işlənmir (2026-11).
+  const profileIncomplete = !user.name?.trim() || !user.phone?.trim();
+
+  // "Qutu açılışları" menyuda yalnız tarixçəsi olana görünür (prod-da aktiv qutu yoxdur).
+  const showLootBoxes =
+    (await prisma.lootBoxOpening.count({ where: { userId: user.id } }).catch(() => 0)) > 0;
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_50%_-10%,rgba(124,58,237,0.08),transparent_34%),linear-gradient(180deg,rgba(247,246,251,0.55),rgba(247,246,251,0.96))] text-zinc-900 dark:bg-[radial-gradient(circle_at_50%_-10%,rgba(88,28,135,0.16),transparent_34%),linear-gradient(180deg,rgba(4,5,14,0.25),rgba(4,5,14,0.9))] dark:text-zinc-100">
@@ -30,7 +33,7 @@ export default async function ProfileLayout({
       <div className="site-container py-6">
         <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
           <Suspense fallback={<div className="hidden min-h-[200px] w-[260px] lg:block" />}>
-            <ProfileSidebar profileIncomplete={profileIncomplete} />
+            <ProfileSidebar profileIncomplete={profileIncomplete} showLootBoxes={showLootBoxes} />
           </Suspense>
           <main className="min-w-0">{children}</main>
         </div>

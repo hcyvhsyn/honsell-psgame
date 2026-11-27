@@ -8,7 +8,7 @@ import AbunelikClient from "@/components/abunelik/AbunelikClient";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Nömrə ilə daxil ol | Honsell",
+  title: "Nömrə ilə daxil ol",
   description: "WhatsApp nömrənizə gələn kodla daxil olun: abunəlikləriniz, giriş məlumatlarınız və onlayn yeniləmə profilinizdədir.",
   robots: { index: false, follow: false },
 };

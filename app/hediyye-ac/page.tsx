@@ -9,7 +9,7 @@ import { getCurrentUser } from "@/lib/auth";
 import ClaimGiftForm from "./ClaimGiftForm";
 
 export const metadata: Metadata = {
-  title: "Hədiyyəni aç — Honsell Store",
+  title: "Hədiyyəni aç",
   description: "Dostunuzdan aldığınız hədiyyə kodunu daxil edib hədiyyənizi açın.",
 };
 
@@ -36,7 +36,7 @@ export default async function ClaimGiftPage({
           <span className="gift-hero-spark gift-hero-spark-three" />
           <div className="gift-hero-art absolute -right-8 -top-10 h-52 w-52 opacity-95 sm:-right-2 sm:-top-12 sm:h-64 sm:w-64">
             <Image
-              src="/gift.svg"
+              src="/gift.webp"
               alt=""
               fill
               sizes="240px"

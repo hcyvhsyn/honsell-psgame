@@ -8,6 +8,7 @@ import { formatAzn } from "@/lib/lootBoxShared";
 import { maskWinnerName } from "@/lib/giveawaysShared";
 import { SITE_URL } from "@/lib/site";
 import LootBoxClient from "./LootBoxClient";
+import SiteHeaderServer from "@/components/SiteHeaderServer";
 
 export const revalidate = 300;
 
@@ -118,12 +119,15 @@ export default async function LootBoxPage({ params }: { params: { slug: string }
   if (!data) notFound();
 
   return (
-    <LootBoxClient
-      box={data.box}
-      odds={data.odds}
-      winners={data.winners}
-      showcase={data.showcase}
-      catalog={data.catalog}
-    />
+    <main className="min-h-screen">
+      <SiteHeaderServer />
+      <LootBoxClient
+        box={data.box}
+        odds={data.odds}
+        winners={data.winners}
+        showcase={data.showcase}
+        catalog={data.catalog}
+      />
+    </main>
   );
 }

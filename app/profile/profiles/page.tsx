@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { fmtDate } from "@/lib/format";
 import ProfileCredentialCard from "@/components/profile/ProfileCredentialCard";
+import ProfilePageHeader from "@/components/profile/ProfilePageHeader";
 import PsnAccountsManager, {
   type PsnAccountSummary,
 } from "@/components/PsnAccountsManager";
@@ -126,71 +127,61 @@ export default async function ProfilesPage() {
     isDefault: a.isDefault,
   }));
 
+  // LinkedIn/YouTube satılmır (lib/storeScope.ts) — bölmələr yalnız köhnə sifarişi olana görünür.
+  const otherGroups = [
+    { key: "linkedin", title: "LinkedIn Premium", items: linkedin, accent: "sky" as const, emailLabel: "LinkedIn email", kind: "LINKEDIN" as const, iconClass: "text-sky-500 dark:text-sky-300" },
+    { key: "youtube", title: "YouTube Premium", items: youtube, accent: "rose" as const, emailLabel: "Gmail ünvanı", kind: "YOUTUBE" as const, iconClass: "text-red-500 dark:text-red-300" },
+  ].filter((g) => g.items.length > 0);
+
   return (
     <section className="space-y-6">
-      <header>
-        <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-fuchsia-300">
-          <KeyRound className="h-3.5 w-3.5" />
-          Profillerim
+      <ProfilePageHeader
+        title="PSN hesablarım"
+        description={
+          <>
+            Oyun və PS Plus sifarişlərinin yüklənəcəyi Türkiyə PSN hesabları. Yalnız sənə görünür — səbətdə
+            hansına yükləniləcəyini seçirsən.{" "}
+            <Link href="/hesab-acma" className="font-semibold text-violet-700 hover:underline dark:text-violet-300">
+              TR hesabın yoxdur? Açaq
+            </Link>
+          </>
+        }
+      />
+
+      <ProfileGroup
+        title="PSN hesabları"
+        icon={<Gamepad2 className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />}
+        count={psnInitial.length}
+      >
+        <PsnAccountsManager initial={psnInitial} />
+      </ProfileGroup>
+
+      {otherGroups.length > 0 && (
+        <div className="grid items-start gap-5 lg:grid-cols-2">
+          {otherGroups.map((g) => (
+            <ProfileGroup
+              key={g.key}
+              title={g.title}
+              icon={<KeyRound className={`h-4 w-4 ${g.iconClass}`} />}
+              count={g.items.length}
+            >
+              {g.items.map((p) => (
+                <ProfileCredentialCard
+                  key={`${g.key}-${p.email}-${p.orderId}`}
+                  accent={g.accent}
+                  topLabel={p.brandLabel}
+                  title={p.productTitle}
+                  subtitle={`Sifariş: ${fmtDate(p.orderedAt)}`}
+                  email={p.email}
+                  password={p.password}
+                  emailLabel={g.emailLabel}
+                  deleteIdentity={{ platformKind: g.kind, email: p.email }}
+                />
+              ))}
+            </ProfileGroup>
+          ))}
         </div>
-        <h2 className="mt-1 text-2xl font-bold text-white">Saxlanılan hesablar</h2>
-        <p className="mt-1 text-sm text-zinc-400">
-          PSN, LinkedIn, YouTube və digər platformalar üçün verdiyin email/şifrə məlumatları.
-          Yalnız sənə görünür, yeni sifariş zamanı sənə kolaylıq olsun deyə burada saxlanılır.
-        </p>
-      </header>
-
-      <div className="grid items-start gap-5 lg:grid-cols-2">
-        <ProfileGroup
-          title="PSN hesabları"
-          icon={<Gamepad2 className="h-4 w-4 text-indigo-300" />}
-          count={psnInitial.length}
-        >
-          <PsnAccountsManager initial={psnInitial} />
-        </ProfileGroup>
-
-        <ProfileGroup
-          title="LinkedIn Premium"
-          icon={<KeyRound className="h-4 w-4 text-sky-300" />}
-          count={linkedin.length}
-          emptyHint="Hələ LinkedIn Premium almamısan."
-        >
-          {linkedin.map((p) => (
-            <ProfileCredentialCard
-              key={`linkedin-${p.email}-${p.orderId}`}
-              accent="sky"
-              topLabel={p.brandLabel}
-              title={p.productTitle}
-              subtitle={`Sifariş: ${fmtDate(p.orderedAt)}`}
-              email={p.email}
-              password={p.password}
-              emailLabel="LinkedIn email"
-              deleteIdentity={{ platformKind: "LINKEDIN", email: p.email }}
-            />
-          ))}
-        </ProfileGroup>
-
-        <ProfileGroup
-          title="YouTube Premium"
-          icon={<KeyRound className="h-4 w-4 text-red-300" />}
-          count={youtube.length}
-          emptyHint="Hələ YouTube Premium almamısan."
-        >
-          {youtube.map((p) => (
-            <ProfileCredentialCard
-              key={`youtube-${p.email}-${p.orderId}`}
-              accent="rose"
-              topLabel={p.brandLabel}
-              title={p.productTitle}
-              subtitle={`Sifariş: ${fmtDate(p.orderedAt)}`}
-              email={p.email}
-              password={p.password}
-              emailLabel="Gmail ünvanı"
-              deleteIdentity={{ platformKind: "YOUTUBE", email: p.email }}
-            />
-          ))}
-        </ProfileGroup>
-      </div>
+      )}
     </section>
   );
 }
@@ -216,15 +207,15 @@ function ProfileGroup({
 }) {
   const showEmptyHint = count === 0 && emptyHint;
   return (
-    <div className="rounded-2xl border border-zinc-800/70 bg-zinc-900/30 p-5">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800/70 dark:bg-zinc-900/30">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-200">
+        <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
           {icon}
           {title}
-          <span className="rounded-full bg-zinc-800/70 px-2 py-0.5 text-[10px] font-bold tabular-nums text-zinc-300">
+          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold tabular-nums text-zinc-600 dark:bg-zinc-800/70 dark:text-zinc-300">
             {count}
           </span>
-        </h3>
+        </h2>
         {actionHref && actionLabel ? (
           <Link
             href={actionHref}
@@ -236,7 +227,7 @@ function ProfileGroup({
       </div>
       <div className="mt-4">
         {showEmptyHint ? (
-          <p className="rounded-lg border border-dashed border-zinc-800 bg-zinc-950/30 px-4 py-6 text-center text-xs text-zinc-500">
+          <p className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950/30">
             {emptyHint}
           </p>
         ) : count === 0 ? (

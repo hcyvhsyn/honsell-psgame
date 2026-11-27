@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { addMonthsClamped, readRenewalMonths } from "@/lib/subscriptions";
+import { cartServiceFeeCents, withServiceFeeCents } from "@/lib/cartServiceFee";
 import {
   sendAdminSubscriptionDigest,
   sendSubscriptionExpiringIn3DaysEmail,
@@ -89,6 +90,10 @@ export async function GET(req: Request) {
         sub.durationMonths
       );
       const renewalCost = sub.serviceProduct.priceAznCents ?? sub.priceAznCents;
+      // 3% xidmət haqqı (lib/cartServiceFee.ts) — cüzdandan qiymət + haqq tutulur. Sifariş sətri, komissiya,
+      // referal xərci və Subscription.priceAznCents haqqsız qiymətlədir (səbətdəki kimi).
+      const serviceFeeCents = cartServiceFeeCents(renewalCost);
+      const debitCents = renewalCost + serviceFeeCents;
       // Komissiya faizi artıq mərkəzi resolver-dən (referrer tier × target)
       // gəlir — köhnə manual `referralPct` ötürülmür.
       const commissionKind: "PS_PLUS" | "PLATFORM" | "EA_PLAY" = isPlatform
@@ -97,13 +102,13 @@ export async function GET(req: Request) {
           ? "EA_PLAY"
           : "PS_PLUS";
 
-      if (sub.user.walletBalance < renewalCost) {
+      if (sub.user.walletBalance < debitCents) {
         // Insufficient balance — fail the renewal and notify.
         await sendSubscriptionRenewalFailedEmail({
           email: sub.user.email,
           userName: sub.user.name ?? sub.user.email.split("@")[0],
           productTitle: sub.serviceProduct.title,
-          priceAznCents: renewalCost,
+          priceAznCents: debitCents,
           walletBalanceCents: sub.user.walletBalance,
         }).catch((err) => stats.errors.push(`renewal-failed-email ${sub.id}: ${err}`));
 
@@ -121,8 +126,25 @@ export async function GET(req: Request) {
       await prisma.$transaction(async (ptx) => {
         await ptx.user.update({
           where: { id: sub.userId },
-          data: { walletBalance: { decrement: renewalCost } },
+          data: { walletBalance: { decrement: debitCents } },
         });
+
+        if (serviceFeeCents > 0) {
+          await ptx.transaction.create({
+            data: {
+              userId: sub.userId,
+              type: "SERVICE_FEE",
+              status: "SUCCESS",
+              amountAznCents: -serviceFeeCents,
+              metadata: JSON.stringify({
+                paymentSource: "WALLET",
+                autoRenew: true,
+                subscriptionId: sub.id,
+                baseCents: renewalCost,
+              }),
+            },
+          });
+        }
 
         const renewalTx = await ptx.transaction.create({
           data: {
@@ -181,7 +203,7 @@ export async function GET(req: Request) {
         userName: sub.user.name ?? sub.user.email.split("@")[0],
         productTitle: sub.serviceProduct.title,
         newExpiresAt,
-        amountAznCents: renewalCost,
+        amountAznCents: debitCents,
       }).catch((err) => stats.errors.push(`renewed-email ${sub.id}: ${err}`));
 
       stats.renewed += 1;
@@ -214,7 +236,8 @@ export async function GET(req: Request) {
     const expiresAtDay = new Date(sub.expiresAt);
     expiresAtDay.setHours(0, 0, 0, 0);
     const isTomorrow = expiresAtDay.getTime() === tomorrowStart.getTime();
-    const renewalCost = sub.serviceProduct.priceAznCents ?? sub.priceAznCents;
+    // Cüzdandan qiymət + 3% haqq tutulacaq — xatırlatma və çatışmazlıq bu cəmlə.
+    const renewalCost = withServiceFeeCents(sub.serviceProduct.priceAznCents ?? sub.priceAznCents);
     const shortfall =
       sub.user.walletBalance < renewalCost
         ? renewalCost - sub.user.walletBalance

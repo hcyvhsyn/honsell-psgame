@@ -26,18 +26,15 @@ import {
   isShowcaseSpotifyProduct,
   type ShowcaseBrand,
 } from "@/lib/homeSubscriptionShowcase";
-import {
-  HeroMotionOverlay,
-  SectionFlowDivider,
-} from "@/components/MarketingUI";
-import {
-  ShieldCheck,
-  Zap,
-  Clock,
-  Sparkles,
-  ArrowRight,
-} from "lucide-react";
+import { HeroMotionOverlay } from "@/components/MarketingUI";
+import { ArrowRight } from "lucide-react";
 import FaqAccordion from "@/components/FaqAccordion";
+import GameCard from "@/components/GameCard";
+import type { GameCardData } from "@/lib/gameCardShared";
+import { buildGameCard, GAME_CARD_COLUMNS_SQL, type GameCardRow } from "@/lib/gameCardMapper";
+import type { GameCustomPricing } from "@/lib/gameMargin";
+import { POPULARITY_JOINS_SQL, POPULARITY_ORDER_BY_SQL } from "@/lib/popularity";
+import { Prisma as PrismaSql } from "@/lib/generated/prisma/client";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 import {
   STREAMING_SERVICE_META,
@@ -49,6 +46,7 @@ import {
   readPlatformMeta,
 } from "@/lib/platformSubscriptions";
 import { gameDetailHref } from "@/lib/gameSlug";
+import { displayGameTitle } from "@/lib/gameTitle";
 import { applyFlashDeal, effectiveFlashDealEnd } from "@/lib/flashDeals";
 import {
   NETFLIX_STORE_PATH,
@@ -94,6 +92,16 @@ const HOME_FAQS = [
     answer:
       "Saytdakı AI bot və dəstək kanalları sifariş, məhsul seçimi və aktivləşdirmə suallarında sənə kömək edir.",
   },
+];
+
+/** "Populyar oyunlar" başlığının altındakı sürətli keçidlər (yalnız satılan bölmələr). */
+const GAME_QUICK_LINKS = [
+  { href: "/endirimler", label: "Endirimlər" },
+  { href: "/ps5-oyunlari", label: "PS5 oyunları" },
+  { href: "/ps4-oyunlari", label: "PS4 oyunları" },
+  { href: "/ucuz-oyunlar", label: "Ucuz oyunlar" },
+  { href: "/hediyye-kartlari", label: "PSN hədiyyə kartları" },
+  { href: "/hesab-acma", label: "TR PSN hesabı" },
 ];
 
 const SERVICE_TYPE_BADGES: Record<string, string> = {
@@ -188,7 +196,9 @@ function serviceSubtitle(type: string, metadata: unknown, description: string | 
   if (type === "EA_PLAY") return "EA oyun kolleksiyası və abunəlik";
   if (type === "PUBG_UC") return "PUBG Mobile üçün UC paketləri";
   if (type === "POINT_BLANK_TG") return "Point Blank üçün TG paketləri";
-  return "Rəqəmsal məhsul";
+  // "Rəqəmsal məhsul" kimi heç nə deməyən doldurucu əvəzinə faydalı qeyd və ya boş.
+  if (type === "PS_PLUS") return "Türkiyə PSN hesabına aktivləşir";
+  return "";
 }
 
 function serviceBadge(type: string, metadata: unknown): string {
@@ -373,7 +383,7 @@ async function fetchFlashDeals(
     });
     return {
       id: deal.game.id,
-      title: deal.game.title,
+      title: displayGameTitle(deal.game.title),
       href: gameDetailHref(deal.game),
       imageUrl: deal.game.imageUrl,
       productType: deal.game.productType,
@@ -388,6 +398,27 @@ async function fetchFlashDeals(
 }
 
 /**
+ * "Populyar oyunlar" — ana səhifədə əsas məhsul (33k oyun) əvvəl yalnız flash deal karuseli ilə
+ * təmsil olunurdu. Sıra /oyunlar ilə eynidir (lib/popularity.ts); yalnız tam oyunlar (`GAME`).
+ * Yalnız kart sütunları çəkilir — `SELECT g.*` `embedding` vektorunu da gətirərdi.
+ */
+async function fetchPopularGameCards(
+  settings: Awaited<ReturnType<typeof getSettings>>,
+): Promise<GameCardData[]> {
+  const rows = (await prisma
+    .$queryRaw(PrismaSql.sql`
+      SELECT ${PrismaSql.raw(GAME_CARD_COLUMNS_SQL)}
+      FROM "Game" g
+      ${POPULARITY_JOINS_SQL}
+      WHERE g."isActive" = true AND g."store" = 'PS' AND g."productType" = 'GAME'
+      ORDER BY ${POPULARITY_ORDER_BY_SQL}
+      LIMIT 12
+    `)
+    .catch(() => [])) as Array<GameCardRow & GameCustomPricing & { priceTryCents: number; editionLabel: string | null }>;
+  return rows.map((g) => buildGameCard(g, computeDisplayPrice(g, settings)));
+}
+
+/**
  * Ana səhifənin user-ə aid OLMAYAN bütün datası + view-model hesablaması burada
  * `unstable_cache` ilə 30 dəqiqəlik keşdə saxlanır. Səhifə header-dəki `cookies()`
  * səbəbindən dinamik render olunsa belə (revalidate tək başına bunu keşləmir),
@@ -397,7 +428,7 @@ async function fetchFlashDeals(
 const getHomePageData = unstable_cache(
   async () => {
   const settings = await getSettings();
-  const [banners, landing, totalsArr, orderCount, testimonialAgg, flashDeals, serviceBundles, openStreamingSlugs] = await Promise.all([
+  const [banners, landing, totalsArr, orderCount, testimonialAgg, flashDeals, serviceBundles, openStreamingSlugs, popularGames] = await Promise.all([
     prisma.banner
       .findMany({
         where: { isActive: true, scope: "HOME" },
@@ -422,6 +453,7 @@ const getHomePageData = unstable_cache(
       .findMany({ where: { storeSellable: true, isActive: true }, select: { slug: true } })
       .then((rows) => new Set(rows.map((r) => getPublicStreamingSlug(r.slug))))
       .catch(() => new Set<string>()),
+    fetchPopularGameCards(settings),
   ]);
 
   const totalsAll = totalsArr.reduce((sum, row) => sum + row._count._all, 0);
@@ -471,7 +503,8 @@ const getHomePageData = unstable_cache(
       }
       return {
         id: b.id,
-        title: b.title,
+        // Admin banner başlığını adətən oyunun PS Store adından köçürür ("… PS4™ ve PS5™").
+        title: b.title ? displayGameTitle(b.title) : b.title,
         subtitle: b.subtitle,
         imageUrl: b.imageUrl || b.game?.heroImageUrl || b.game?.imageUrl || svc?.imageUrl || "",
         mobileImageUrl: b.mobileImageUrl ?? null,
@@ -483,7 +516,7 @@ const getHomePageData = unstable_cache(
                 id: b.game.id,
                 productId: b.game.productId,
                 slug: b.game.slug,
-                title: b.game.title,
+                title: displayGameTitle(b.game.title),
                 imageUrl: b.game.imageUrl,
                 heroImageUrl: b.game.heroImageUrl,
                 platform: b.game.platform,
@@ -509,9 +542,11 @@ const getHomePageData = unstable_cache(
     subscriptionShowcase: landing.showcase,
     flashDeals,
     serviceBundles,
+    popularGames,
   };
   },
-  ["home-page-data"],
+  // v2: `popularGames` əlavə olundu — köhnə keş dəyərində bu sahə yoxdur.
+  ["home-page-data-v2"],
   { revalidate: 1800, tags: ["home", "service-bundles"] },
 );
 
@@ -523,6 +558,7 @@ export default async function HomePage() {
     subscriptionShowcase,
     flashDeals,
     serviceBundles,
+    popularGames,
   } = await getHomePageData();
 
   const websiteJsonLd = {
@@ -617,52 +653,74 @@ export default async function HomePage() {
 
       <HomeTrustBar {...trustStats} />
 
-      <SectionFlowDivider text="Abunəlik paketləri" tone="violet" />
-      <HomeProductMatrix products={landingProducts} />
+      {/* Əsas məhsul (oyunlar) önə: kampaniya oyunları + populyar oyunlar, sonra abunəliklər.
+          "Niyə biz" kartları və bəzək zolaqları (SectionFlowDivider) 2026-11-də çıxarılıb —
+          güvən mesajı HomeTrustBar-da artıq var idi. */}
 
-      {/* Netflix və Spotify — hər plan × müddət ayrıca kart (lib/homeSubscriptionShowcase.ts). */}
-      <HomeSubscriptionShowcase brands={subscriptionShowcase} />
-
-      {/* Fürsətləri qaçırma — admin panelindən əl ilə seçilən kampaniya oyunları.
-          Əvvəlki avtomatik "Endirimdə olan oyunlar" karuselinin yerini tutur.
-          Öz başlığı olan bir panel olduğu üçün qabağına SectionFlowDivider qoyulmur. */}
+      {/* Fürsətləri qaçırma — admin panelindən əl ilə seçilən kampaniya oyunları (öz başlıqlı panel). */}
       <HomeFlashDeals deals={flashDeals} />
 
-      {/* Xidmət dəstləri (Netflix + HBO Max və s.) — HomeFlashDeals kimi öz
-          başlıqlı paneldir, dəst yoxdursa özü null qaytarır. */}
+      {popularGames.length > 0 && (
+        <section className="py-8 sm:py-10" aria-labelledby="populyar-oyunlar">
+          <div className="site-container">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <h2 id="populyar-oyunlar" className="text-2xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-3xl">
+                Populyar oyunlar
+              </h2>
+              <Link
+                href="/oyunlar"
+                className="inline-flex items-center gap-1.5 text-sm font-bold text-violet-700 transition hover:text-violet-500 dark:text-violet-300 dark:hover:text-violet-200"
+              >
+                Bütün oyunlar <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+            <nav aria-label="Oyun bölmələri" className="-mx-1 mb-5 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {GAME_QUICK_LINKS.map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className="shrink-0 rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:border-violet-300 hover:text-violet-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200 dark:hover:border-violet-400/50 dark:hover:text-white"
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </nav>
+            {/* Telefonda üfüqi lent (2 kart görünür), sm+ şəbəkə. GameCard özü <li> qaytarır. */}
+            <ul className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>li]:w-[46%] [&>li]:shrink-0 [&>li]:snap-start sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:[&>li]:w-auto lg:grid-cols-4 xl:grid-cols-6">
+              {popularGames.map((g) => (
+                <GameCard key={g.id} game={g} />
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
+      {(landingProducts.length > 0 || subscriptionShowcase.length > 0) && (
+        <section className="pt-8 sm:pt-10" aria-labelledby="abunelikler">
+          <div className="site-container">
+            <h2 id="abunelikler" className="text-2xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-3xl">
+              Abunəliklər
+            </h2>
+          </div>
+        </section>
+      )}
+      <HomeProductMatrix products={landingProducts} />
+
+      {/* Netflix və Spotify — hər plan yığcam bir kart (lib/homeSubscriptionShowcase.ts). */}
+      <HomeSubscriptionShowcase brands={subscriptionShowcase} />
+
+      {/* Xidmət dəstləri (Netflix + HBO Max və s.) — öz başlıqlı panel, dəst yoxdursa null. */}
       <HomeServiceBundles bundles={serviceBundles} />
 
-      {/* Niyə biz */}
-      <SectionFlowDivider text="Niyə biz" tone="violet" />
-      <section id="niye-biz" className="py-12 sm:py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-            {[
-              { icon: <Zap className="h-6 w-6 !text-white" />, title: "Anında çatdırılma", desc: "Gift card və bir çox sifarişdə nəticə saniyələr içində." },
-              { icon: <ShieldCheck className="h-6 w-6 !text-white" />, title: "Etibarlı sistem", desc: "Şəffaf proses, manual yoxlama və təhlükəsiz ödəniş mərhələləri." },
-              { icon: <Clock className="h-6 w-6 !text-white" />, title: "Sürətli dəstək", desc: "Sifariş statusu üzrə operativ admin müdaxiləsi və cavablar." },
-              { icon: <Sparkles className="h-6 w-6 !text-white" />, title: "Premium təcrübə", desc: "Sadə interfeys, aydın yol və fərqli xidmətlər üçün xüsusi flow." },
-            ].map((f) => (
-              <div key={f.title} className="relative mt-6 rounded-[24px] bg-white dark:bg-[#150A21] p-6 pt-10 shadow-xl dark:shadow-2xl ring-1 ring-zinc-200 dark:ring-0 transition hover:-translate-y-1">
-                <div className="absolute -top-8 left-6 grid h-16 w-16 place-items-center overflow-hidden rounded-full border-4 border-zinc-50 dark:border-[#0A0A0F] bg-violet-600 dark:bg-[#150A21]">
-                  {f.icon}
-                </div>
-                <h3 className="mt-2 text-lg font-bold text-zinc-900 dark:text-white">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-[#9CA3AF]">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Müştəri rəyləri (sosial sübut) */}
-      <SectionFlowDivider text="Müştərilər nə deyir" tone="rose" flip />
+      {/* Müştəri rəyləri (sosial sübut) — başlıq komponentin içindədir. */}
       <HomeTestimonials />
 
       {/* General FAQ */}
-      <SectionFlowDivider text="Tez verilən suallar" tone="emerald" />
-      <section className="py-12 sm:py-14">
+      <section className="py-10 sm:py-14" aria-labelledby="tez-suallar">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <h2 id="tez-suallar" className="mb-4 text-2xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-3xl">
+            Tez verilən suallar
+          </h2>
           <FaqAccordion items={HOME_FAQS} />
           <div className="mt-8 flex justify-center">
             <Link

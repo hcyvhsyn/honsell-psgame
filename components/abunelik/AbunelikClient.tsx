@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, Copy, Eye, EyeOff, Loader2, RefreshCw } from "lucide-react";
 import TurnstileWidget from "@/components/auth/TurnstileWidget";
+import { renewalCharge } from "@/lib/abunelik/charge";
+import { CART_SERVICE_FEE_PCT } from "@/lib/cartServiceFee";
 
 type Option = { months: number; priceAzn: number; newEndDate: string };
 type Item = {
@@ -56,6 +58,8 @@ function fmtDate(iso: string | null) {
   return `${p(d.getUTCDate())}.${p(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
 }
 
+const fmtCents = (c: number) => `${(c / 100).toFixed(2)}\u00a0₼`;
+
 function monthsLabel(m: number) {
   return m === 12 ? "1 il" : `${m} ay`;
 }
@@ -81,15 +85,15 @@ function statusBadge(item: Item): { text: string; cls: string } {
 
 const MODE_NOTE: Record<string, string> = {
   INSTANT: "Ödənişdən dərhal sonra uzanır, təsdiq WhatsApp-a gəlir.",
-  ASYNC: "Ödənişdən sonra hesabınız provayderdə yenilənir — adətən 24 saat ərzində, təsdiq WhatsApp-a gəlir.",
+  ASYNC: "Ödənişdən sonra hesabın provayderdə yenilənir — adətən 24 saat ərzində, təsdiq WhatsApp-a gəlir.",
   MANUAL: "Ödənişdən sonra 24 saat ərzində yenilənir, təsdiq WhatsApp-a gəlir.",
 };
 
 const BLOCKED_NOTE: Record<string, string> = {
   OPEN_RENEWAL: "Yeniləmə emal olunur…",
   PENDING: "Hazırlanır — hazır olan kimi WhatsApp-a xəbər gələcək.",
-  NO_PRICE: "Bu abunəliyi yeniləmək üçün bizə WhatsApp-da yazın.",
-  NOT_RENEWABLE: "Bu abunəliyi yeniləmək üçün bizə WhatsApp-da yazın.",
+  NO_PRICE: "Bu abunəliyi yeniləmək üçün bizə WhatsApp-da yaz.",
+  NOT_RENEWABLE: "Bu abunəliyi yeniləmək üçün bizə WhatsApp-da yaz.",
 };
 
 function CopyField({ label, value, secret }: { label: string; value: string; secret?: boolean }) {
@@ -148,6 +152,8 @@ function SubscriptionCard({
     if (selected != null && !options.some((o) => o.months === selected)) setSelected(options[0]?.months ?? null);
   }, [options, selected]);
   const option = options.find((o) => o.months === selected) ?? null;
+  // Server (/api/abunelik/renew) eyni funksiya ilə hesablayır — düymədəki məbləğ kartdan tutulanla üst-üstə düşür.
+  const charge = option ? renewalCharge(option.priceAzn) : null;
   const badge = statusBadge(item);
   const creds = item.credentials;
   const hasCreds = !!creds && Object.values(creds).some(Boolean);
@@ -223,6 +229,27 @@ function SubscriptionCard({
                   );
                 })}
               </div>
+              {charge && (
+                <dl className="mt-3 space-y-1 rounded-xl bg-zinc-50 px-3 py-2.5 text-sm dark:bg-white/[0.04]">
+                  <div className="flex items-center justify-between gap-3 text-zinc-600 dark:text-zinc-400">
+                    <dt>Abunəlik</dt>
+                    <dd className="tabular-nums">{fmtCents(charge.priceCents)}</dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-zinc-600 dark:text-zinc-400">
+                    <dt>Xidmət haqqı ({CART_SERVICE_FEE_PCT}%)</dt>
+                    <dd className="tabular-nums">+{fmtCents(charge.serviceFeeCents)}</dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 border-t border-zinc-200 pt-1 font-bold text-zinc-900 dark:border-white/10 dark:text-white">
+                    <dt>Yekun</dt>
+                    <dd className="tabular-nums">{fmtCents(charge.payableCents)}</dd>
+                  </div>
+                  {charge.topUpCents > 0 && (
+                    <p className="pt-1 text-xs text-zinc-500">
+                      Kartdan minimum {fmtCents(charge.chargeCents)} tutulur — {fmtCents(charge.topUpCents)} balansına qayıdır.
+                    </p>
+                  )}
+                </dl>
+              )}
               {item.renewal.mode && <p className="mt-2 text-xs text-zinc-500">{MODE_NOTE[item.renewal.mode]}</p>}
               <button
                 type="button"
@@ -231,7 +258,7 @@ function SubscriptionCard({
                 className={`${primaryBtn} mt-3`}
               >
                 {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {option ? `${option.priceAzn.toFixed(2)} ₼ kartla ödə` : "Müddət seçin"}
+                {charge ? `${fmtCents(charge.chargeCents)} kartla ödə` : "Müddət seç"}
               </button>
             </>
           ) : (
@@ -280,9 +307,9 @@ export default function AbunelikClient({
     const odenis = sp.get("odenis");
     const tx = sp.get("o") || undefined;
     if (odenis === "ugurlu") setPayBanner({ kind: "ok", text: "Ödəniş qəbul edildi — yeniləmə emal olunur…", txId: tx });
-    else if (odenis === "xeta") setPayBanner({ kind: "err", text: "Ödəniş alınmadı. Kartdan pul tutulmayıbsa yenidən cəhd edin." });
+    else if (odenis === "xeta") setPayBanner({ kind: "err", text: "Ödəniş alınmadı. Kartdan pul tutulmayıbsa yenidən cəhd et." });
     // WhatsApp birbaşa giriş linkindən qayıdış (/abunelik/giris)
-    if (sp.get("link") === "kohne") setError("Giriş linkinin vaxtı keçib. Nömrənizi yazıb WhatsApp kodu ilə daxil olun.");
+    if (sp.get("link") === "kohne") setError("Giriş linkinin vaxtı keçib. Nömrəni yazıb WhatsApp kodu ilə daxil ol.");
     if (sp.get("giris") === "coxlu") setAmbiguous(true);
     if (odenis || sp.get("link") || sp.get("giris")) window.history.replaceState(null, "", window.location.pathname);
   }, []);
@@ -414,7 +441,7 @@ export default function AbunelikClient({
           setPhase("phone");
           return;
         }
-        setError(json?.error || "Ödəniş başlamadı. Yenidən cəhd edin.");
+        setError(json?.error || "Ödəniş başlamadı. Yenidən cəhd et.");
         if (json?.code === "PRICE_CHANGED" || json?.code === "OPEN_RENEWAL" || json?.code === "MONTHS_UNAVAILABLE") {
           void load(true);
         }
@@ -434,20 +461,25 @@ export default function AbunelikClient({
   // ── Giriş ekranları ──
   if (phase !== "list") {
     return (
-      <div className={`${card} mx-auto max-w-md`}>
-        <h1 className="text-xl font-bold">{isProfile ? "Nömrənizi təsdiqləyin" : "Nömrə ilə daxil ol"}</h1>
+      // Profildə bu, "Abunəliklərim" səhifəsinin bölməsidir (h2, tam en); /abunelik girişində mərkəzi kart (h1).
+      <div className={isProfile ? `${card} max-w-xl` : `${card} mx-auto max-w-md`}>
+        {isProfile ? (
+          <h2 className="text-lg font-bold">WhatsApp ilə aldığın abunəliklər</h2>
+        ) : (
+          <h1 className="text-xl font-bold">Nömrə ilə daxil ol</h1>
+        )}
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           {isProfile
-            ? "Netflix, Spotify, YouTube, PS Plus abunəliklərinizi və giriş məlumatlarınızı görmək üçün bizimlə yazışdığınız WhatsApp nömrəsini kodla təsdiqləyin."
-            : "WhatsApp nömrənizə gələn kodla honsell.site hesabınıza daxil olun — abunəlikləriniz, giriş məlumatlarınız və onlayn yeniləmə profilinizdədir."}
+            ? "Bizdən WhatsApp ilə aldığın Netflix, Spotify, YouTube və PS Plus abunəliklərini, giriş məlumatlarını görmək və onlayn yeniləmək üçün WhatsApp nömrəni kodla təsdiqlə."
+            : "WhatsApp nömrənə gələn kodla honsell.site hesabına daxil ol — abunəliklərin, giriş məlumatların və onlayn yeniləmə profilindədir."}
         </p>
         {!isProfile && ambiguous && (
           <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
             Bu nömrəyə bir neçə hesab bağlıdır.{" "}
             <Link href="/login?next=/profile/abunelikler" className="font-bold underline">
-              E-poçt və şifrə ilə daxil olun
+              E-poçt və şifrə ilə daxil ol
             </Link>
-            , sonra profildə nömrənizi təsdiqləyin.
+            , sonra profildə nömrəni təsdiqlə.
           </p>
         )}
         {phase === "phone" ? (
@@ -459,7 +491,7 @@ export default function AbunelikClient({
             }}
           >
             <label className="block text-sm font-semibold" htmlFor="abunelik-phone">
-              WhatsApp nömrəniz
+              WhatsApp nömrən
             </label>
             <input
               id="abunelik-phone"
@@ -477,7 +509,7 @@ export default function AbunelikClient({
             <button type="submit" disabled={busy || phone.replace(/\D/g, "").length < 9} className={primaryBtn}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />} Kod göndər
             </button>
-            <p className="text-xs text-zinc-500">Kod bizimlə yazışdığınız WhatsApp nömrəsinə gələcək.</p>
+            <p className="text-xs text-zinc-500">Kod bizimlə yazışdığın WhatsApp nömrəsinə gələcək.</p>
           </form>
         ) : (
           <form
@@ -536,7 +568,11 @@ export default function AbunelikClient({
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{data?.firstName ? `Salam, ${data.firstName}` : "Abunəliklərim"}</h1>
+          {isProfile ? (
+            <h2 className="text-lg font-bold">WhatsApp ilə aldığın abunəliklər</h2>
+          ) : (
+            <h1 className="text-2xl font-bold">{data?.firstName ? `Salam, ${data.firstName}` : "Abunəliklərim"}</h1>
+          )}
           {data?.phone && <p className="text-sm text-zinc-500">{data.phone}</p>}
         </div>
         <div className="flex items-center gap-2">
@@ -587,10 +623,10 @@ export default function AbunelikClient({
               Netflix
             </Link>{" "}
             və ya{" "}
-            <Link href="/music" className="font-semibold text-violet-700 underline dark:text-violet-300">
+            <Link href="/music/spotify-premium" className="font-semibold text-violet-700 underline dark:text-violet-300">
               Spotify
             </Link>{" "}
-            səhifəsinə baxın.
+            səhifəsinə bax.
           </p>
         </div>
       ) : (

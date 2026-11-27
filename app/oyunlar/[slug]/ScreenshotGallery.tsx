@@ -12,28 +12,33 @@ export default function ScreenshotGallery({
   gameTitle?: string;
 }) {
   const [active, setActive] = useState<string | null>(null);
+  // Yüklənməyən şəkil boş boz kadr kimi qalırdı — onu siyahıdan çıxarırıq.
+  const [failed, setFailed] = useState<ReadonlySet<string>>(() => new Set());
+  const visible = screenshots.filter((u) => !failed.has(u));
 
-  if (screenshots.length === 0) return null;
+  if (visible.length === 0) return null;
 
   const altFor = (i: number) =>
     gameTitle ? `${gameTitle} oyununun ekran görüntüsü ${i + 1}` : `Oyun ekran görüntüsü ${i + 1}`;
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {screenshots.map((url, i) => (
+      {/* Telefonda üfüqi lent (uzun 2-sütunlu şəbəkə ~2 ekran tuturdu), sm+ şəbəkə. */}
+      <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0 [&::-webkit-scrollbar]:hidden">
+        {visible.map((url, i) => (
           <button
             key={url}
             type="button"
             onClick={() => setActive(url)}
-            className="group relative aspect-video overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 transition hover:border-indigo-500/50"
+            className="group relative aspect-video w-[80%] shrink-0 snap-start overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 transition hover:border-indigo-500/50 sm:w-auto"
           >
             <Image
               src={url}
               alt={altFor(i)}
               fill
-              sizes="(max-width: 640px) 50vw, 33vw"
+              sizes="(max-width: 640px) 80vw, 33vw"
               className="object-cover transition-transform duration-300 group-hover:scale-105"
+              onError={() => setFailed((prev) => new Set(prev).add(url))}
             />
           </button>
         ))}

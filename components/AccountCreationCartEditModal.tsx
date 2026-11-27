@@ -95,7 +95,7 @@ export default function AccountCreationCartEditModal({
                 {item.title}
               </p>
               <p className="mt-1 text-sm tabular-nums text-fuchsia-300">
-                {(item.finalAzn * item.qty).toFixed(2)} AZN
+                {(item.finalAzn * item.qty).toFixed(2)} ₼
               </p>
             </div>
           </div>

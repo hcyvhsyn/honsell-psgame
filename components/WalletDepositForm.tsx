@@ -144,13 +144,13 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-950/50 via-zinc-900/70 to-zinc-950 p-5">
+      <section className="rounded-2xl border border-emerald-500/30 bg-white p-5 dark:border-emerald-500/25 dark:bg-zinc-950 dark:bg-gradient-to-br dark:from-emerald-950/50 dark:via-zinc-900/70 dark:to-zinc-950">
         <div className="mb-4 flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-emerald-300" />
-          <h2 className="text-sm font-semibold text-white">Balansı kartla artır</h2>
+          <ShieldCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Balansı kartla artır</h2>
         </div>
 
-        <label className="block text-sm font-medium text-zinc-200">Məbləğ (AZN)</label>
+        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">Məbləğ (₼)</label>
         <input
           type="text"
           inputMode="decimal"
@@ -160,7 +160,7 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
             if (v === "" || /^\d*\.?\d{0,2}$/.test(v)) setAmount(v);
           }}
           placeholder="0.00"
-          className="mt-1.5 w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none"
+          className="mt-1.5 w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 focus:border-emerald-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
         />
         <div className="mt-2 flex flex-wrap gap-2">
           {[10, 25, 50, 100].map((preset) => (
@@ -170,11 +170,11 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
               onClick={() => setAmount(String(preset))}
               className={`rounded-md border px-2.5 py-1 text-xs ${
                 amountNum === preset
-                  ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-200"
-                  : "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700"
+                  ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-400 dark:hover:border-zinc-700"
               }`}
             >
-              {preset} AZN
+              {preset} ₼
             </button>
           ))}
         </div>
@@ -188,15 +188,15 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
           <CreditCard className="h-4 w-4" />
           {busy
             ? "Epoint açılır..."
-            : `${Number.isFinite(amountNum) && amountNum > 0 ? amountNum.toFixed(2) : "0.00"} AZN balans artır`}
+            : `${Number.isFinite(amountNum) && amountNum > 0 ? amountNum.toFixed(2) : "0.00"} ₼ balans artır`}
         </button>
 
         {EPOINT_WIDGET_ENABLED ? (
           <>
             <div className="mt-3 flex items-center gap-2 text-[11px] uppercase tracking-wider text-zinc-500">
-              <span className="h-px flex-1 bg-zinc-800" />
+              <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
               <span>və ya</span>
-              <span className="h-px flex-1 bg-zinc-800" />
+              <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -240,8 +240,8 @@ export default function WalletDepositForm({ authed }: { authed: boolean }) {
           <p
             className={`mt-4 rounded-md px-3 py-2 text-sm ${
               message.ok
-                ? "bg-emerald-500/10 text-emerald-300"
-                : "bg-red-500/10 text-red-300"
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : "bg-red-500/10 text-red-700 dark:text-red-300"
             }`}
           >
             {message.text}
@@ -272,11 +272,11 @@ function DepositHistory({ requests }: { requests: DepositRequest[] }) {
   };
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40">
-      <header className="flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
+    <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/40">
+      <header className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
         <div className="flex items-center gap-2">
-          <ReceiptIcon className="h-4 w-4 text-emerald-300" />
-          <h2 className="text-sm font-semibold">Balans yükləmə tarixçəsi</h2>
+          <ReceiptIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Balans artırma tarixçəsi</h2>
         </div>
         <div className="flex items-center gap-1.5">
           {counts.success > 0 ? (
@@ -296,7 +296,7 @@ function DepositHistory({ requests }: { requests: DepositRequest[] }) {
           <p className="text-sm text-zinc-500">Hələ balans artırma əməliyyatın yoxdur.</p>
         </div>
       ) : (
-        <ul className="max-h-[300px] divide-y divide-zinc-800/70 overflow-y-auto">
+        <ul className="max-h-[300px] divide-y divide-zinc-200 dark:divide-zinc-800/70 overflow-y-auto">
           {requests.map((r) => (
             <DepositRow key={r.id} req={r} />
           ))}
@@ -313,9 +313,9 @@ function DepositRow({ req }: { req: DepositRequest }) {
     req.status === "SUCCESS" ? CheckCircle2 : req.status === "FAILED" ? XCircle : Clock;
 
   const toneClasses = {
-    amber: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
-    emerald: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
-    rose: "bg-rose-500/15 text-rose-300 ring-rose-500/30",
+    amber: "bg-amber-500/15 text-amber-700 ring-amber-500/30 dark:text-amber-300",
+    emerald: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30 dark:text-emerald-300",
+    rose: "bg-rose-500/15 text-rose-700 ring-rose-500/30 dark:text-rose-300",
   }[tone];
 
   return (
@@ -323,7 +323,7 @@ function DepositRow({ req }: { req: DepositRequest }) {
       <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ring-1 ${toneClasses}`}>
         <Icon className="h-3.5 w-3.5" />
       </div>
-      <span className="shrink-0 text-sm font-semibold tabular-nums text-white">
+      <span className="shrink-0 text-sm font-semibold tabular-nums text-zinc-900 dark:text-white">
         {(req.amountAznCents / 100).toFixed(2)} ₼
       </span>
       <span className="flex-1 truncate text-[11px] text-zinc-500">
@@ -345,10 +345,10 @@ function CountChip({
 }) {
   const cls =
     tone === "amber"
-      ? "bg-amber-500/15 text-amber-300 ring-amber-500/30"
+      ? "bg-amber-500/15 text-amber-700 ring-amber-500/30 dark:text-amber-300"
       : tone === "emerald"
-        ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30"
-        : "bg-rose-500/15 text-rose-300 ring-rose-500/30";
+        ? "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30 dark:text-emerald-300"
+        : "bg-rose-500/15 text-rose-700 ring-rose-500/30 dark:text-rose-300";
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums ring-1 ${cls}`}>
       {count}

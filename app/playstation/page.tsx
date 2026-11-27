@@ -40,7 +40,7 @@ const SECTION_LINK_CLASS =
   "group inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-zinc-950 dark:border-white/10 dark:bg-white/5 dark:text-white dark:shadow-none dark:hover:border-white/20 dark:hover:bg-white/10";
 
 export const metadata: Metadata = {
-  title: "PlayStation — Oyunlar, PS Plus, Hədiyyə Kartları | Honsell",
+  title: "PlayStation — Oyunlar, PS Plus, Hədiyyə Kartları",
   description:
     "PlayStation oyunları, PS Plus abunəlikləri, hədiyyə kartları, kolleksiyalar, endirimlər və hesab açma — bir yerdə.",
   alternates: { canonical: "/playstation" },

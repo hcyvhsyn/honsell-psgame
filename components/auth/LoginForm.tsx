@@ -168,10 +168,10 @@ export default function LoginForm({
 
         {needsReset && (
           <div className="rounded-[14px] border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-            <p className="font-bold text-amber-200">Hesabınız təsdiqlənməyib</p>
+            <p className="font-bold text-amber-200">Hesabın təsdiqlənməyib</p>
             <p className="mt-1 text-amber-100/80">
               <span className="font-mono">{needsReset.email}</span> üçün hesab
-              tamamlanmayıb. Şifrəni yeniləyərək hesabınızı aktivləşdirin.
+              tamamlanmayıb. Şifrəni yeniləyərək hesabını aktivləşdir.
             </p>
             <Link
               href={`/forgot-password?email=${encodeURIComponent(needsReset.email)}`}

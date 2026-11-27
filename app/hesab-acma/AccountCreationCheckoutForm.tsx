@@ -255,7 +255,7 @@ export default function AccountCreationCheckoutForm({ product }: { product: Hesa
               Yeni hesab • Türkiyə regionu
             </p>
             <p className="mt-2 text-2xl font-black tabular-nums text-zinc-950 dark:text-white">
-              {priceText} AZN
+              {priceText} ₼
             </p>
           </div>
         </div>

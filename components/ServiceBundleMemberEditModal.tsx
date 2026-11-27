@@ -110,7 +110,7 @@ export default function ServiceBundleMemberEditModal({
               <p className="font-semibold text-white">{member.title}</p>
               <p className="mt-0.5 truncate text-sm text-zinc-400">{bundleTitle} dəsti</p>
               <p className="mt-1 text-sm tabular-nums text-fuchsia-300">
-                {(member.bundleAznCents / 100).toFixed(2)} AZN
+                {(member.bundleAznCents / 100).toFixed(2)} ₼
               </p>
             </div>
           </div>

@@ -1,19 +1,20 @@
 import Link from "next/link";
 import { ArrowRight, Music2, Tv } from "lucide-react";
-import type { ShowcaseBrand, ShowcaseOffer, ShowcaseRow } from "@/lib/homeSubscriptionShowcase";
+import type { ShowcaseBrand, ShowcaseRow } from "@/lib/homeSubscriptionShowcase";
 import HomePlanGuide from "./HomePlanGuide";
 
 /**
- * Ana səhifədə Netflix və Spotify — hər plan bir sətir, hər müddət ayrıca kart
- * (`lib/homeSubscriptionShowcase.ts`). Server komponentidir: kart linkdir. Yeganə client hissə
- * "Aralarındakı fərq nədir?" modalıdır (`HomePlanGuide`).
+ * Ana səhifədə Netflix və Spotify — hər plan (sətir) BİR yığcam kartdır: "ayda X ₼-dan" + müddətlər.
+ * Kart planın ilk (ən qısa) müddətinin `?mehsul=` linkidir; müddəti müştəri alış səhifəsində dəyişir.
+ * (2026-11: əvvəl hər müddət ayrıca kart idi — Netflix bloku telefonda ~2.5 ekran tuturdu.)
+ * Data: `lib/homeSubscriptionShowcase.ts`. Yeganə client hissə "Aralarındakı fərq nədir?" modalıdır.
  *
- * ⚠️ Performans: kartlarda şəkil və `backdrop-blur` YOXDUR (onlarla kart təkrarlanır).
+ * ⚠️ Performans: kartlarda şəkil və `backdrop-blur` YOXDUR.
  */
 export default function HomeSubscriptionShowcase({ brands }: { brands: ShowcaseBrand[] }) {
   if (brands.length === 0) return null;
   return (
-    <div className="space-y-6 py-10 sm:space-y-8 sm:py-12">
+    <div className="space-y-6 py-6 sm:space-y-8 sm:py-8">
       {brands.map((brand) => (
         <BrandPanel key={brand.key} brand={brand} />
       ))}
@@ -55,81 +56,62 @@ function BrandPanel({ brand }: { brand: ShowcaseBrand }) {
             </Link>
           </header>
 
-          <div className="mt-5 space-y-6">
+          {/* "Aralarındakı fərq nədir?" — qiymətlərdən ƏVVƏL: müştəri planı seçməzdən qabaq fərqi görsün. */}
+          {brand.guide && <HomePlanGuide guide={brand.guide} />}
+
+          <div className="mt-5 space-y-5">
             {brand.groups.map((group) => (
               <div key={group.key}>
                 {group.title && (
-                  <h3 className="mb-1 text-xs font-black tracking-[0.12em] text-zinc-500">{group.title}</h3>
+                  <h3 className="mb-2 text-xs font-black tracking-[0.12em] text-zinc-500">{group.title}</h3>
                 )}
-                <div className="divide-y divide-zinc-800">
+                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                   {group.rows.map((row) => (
-                    <PlanRow key={row.key} brandTitle={brand.title} row={row} />
+                    <PlanTile key={row.key} brandTitle={brand.title} row={row} />
                   ))}
-                </div>
+                </ul>
               </div>
             ))}
           </div>
-
-          {/* "Aralarındakı fərq nədir?" — video + müqayisə modalı (yalnız client hissə budur). */}
-          {brand.guide && <HomePlanGuide guide={brand.guide} />}
         </div>
       </div>
     </section>
   );
 }
 
-function PlanRow({ brandTitle, row }: { brandTitle: string; row: ShowcaseRow }) {
+function PlanTile({ brandTitle, row }: { brandTitle: string; row: ShowcaseRow }) {
+  const first = row.offers[0];
+  if (!first) return null;
+  const minPerMonth = Math.min(...row.offers.map((o) => o.perMonthAzn));
+  const maxSaving = Math.max(0, ...row.offers.map((o) => o.savingPct));
+  const months = row.offers.map((o) => o.months);
+  const single = row.offers.length === 1;
   return (
-    <div className="grid gap-x-5 gap-y-1 py-3 sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-center">
-      <div className="min-w-0">
-        <p className="truncate text-base font-black text-white">{row.title}</p>
-        {row.caption && <p className="truncate text-xs font-semibold text-zinc-500">{row.caption}</p>}
-      </div>
-      {/* pt-3: "Ən sərfəli" nişanı kartın üstündən çıxır, overflow-x onu kəsməsin. */}
-      <ul className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 pt-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {row.offers.map((offer) => (
-          <OfferCard key={offer.id} label={`${brandTitle} ${row.title}`} offer={offer} />
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function OfferCard({ label, offer }: { label: string; offer: ShowcaseOffer }) {
-  return (
-    <li className="w-[8.75rem] shrink-0 snap-start sm:w-[9.5rem]">
+    <li>
       <Link
-        href={offer.href}
-        aria-label={`${label} — ${offer.months} ay, ${fmt(offer.priceAzn)} ₼`}
-        className={`group relative flex h-full flex-col rounded-2xl border bg-zinc-950 p-3 transition hover:-translate-y-0.5 ${
-          offer.best ? "border-emerald-500/50 hover:border-emerald-400" : "border-zinc-800 hover:border-violet-400/60"
-        }`}
+        href={first.href}
+        aria-label={`${brandTitle} ${row.title} — ayda ${fmt(minPerMonth)} ₼-dan`}
+        className="group flex h-full flex-col rounded-2xl border border-zinc-800 bg-zinc-950 p-3 transition hover:-translate-y-0.5 hover:border-violet-400/60"
       >
-        {offer.best && (
-          // `uppercase` YOX — "Ə" böyük hərfi şriftdə kiçik "ə" kimi görünür.
-          <span className="absolute -top-2.5 left-2.5 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-black text-white">
-            Ən sərfəli
-          </span>
+        {/* Ad iki sətrə qədər sığır ("Evimdə VIP · 2 nəfər" kəsilməsin); endirim nişanı qiymətin yanındadır. */}
+        <span className="line-clamp-2 text-sm font-black leading-tight text-white">{row.title}</span>
+        {row.caption && (
+          <span className="mt-0.5 line-clamp-2 text-[11px] font-semibold leading-snug text-zinc-500">{row.caption}</span>
         )}
-        <span className="flex items-center gap-1.5">
-          <span className="text-sm font-black text-white">{offer.months} ay</span>
-          {offer.savingPct > 0 && (
-            <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-black tabular-nums text-emerald-600 dark:text-emerald-300">
-              −{offer.savingPct}%
+        <span className="mt-auto flex flex-wrap items-baseline gap-x-1.5 gap-y-1 pt-3">
+          <span className="text-lg font-black leading-none tabular-nums text-white">
+            {single ? `${fmt(first.priceAzn)} ₼` : `${fmt(minPerMonth)} ₼`}
+          </span>
+          <span className="text-xs font-semibold text-zinc-500">{single ? `/ ${first.months} ay` : "/ ay-dan"}</span>
+          {maxSaving > 0 && (
+            <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-black tabular-nums text-emerald-300">
+              −{maxSaving}%
             </span>
           )}
         </span>
-        <span className="mt-2 text-xl font-black leading-none tabular-nums text-white">{fmt(offer.priceAzn)} ₼</span>
-        <span className="mt-1 text-[11px] font-semibold tabular-nums text-zinc-500">
-          {offer.originalAzn != null ? (
-            <span className="mr-1 line-through">{fmt(offer.originalAzn)} ₼</span>
-          ) : null}
-          {offer.months > 1 ? `ayda ${fmt(offer.perMonthAzn)} ₼` : offer.originalAzn != null ? null : "aylıq"}
-        </span>
-        {/* Mobildə gizli — kartın özü toxunulandır, sətirlər qısa qalsın. */}
-        <span className="mt-3 hidden items-center gap-1 text-xs font-bold text-violet-600 transition group-hover:gap-1.5 dark:text-violet-300 sm:inline-flex">
-          Seç
-          <ArrowRight className="h-3.5 w-3.5" />
+        <span className="mt-2 flex items-center justify-between gap-2 text-[11px] font-semibold text-zinc-500">
+          <span className="truncate">{months.join(" · ")} ay</span>
+          <ArrowRight className="h-3.5 w-3.5 shrink-0 text-violet-300 transition group-hover:translate-x-0.5" />
         </span>
       </Link>
     </li>

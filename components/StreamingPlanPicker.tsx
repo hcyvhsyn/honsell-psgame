@@ -635,7 +635,7 @@ export default function StreamingPlanPicker({
                         <span className="text-2xl font-black text-white tabular-nums">
                           {formatAzn(x.p.priceAznCents)}
                         </span>
-                        <span className="text-sm font-semibold text-zinc-300">AZN</span>
+                        <span className="text-sm font-semibold text-zinc-300">₼</span>
                       </div>
                       <p className="mt-1 text-xs text-zinc-400">
                         Aylıq: <span className="font-semibold text-zinc-100 tabular-nums">{perMonth.toFixed(2)} ₼</span>
@@ -933,7 +933,7 @@ function NetflixAccountPlanCard({
                 <span className="text-2xl font-black text-white tabular-nums">
                   {formatAzn(selected.p.priceAznCents)}
                 </span>
-                <span className="text-sm font-semibold text-zinc-300">AZN</span>
+                <span className="text-sm font-semibold text-zinc-300">₼</span>
                 <span className="text-xs text-zinc-500">/ {selected.m.durationMonths} ay</span>
               </div>
 

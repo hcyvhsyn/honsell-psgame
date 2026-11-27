@@ -12,6 +12,8 @@ type Row = {
   months: number;
   amountAznCents: number;
   chargedAznCents: number;
+  /** 3% xidmət haqqı (ödəniş metadata-sından; köhnə sifarişlərdə 0). */
+  serviceFeeCents: number;
   status: "PENDING" | "SUCCESS" | "FAILED";
   crmStatus: string | null;
   crmSyncedAt: string | null;
@@ -148,7 +150,9 @@ export default function CrmRenewalsAdminClient() {
                   {r.title} · {r.months} ay · {(r.amountAznCents / 100).toFixed(2)} ₼
                   {r.chargedAznCents !== r.amountAznCents && (
                     <span className="ml-1 text-xs font-normal text-zinc-500">
-                      (kartdan {(r.chargedAznCents / 100).toFixed(2)} ₼, fərq cüzdana)
+                      (kartdan {(r.chargedAznCents / 100).toFixed(2)} ₼
+                      {r.serviceFeeCents > 0 && ` · haqq ${(r.serviceFeeCents / 100).toFixed(2)} ₼`}
+                      {r.chargedAznCents > r.amountAznCents + r.serviceFeeCents && ", min. 5 ₼ fərqi cüzdana"})
                     </span>
                   )}
                 </p>
@@ -202,7 +206,7 @@ export default function CrmRenewalsAdminClient() {
                     type="button"
                     disabled={busy === r.id}
                     onClick={() =>
-                      act(r.id, "refund-wallet", `${(r.amountAznCents / 100).toFixed(2)} ₼ müştərinin cüzdanına qaytarılsın?`)
+                      act(r.id, "refund-wallet", `${((r.amountAznCents + r.serviceFeeCents) / 100).toFixed(2)} ₼ müştərinin cüzdanına qaytarılsın?`)
                     }
                     className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                   >

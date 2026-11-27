@@ -19,8 +19,8 @@ export const metadata: Metadata = {
 const quickLinks = [
   { href: "/", label: "Ana səhifə", Icon: Home },
   { href: "/oyunlar", label: "Oyun kataloqu", Icon: Gamepad2 },
-  { href: "/streaming", label: "Streaming", Icon: Sparkles },
-  { href: "/hediyye-kartlari/honsell", label: "Hədiyyə kartları", Icon: Gift },
+  { href: "/ps-plus", label: "PS Plus", Icon: Sparkles },
+  { href: "/hediyye-kartlari", label: "Hədiyyə kartları", Icon: Gift },
 ];
 
 export default function NotFound() {

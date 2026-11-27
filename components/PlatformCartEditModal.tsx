@@ -146,7 +146,7 @@ export default function PlatformCartEditModal({
               <p className="font-semibold text-white">{labels.title}</p>
               <p className="mt-0.5 truncate text-sm text-zinc-400">{item.title}</p>
               <p className="mt-1 text-sm tabular-nums text-fuchsia-300">
-                {(item.finalAzn * item.qty).toFixed(2)} AZN
+                {(item.finalAzn * item.qty).toFixed(2)} ₼
               </p>
             </div>
           </div>

@@ -16,7 +16,6 @@ import {
   Library,
   Sparkles,
   Check,
-  SlidersHorizontal,
 } from "lucide-react";
 import GameCard, { GameCardData } from "./GameCard";
 import { genreLabelAz } from "@/lib/gameCardShared";
@@ -699,25 +698,8 @@ export default function GameBrowser({
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
-              <span className="hidden sm:inline">Kataloqda</span>
-              <strong className="tabular-nums text-zinc-900 dark:text-zinc-100">{data.totalAll.toLocaleString("en-US")}</strong>
-              <span className="hidden sm:inline">məhsul</span>
-              {data.totalOnSale > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setOnSale((value) => !value)}
-                  className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 font-semibold transition ${
-                    onSale
-                      ? "border-emerald-400/50 bg-emerald-500/15 text-emerald-300"
-                      : "border-emerald-500/20 bg-emerald-500/[0.07] text-emerald-600 hover:border-emerald-400/50 dark:text-emerald-300"
-                  }`}
-                >
-                  <Tag className="h-3.5 w-3.5" />
-                  {data.totalOnSale.toLocaleString("en-US")} endirimdə
-                </button>
-              )}
-            </div>
+            {/* "Kataloqda N məhsul · M endirimdə" sətri çıxarılıb (2026-11): ümumi say tab-da,
+                endirim sayı isə aşağıdakı "Endirimdə" düyməsindədir — say 3 dəfə təkrarlanırdı. */}
           </div>
 
           <div className="border-t border-zinc-100 pt-4 dark:border-white/[0.07]">
@@ -783,6 +765,9 @@ export default function GameBrowser({
                 }`}
               >
                 <Tag className="h-3.5 w-3.5" /> Endirimdə
+                {data.totalOnSale > 0 && (
+                  <span className="tabular-nums opacity-70">{data.totalOnSale.toLocaleString("en-US")}</span>
+                )}
                 {onSale && <Check className="h-3.5 w-3.5" />}
               </button>
               {!isEpic && ["PS5", "PS4"].map((item) => (
@@ -1096,13 +1081,14 @@ export default function GameBrowser({
             <p className="text-lg font-bold tracking-tight text-zinc-950 dark:text-white">
               {loading ? "Nəticələr yenilənir" : `${showingCount.toLocaleString("en-US")} nəticə`}
             </p>
-            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-              {isSearching ? "Axtarışınıza ən uyğun oyunlar" : onSale ? "Hazırda endirimdə olan oyunlar" : "Kataloqdan seçilmiş oyunlar"}
-            </p>
+            {(isSearching || onSale) && (
+              <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                {isSearching ? "Axtarışına ən uyğun oyunlar" : "Hazırda endirimdə olan oyunlar"}
+              </p>
+            )}
           </div>
           {!isSearching && (
             <div className="flex items-center gap-2">
-              <SlidersHorizontal className="h-4 w-4 text-zinc-400" />
               <Dropdown
                 value={sort}
                 onChange={(v) => setSort(v as Sort)}

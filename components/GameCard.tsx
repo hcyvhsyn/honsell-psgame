@@ -21,7 +21,6 @@ import {
 } from "@/lib/gameCardShared";
 import FavoriteButton from "./FavoriteButton";
 import PlatformInfoButton from "./PlatformInfoButton";
-import ReferralBadge from "./ReferralBadge";
 import InstallmentHint from "./InstallmentHint";
 
 // Tip lib/gameCardShared.ts-ə köçürülüb (server modulları oradan götürür ki,
@@ -374,12 +373,8 @@ export default function GameCard({
 
           <InstallmentHint priceAzn={game.finalAzn} variant="card" className="mt-1.5" />
 
-          {/* Referal: əvvəl yalnız "🎁 3%" idi — müştəri bunu endirim, cashback və ya
-              3% xidmət haqqı ilə qarışdırırdı. İndi nə olduğunu özü deyir; toxunanda
-              modal ətraflı izah edir. */}
-          <div className="mt-1 flex">
-            <ReferralBadge category="games" productName={game.title} variant="line" />
-          </div>
+          {/* Referal sətri ("Dəvət et, 3% qazan") kartdan çıxarılıb (2026-11): kataloqda 24 kartda
+              24 dəfə təkrarlanırdı. İndi yalnız oyunun detal səhifəsində, qiymət kartındadır. */}
 
           {/* Endirim müddəti: son 24 saatda saniyəli geri sayım, ondan uzaqda
               sadə tarix ("12 avqusta qədər"). Yalnız endirim olanda yer tutur —

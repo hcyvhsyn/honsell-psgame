@@ -4,7 +4,7 @@ import { Heart, Info } from "lucide-react";
 import { useState } from "react";
 import { useFavorites } from "@/lib/favorites";
 
-type Variant = "card" | "detail";
+type Variant = "card" | "detail" | "icon";
 
 /**
  * Heart toggle button. Two visual variants:
@@ -48,6 +48,27 @@ export default function FavoriteButton({
       ? "Favorilərdən sil"
       : "Favorilərə əlavə et — endirim olanda email göndərək"
     : "Favorilərə əlavə etmək üçün daxil ol";
+
+  // "icon" — məhsul səhifəsində hədiyyə düyməsinin yanında kvadrat ürək (izah `title`-da).
+  if (variant === "icon") {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={busy}
+        aria-pressed={fav}
+        aria-label={tooltip}
+        title={tooltip}
+        className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl border transition ${
+          fav
+            ? "border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-200"
+            : "border-zinc-200 bg-white/75 text-zinc-700 hover:border-rose-300 hover:text-rose-600 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-200 dark:hover:border-rose-500/40 dark:hover:text-rose-200"
+        } ${busy ? "opacity-60" : ""}`}
+      >
+        <Heart className={`h-5 w-5 transition ${fav ? "fill-rose-400 text-rose-400" : ""}`} />
+      </button>
+    );
+  }
 
   if (variant === "detail") {
     return (

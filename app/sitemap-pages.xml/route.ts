@@ -9,6 +9,7 @@ import { buildUrlSet, xmlResponse, type UrlEntry } from "@/lib/sitemapXml";
 import { ALL_FACETS, FACET_MIN_PRODUCTS_FOR_INDEX } from "@/lib/gameFacets";
 import { getFacetCounts } from "@/lib/facetCatalog";
 import { getSettings } from "@/lib/pricing";
+import { NETFLIX_STORE_PATH, SPOTIFY_STORE_PATH } from "@/lib/storeScope";
 
 export const revalidate = 3600;
 
@@ -22,11 +23,13 @@ export async function GET() {
     { loc: `${SITE_URL}/ps-plus`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { loc: `${SITE_URL}/ea-play`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
     { loc: `${SITE_URL}/hediyye-kartlari`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
-    { loc: `${SITE_URL}/hediyye-kartlari/honsell`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { loc: `${SITE_URL}/hesab-acma`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
-    { loc: `${SITE_URL}/music`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
-    { loc: `${SITE_URL}/ai`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
-    { loc: `${SITE_URL}/work`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
+    // Satılan abunəliklər (lib/storeScope.ts). Bağlı kateqoriyalar (/music, /work, /ai, Honsell hədiyyə
+    // kartı) burada OLMAMALIDIR — middleware onları yönləndirir.
+    { loc: `${SITE_URL}${NETFLIX_STORE_PATH}`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { loc: `${SITE_URL}${SPOTIFY_STORE_PATH}`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { loc: `${SITE_URL}/faq`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
+    { loc: `${SITE_URL}/reyler`, lastModified: now, changeFrequency: "weekly", priority: 0.5 },
     { loc: `${SITE_URL}/bilmeli-olduglarin`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
     { loc: `${SITE_URL}/haqqimizda`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { loc: `${SITE_URL}/mexfilik-siyaseti`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },

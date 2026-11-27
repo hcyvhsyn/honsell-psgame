@@ -51,10 +51,10 @@ export default function HomePlanGuide({ guide }: { guide: ShowcaseGuide }) {
         ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
-        className="group mt-6 flex w-full items-center gap-4 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 text-left transition hover:border-violet-400/60 sm:p-5"
+        className="group mt-4 flex w-full items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-950 p-3 text-left transition hover:border-violet-400/60 sm:p-4"
       >
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-violet-600 text-white">
-          <PlayCircle className="h-6 w-6" />
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-600 text-white">
+          <PlayCircle className="h-5 w-5" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-base font-black text-white sm:text-lg">Aralarındakı fərq nədir?</span>

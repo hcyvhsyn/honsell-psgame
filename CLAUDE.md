@@ -74,6 +74,38 @@ ağır şəkillər** idi. Ölçmə: `/oyunlar` mobil — blur elementi 142 → 2
 - **Saniyəlik taymer üçün `useSecondTicker`** ([lib/useSecondTicker.ts](lib/useSecondTicker.ts)) —
   bütün səhifəyə TƏK `setInterval`; hər kartın öz taymeri olmasın.
 - Skeleton (`honsell-img-skeleton`) `opacity` nəbzidir, `background-position` yox.
+- **Oyun sorğusunda `SELECT *` / `select`-siz `findMany` YAZMA** — `Game.embedding` (512 Float) hər sətrə
+  gəlir. `/endirimler` belə ~10k sətir çəkirdi → hər açılış ~24 s (2026-11). Kart üçün `GAME_CARD_SELECT` /
+  `GAME_CARD_COLUMNS_SQL` ([lib/gameCardMapper.ts](lib/gameCardMapper.ts)); böyük siyahını sıralamaq lazımdırsa
+  keşdə yalnız `[id, açar]` saxla, səhifənin kartlarını ayrıca çək (bax [app/endirimler/page.tsx](app/endirimler/page.tsx)).
+
+# Müştəri UI qaydaları (2026-11 UX təmizliyi)
+
+- **Oyun adı göstərmədə `displayGameTitle`** ([lib/gameTitle.ts](lib/gameTitle.ts), test `npm run test:gametitle`):
+  PS Store TR adının sonundakı "PS4™ ve PS5™" kəsilir (platforma nişandadır), qalan "ve" → "və". `buildGameCard`,
+  oyun səhifəsi (h1, səbət), flash deal və bannerlər işlədir. DB `title`-ı DƏYİŞMƏ — axtarış, sürüm qruplaşdırması
+  və SEO meta xam adla işləyir.
+- **Valyuta UI-da `₼`**, "AZN" yox (cümlə içində "5 AZN-dən" kimi şəkilçili prozaya toxunulmur). Müraciət **"sən"**.
+- **Üzən AI düyməsi** (`AskAiFloat`, `.honsell-ai-float`): "Birlikdə tapaq" tooltip-i sessiyada bir dəfə, yalnız
+  xl+. `globals.css`: səbət toast-ı açıq olanda gizlənir, `body[data-sticky-buy="1"]` olanda yuxarı qalxır.
+- **Oyun səhifəsi**: telefonda qapaq kiçik və başlığın yanındadır ki, qiymət kartı (`#game-buy-box`) ilk ekrana
+  düşsün; kart ekrandan çıxanda [StickyBuyBar](app/oyunlar/[slug]/StickyBuyBar.tsx) (< lg, alt menyunun üstündə).
+  "PS Store-da bax" linki YOXDUR (müştərini Sony-yə göndərirdi). Referal sətri kataloq kartında YOX, yalnız burada.
+- **Ana səhifə sırası**: banner → güvən zolağı → flash deal → Populyar oyunlar (`fetchPopularGameCards`, lib/popularity
+  sırası) → Abunəliklər (matris + Netflix/Spotify vitrini) → dəstlər → rəylər (yığcam, `TestimonialsRail compact`,
+  filtr/səhifələmə `/reyler`-dədir) → FAQ. "Niyə biz" kartları və `SectionFlowDivider` zolaqları qəsdən çıxarılıb.
+- **Profil menyusu — 8 bənd** ([ProfileSidebar](components/ProfileSidebar.tsx)): Ümumi baxış, Sifarişlər, Abunəliklərim,
+  Balans, PSN hesablarım, Favorilər, Referallar, Hesab məlumatları (+ "Qutu açılışları" yalnız tarixçəsi olana).
+  Telefonda tək sətirlik üfüqi lentdir (`<aside>`-dakı `min-w-0` VACİBDİR — yoxsa lent grid-i ≈1150px-ə uzadıb
+  səhifəni yana sürüşdürür) və "Çıxış" orada da var. Birləşdirilmiş köhnə ünvanlar yönləndirilir:
+  `/profile/subscriptions` → `/profile/abunelikler` (e-poçtlar), `/profile/hediyye-kart` → `/profile/wallet#hediyye-kart`
+  (admin çatdırılma e-poçtu), `/profile/accounts` → `/profile/profiles`. Yeni profil səhifəsi →
+  [ProfilePageHeader](components/profile/ProfilePageHeader.tsx) + açıq/qaranlıq sinifləri birlikdə yaz.
+- **Abunəliklərim** (`/profile/abunelikler`): yuxarıda saytdan alınanlar ([SiteSubscriptions](app/profile/abunelikler/SiteSubscriptions.tsx),
+  PS Plus/EA Play avtomatik yeniləmə), aşağıda WhatsApp ilə alınanlar (`AbunelikClient mode="profile"`, h2 bölmə).
+- **Profildə şəxsi məlumat**: referal sahibinə dəvət olunanın tam e-poçtu və xərci GÖSTƏRİLMİR (ad / `ab***@domen`
+  + alış sayı). "Profil natamamdır" yalnız ad + telefona görədir — doğum tarixi/cinsiyyət heç yerdə işlənmir.
+- Müştəri UI-da pul: `fmtManat` ("₼"); `fmtAzn` ("AZN") admin və e-poçt üçündür ([lib/format.ts](lib/format.ts)).
 
 # Mağaza əhatəsi — YALNIZ PlayStation (2026-10)
 
@@ -87,6 +119,14 @@ yazma, yoxsa prod Spotify satışdan düşür (2026-11-də belə olmuşdu); sifa
 bizim hesabda otaq (`NetflixCabinetPicker`: paket + 1/2 nəfər + müddət, hər nəfərə ayrıca otaq;
 qiymət `metadata.seats` üzrə ayrıca paketdir); lokal test datası `npm run seed:netflix-mock`). Qalan kateqoriyaların
 **səhifələri silinməyib** — sadəcə landing/naviqasiya/axtarışdan keçid yoxdur və satılmır.
+
+**Bağlı səhifələr yönləndirilir (2026-11):** Google-dan gələn müştəri `/work`-da "Səbətə əlavə et" görürdü, səbət
+isə sətri silirdi. [middleware.ts](middleware.ts) `CLOSED_PAGE_TARGETS` (307, müvəqqəti): `/music` → Spotify,
+`/work`, `/is-platformalari`, `/pubg-uc`, `/point-blank` → `/`, `/hediyye-kartlari/honsell` → `/hediyye-kartlari`,
+`/streaming` → `/streaming/netflix`. `/streaming/<xidmət>` DB-dən asılıdır — səhifənin özü `isStreamingSlugOpen`
+([lib/streamingPlatforms.ts](lib/streamingPlatforms.ts)) ilə yoxlayıb Netflix-ə yönləndirir. Film kataloqu
+(`/streaming/katalog`, `filmler`, `seriallar`) satış səhifəsi deyil — İcmallar ona keçid verir, açıq qalır.
+Bağlı yolları sitemap-ə ([app/sitemap-pages.xml/route.ts](app/sitemap-pages.xml/route.ts)) **əlavə etmə**.
 
 **Tamamilə silinib (2026-10, kod yoxdur, cədvəllər `/// ARXİV` kimi qalır):** Epic
 (kataloq, scraper, Epic hesabları, səbətdə Epic axını), Süni İntellekt kataloqu (`/ai`),
@@ -123,8 +163,10 @@ Tək mənbə: [lib/streamingAccess.ts](lib/streamingAccess.ts) (client-safe). Ad
   "ayda X ₼-dan" kartı; **Netflix və Spotify isə öz vitrinindədir** (aşağıya bax).
 - **Ana səhifə vitrini (2026-11)**: [lib/homeSubscriptionShowcase.ts](lib/homeSubscriptionShowcase.ts) (saf) +
   [HomeSubscriptionShowcase](components/HomeSubscriptionShowcase.tsx) (server komponenti, şəkilsiz). Netflix: hər plan
-  (Basic/Standart/Premium, Yanımda/Evimdə/Evimdə VIP) × nəfər bir sətir, hər müddət ayrıca kart; Spotify: Individual/
-  Duo/Family. Kart səbətə atmır — `?mehsul=<id>` linkidir, alış səhifəsi həmin paketi seçili açır
+  (Basic/Standart/Premium, Yanımda/Evimdə/Evimdə VIP) × nəfər bir sətirdir; Spotify: Individual/Duo/Family.
+  **Ana səhifədə hər sətir BİR yığcam kartdır** ("ayda X ₼-dan" + müddətlər, 2026-11 — əvvəl hər müddət ayrıca kart idi
+  və Netflix bloku telefonda ~2.5 ekran tuturdu). Kart səbətə atmır — sətrin ilk müddətinin `?mehsul=<id>` linkidir,
+  alış səhifəsi həmin paketi seçili açır, müddəti müştəri orada dəyişir
   (`NetflixCabinetPicker`/`NetflixAccountPlanCard` server-dən, `SpotifyPlanPicker` mount-da URL-dən — music səhifəsi
   statik qalsın deyə). Bu paketlər matrisə düşmür (`isNetflixProduct`, `isShowcaseSpotifyProduct`).
   ⚠️ `hideFromLanding` vitrində **işləmir** — o, köhnə matrisin bayrağıdır; prod-da köhnə bayraq 1 nəfərlik otaqları
@@ -162,19 +204,34 @@ vəziyyətini izləyir — yeni sətir/artan say = əlavə; ayrıca çağırış
 məhsulu yoxdursa toast-da sayğac göstərilmir.
 Header səbət düyməsi (`CartIndicator`) yalnız say göstərir — halqa/animasiya yoxdur.
 
-# Səbət xidmət haqqı — 3% (2026-11)
+# Xidmət haqqı — 3%, HƏR ödənişdə (2026-11)
 
-[lib/cartServiceFee.ts](lib/cartServiceFee.ts) → `CART_SERVICE_FEE_PCT` / `cartServiceFeeCents()`
-(saf, client-safe). Kupondan **sonrakı** səbət cəminin üstünə **bütün** səbət ödəniş
-üsullarında gəlir: kart, Apple/Google Pay, taksit (Epoint faizi baza+haqq üstünə), cüzdan,
-referal. Cüzdan istisna olsaydı müştəri cüzdanı komissiyasız artırıb yayınardı.
+[lib/cartServiceFee.ts](lib/cartServiceFee.ts) → `CART_SERVICE_FEE_PCT` / `cartServiceFeeCents()` / `withServiceFeeCents()`
+(saf, client-safe). ⛔ **Müştəridən pul tutulan hər yol 3% əlavə edir** (sahibin qərarı) — yeni ödəniş yolu
+yazanda da əlavə et:
+
+| Yol | Harada |
+| --- | --- |
+| Səbət (kart, Apple/Google Pay, taksit, cüzdan, referal) | [checkout/route.ts](app/api/cart/checkout/route.ts) |
+| CRM abunəlik yeniləməsi (profil → Abunəliklərim, kart) | `renewalCharge` ([lib/abunelik/charge.ts](lib/abunelik/charge.ts)) — UI və server eyni funksiya |
+| PS Plus / EA Play cüzdandan avto-yeniləmə | [cron/subscriptions](app/api/cron/subscriptions/route.ts) (xatırlatma/“balans çatmır” da qiymət+haqq ilə) |
+| Birbaşa alış (`/api/services/checkout`, `/api/games/[id]/purchase`) — UI çağırmır | route-ların özündə |
+| Qutu açılışı (cüzdan) | `openLootBox` ([lib/lootBoxes.ts](lib/lootBoxes.ts)) |
+
+**Yalnız cüzdan ARTIRMA haqqsızdır** — haqq pul xərclənəndə tutulur, iki dəfə tutulmasın. Cüzdan/referal ödənişi
+haqqdan azad olsaydı müştəri cüzdanı artırıb yayınardı. Balansdan tutulan yollarda ayrıca `SERVICE_FEE` Transaction
+(mənfi məbləğ) yazılır; kartda haqq ödəniş Transaction-unun məbləğindədir.
+
+Səbət: haqq kupondan **sonrakı** səbət cəminin üstünə gəlir; taksitdə Epoint faizi baza+haqq üstünə.
 
 - Server: `payableCents = discountedTotalCents + serviceFeeCents` ([checkout/route.ts](app/api/cart/checkout/route.ts)).
   Kartda `Transaction.amountAznCents`-ə və Epoint-ə gedir (`metadata.checkout.serviceFeeCents`);
   cüzdan/referalda balansdan tutulur + ayrıca `SERVICE_FEE` Transaction (mənfi məbləğ) yazılır.
 - **Fulfillment, cashback, bonus, min sifariş, attribution** haqqsız `discountedTotalCents` ilədir.
-- UI: [CartView](components/CartView.tsx) "Komissiya (3%)" sətri + Yekun; [InstallmentHint](components/InstallmentHint.tsx) aylığı haqq daxil göstərir.
-- ⚠️ Birbaşa alış endpoint-ləri (`/api/services/checkout`, `/api/games/[id]/purchase`) və cüzdan artırma haqq **tutmur**.
+- UI: [CartView](components/CartView.tsx) "Xidmət haqqı (3%)" sətri + Yekun; [InstallmentHint](components/InstallmentHint.tsx) aylığı haqq daxil göstərir.
+  Haqq **əvvəlcədən** də göstərilir — [ServiceFeeNote](components/cart/ServiceFeeNote.tsx): oyun səhifəsinin qiymət kartı,
+  PS Plus alış xülasəsi və `CartAddedToast` (əvvəl müştəri 23.04 ₼ görüb səbətdə birdən 23.73 ₼ ilə qarşılaşırdı).
+- Sifariş sətri, CRM-ə gedən qiymət, `Subscription.priceAznCents`, komissiya və cashback hər yolda **haqqsız** qiymətlədir.
 
 # Oyun qiyməti — pillələr + custom (2026-10)
 
@@ -1023,8 +1080,9 @@ tipini ([psCustomer/lib/honsell-store.ts](../psCustomer/lib/honsell-store.ts)) d
 
 ⛔ **Müştəri CRM-ə heç bir formada girmir** — hər şeyi honsell.site-a daxil olub **profildə** görür:
 `/profile/abunelikler` — CRM-dəki bütün abunəliklər (Netflix kabineti, Spotify/YouTube Family, Netflix/Spotify
-Individual, PS Plus; aktiv + son 45 gün bitmiş), giriş məlumatları və **CRM `/pricing` qiyməti ilə** (3% haqq YOX)
-Epoint kartla yeniləmə. `/abunelik` artıq YALNIZ giriş səhifəsidir (nömrə + WhatsApp kodu → profil), data göstərmir;
+Individual, PS Plus; aktiv + son 45 gün bitmiş), giriş məlumatları və **CRM `/pricing` qiyməti + 3% xidmət haqqı**
+ilə Epoint kartla yeniləmə (2026-11-ə qədər haqqsız idi; plitələrdə CRM qiyməti, altında "Abunəlik / Xidmət haqqı /
+Yekun", düymədə kartdan tutulan məbləğ). `/abunelik` artıq YALNIZ giriş səhifəsidir (nömrə + WhatsApp kodu → profil), data göstərmir;
 daxil olmuş istifadəçini profilə yönləndirir. Giriş səhifəsində "WhatsApp nömrəsi ilə daxil ol" düyməsi var.
 
 | Qat | Fayl |
@@ -1071,13 +1129,16 @@ daxil olmuş istifadəçini profilə yönləndirir. Giriş səhifəsində "Whats
   - Placeholder e-poçtu HEÇ VAXT qeydiyyatdan əvvəl dəyişmə (müştərinin hesabını ələ keçirmə yolu olar).
 - **Ödəniş** = `Transaction` (`CHECKOUT_PAYMENT`, `metadata.flow = "crm-renewal"`). `/result` və reconcile
   `finalizeEpointCheckoutPayment` dispatcher-indən keçir — yeni axın əlavə edəndə yalnız orada qeyd et.
-  Qiymət serverdə CRM-dən alınır (`quoteCrmRenewal`); klientin məbləği yalnız `PRICE_CHANGED` yoxlaması üçündür.
-  5 ₼-dan aşağı qiymət → kartdan 5 ₼, fərq cüzdana (`CRM_RENEWAL_MIN_ROUNDUP`). Referal/cashback yoxdur.
+  Qiymət serverdə CRM-dən alınır (`quoteCrmRenewal`); klientin məbləği (haqqsız CRM qiyməti) yalnız `PRICE_CHANGED`
+  yoxlaması üçündür. Kartdan `renewalCharge` = qiymət + 3% (`metadata.renewal.serviceFeeCents`); CRM-ə və
+  `CrmRenewalOrder.amountAznCents`-ə haqqsız qiymət, `chargedAznCents`-ə kartdan tutulan gedir. Qiymət+haqq 5 ₼-dan
+  azdırsa kartdan 5 ₼, fərq cüzdana (`CRM_RENEWAL_MIN_ROUNDUP`). Referal/cashback yoxdur.
 - **Vəziyyət** `CrmRenewalOrder`-dədir (`PENDING → SUCCESS | FAILED`). Kabinet/Family CRM cavabında dərhal
   `SUCCESS`; Individual-lar və PS CRM-in `crm-renewals/complete` callback-i ilə. CRM-ə çatmayan sifariş
   `crmSyncError` daşıyır və "Hamısını CRM-ə yenidən göndər" (`crm-retry`) onu da götürür (idempotent).
-- `FAILED` = CRM uzatmadı (məs. slot arada boşaldılıb) → müştəriyə geri ödəniş: "Cüzdana qaytar" CRM qiymətini
-  (round-up onsuz da cüzdandadır) bir dəfə yazır; kart geri ödənişi Epoint kabinetindən.
+- `FAILED` = CRM uzatmadı (məs. slot arada boşaldılıb) → müştəriyə geri ödəniş: "Cüzdana qaytar" CRM qiyməti +
+  xidmət haqqını (xidmət verilmədi; haqq ödənişin metadata-sından, köhnələrdə 0; round-up onsuz da cüzdandadır) bir
+  dəfə yazır; kart geri ödənişi Epoint kabinetindən.
 - **WhatsApp birbaşa giriş linki:** CRM yazan hər müştəri üçün 7 gündə bir `POST /api/partner/abunelik-link` ilə link istəyir →
   `/abunelik/giris?t=<token>` (24 saat, `createLinkToken`, `k: "link"`). Route müştərini `loginByPhone` ilə nömrəyə
   bağlı sayt hesabına daxil edir və tokensiz `/profile/abunelikler`-ə yönləndirir. WhatsApp/Facebook önizləmə botları
