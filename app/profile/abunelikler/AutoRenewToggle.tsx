@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function AutoRenewToggle({
   subscriptionId,
@@ -36,39 +36,29 @@ export default function AutoRenewToggle({
     });
   }
 
+  // Yalnız keçid — "Avtomatik uzat" başlığı və məbləğ kartın içindədir (SiteSubscriptions → AutoRenewRow).
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex shrink-0 flex-col items-end gap-1">
       <button
         type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-label="Avtomatik uzat"
         onClick={toggle}
         disabled={pending}
-        className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition disabled:opacity-50 ${
-          enabled
-            ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/40 hover:bg-emerald-500/25"
-            : "bg-white/5 text-zinc-300 ring-white/10 hover:bg-white/10"
+        className={`relative inline-flex h-7 w-12 items-center rounded-full transition disabled:opacity-60 ${
+          enabled ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-700"
         }`}
-        title="Avtomatik yenilə"
       >
-        {pending ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <RefreshCw className="h-3.5 w-3.5" />
-        )}
-        Avtomatik yenilə
         <span
-          aria-hidden
-          className={`relative inline-flex h-3.5 w-7 items-center rounded-full transition ${
-            enabled ? "bg-emerald-500" : "bg-zinc-700"
+          className={`absolute grid h-6 w-6 place-items-center rounded-full bg-white shadow transition-all ${
+            enabled ? "left-[1.375rem]" : "left-0.5"
           }`}
         >
-          <span
-            className={`absolute h-3 w-3 rounded-full bg-white transition ${
-              enabled ? "left-3.5" : "left-0.5"
-            }`}
-          />
+          {pending && <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" />}
         </span>
       </button>
-      {error && <span className="text-[10px] text-rose-300">{error}</span>}
+      {error && <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-300">{error}</span>}
     </div>
   );
 }

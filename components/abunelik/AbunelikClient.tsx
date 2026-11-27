@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Copy, Eye, EyeOff, Loader2, RefreshCw } from "lucide-react";
+import { CalendarClock, Check, ChevronDown, Copy, Eye, EyeOff, KeyRound, Loader2, RefreshCw } from "lucide-react";
 import TurnstileWidget from "@/components/auth/TurnstileWidget";
 import { renewalCharge } from "@/lib/abunelik/charge";
 import { CART_SERVICE_FEE_PCT } from "@/lib/cartServiceFee";
+import { DaysLeft, SubBrandIcon, subBrandOf, type DaysTone } from "@/components/profile/subscriptionUi";
 
 type Option = { months: number; priceAzn: number; newEndDate: string };
 type Item = {
@@ -42,11 +43,13 @@ type ListData = {
   renewals: Renewal[];
 };
 
-const card = "rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/5 dark:bg-[#111116] sm:p-5";
+// Kart qabığı navbar-ın çərçivə + bənövşəyi kölgəsidir (globals.css `honsell-glow-card`, 2026-11 —
+// əvvəl `border-white/5` idi və kart fonda itirdi). Fon/çərçivə üçün buraya `bg-*`/`border-*` YAZMA.
+const card = "honsell-glow-card rounded-3xl p-4 sm:p-5";
 const input =
   "w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/30 dark:border-white/10 dark:bg-zinc-900";
 const primaryBtn =
-  "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-3.5 text-sm font-black text-white shadow-[0_14px_34px_-16px_rgba(124,58,237,0.9)] transition hover:from-violet-500 hover:to-fuchsia-500 disabled:cursor-not-allowed disabled:opacity-60";
 
 /** dd.mm.yyyy (Asia/Baku, UTC+4). `toLocaleDateString("az-AZ")` brauzerdən asılı olaraq ISO formatı verir. */
 function fmtDate(iso: string | null) {
@@ -64,33 +67,43 @@ function monthsLabel(m: number) {
   return m === 12 ? "1 il" : `${m} ay`;
 }
 
-function statusBadge(item: Item): { text: string; cls: string } {
+/** Kartın sağındakı iri göstərici (CRM statusu + qalan gün). */
+function daysOf(item: Item): { value: string | null; label: string; tone: DaysTone } {
   const d = item.daysLeft;
-  if (item.status === "PENDING") return { text: "Hazırlanır", cls: "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300" };
+  if (item.status === "PENDING") return { value: null, label: "Hazırlanır", tone: "wait" };
   if (item.status === "EXPIRED")
-    return {
-      text: d != null && d < 0 ? `${Math.abs(d)} gün əvvəl bitib` : "Bitib",
-      cls: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300",
-    };
-  if (item.status === "EXPIRING")
-    return {
-      text: d === 0 ? "Bu gün bitir" : `${d} gün qalıb`,
-      cls: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300",
-    };
-  return {
-    text: d != null ? `Aktiv · ${d} gün qalıb` : "Aktiv",
-    cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300",
-  };
+    return d != null && d < 0
+      ? { value: String(Math.abs(d)), label: "gün əvvəl bitib", tone: "over" }
+      : { value: null, label: "Bitib", tone: "over" };
+  if (d === 0) return { value: null, label: "Bu gün bitir", tone: "soon" };
+  if (d == null) return { value: null, label: "Aktiv", tone: "ok" };
+  return { value: String(d), label: "gün qalıb", tone: item.status === "EXPIRING" ? "soon" : "ok" };
 }
 
-const MODE_NOTE: Record<string, string> = {
-  INSTANT: "Ödənişdən dərhal sonra uzanır, təsdiq WhatsApp-a gəlir.",
-  ASYNC: "Ödənişdən sonra hesabın provayderdə yenilənir — adətən 24 saat ərzində, təsdiq WhatsApp-a gəlir.",
-  MANUAL: "Ödənişdən sonra 24 saat ərzində yenilənir, təsdiq WhatsApp-a gəlir.",
+/** CRM `subtitle`-ı tək başına anlaşılmırdı ("Rasulovaasmer.") — nə olduğunu yazırıq. */
+const SUBTITLE_LABEL: Partial<Record<Item["kind"], string>> = {
+  SLOT: "Otaq",
+  FAMILY: "Üzv",
+  PS: "Hesab",
 };
 
+/** Ödəniş düyməsinin altındakı bir sətir (təsdiqin WhatsApp-a gəldiyi ödənişdən sonra banner-da yazılır). */
+const MODE_NOTE: Record<string, string> = {
+  INSTANT: "dərhal uzanır",
+  ASYNC: "24 saat ərzində uzanır",
+  MANUAL: "24 saat ərzində uzanır",
+};
+
+/** 1 aylığa nisbətən qənaət (%) — mağaza vitrini ilə eyni hesab; 1 aylıq yoxdursa göstərilmir. */
+function savingPct(options: Option[], o: Option): number {
+  const one = options.find((x) => x.months === 1);
+  if (!one || o.months <= 1) return 0;
+  const full = one.priceAzn * o.months;
+  return full > 0 ? Math.max(0, Math.round((1 - o.priceAzn / full) * 100)) : 0;
+}
+
 const BLOCKED_NOTE: Record<string, string> = {
-  OPEN_RENEWAL: "Yeniləmə emal olunur…",
+  OPEN_RENEWAL: "Uzadılır…",
   PENDING: "Hazırlanır — hazır olan kimi WhatsApp-a xəbər gələcək.",
   NO_PRICE: "Bu abunəliyi yeniləmək üçün bizə WhatsApp-da yaz.",
   NOT_RENEWABLE: "Bu abunəliyi yeniləmək üçün bizə WhatsApp-da yaz.",
@@ -100,10 +113,10 @@ function CopyField({ label, value, secret }: { label: string; value: string; sec
   const [shown, setShown] = useState(!secret);
   const [copied, setCopied] = useState(false);
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-white/5">
+    <div className="flex items-center justify-between gap-2 rounded-xl bg-zinc-100 px-3 py-2 dark:bg-white/[0.06]">
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
-        <p className="truncate font-mono text-sm">{shown ? value : "••••••••"}</p>
+        <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">{label}</p>
+        <p className="truncate font-mono text-sm font-semibold text-zinc-900 dark:text-white">{shown ? value : "••••••••"}</p>
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {secret && (
@@ -154,35 +167,46 @@ function SubscriptionCard({
   const option = options.find((o) => o.months === selected) ?? null;
   // Server (/api/abunelik/renew) eyni funksiya ilə hesablayır — düymədəki məbləğ kartdan tutulanla üst-üstə düşür.
   const charge = option ? renewalCharge(option.priceAzn) : null;
-  const badge = statusBadge(item);
   const creds = item.credentials;
   const hasCreds = !!creds && Object.values(creds).some(Boolean);
   const blocked = openRenewal ? "OPEN_RENEWAL" : item.blockedReason;
   const canRenew = !blocked && options.length > 0;
+  const subtitleLabel = SUBTITLE_LABEL[item.kind];
 
   return (
     <article className={card}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="text-base font-bold leading-tight">{item.title}</h3>
-          {item.subtitle && <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">{item.subtitle}</p>}
+      <div className="flex items-start gap-3">
+        <SubBrandIcon brand={subBrandOf(item.title, item.category)} />
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-black leading-tight text-zinc-900 dark:text-white sm:text-lg">{item.title}</h3>
+          {item.subtitle && (
+            <p className="mt-0.5 truncate text-sm text-zinc-500 dark:text-zinc-400">
+              {subtitleLabel ? `${subtitleLabel}: ` : ""}
+              {item.subtitle}
+            </p>
+          )}
+          {item.endDate && (
+            <p className="mt-1.5 flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+              <CalendarClock className="h-4 w-4 shrink-0" aria-hidden />
+              {item.status === "EXPIRED" ? "Bitib" : "Bitir"}:
+              <span className="font-bold text-zinc-900 dark:text-white">{fmtDate(item.endDate)}</span>
+            </p>
+          )}
         </div>
-        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${badge.cls}`}>{badge.text}</span>
+        <DaysLeft {...daysOf(item)} />
       </div>
-      {item.endDate && (
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Bitmə tarixi: <span className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtDate(item.endDate)}</span>
-        </p>
-      )}
 
       {hasCreds && (
-        <div className="mt-3">
+        <div className="mt-4">
           <button
             type="button"
             onClick={() => setShowCreds((v) => !v)}
-            className="text-sm font-semibold text-violet-700 hover:underline dark:text-violet-300"
+            aria-expanded={showCreds}
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 px-3 py-2 text-sm font-bold text-zinc-800 transition hover:border-violet-400/60 dark:border-white/10 dark:text-zinc-100"
           >
-            {showCreds ? "Giriş məlumatlarını gizlət" : "Giriş məlumatlarını göstər"}
+            <KeyRound className="h-4 w-4 text-violet-600 dark:text-violet-300" aria-hidden />
+            Giriş məlumatları
+            <ChevronDown className={`h-4 w-4 transition ${showCreds ? "rotate-180" : ""}`} aria-hidden />
           </button>
           {showCreds && (
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -200,57 +224,49 @@ function SubscriptionCard({
       )}
 
       {item.renewal && (
-        <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-white/5">
+        <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-white/10">
           {openRenewal ? (
             <p className="flex items-center gap-2 text-sm font-semibold text-sky-700 dark:text-sky-300">
-              <Loader2 className="h-4 w-4 animate-spin" /> Yeniləmə emal olunur ({openRenewal.orderCode})
+              <Loader2 className="h-4 w-4 animate-spin" /> Uzadılır… ({openRenewal.orderCode})
             </p>
           ) : canRenew ? (
             <>
-              <p className="mb-2 text-sm font-semibold">Yenilə</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {/* "Uzat" — "Yenilə" siyahını yeniləyən düymə ilə qarışırdı. */}
+              <p className="text-sm font-black text-zinc-900 dark:text-white">Uzat</p>
+              <div className="mt-2.5 grid grid-cols-3 gap-2 sm:grid-cols-5">
                 {options.map((o) => {
                   const active = o.months === selected;
+                  const saving = savingPct(options, o);
                   return (
                     <button
                       key={o.months}
                       type="button"
+                      aria-pressed={active}
                       onClick={() => setSelected(o.months)}
-                      className={`rounded-xl border px-3 py-2 text-left transition ${
+                      className={`relative rounded-xl border px-2 py-2.5 text-center transition ${
                         active
-                          ? "border-violet-600 bg-violet-50 ring-1 ring-violet-600 dark:bg-violet-500/10"
-                          : "border-zinc-200 hover:border-zinc-300 dark:border-white/10"
+                          ? "border-violet-500 bg-violet-500/10 ring-1 ring-violet-500"
+                          : "border-zinc-200 hover:border-violet-400/50 dark:border-white/10"
                       }`}
                     >
-                      <span className="block text-sm font-bold">{monthsLabel(o.months)}</span>
-                      <span className="block text-sm">{o.priceAzn.toFixed(2)} ₼</span>
-                      <span className="block text-[11px] text-zinc-500">→ {fmtDate(o.newEndDate)}</span>
+                      {saving > 0 && (
+                        <span className="absolute -top-2 right-1.5 rounded-md bg-emerald-500 px-1.5 py-0.5 text-[10px] font-black tabular-nums text-white">
+                          −{saving}%
+                        </span>
+                      )}
+                      <span className="block text-sm font-black text-zinc-900 dark:text-white">{monthsLabel(o.months)}</span>
+                      <span className="mt-0.5 block text-xs font-semibold tabular-nums text-zinc-600 dark:text-zinc-400">
+                        {o.priceAzn.toFixed(2)} ₼
+                      </span>
                     </button>
                   );
                 })}
               </div>
-              {charge && (
-                <dl className="mt-3 space-y-1 rounded-xl bg-zinc-50 px-3 py-2.5 text-sm dark:bg-white/[0.04]">
-                  <div className="flex items-center justify-between gap-3 text-zinc-600 dark:text-zinc-400">
-                    <dt>Abunəlik</dt>
-                    <dd className="tabular-nums">{fmtCents(charge.priceCents)}</dd>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 text-zinc-600 dark:text-zinc-400">
-                    <dt>Xidmət haqqı ({CART_SERVICE_FEE_PCT}%)</dt>
-                    <dd className="tabular-nums">+{fmtCents(charge.serviceFeeCents)}</dd>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 border-t border-zinc-200 pt-1 font-bold text-zinc-900 dark:border-white/10 dark:text-white">
-                    <dt>Yekun</dt>
-                    <dd className="tabular-nums">{fmtCents(charge.payableCents)}</dd>
-                  </div>
-                  {charge.topUpCents > 0 && (
-                    <p className="pt-1 text-xs text-zinc-500">
-                      Kartdan minimum {fmtCents(charge.chargeCents)} tutulur — {fmtCents(charge.topUpCents)} balansına qayıdır.
-                    </p>
-                  )}
-                </dl>
+              {option && (
+                <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+                  Yeni bitmə tarixi: <span className="font-bold text-zinc-900 dark:text-white">{fmtDate(option.newEndDate)}</span>
+                </p>
               )}
-              {item.renewal.mode && <p className="mt-2 text-xs text-zinc-500">{MODE_NOTE[item.renewal.mode]}</p>}
               <button
                 type="button"
                 disabled={!option || paying}
@@ -260,9 +276,23 @@ function SubscriptionCard({
                 {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {charge ? `${fmtCents(charge.chargeCents)} kartla ödə` : "Müddət seç"}
               </button>
+              {/* Xidmət haqqı ödənişdən ƏVVƏL görünməlidir (CLAUDE.md) — 3 sətirlik cədvəl əvəzinə bir sətir. */}
+              {charge && (
+                <p className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">
+                  {fmtCents(charge.priceCents)} + {fmtCents(charge.serviceFeeCents)} xidmət haqqı ({CART_SERVICE_FEE_PCT}%)
+                  {item.renewal.mode ? ` · ${MODE_NOTE[item.renewal.mode]}` : ""}
+                </p>
+              )}
+              {charge && charge.topUpCents > 0 && (
+                <p className="mt-1 text-center text-xs text-zinc-500 dark:text-zinc-400">
+                  Kartdan minimum {fmtCents(charge.chargeCents)} tutulur — {fmtCents(charge.topUpCents)} balansına qayıdır.
+                </p>
+              )}
             </>
           ) : (
-            <p className="text-sm text-zinc-500">{BLOCKED_NOTE[blocked ?? "NOT_RENEWABLE"] ?? BLOCKED_NOTE.NOT_RENEWABLE}</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              {BLOCKED_NOTE[blocked ?? "NOT_RENEWABLE"] ?? BLOCKED_NOTE.NOT_RENEWABLE}
+            </p>
           )}
         </div>
       )}
@@ -470,7 +500,7 @@ export default function AbunelikClient({
         )}
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           {isProfile
-            ? "Bizdən WhatsApp ilə aldığın Netflix, Spotify, YouTube və PS Plus abunəliklərini, giriş məlumatlarını görmək və onlayn yeniləmək üçün WhatsApp nömrəni kodla təsdiqlə."
+            ? "Görmək və uzatmaq üçün WhatsApp nömrəni kodla təsdiqlə."
             : "WhatsApp nömrənə gələn kodla honsell.site hesabına daxil ol — abunəliklərin, giriş məlumatların və onlayn yeniləmə profilindədir."}
         </p>
         {!isProfile && ambiguous && (
@@ -566,35 +596,12 @@ export default function AbunelikClient({
   // ── Siyahı ──
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          {isProfile ? (
-            <h2 className="text-lg font-bold">WhatsApp ilə aldığın abunəliklər</h2>
-          ) : (
-            <h1 className="text-2xl font-bold">{data?.firstName ? `Salam, ${data.firstName}` : "Abunəliklərim"}</h1>
-          )}
-          {data?.phone && <p className="text-sm text-zinc-500">{data.phone}</p>}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-semibold dark:border-white/10"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Yenilə
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setError(null);
-              setPhase("phone");
-            }}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-semibold dark:border-white/10"
-          >
-            Başqa nömrə
-          </button>
-        </div>
-      </div>
+      {/* Profildə ayrıca başlıq yoxdur — kartlar səhifənin "Abunəliklərim" siyahısının davamıdır. */}
+      {isProfile ? (
+        <h2 className="sr-only">WhatsApp ilə aldığın abunəliklər</h2>
+      ) : (
+        <h1 className="text-2xl font-bold">{data?.firstName ? `Salam, ${data.firstName}` : "Abunəliklərim"}</h1>
+      )}
 
       {payBanner && (
         <div
@@ -616,18 +623,21 @@ export default function AbunelikClient({
         </div>
       ) : data && data.items.length === 0 ? (
         <div className={`${card} text-center`}>
-          <p className="font-semibold">Aktiv abunəlik tapılmadı</p>
-          <p className="mt-1 text-sm text-zinc-500">
-            Yeni abunəlik üçün{" "}
-            <Link href="/streaming/netflix" className="font-semibold text-violet-700 underline dark:text-violet-300">
+          <p className="font-black text-zinc-900 dark:text-white">WhatsApp ilə aldığın abunəlik yoxdur</p>
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            <Link
+              href="/streaming/netflix"
+              className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-bold text-zinc-800 transition hover:border-violet-400/60 dark:border-white/10 dark:text-zinc-100"
+            >
               Netflix
-            </Link>{" "}
-            və ya{" "}
-            <Link href="/music/spotify-premium" className="font-semibold text-violet-700 underline dark:text-violet-300">
+            </Link>
+            <Link
+              href="/music/spotify-premium"
+              className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-bold text-zinc-800 transition hover:border-violet-400/60 dark:border-white/10 dark:text-zinc-100"
+            >
               Spotify
-            </Link>{" "}
-            səhifəsinə bax.
-          </p>
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -643,12 +653,33 @@ export default function AbunelikClient({
         </div>
       )}
 
-      <p className="text-center text-xs text-zinc-500">
-        Ödənişlər bu hesaba yazılır ·{" "}
-        <Link href="/profile/orders" className="underline">
-          Sifarişlər
-        </Link>
-      </p>
+      {/* Nömrə + siyahını təzələ + nömrəni dəyiş — əvvəl başlıqda iki düymə idi ("Yenilə" uzatma ilə qarışırdı). */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <span>
+          WhatsApp nömrən: <span className="font-bold text-zinc-800 dark:text-zinc-200">{data?.phone ?? "—"}</span>
+        </span>
+        <span className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => void load()}
+            aria-label="Siyahını təzələ"
+            title="Siyahını təzələ"
+            className="grid h-9 w-9 place-items-center rounded-full transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setPhase("phone");
+            }}
+            className="rounded-full px-3 py-2 font-bold text-violet-700 transition hover:bg-violet-500/10 dark:text-violet-300"
+          >
+            Nömrəni dəyiş
+          </button>
+        </span>
+      </div>
     </div>
   );
 }

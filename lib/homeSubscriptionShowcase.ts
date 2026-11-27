@@ -1,4 +1,5 @@
-// Ana səhifənin Netflix və Spotify vitrinləri — hər plan × müddət (× nəfər) AYRICA kart.
+// Ana səhifənin Netflix və Spotify vitrinləri — hər plan (× nəfər) bir kart, müddətlər kartın içində.
+// Kart qapağı `visual`-dan koddan çəkilir (components/ShowcasePlanCards.tsx); `/streaming/netflix` də işlədir.
 //
 // SAF modul (DB yoxdur, client-safe): `app/page.tsx` aktiv + satılan paketləri ötürür, nəticə
 // serializable-dır (`unstable_cache`-ə düşür).
@@ -48,8 +49,41 @@ export type ShowcaseOffer = {
   href: string;
 };
 
-export type ShowcaseRow = { key: string; title: string; caption: string; offers: ShowcaseOffer[] };
-export type ShowcaseGroup = { key: string; title: string; rows: ShowcaseRow[] };
+export type ShowcaseDevice = "phone" | "tablet" | "computer" | "tv";
+
+/**
+ * Kartın "şəkil" sahəsi (matrisdəki PS Plus qapağı kimi) — şəkil faylı yox, koddan çəkilir.
+ * Planın fərqini göstərir: keyfiyyət (720p/4K), cihazlar (Yanımda-da TV üstündən xətlənir), nəfər sayı.
+ */
+export type ShowcaseVisual = {
+  /** Sol-üst nişan ("Otaq", "Öz hesabın", "Spotify"). */
+  badge: string;
+  /** İri yazı: keyfiyyət ("4K") və ya plan adı ("Evimdə VIP"). */
+  headline: string;
+  /** İri yazının altındakı qısa izah. */
+  tagline: string;
+  /** Boşdursa cihaz sırası göstərilmir. `allowed: false` → üstündən xətlənir. */
+  devices: Array<{ key: ShowcaseDevice; allowed: boolean }>;
+  /** İkonla göstərilən say: nəfər (otaq), ekran (hesab planı), hesab (Spotify). */
+  count: { n: number; label: string; kind: "people" | "screens" };
+  /** Eyni brendin planlarını rəng tonu ilə ayırır (base → top). */
+  tone: "base" | "mid" | "top";
+};
+
+export type ShowcaseRow = {
+  key: string;
+  title: string;
+  caption: string;
+  visual: ShowcaseVisual;
+  offers: ShowcaseOffer[];
+};
+export type ShowcaseGroup = {
+  key: string;
+  title: string;
+  /** Qrup başlığının yanında bir cümləlik izah ("Hesab bizim, otaq sənin"). */
+  hint: string;
+  rows: ShowcaseRow[];
+};
 
 /** "Aralarındakı fərq nədir?" modalı: video (varsa) + plan müqayisəsi (həmişə). */
 export type ShowcaseGuidePlan = { name: string; points: VariantFeature[] };
@@ -86,6 +120,46 @@ const NETFLIX_CAPTIONS: Record<string, string> = {
   evimde: "TV daxil bütün cihazlar",
   evimdevip: "TV daxil · ən stabil",
 };
+
+/** Kart vizualı (variant slug-ı üzrə). Hesab planında ekran sayı Netflix-in rəsmi planlarıdır. */
+const NETFLIX_ART: Record<string, { headline: string; tagline: string; screens?: number; tone: ShowcaseVisual["tone"] }> = {
+  basic: { headline: "720p", tagline: "HD keyfiyyət", screens: 1, tone: "base" },
+  standart: { headline: "1080p", tagline: "Tam HD", screens: 2, tone: "mid" },
+  premium: { headline: "4K", tagline: "Ultra HD + HDR", screens: 4, tone: "top" },
+  yanimda: { headline: "Yanımda", tagline: "TV-siz, hər yerdə", tone: "base" },
+  evimde: { headline: "Evimdə", tagline: "TV daxil", tone: "mid" },
+  evimdevip: { headline: "Evimdə VIP", tagline: "TV daxil · ən stabil", tone: "top" },
+};
+
+const DEVICE_ORDER: ShowcaseDevice[] = ["phone", "tablet", "computer", "tv"];
+
+function netflixVisual(
+  slug: string,
+  kind: "hesab" | "otaq",
+  seatCount: number,
+  devices: string[],
+): ShowcaseVisual {
+  const art = NETFLIX_ART[slug] ?? { headline: slug, tagline: "", tone: "base" as const };
+  if (kind === "hesab") {
+    const screens = art.screens ?? 1;
+    return {
+      badge: "Öz hesabın",
+      headline: art.headline,
+      tagline: art.tagline,
+      devices: [],
+      count: { n: screens, label: `${screens} ekran`, kind: "screens" },
+      tone: art.tone,
+    };
+  }
+  return {
+    badge: "Otaq",
+    headline: art.headline,
+    tagline: art.tagline,
+    devices: DEVICE_ORDER.map((key) => ({ key, allowed: devices.includes(key) })),
+    count: { n: seatCount, label: `${seatCount} nəfər`, kind: "people" },
+    tone: art.tone,
+  };
+}
 
 /** Bələdçidə hesab planlarının bütün bulletləri yox — fərqi göstərən üçü. */
 const ACCOUNT_GUIDE_POINT = /^(Çözünürlük|Eyni anda|Kimlər üçün)/;
@@ -160,12 +234,21 @@ function seatRows(
   caption: string,
   products: ShowcaseInputProduct[],
   hrefFor: (p: ShowcaseInputProduct) => string,
+  visualFor: (seatCount: number) => ShowcaseVisual,
 ): ShowcaseRow[] {
   const seatCounts = Array.from(new Set(products.map(seats))).sort((a, b) => a - b);
   return seatCounts.flatMap((n) => {
     const offers = buildShowcaseOffers(products.filter((p) => seats(p) === n), hrefFor);
     if (offers.length === 0) return [];
-    return [{ key: `${keyBase}-${n}`, title: n > 1 ? `${title} · ${n} nəfər` : title, caption, offers }];
+    return [
+      {
+        key: `${keyBase}-${n}`,
+        title: n > 1 ? `${title} · ${n} nəfər` : title,
+        caption,
+        visual: visualFor(n),
+        offers,
+      },
+    ];
   });
 }
 
@@ -207,6 +290,7 @@ export function buildNetflixShowcase(
       NETFLIX_CAPTIONS[v.slug] ?? "",
       account.filter((p) => String(meta(p).variantSlug ?? "").trim() === v.slug),
       (p) => `${NETFLIX_ACCOUNT_STORE_PATH}?mehsul=${encodeURIComponent(p.id)}`,
+      (n) => netflixVisual(v.slug, "hesab", n, v.devices),
     ),
   }));
   const cabinetByVariant = cabinetVariants.map((v) => ({
@@ -217,6 +301,7 @@ export function buildNetflixShowcase(
       NETFLIX_CAPTIONS[v.slug] ?? "",
       cabinetFor(v.slug),
       (p) => `${NETFLIX_STORE_PATH}?secim=kabinet&paket=${v.slug}&mehsul=${encodeURIComponent(p.id)}`,
+      (n) => netflixVisual(v.slug, "otaq", n, v.devices),
     ),
   }));
   const accountRows = accountByVariant.flatMap((x) => x.rows);
@@ -252,8 +337,8 @@ export function buildNetflixShowcase(
       guide: null,
     },
     [
-      { key: "hesab", title: "Öz hesabına plan", rows: accountRows },
-      { key: "otaq", title: "Sənə aid otaq", rows: cabinetRows },
+      { key: "hesab", title: "Öz hesabına plan", hint: "Plan sənin Netflix hesabına aktivləşir", rows: accountRows },
+      { key: "otaq", title: "Sənə aid otaq", hint: "Hesab bizim, ayrıca profil (otaq) sənin", rows: cabinetRows },
     ],
   );
   if (!brand) return null;
@@ -269,16 +354,24 @@ export function buildNetflixShowcase(
 
 export function buildSpotifyShowcase(products: ShowcaseInputProduct[]): ShowcaseBrand | null {
   const spotify = products.filter((p) => isShowcaseSpotifyProduct(p.type, p.metadata));
-  const rows = SPOTIFY_PLAN_TIERS.flatMap((tier) => {
+  const tones: ShowcaseVisual["tone"][] = ["base", "mid", "top"];
+  const rows = SPOTIFY_PLAN_TIERS.flatMap((tier, i) => {
     const tierProducts = spotify.filter((p) => String(meta(p).planTier ?? "").toUpperCase() === tier);
     const slots = Math.max(1, ...tierProducts.map((p) => Number(meta(p).accountSlots) || 1));
     const offers = buildShowcaseOffers(
       tierProducts,
       (p) => `${SPOTIFY_STORE_PATH}?mehsul=${encodeURIComponent(p.id)}`,
     );
-    return offers.length > 0
-      ? [{ key: `spotify-${tier.toLowerCase()}`, title: SPOTIFY_PLAN_LABELS[tier], caption: `${slots} hesab`, offers }]
-      : [];
+    if (offers.length === 0) return [];
+    const visual: ShowcaseVisual = {
+      badge: "Spotify",
+      headline: SPOTIFY_PLAN_LABELS[tier],
+      tagline: "Premium",
+      devices: [],
+      count: { n: slots, label: `${slots} hesab`, kind: "people" },
+      tone: tones[Math.min(i, tones.length - 1)],
+    };
+    return [{ key: `spotify-${tier.toLowerCase()}`, title: SPOTIFY_PLAN_LABELS[tier], caption: `${slots} hesab`, visual, offers }];
   });
 
   return finishBrand(
@@ -289,7 +382,7 @@ export function buildSpotifyShowcase(products: ShowcaseInputProduct[]): Showcase
       href: SPOTIFY_STORE_PATH,
       guide: null,
     },
-    [{ key: "planlar", title: "", rows }],
+    [{ key: "planlar", title: "", hint: "", rows }],
   );
 }
 

@@ -125,6 +125,28 @@ const dup = buildShowcaseOffers(
 );
 assert.deepEqual(dup.map((o) => [o.id, o.best]), [["b", false]]);
 
+// Kart qapağı (visual): hesab planı keyfiyyət + ekran, otaq cihaz + nəfər, Spotify hesab sayı.
+const premium = nf.groups[0].rows[1].visual;
+assert.deepEqual([premium.badge, premium.headline, premium.count.n, premium.count.kind, premium.devices.length], [
+  "Öz hesabın",
+  "4K",
+  4,
+  "screens",
+  0,
+]);
+const tvOf = (row: (typeof nf.groups)[number]["rows"][number]) => row.visual.devices.find((d) => d.key === "tv")?.allowed;
+assert.equal(tvOf(nf.groups[1].rows[0]), false); // Yanımda: TV yox
+assert.equal(tvOf(nf.groups[1].rows[2]), true); // Evimdə VIP: TV var
+assert.deepEqual(nf.groups[1].rows[1].visual.count, { n: 2, label: "2 nəfər", kind: "people" });
+assert.deepEqual(
+  nf.groups.map((g) => g.hint.length > 0),
+  [true, true],
+);
+assert.deepEqual(sp.groups[0].rows.map((r) => [r.visual.headline, r.visual.count.n]), [
+  ["Individual", 1],
+  ["Family", 5],
+]);
+
 // Heç bir paket yoxdursa brend göstərilmir.
 assert.deepEqual(buildHomeSubscriptionShowcase([]), []);
 

@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { isAbunelikEnabled, isPhoneVerificationFresh } from "@/lib/abunelik/session";
 import { formatAzPhone, normalizeAzPhone } from "@/lib/abunelik/phoneFormat";
 import AbunelikClient from "@/components/abunelik/AbunelikClient";
-import SiteSubscriptions from "./SiteSubscriptions";
+import { PastSubscriptions, PsPlusPromo, SiteActiveSubscriptions, loadSiteSubscriptions } from "./SiteSubscriptions";
 import ProfilePageHeader from "@/components/profile/ProfilePageHeader";
 
 export const dynamic = "force-dynamic";
@@ -29,14 +29,14 @@ export default async function ProfileAbunelikPage() {
   const crmEnabled = isAbunelikEnabled();
   const verified = !!user.verifiedPhone && isPhoneVerificationFresh(user.phoneVerifiedAt);
   const suggested = normalizeAzPhone(user.verifiedPhone ?? user.phone)?.e164;
+  const site = await loadSiteSubscriptions(user);
+  // Sıra (2026-11 redizayn): aktivlər → WhatsApp ilə alınanlar → bitmişlər → PS Plus təklifi.
+  // Əvvəl boş "PS Plus" bloku ən yuxarıda idi və əsas (CRM) abunəlikləri aşağı itələyirdi.
   return (
-    <div className="space-y-8">
-      <ProfilePageHeader
-        title="Abunəliklərim"
-        description="Saytdan və WhatsApp ilə aldığın bütün abunəliklər, bitmə tarixləri və yeniləmə bir yerdə."
-      />
+    <div className="space-y-5">
+      <ProfilePageHeader title="Abunəliklərim" />
 
-      <SiteSubscriptions />
+      <SiteActiveSubscriptions data={site} />
 
       {crmEnabled && (
         <section id="whatsapp" className="scroll-mt-28">
@@ -47,6 +47,9 @@ export default async function ProfileAbunelikPage() {
           />
         </section>
       )}
+
+      <PastSubscriptions rows={site.past} />
+      {!site.hasActivePsPlus && <PsPlusPromo />}
     </div>
   );
 }

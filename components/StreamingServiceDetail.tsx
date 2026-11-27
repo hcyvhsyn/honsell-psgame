@@ -27,6 +27,9 @@ import { loadDbStreamingTiers } from "@/lib/streamingDbGroups";
 import { ACCESS_MODE_META, accessModeFromSelection } from "@/lib/streamingAccess";
 import { isSellableServiceProduct } from "@/lib/storeScope";
 import type { StreamingGroupChoice } from "@/lib/streamingGroups";
+import { NETFLIX_GROUP_CODE } from "@/lib/streamingAccess";
+import { buildNetflixShowcase } from "@/lib/homeSubscriptionShowcase";
+import NetflixLanding from "@/components/NetflixLanding";
 
 type Props = {
   svc: StreamingServiceMeta;
@@ -368,6 +371,18 @@ export default async function StreamingServiceDetail({
   // göstərilir; "kabinet" verilibsə kabinet landing açılır.
   const groupChooser = group?.chooser ?? null;
   const showGroupChooser = !!groupChooser && !activeVariant && groupSelection !== "kabinet";
+  // Netflix seçim addımı vizual landing-dir (NetflixLanding): ana səhifə vitrininin datası və kartları.
+  // Netflix paketi yoxdursa (null) köhnə iki kartlı seçim ekranı qalır.
+  const netflixShowcase =
+    showGroupChooser && svc.slug === "netflix"
+      ? buildNetflixShowcase(products, {
+          guideVideoUrl: (
+            await prisma.streamingPlatform
+              .findUnique({ where: { code: NETFLIX_GROUP_CODE }, select: { guideVideoUrl: true } })
+              .catch(() => null)
+          )?.guideVideoUrl,
+        })
+      : null;
   const showGroupLanding = groupLanding.length > 0 && !activeVariant && !showGroupChooser;
   // Netflix otaq addımı: paket + nəfər + müddət bir səhifədədir (müqayisə səhifəsi yoxdur).
   const showCabinetPicker = showGroupLanding && svc.slug === "netflix";
@@ -513,6 +528,8 @@ export default async function StreamingServiceDetail({
           <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 p-8 text-center text-sm text-zinc-400">
             {svc.label} üçün aktiv plan yoxdur.
           </div>
+        ) : netflixShowcase ? (
+          <NetflixLanding brand={netflixShowcase} />
         ) : showGroupChooser ? (
           <StreamingGroupChooser
             serviceLabel={svc.label}

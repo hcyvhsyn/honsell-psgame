@@ -546,7 +546,8 @@ const getHomePageData = unstable_cache(
   };
   },
   // v2: `popularGames` əlavə olundu — köhnə keş dəyərində bu sahə yoxdur.
-  ["home-page-data-v2"],
+  // v3: vitrin sətrinə `visual`, qrupa `hint` əlavə olundu (kart qapağı) — köhnə dəyər səhifəni sındırırdı.
+  ["home-page-data-v3"],
   { revalidate: 1800, tags: ["home", "service-bundles"] },
 );
 

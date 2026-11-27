@@ -101,8 +101,13 @@ ağır şəkillər** idi. Ölçmə: `/oyunlar` mobil — blur elementi 142 → 2
   `/profile/subscriptions` → `/profile/abunelikler` (e-poçtlar), `/profile/hediyye-kart` → `/profile/wallet#hediyye-kart`
   (admin çatdırılma e-poçtu), `/profile/accounts` → `/profile/profiles`. Yeni profil səhifəsi →
   [ProfilePageHeader](components/profile/ProfilePageHeader.tsx) + açıq/qaranlıq sinifləri birlikdə yaz.
-- **Abunəliklərim** (`/profile/abunelikler`): yuxarıda saytdan alınanlar ([SiteSubscriptions](app/profile/abunelikler/SiteSubscriptions.tsx),
-  PS Plus/EA Play avtomatik yeniləmə), aşağıda WhatsApp ilə alınanlar (`AbunelikClient mode="profile"`, h2 bölmə).
+- **Abunəliklərim** (`/profile/abunelikler`, 2026-11 redizayn): sıra — saytdan alınan aktivlər
+  (`SiteActiveSubscriptions`, [SiteSubscriptions](app/profile/abunelikler/SiteSubscriptions.tsx), PS Plus/EA Play avtomatik
+  uzanma) → WhatsApp ilə alınanlar (`AbunelikClient mode="profile"`, ayrıca başlıq yoxdur) → bütün bitmişlər bir `<details>`
+  blokunda → aktiv PS Plus yoxdursa ən aşağıda bir sətir təklif. Kart qabığı **`honsell-glow-card`** (globals.css — navbar-ın
+  bənövşəyi çərçivə + kölgəsi, blur-suz; `bg-*`/`border-*` ilə üst-üstə yazma). Ortaq hissələr
+  [subscriptionUi](components/profile/subscriptionUi.tsx): brend ikonu, sağda iri "N gün qalıb". Yeniləmə düyməsi **"Uzat"**
+  adlanır ("Yenilə" siyahını təzələyən düymə ilə qarışırdı); xidmət haqqı düymənin altında bir sətirdir — silmə.
 - **Profildə şəxsi məlumat**: referal sahibinə dəvət olunanın tam e-poçtu və xərci GÖSTƏRİLMİR (ad / `ab***@domen`
   + alış sayı). "Profil natamamdır" yalnız ad + telefona görədir — doğum tarixi/cinsiyyət heç yerdə işlənmir.
 - Müştəri UI-da pul: `fmtManat` ("₼"); `fmtAzn` ("AZN") admin və e-poçt üçündür ([lib/format.ts](lib/format.ts)).
@@ -164,8 +169,14 @@ Tək mənbə: [lib/streamingAccess.ts](lib/streamingAccess.ts) (client-safe). Ad
 - **Ana səhifə vitrini (2026-11)**: [lib/homeSubscriptionShowcase.ts](lib/homeSubscriptionShowcase.ts) (saf) +
   [HomeSubscriptionShowcase](components/HomeSubscriptionShowcase.tsx) (server komponenti, şəkilsiz). Netflix: hər plan
   (Basic/Standart/Premium, Yanımda/Evimdə/Evimdə VIP) × nəfər bir sətirdir; Spotify: Individual/Duo/Family.
-  **Ana səhifədə hər sətir BİR yığcam kartdır** ("ayda X ₼-dan" + müddətlər, 2026-11 — əvvəl hər müddət ayrıca kart idi
-  və Netflix bloku telefonda ~2.5 ekran tuturdu). Kart səbətə atmır — sətrin ilk müddətinin `?mehsul=<id>` linkidir,
+  **Ana səhifədə hər sətir BİR kartdır** ("ayda X ₼-dan" + müddətlər, 2026-11 — əvvəl hər müddət ayrıca kart idi
+  və Netflix bloku telefonda ~2.5 ekran tuturdu). **Kart dizaynı "Abunəliklər" matrisi ilə eynidir**
+  ([ShowcasePlanCards](components/ShowcasePlanCards.tsx), 2026-11): kvadrat qapaq + nişan, ad, qiymət, dəyirmi düymə;
+  qapaq şəkil FAYLI deyil, sətrin `visual`-ından koddan çəkilir (keyfiyyət 720p/4K, cihazlar — Yanımda-da TV üstündən
+  xətlənir, nəfər/ekran sayı). Brend işarəsi `public/brands/*.webp` (1–3 KB). Telefonda hər qrup üfüqi lentdir.
+  Qapaq rəngləri `style`-dadır — açıq tema `.text-white`-ı tündə çevirir, qapaq isə tünd qalmalıdır.
+  ⚠️ Vitrin datası `getHomePageData` keşindədir — sətrin formasını dəyişəndə keş açarını (`home-page-data-vN`) artır,
+  yoxsa deploy-dan sonra köhnə keş dəyəri səhifəni sındırır. Kart səbətə atmır — sətrin ilk müddətinin `?mehsul=<id>` linkidir,
   alış səhifəsi həmin paketi seçili açır, müddəti müştəri orada dəyişir
   (`NetflixCabinetPicker`/`NetflixAccountPlanCard` server-dən, `SpotifyPlanPicker` mount-da URL-dən — music səhifəsi
   statik qalsın deyə). Bu paketlər matrisə düşmür (`isNetflixProduct`, `isShowcaseSpotifyProduct`).
@@ -175,6 +186,12 @@ Tək mənbə: [lib/streamingAccess.ts](lib/streamingAccess.ts) (client-safe). Ad
   ([HomePlanGuide](components/HomePlanGuide.tsx)): YouTube videosu `StreamingPlatform(NETFLIX).guideVideoUrl`-dandır
   (admin → Netflix → "Ad, təsvir, ünvan"), boşdursa yalnız `STREAMING_VARIANTS` müqayisəsi; iframe yalnız açılanda.
   Test: `npm run test:homeshowcase`.
+- **`/streaming/netflix` seçim addımı** ([NetflixLanding](components/NetflixLanding.tsx), 2026-11): əvvəl iki mətn kartı
+  idi və müştəri "otaq" ilə "öz hesab"ın fərqini anlamırdı. İndi: iki yol illüstrasiya ilə ("Kim izləyir?" ekranı /
+  e-poçt → plan aktivdir), bütün planlar ana səhifə kartları ilə (`buildNetflixShowcase` — eyni data və linklər),
+  "Aralarındakı fərq nədir?" modalı, müqayisə cədvəli, addımlar. Netflix paketi yoxdursa köhnə `StreamingGroupChooser`
+  qalır (HBO Max kimi admin xidmətləri də onu işlədir). Mətndəki faktlar `StreamingPlanPicker` şərtlərindən və
+  `STREAMING_VARIANTS`-dandır — çatdırılma vaxtı kimi yoxlanmamış iddia yazma.
 - **Netflix kilidlidir** (`isLockedStreamingGroup`): vitrini koddadır (`lib/streamingGroups.ts`), planları CRM
   xəritəsinə bağlıdır (`lib/crmNetflix.ts`) — admin plan əlavə/silə bilməz, yalnız qiymət/cihaz/stok.
   DB sütunları boş olsa da `resolvePlatformGroup` Netflix kodlarını tanıyır.
