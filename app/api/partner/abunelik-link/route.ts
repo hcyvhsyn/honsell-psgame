@@ -5,14 +5,16 @@ import { normalizeAzPhone } from "@/lib/abunelik/phoneFormat";
 import { ABUNELIK_LINK_TTL_SECONDS, createLinkToken } from "@/lib/abunelik/token";
 import { isAbunelikConfigured, isAbunelikEnabled } from "@/lib/abunelik/session";
 import { ensureCrmAccounts } from "@/lib/crmAccounts";
+import { parseRenewRef } from "@/lib/abunelik/renewRef";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
  * CRM → mağaza: WhatsApp-da yazan müştəriyə göndəriləcək /abunelik birbaşa giriş linki (24 saat).
- * Body: { phone, name?, landing? }. `landing: "home"` — abunəliyi olmayan müştəri: link girişdən sonra boş
- * "Abunəliklərim" yox, ana səhifəyə (Netflix / Spotify / oyunlar) aparır (`&to=home`, bax /abunelik/giris).
+ * Body: { phone, name?, landing?, renewRef? }. `landing: "home"` — abunəliyi olmayan müştəri: link girişdən sonra
+ * boş "Abunəliklərim" yox, ana səhifəyə (Netflix / Spotify / oyunlar) aparır (`&to=home`, bax /abunelik/giris).
+ * `renewRef` — CRM ödəniş xatırlatması ({odenisLinki}): Abunəliklərim-də həmin abunəliyin kartı açılır (`&uzat=`).
  * /abunelik söndürülübsə 409 DISABLED — CRM mesaj göndərmir (və cooldown yazmır).
  */
 export async function POST(req: Request) {
@@ -21,7 +23,9 @@ export async function POST(req: Request) {
   if (!isAbunelikEnabled() || !isAbunelikConfigured()) {
     return NextResponse.json({ error: "/abunelik söndürülüb", code: "DISABLED" }, { status: 409 });
   }
-  const body = (await req.json().catch(() => null)) as { phone?: string; name?: string; landing?: string } | null;
+  const body = (await req.json().catch(() => null)) as
+    | { phone?: string; name?: string; landing?: string; renewRef?: string }
+    | null;
   const phone = normalizeAzPhone(body?.phone);
   if (!phone) return NextResponse.json({ error: "Telefon düzgün deyil" }, { status: 400 });
   // Nömrənin sayt hesabı yoxdursa indi yaranır (CRM telefon hesabı) — link açılanda müştəri birbaşa
@@ -32,7 +36,8 @@ export async function POST(req: Request) {
     console.error("[partner/abunelik-link] hesab yaradılmadı", e);
   }
   const token = createLinkToken(phone);
-  const to = body?.landing === "home" ? "&to=home" : "";
+  const renewRef = parseRenewRef(body?.renewRef);
+  const to = renewRef ? `&uzat=${encodeURIComponent(renewRef)}` : body?.landing === "home" ? "&to=home" : "";
   return NextResponse.json(
     {
       ok: true,

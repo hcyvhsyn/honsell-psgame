@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CalendarClock, Check, ChevronDown, Copy, Eye, EyeOff, KeyRound, Loader2, RefreshCw } from "lucide-react";
 import TurnstileWidget from "@/components/auth/TurnstileWidget";
 import { renewalCharge } from "@/lib/abunelik/charge";
+import { parseRenewRef } from "@/lib/abunelik/renewRef";
 import { CART_SERVICE_FEE_PCT } from "@/lib/cartServiceFee";
 import { DaysLeft, SubBrandIcon, subBrandOf, type DaysTone } from "@/components/profile/subscriptionUi";
 
@@ -152,11 +153,14 @@ function SubscriptionCard({
   openRenewal,
   onPay,
   paying,
+  focused = false,
 }: {
   item: Item;
   openRenewal: Renewal | null;
   onPay: (item: Item, option: Option) => void;
   paying: boolean;
+  /** WhatsApp ödəniş linki (?uzat=<ref>) bu abunəlik üçündür — kart vurğulanır */
+  focused?: boolean;
 }) {
   const options = useMemo(() => item.renewal?.options ?? [], [item.renewal?.options]);
   const [selected, setSelected] = useState<number | null>(options[0]?.months ?? null);
@@ -174,7 +178,15 @@ function SubscriptionCard({
   const subtitleLabel = SUBTITLE_LABEL[item.kind];
 
   return (
-    <article className={card}>
+    <article
+      id={`abunelik-${item.ref}`}
+      className={`${card} ${focused ? "scroll-mt-24 ring-2 ring-violet-500 dark:ring-violet-400" : ""}`}
+    >
+      {focused && canRenew && (
+        <p className="mb-3 text-sm font-bold text-violet-700 dark:text-violet-300">
+          Müddəti seç və kartla ödə — abunəliyin dərhal uzadılır.
+        </p>
+      )}
       <div className="flex items-start gap-3">
         <SubBrandIcon brand={subBrandOf(item.title, item.category)} />
         <div className="min-w-0 flex-1">
@@ -329,6 +341,7 @@ export default function AbunelikClient({
   const [loading, setLoading] = useState(false);
   const [payingRef, setPayingRef] = useState<string | null>(null);
   const [payBanner, setPayBanner] = useState<{ kind: "ok" | "err" | "done"; text: string; txId?: string } | null>(null);
+  const [focusRef, setFocusRef] = useState<string | null>(null);
   const pollRef = useRef(0);
 
   // Ödənişdən qayıdış: ?odenis=ugurlu|xeta&o=<txId>
@@ -341,7 +354,11 @@ export default function AbunelikClient({
     // WhatsApp birbaşa giriş linkindən qayıdış (/abunelik/giris)
     if (sp.get("link") === "kohne") setError("Giriş linkinin vaxtı keçib. Nömrəni yazıb WhatsApp kodu ilə daxil ol.");
     if (sp.get("giris") === "coxlu") setAmbiguous(true);
-    if (odenis || sp.get("link") || sp.get("giris")) window.history.replaceState(null, "", window.location.pathname);
+    // CRM ödəniş xatırlatmasındakı link (?uzat=<ref>) — həmin abunəliyin kartı vurğulanır
+    setFocusRef(parseRenewRef(sp.get("uzat")));
+    if (odenis || sp.get("link") || sp.get("giris") || sp.get("uzat")) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
   }, []);
 
   useEffect(() => {
@@ -481,6 +498,14 @@ export default function AbunelikClient({
     },
     [load],
   );
+
+  // Siyahı gələndə vurğulanan karta sürüşdür (bir dəfə)
+  const scrolledRef = useRef(false);
+  useEffect(() => {
+    if (!focusRef || scrolledRef.current || !data?.items.some((x) => x.ref === focusRef)) return;
+    scrolledRef.current = true;
+    document.getElementById(`abunelik-${focusRef}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [focusRef, data?.items]);
 
   const openByRef = useMemo(() => {
     const m = new Map<string, Renewal>();
@@ -648,6 +673,7 @@ export default function AbunelikClient({
               openRenewal={openByRef.get(item.ref) ?? null}
               onPay={startPayment}
               paying={payingRef === item.ref}
+              focused={item.ref === focusRef}
             />
           ))}
         </div>

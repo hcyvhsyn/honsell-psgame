@@ -4,6 +4,7 @@ import { verifyLinkToken } from "@/lib/abunelik/token";
 import { isAbunelikConfigured, isAbunelikEnabled } from "@/lib/abunelik/session";
 import { loginByPhone } from "@/lib/abunelik/login";
 import { setSessionCookie } from "@/lib/auth";
+import { parseRenewRef } from "@/lib/abunelik/renewRef";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,7 @@ const PROFILE_PATH = "/profile/abunelikler";
 /**
  * `?to=` — girişdən sonra hara (imzasız, ona görə yalnız bu siyahıdan; naməlum dəyər → profil).
  * `home`: abunəliyi olmayan müştəri (CRM `portal_link_general`) — ana səhifədə Netflix / Spotify / PS oyunları.
+ * `?uzat=<ref>` (CRM ödəniş xatırlatması, {odenisLinki}) — profildə həmin abunəliyin kartı (lib/abunelik/renewRef.ts).
  */
 const LANDING_PATHS: Record<string, string> = { home: "/" };
 export const dynamic = "force-dynamic";
@@ -42,7 +44,11 @@ export async function GET(req: Request) {
   const phone = { e164: payload.e164, phone9: payload.p9 };
   const login = await loginByPhone(req, phone);
   if (login.account === "ambiguous") return redirect("/abunelik?giris=coxlu");
-  const res = redirect(LANDING_PATHS[params.get("to") ?? ""] ?? PROFILE_PATH);
+  const renewRef = parseRenewRef(params.get("uzat"));
+  const target = renewRef
+    ? `${PROFILE_PATH}?uzat=${encodeURIComponent(renewRef)}`
+    : (LANDING_PATHS[params.get("to") ?? ""] ?? PROFILE_PATH);
+  const res = redirect(target);
   if (login.newSession && login.userId) setSessionCookie(res, login.userId);
   return res;
 }

@@ -1159,7 +1159,9 @@ daxil olmuş istifadəçini profilə yönləndirir. Giriş səhifəsində "Whats
 - **WhatsApp birbaşa giriş linki:** CRM yazan hər müştəri üçün 7 gündə bir `POST /api/partner/abunelik-link` ilə link istəyir →
   `/abunelik/giris?t=<token>` (24 saat, `createLinkToken`, `k: "link"`). Route müştərini `loginByPhone` ilə nömrəyə
   bağlı sayt hesabına daxil edir və tokensiz `/profile/abunelikler`-ə yönləndirir (abunəliyi olmayan müştəri — CRM
-  `landing: "home"` → `&to=home` → ana səhifə; `to` imzasızdır, yalnız `LANDING_PATHS` siyahısı). WhatsApp/Facebook önizləmə botları
+  `landing: "home"` → `&to=home` → ana səhifə; `to` imzasızdır, yalnız `LANDING_PATHS` siyahısı; CRM ödəniş
+  xatırlatması `{odenisLinki}` → `renewRef` → `&uzat=<ref>` → `/profile/abunelikler?uzat=` — həmin abunəliyin kartı
+  vurğulanır, `parseRenewRef` [lib/abunelik/renewRef.ts](lib/abunelik/renewRef.ts)). WhatsApp/Facebook önizləmə botları
   giriş etmir (user-agent). Vaxtı keçmiş → `/abunelik?link=kohne`. Ödəniş qayıdışı: `/profile/abunelikler?odenis=…`.
 - Funksiya **default açıqdır**; `ABUNELIK_ENABLED=0` söndürür (səhifə "Tezliklə", API 404, CRM linki 409 DISABLED).
   Əvvəl `=1` tələb edirdi, prod-da təyin olunmadığı üçün profil "Tezliklə" göstərir, CRM linkləri getmirdi.
