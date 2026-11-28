@@ -11,7 +11,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * CRM → mağaza: WhatsApp-da yazan müştəriyə göndəriləcək /abunelik birbaşa giriş linki (24 saat).
- * Body: { phone, name? }. /abunelik söndürülübsə 409 DISABLED — CRM mesaj göndərmir (və cooldown yazmır).
+ * Body: { phone, name?, landing? }. `landing: "home"` — abunəliyi olmayan müştəri: link girişdən sonra boş
+ * "Abunəliklərim" yox, ana səhifəyə (Netflix / Spotify / oyunlar) aparır (`&to=home`, bax /abunelik/giris).
+ * /abunelik söndürülübsə 409 DISABLED — CRM mesaj göndərmir (və cooldown yazmır).
  */
 export async function POST(req: Request) {
   const denied = requirePartnerKey(req);
@@ -19,7 +21,7 @@ export async function POST(req: Request) {
   if (!isAbunelikEnabled() || !isAbunelikConfigured()) {
     return NextResponse.json({ error: "/abunelik söndürülüb", code: "DISABLED" }, { status: 409 });
   }
-  const body = (await req.json().catch(() => null)) as { phone?: string; name?: string } | null;
+  const body = (await req.json().catch(() => null)) as { phone?: string; name?: string; landing?: string } | null;
   const phone = normalizeAzPhone(body?.phone);
   if (!phone) return NextResponse.json({ error: "Telefon düzgün deyil" }, { status: 400 });
   // Nömrənin sayt hesabı yoxdursa indi yaranır (CRM telefon hesabı) — link açılanda müştəri birbaşa
@@ -30,10 +32,11 @@ export async function POST(req: Request) {
     console.error("[partner/abunelik-link] hesab yaradılmadı", e);
   }
   const token = createLinkToken(phone);
+  const to = body?.landing === "home" ? "&to=home" : "";
   return NextResponse.json(
     {
       ok: true,
-      url: `${SITE_URL}/abunelik/giris?t=${encodeURIComponent(token)}`,
+      url: `${SITE_URL}/abunelik/giris?t=${encodeURIComponent(token)}${to}`,
       expiresAt: new Date(Date.now() + ABUNELIK_LINK_TTL_SECONDS * 1000).toISOString(),
     },
     { headers: { "Cache-Control": "no-store" } },
